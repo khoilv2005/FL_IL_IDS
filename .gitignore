@@ -1,0 +1,14 @@
+# Python virtual environments
+venv/
+benv/
+
+# IDE and editor folders
+.claude/
+
+# Data files
+*.csv
+*.npz
+
+/data
+
+/__pycache__
