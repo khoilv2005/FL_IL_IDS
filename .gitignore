@@ -1,14 +1,11 @@
-# Python virtual environments
-venv/
-benv/
-
-# IDE and editor folders
-.claude/
+# Data files - QUAN TRỌNG
 /prepare_data/data/
-# Data files
-*.csv
 *.npz
+*.pth
+*.pt
 
-/data
+# Results
+/results/
+/checkpoints/
 
-/__pycache__
+/venv
