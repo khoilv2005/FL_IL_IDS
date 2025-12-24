@@ -4,7 +4,7 @@ benv/
 
 # IDE and editor folders
 .claude/
-
+/prepare_data/data/
 # Data files
 *.csv
 *.npz
