@@ -1,0 +1,15 @@
+{
+  "title": "FedLearning-khoilv2005-Modules-v1",
+  "id": "khoilv2005/ai4fids-fedlearning-modules",
+  "licenses": [
+    {
+      "name": "CC0-1.0"
+    }
+  ],
+  "keywords": [
+    "federated-learning",
+    "ai4fids",
+    "cybersecurity",
+    "modules"
+  ]
+}

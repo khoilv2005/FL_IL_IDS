@@ -1,10 +1,10 @@
 """
-Federated Client with Multi-GPU Support
+Federated Client with Multi-GPU Support and Strategy Pattern.
 """
 
 import contextlib
 from collections import OrderedDict
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Dict, Any
 
 import torch
 import torch.nn as nn
@@ -15,12 +15,15 @@ try:
 except ImportError:
     from torch.cuda.amp import autocast as torch_autocast, GradScaler
 
+from ..core import BaseTrainer
 
-class FederatedClientMultiGPU:
+
+class FederatedClient:
     """
-    Client hỗ trợ Multi-GPU:
+    Client hỗ trợ Multi-GPU và Strategy Pattern:
     - Data giữ trên CPU
     - Khi train, load batch lên GPU được chỉ định
+    - Training logic delegated to Trainer strategy
     """
     
     def __init__(self, client_id: int, X_train: torch.Tensor, y_train: torch.Tensor):
@@ -30,11 +33,12 @@ class FederatedClientMultiGPU:
         self.num_samples = len(y_train)
         
         # Model sẽ được set sau khi assign GPU
-        self.model = None
-        self.device = None
+        self.model: Optional[nn.Module] = None
+        self.device: Optional[str] = None
+        self.use_amp: bool = False
     
     def setup_for_gpu(self, model: nn.Module, device: str):
-        """Setup client để train trên GPU cụ thể"""
+        """Setup client để train trên GPU cụ thể."""
         self.model = model
         self.device = device
         self.use_amp = ("cuda" in device)
@@ -46,42 +50,46 @@ class FederatedClientMultiGPU:
         )
     
     def _create_batches(self, batch_size: int):
-        """Tạo batches và move lên GPU khi cần"""
+        """Tạo batches và move lên GPU khi cần."""
         indices = torch.randperm(self.num_samples)
         for i in range(0, self.num_samples, batch_size):
             batch_idx = indices[i:i+batch_size]
-            # Load batch lên GPU
             X_batch = self.X_train[batch_idx].to(self.device, non_blocking=True)
             y_batch = self.y_train[batch_idx].to(self.device, non_blocking=True)
             yield X_batch, y_batch
     
-    def _train_base(
+    def train(
         self,
+        trainer: BaseTrainer,
         epochs: int,
         batch_size: int,
         lr: float,
-        optimizer_cls: type = optim.Adam,
-        loss_modifier: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
-        post_step_hook: Optional[Callable[[], None]] = None,
+        global_params: Optional[OrderedDict] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """
-        Base training loop - tái sử dụng cho tất cả algorithms.
+        Train using the provided trainer strategy.
         
         Args:
-            epochs: Số epoch training
+            trainer: Training strategy (FedAvgTrainer, FedProxTrainer, etc.)
+            epochs: Number of local epochs
             batch_size: Batch size
             lr: Learning rate
-            optimizer_cls: Class optimizer (Adam, SGD, etc.)
-            loss_modifier: Hàm modify loss (VD: thêm proximal term cho FedProx)
-            post_step_hook: Hàm chạy sau mỗi optimizer step (VD: Fed+ correction)
-        
+            global_params: Global model parameters (for regularization)
+            **kwargs: Additional trainer-specific parameters
+            
         Returns:
-            Dict với client_id, num_samples, loss, params
+            Dict with client_id, num_samples, loss, and params
         """
         self.model.train()
+        
+        # Get optimizer from trainer
+        optimizer_cls = trainer.get_optimizer_class()
         optimizer = optimizer_cls(self.model.parameters(), lr=lr)
-        criterion = nn.CrossEntropyLoss()
         scaler = GradScaler(enabled=self.use_amp)
+        
+        # Pre-train hook
+        trainer.pre_train(self.model, global_params, lr=lr, **kwargs)
         
         total_loss = 0.0
         total_samples = 0
@@ -92,11 +100,9 @@ class FederatedClientMultiGPU:
                 
                 with self._amp_ctx():
                     out = self.model(X_batch)
-                    loss = criterion(out, y_batch)
-                    
-                    # Apply loss modifier (e.g., proximal term for FedProx)
-                    if loss_modifier is not None:
-                        loss = loss_modifier(loss)
+                    loss = trainer.compute_loss(
+                        self.model, out, y_batch, global_params, **kwargs
+                    )
                 
                 if self.use_amp:
                     scaler.scale(loss).backward()
@@ -106,84 +112,21 @@ class FederatedClientMultiGPU:
                     loss.backward()
                     optimizer.step()
                 
-                # Apply post-step hook (e.g., Fed+ correction)
-                if post_step_hook is not None:
-                    post_step_hook()
+                # Post-step hook (e.g., Fed+ correction)
+                trainer.post_step(self.model, global_params, **kwargs)
                 
                 bs = len(y_batch)
                 total_loss += loss.item() * bs
                 total_samples += bs
         
+        # Post-train hook
+        trainer.post_train(self.model, global_params, **kwargs)
+        
         return {
             "client_id": self.client_id,
             "num_samples": self.num_samples,
             "loss": total_loss / max(1, total_samples),
-            "params": OrderedDict((k, v.cpu().clone()) for k, v in self.model.state_dict().items())
+            "params": OrderedDict(
+                (k, v.cpu().clone()) for k, v in self.model.state_dict().items()
+            )
         }
-    
-    def train_fedavg(self, epochs: int, batch_size: int, lr: float) -> Dict[str, Any]:
-        """Train với FedAvg - standard local training"""
-        return self._train_base(
-            epochs=epochs,
-            batch_size=batch_size,
-            lr=lr,
-            optimizer_cls=optim.Adam,
-        )
-    
-    def train_fedprox(
-        self, 
-        epochs: int, 
-        batch_size: int, 
-        global_params: OrderedDict,
-        mu: float, 
-        lr: float
-    ) -> Dict[str, Any]:
-        """Train với FedProx - thêm proximal term"""
-        # Pre-move global params to device
-        global_params_device = {k: v.to(self.device) for k, v in global_params.items()}
-        
-        def loss_modifier(ce_loss: torch.Tensor) -> torch.Tensor:
-            """Thêm proximal term: mu/2 * ||w - w_global||^2"""
-            prox = 0.0
-            for name, param in self.model.named_parameters():
-                if param.requires_grad and name in global_params_device:
-                    prox += torch.sum((param - global_params_device[name])**2)
-            return ce_loss + (mu / 2.0) * prox
-        
-        return self._train_base(
-            epochs=epochs,
-            batch_size=batch_size,
-            lr=lr,
-            optimizer_cls=optim.Adam,
-            loss_modifier=loss_modifier,
-        )
-    
-    def train_fedplus(
-        self, 
-        epochs: int, 
-        batch_size: int, 
-        global_params: OrderedDict,
-        mu: float, 
-        lr: float
-    ) -> Dict[str, Any]:
-        """Train với Fed+ - thêm correction step sau mỗi update"""
-        # Pre-move global params
-        global_params_device = {k: v.to(self.device) for k, v in global_params.items()}
-        
-        # Theta for Fed+
-        theta = 1.0 / (1.0 + lr * mu)
-        
-        def post_step_hook():
-            """Fed+ correction: w = theta * w + (1-theta) * w_global"""
-            with torch.no_grad():
-                for name, param in self.model.named_parameters():
-                    if name in global_params_device:
-                        param.data = theta * param.data + (1.0 - theta) * global_params_device[name]
-        
-        return self._train_base(
-            epochs=epochs,
-            batch_size=batch_size,
-            lr=lr,
-            optimizer_cls=optim.SGD,  # Fed+ uses SGD
-            post_step_hook=post_step_hook,
-        )

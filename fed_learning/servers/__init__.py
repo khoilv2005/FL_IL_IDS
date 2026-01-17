@@ -1,4 +1,4 @@
 """Servers module"""
-from .server import FederatedServerMultiGPU
+from .server import FederatedServer
 
-__all__ = ["FederatedServerMultiGPU"]
+__all__ = ["FederatedServer"]

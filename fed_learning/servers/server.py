@@ -1,16 +1,16 @@
 """
-Federated Server with Multi-GPU Support
+Federated Server with Multi-GPU Support and Strategy Pattern.
 """
 
 import time
 from collections import OrderedDict
 from typing import Dict, List
-from threading import Thread
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from threading import Thread
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
     roc_auc_score
@@ -18,17 +18,23 @@ from sklearn.metrics import (
 from sklearn.preprocessing import label_binarize
 
 from ..models.cnn_gru import CNN_GRU_Model
-from ..clients.client import FederatedClientMultiGPU
-from ..training.gpu_trainer import train_clients_on_gpu
+from ..clients.client import FederatedClient
+from ..training.worker import train_clients_on_gpu
+from ..strategies import get_strategy
+from ..core import BaseTrainer, BaseAggregator
 
 
-class FederatedServerMultiGPU:
+class FederatedServer:
     """
-    Server hỗ trợ Multi-GPU training.
+    Server for Federated Learning with Multi-GPU support and Strategy Pattern.
     """
     
-    def __init__(self, clients: List[FederatedClientMultiGPU], 
-                 test_data: Dict, config: Dict):
+    def __init__(
+        self, 
+        clients: List[FederatedClient], 
+        test_data: Dict, 
+        config: Dict
+    ):
         self.clients = clients
         self.test_data = test_data
         self.config = config
@@ -37,7 +43,7 @@ class FederatedServerMultiGPU:
         # Detect GPUs
         self.num_gpus = config.get("num_gpus") or torch.cuda.device_count()
         if self.num_gpus == 0:
-            self.num_gpus = 1  # Treat as 1 "device" for CPU
+            self.num_gpus = 1
             self.primary_device = "cpu"
             self.use_cpu = True
         else:
@@ -47,20 +53,19 @@ class FederatedServerMultiGPU:
         device_info = "CPU" if self.use_cpu else f"{self.num_gpus} GPU(s)"
         print(f"\n🖥️  Detected {device_info}, primary device: {self.primary_device}")
         
-        # Global model (trên primary device để eval)
+        # Global model
         self.global_model = CNN_GRU_Model(
             config["input_shape"], config["num_classes"]
         ).to(self.primary_device)
         
-        # Velocity for FedAvgM
-        self.velocity = OrderedDict(
-            (k, torch.zeros_like(v))
-            for k, v in self.global_model.state_dict().items()
+        # Get strategy (trainer + aggregator)
+        self.trainer, self.aggregator = get_strategy(
+            config["algorithm"],
+            mu=config.get("mu", 0.01),
+            server_momentum=config.get("server_momentum", 0.9),
+            server_lr=config.get("server_lr", 1.0),
         )
-        
-        # Server momentum params
-        self.server_momentum = config.get("server_momentum", 0.9)
-        self.server_lr = config.get("server_lr", 1.0)
+        print(f"📊 Strategy: {self.trainer.name} trainer + {self.aggregator.name} aggregator")
         
         # History
         self.history = {
@@ -75,52 +80,30 @@ class FederatedServerMultiGPU:
         }
     
     def get_global_params(self) -> OrderedDict:
-        """Lấy params của global model (CPU)"""
+        """Get global model params (CPU)."""
         return OrderedDict(
             (k, v.cpu().clone()) for k, v in self.global_model.state_dict().items()
         )
     
     def set_global_params(self, params: OrderedDict):
-        """Set params cho global model"""
+        """Set global model params."""
         self.global_model.load_state_dict(
             {k: v.to(self.primary_device) for k, v in params.items()}
         )
     
-    def aggregate_fedavg(self, results: List[Dict]) -> OrderedDict:
-        """Weighted average aggregation"""
-        total_samples = sum(r["num_samples"] for r in results)
-        
-        agg = None
-        for r in results:
-            w_i = r["num_samples"] / max(1, total_samples)
-            params = r["params"]
-            
-            if agg is None:
-                agg = OrderedDict((k, w_i * v.float()) for k, v in params.items())
-            else:
-                for k in agg.keys():
-                    if agg[k].dtype.is_floating_point:
-                        agg[k] = agg[k] + w_i * params[k].float()
-                    else:
-                        agg[k] = params[k]
-        
-        return agg
-    
     def train_round(self, verbose: bool = True) -> Dict:
         """
-        Train 1 round với Multi-GPU.
-        Chia clients cho các GPUs và train song song.
+        Train one round with Multi-GPU support.
         """
-        algo = self.config["algorithm"].lower()
         round_start = time.time()
         
         if verbose:
             device_info = "CPU" if self.use_cpu else f"{self.num_gpus} GPU(s)"
-            print(f"\n→ {algo.upper()}: Training {len(self.clients)} clients on {device_info}")
+            print(f"\n→ {self.config['algorithm'].upper()}: Training {len(self.clients)} clients on {device_info}")
         
         global_params = self.get_global_params()
         
-        # Chia clients cho các GPUs (hoặc 1 group cho CPU)
+        # Distribute clients across GPUs
         clients_per_gpu = [[] for _ in range(self.num_gpus)]
         for i, c in enumerate(self.clients):
             clients_per_gpu[i % self.num_gpus].append(c)
@@ -130,49 +113,38 @@ class FederatedServerMultiGPU:
                 device_label = "CPU" if self.use_cpu else f"GPU {gpu_id}"
                 print(f"   {device_label}: {len(clients)} clients")
         
-        # Results dict shared giữa các threads
+        # Shared results dict
         results_dict = {}
         
-        # Tạo threads - mỗi thread train trên 1 GPU (hoặc 1 thread cho CPU)
+        # Create threads for each GPU
         threads = []
         for gpu_id in range(self.num_gpus):
             if len(clients_per_gpu[gpu_id]) > 0:
                 t = Thread(
                     target=train_clients_on_gpu,
-                    args=(gpu_id, clients_per_gpu[gpu_id], global_params, 
-                          self.config, results_dict, algo, self.use_cpu)
+                    args=(
+                        gpu_id, 
+                        clients_per_gpu[gpu_id], 
+                        global_params,
+                        self.config, 
+                        results_dict, 
+                        self.trainer,
+                        self.use_cpu
+                    )
                 )
                 threads.append(t)
                 t.start()
         
-        # Đợi tất cả threads hoàn thành
+        # Wait for all threads
         for t in threads:
             t.join()
         
-        # Collect results theo thứ tự client_id
+        # Collect results
         results = [results_dict[i] for i in range(len(self.clients))]
         
-        # Aggregate
-        w_avg = self.aggregate_fedavg(results)
-        
-        # Apply FedAvgM momentum nếu cần
-        if algo == "fedavgm":
-            w_t = self.get_global_params()
-            beta = self.server_momentum
-            new_params = OrderedDict()
-            
-            for k in w_t.keys():
-                if w_t[k].dtype.is_floating_point:
-                    delta = w_avg[k] - w_t[k]
-                    new_v = beta * self.velocity[k] + delta
-                    self.velocity[k] = new_v
-                    new_params[k] = w_t[k] + self.server_lr * new_v
-                else:
-                    new_params[k] = w_avg[k]
-            
-            self.set_global_params(new_params)
-        else:
-            self.set_global_params(w_avg)
+        # Aggregate using strategy
+        new_params = self.aggregator.aggregate(results, global_params)
+        self.set_global_params(new_params)
         
         avg_loss = float(np.mean([r["loss"] for r in results]))
         round_time = time.time() - round_start
@@ -184,7 +156,7 @@ class FederatedServerMultiGPU:
         return {"train_loss": avg_loss, "round_time": round_time}
     
     def evaluate_global(self, batch_size: int = 1024) -> Dict:
-        """Evaluate global model trên test set"""
+        """Evaluate global model on test set."""
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()
         
@@ -234,7 +206,7 @@ class FederatedServerMultiGPU:
             metrics["auc_macro_ovr"] = roc_auc_score(
                 y_true_bin, y_proba, average="macro", multi_class="ovr"
             )
-        except Exception as e:
+        except Exception:
             metrics["auc_macro_ovr"] = None
         
         return metrics

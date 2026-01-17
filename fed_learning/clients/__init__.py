@@ -1,4 +1,4 @@
 """Clients module"""
-from .client import FederatedClientMultiGPU
+from .client import FederatedClient
 
-__all__ = ["FederatedClientMultiGPU"]
+__all__ = ["FederatedClient"]
