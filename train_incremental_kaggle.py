@@ -86,14 +86,14 @@ CONFIG = {
     # Algorithm
     "algorithm": "cgofed",
     "mu": 0.01,
-    "lambda_decay": 0.2,        # α decay rate (faster decay = more plasticity)
-    "theta_threshold": 0.05,    # AF threshold to reset α (more sensitive)
-    "cross_task_weight": 0.1,   # 10% history (less pull from old models)
+    "lambda_decay": 0.1,         # α decay rate (slower = more stability)
+    "theta_threshold": 0.01,     # AF threshold (paper: θ=0.01, very sensitive)
+    "cross_task_weight": 0.2,    # 20% history blend
     
-    # Training per task
-    "rounds_per_task": 5,
-    "local_epochs": 3,
-    "learning_rate": 1e-3,
+    # Training per task (aligned with paper)
+    "rounds_per_task": 10,       # Paper: 20 rounds, we use 10 for efficiency
+    "local_epochs": 5,           # Paper: 5 epochs
+    "learning_rate": 2e-4,       # Slower learning for gradient projection to work
     "batch_size": 1024,
     
     # Eval
@@ -235,11 +235,18 @@ def main():
         task_accuracies = {task_id: metrics['accuracy']}
         trainer.update_forgetting(task_accuracies)
         
+        # Get and log Average Forgetting
+        current_af = trainer.get_current_af()
+        print(f"  Average Forgetting (AF): {current_af*100:.2f}%")
+        print(f"  Current α: {trainer.alpha:.4f}")
+        
         all_history["task_accuracies"].append({
             "task": task_id,
             "seen_classes": len(seen_classes),
             "accuracy": metrics["accuracy"],
             "f1_macro": metrics["f1_macro"],
+            "avg_forgetting": current_af,
+            "alpha": trainer.alpha,
         })
     
     # Save results

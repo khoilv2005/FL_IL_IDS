@@ -86,6 +86,8 @@ class CGoFedTrainer(BaseTrainer):
             else:
                 self.best_acc_per_task[tid] = max(self.best_acc_per_task[tid], acc)
         
+        # Calculate AF (Average Forgetting) - Eq.16 in paper
+        self.last_af = 0.0
         if len(self.best_acc_per_task) > 1:
             forgetting = []
             for tid in range(self.current_task):
@@ -94,11 +96,15 @@ class CGoFedTrainer(BaseTrainer):
                     forgetting.append(max(0, f))
             
             if forgetting:
-                avg_forgetting = sum(forgetting) / len(forgetting)
-                if avg_forgetting > self.theta_threshold:
+                self.last_af = sum(forgetting) / len(forgetting)
+                if self.last_af > self.theta_threshold:
                     self.t_reset = self.current_task
                     self.alpha = 1.0
-                    print(f"⚠️ AF={avg_forgetting:.4f} > θ, reset α")
+                    print(f"⚠️ AF={self.last_af:.4f} > θ={self.theta_threshold}, reset α to 1.0")
+    
+    def get_current_af(self) -> float:
+        """Get the last computed Average Forgetting value."""
+        return getattr(self, 'last_af', 0.0)
     
     def build_representation_space(
         self,
