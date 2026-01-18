@@ -119,7 +119,8 @@ def get_strategy(
         aggregator = strategy["aggregator"](mu=config.get("mu", 0.01))
     elif algo_lower == "cgofed":
         aggregator = strategy["aggregator"](
-            cross_task_weight=config.get("cross_task_weight", 0.5)
+            cross_task_weight=config.get("cross_task_weight", 0.3),
+            top_k=config.get("top_k", 2)
         )
     else:
         aggregator = strategy["aggregator"]()

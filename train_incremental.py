@@ -14,7 +14,8 @@ from datetime import datetime
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
-from fed_learning import FederatedClient, FederatedServer, train_federated_multigpu
+from fed_learning import FederatedServer, train_federated_multigpu
+from fed_learning.clients import CGoFedClient
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.strategies import get_strategy
 
@@ -103,11 +104,11 @@ def main():
         trainer.set_task(task_id, new_classes)
         aggregator.set_task(task_id)
         
-        # Create clients
+        # Create CGoFed clients (with representation computation)
         clients = []
         for cid in range(CONFIG["num_clients"]):
             if len(client_data[cid]["y_train"]) > 0:
-                c = FederatedClient(
+                c = CGoFedClient(
                     client_id=cid,
                     X_train=client_data[cid]["X_train"],
                     y_train=client_data[cid]["y_train"],

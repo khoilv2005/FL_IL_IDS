@@ -10,6 +10,7 @@ Key mechanism:
     - Use SVD to build representation space of old tasks
     - Project gradient orthogonally to preserve old knowledge
     - Relax constraint with adaptive α coefficient
+    - Cross-task regularization with similarity-based TOP-K selection
 """
 
 from collections import OrderedDict
@@ -56,15 +57,12 @@ class CGoFedTrainer(BaseTrainer):
         self.seen_classes: Set[int] = set()
         
         # Representation space of old tasks (basis vectors from SVD)
-        # Dict: {param_name: U matrix (orthogonal basis)}
         self.old_space: Dict[str, torch.Tensor] = {}
-        
-        # Importance weights for basis vectors (from sigmoid of singular values)
         self.importance_weights: Dict[str, torch.Tensor] = {}
         
         # α relaxation
         self.alpha: float = 1.0
-        self.t_reset: int = 0  # Last task where AF exceeded threshold
+        self.t_reset: int = 0
         
         # Accuracies for computing AF
         self.best_acc_per_task: Dict[int, float] = {}
@@ -75,27 +73,19 @@ class CGoFedTrainer(BaseTrainer):
         self.current_task = task_id
         self.seen_classes.update(new_classes)
         
-        # Update α using exponential decay
         if task_id > 0:
             self.alpha = math.exp(-self.lambda_decay * (task_id - self.t_reset))
     
     def update_forgetting(self, task_accuracies: Dict[int, float]):
-        """
-        Update AF (Average Forgetting) and reset α if needed.
-        
-        Args:
-            task_accuracies: {task_id: current_accuracy}
-        """
+        """Update AF and reset α if needed."""
         self.current_acc_per_task = task_accuracies.copy()
         
-        # Update best accuracies
         for tid, acc in task_accuracies.items():
             if tid not in self.best_acc_per_task:
                 self.best_acc_per_task[tid] = acc
             else:
                 self.best_acc_per_task[tid] = max(self.best_acc_per_task[tid], acc)
         
-        # Compute AF
         if len(self.best_acc_per_task) > 1:
             forgetting = []
             for tid in range(self.current_task):
@@ -105,28 +95,20 @@ class CGoFedTrainer(BaseTrainer):
             
             if forgetting:
                 avg_forgetting = sum(forgetting) / len(forgetting)
-                
-                # Reset α if AF exceeds threshold
                 if avg_forgetting > self.theta_threshold:
                     self.t_reset = self.current_task
-                    self.alpha = 1.0  # Reset to strong constraint
-                    print(f"⚠️ AF={avg_forgetting:.4f} > θ={self.theta_threshold}, reset α")
+                    self.alpha = 1.0
+                    print(f"⚠️ AF={avg_forgetting:.4f} > θ, reset α")
     
     def build_representation_space(
         self,
         model: nn.Module,
-        data_loader,  # Iterable of (X, y) batches
+        data_loader,
         device: str = "cuda"
     ):
-        """
-        Build representation space using SVD after training on current task.
-        Call this AFTER training current task completes.
-        
-        This stores the gradient space (U matrix from SVD) for future projection.
-        """
+        """Build representation space using SVD after training."""
         model.eval()
         
-        # Collect gradients from forward passes on samples
         all_grads = {name: [] for name, _ in model.named_parameters() if _.requires_grad}
         
         sample_count = 0
@@ -136,55 +118,42 @@ class CGoFedTrainer(BaseTrainer):
                 
             X, y = X.to(device), y.to(device)
             
-            # Forward pass
             model.zero_grad()
             output = model(X)
             loss = F.cross_entropy(output, y)
             loss.backward()
             
-            # Collect gradients
             for name, param in model.named_parameters():
                 if param.grad is not None:
                     all_grads[name].append(param.grad.view(-1).cpu().clone())
             
             sample_count += len(X)
         
-        # Build representation matrix and SVD for each parameter
         for name in all_grads:
             if len(all_grads[name]) == 0:
                 continue
                 
-            # Stack gradients: [num_samples, param_dim]
             R = torch.stack(all_grads[name], dim=0)
             
-            # SVD: R = U @ S @ V^T
             try:
                 U, S, Vh = torch.linalg.svd(R, full_matrices=False)
                 
-                # Select top-k singular values based on energy threshold
                 total_energy = (S ** 2).sum()
                 cumsum = torch.cumsum(S ** 2, dim=0)
                 k = (cumsum < self.energy_threshold * total_energy).sum() + 1
                 k = min(k.item(), len(S))
                 
-                # Store basis vectors (columns of V, which is Vh.T)
-                # We use Vh[:k] which gives us the k most important directions
-                basis = Vh[:k].T  # [param_dim, k]
-                
-                # Importance weights using sigmoid
+                basis = Vh[:k].T
                 weights = torch.sigmoid(S[:k])
                 
-                # Merge with old space if exists
                 if name in self.old_space:
                     old_basis = self.old_space[name]
                     old_weights = self.importance_weights[name]
                     
-                    # Simple merge: concatenate and select top-k
                     merged_basis = torch.cat([old_basis, basis], dim=1)
                     merged_weights = torch.cat([old_weights, weights])
                     
-                    # Keep top-k based on weights
-                    max_k = min(50, merged_basis.shape[1])  # Limit memory
+                    max_k = min(50, merged_basis.shape[1])
                     if merged_weights.shape[0] > max_k:
                         _, topk_idx = torch.topk(merged_weights, max_k)
                         merged_basis = merged_basis[:, topk_idx]
@@ -210,7 +179,7 @@ class CGoFedTrainer(BaseTrainer):
         global_params: Optional[OrderedDict] = None,
         **kwargs
     ) -> torch.Tensor:
-        """Standard cross-entropy loss (gradient constraint is in post_step)."""
+        """Standard cross-entropy loss."""
         return F.cross_entropy(output, target)
     
     def post_step(
@@ -219,12 +188,7 @@ class CGoFedTrainer(BaseTrainer):
         global_params: Optional[OrderedDict] = None,
         **kwargs
     ) -> None:
-        """
-        Apply gradient projection BEFORE optimizer.step().
-        
-        Formula: g' = g - α * P * g
-        where P = U @ U^T is projection onto old space
-        """
+        """Apply gradient projection: g' = g - α * P * g"""
         if self.current_task == 0 or len(self.old_space) == 0:
             return
         
@@ -235,68 +199,160 @@ class CGoFedTrainer(BaseTrainer):
                 if param.grad is None or name not in self.old_space:
                     continue
                 
-                g = param.grad.view(-1)  # Flatten gradient
+                g = param.grad.view(-1)
+                U = self.old_space[name].to(device)
+                weights = self.importance_weights[name].to(device)
                 
-                # Get basis vectors for old space
-                U = self.old_space[name].to(device)  # [param_dim, k]
-                weights = self.importance_weights[name].to(device)  # [k]
-                
-                # Project gradient onto old space: P @ g = U @ (U^T @ g)
-                # Weight by importance
-                proj_coeff = U.T @ g  # [k]
+                proj_coeff = U.T @ g
                 weighted_coeff = proj_coeff * weights
-                projection = U @ weighted_coeff  # [param_dim]
+                projection = U @ weighted_coeff
                 
-                # Remove projection (with relaxation α)
-                # g' = g - α * projection
                 g_new = g - self.alpha * projection
-                
-                # Reshape back
                 param.grad = g_new.view(param.shape)
     
     def get_optimizer_class(self) -> type:
-        """CGoFed uses SGD."""
         return torch.optim.SGD
 
 
 class CGoFedAggregator(BaseAggregator):
     """
-    CGoFed aggregation with cross-task gradient regularization.
+    CGoFed aggregation with similarity-based cross-task regularization.
     
-    Uses similarity between representation spaces for personalized aggregation.
+    Uses similarity between client representations to select TOP-K 
+    relevant historical models for weighted aggregation.
+    
+    Args:
+        cross_task_weight: Weight λ for blending with historical models
+        top_k: Number of most similar historical models to select (paper: K=2)
     """
     
-    def __init__(self, cross_task_weight: float = 0.5):
+    def __init__(self, cross_task_weight: float = 0.3, top_k: int = 2):
         self.cross_task_weight = cross_task_weight
+        self.top_k = top_k
         
-        # Store representation matrices from clients: {client_id: {task_id: R}}
+        # Store mean gradient vectors from clients: {client_id: {task_id: R_vector}}
         self.client_representations: Dict[int, Dict[int, torch.Tensor]] = {}
         
         # Historical global models: {task_id: params}
         self.task_global_models: Dict[int, OrderedDict] = {}
+        
+        # Mean representation per task (aggregated from clients)
+        self.task_representations: Dict[int, torch.Tensor] = {}
         
         self.current_task: int = 0
     
     def set_task(self, task_id: int):
         self.current_task = task_id
     
-    def update_client_representation(
-        self, 
-        client_id: int, 
-        task_id: int, 
-        representation: torch.Tensor
-    ):
-        """Store client's representation matrix for similarity computation."""
-        if client_id not in self.client_representations:
-            self.client_representations[client_id] = {}
-        self.client_representations[client_id][task_id] = representation
+    def _store_client_representations(self, results: List[Dict]):
+        """Extract and store representations from client results."""
+        task_reps = []
+        
+        for r in results:
+            if "representation" in r and r["representation"] is not None:
+                client_id = r["client_id"]
+                rep = r["representation"]
+                
+                # Store per-client
+                if client_id not in self.client_representations:
+                    self.client_representations[client_id] = {}
+                self.client_representations[client_id][self.current_task] = rep
+                
+                task_reps.append(rep)
+        
+        # Compute mean representation for this task
+        if task_reps:
+            self.task_representations[self.current_task] = torch.stack(task_reps).mean(dim=0)
     
     def _compute_similarity(self, R1: torch.Tensor, R2: torch.Tensor) -> float:
-        """Compute similarity between two representation matrices (L2 norm)."""
-        # Normalize and compute distance
+        """
+        Compute similarity between two representation vectors.
+        Returns negative L2 distance (higher = more similar).
+        """
         R1_norm = R1 / (torch.norm(R1) + 1e-8)
         R2_norm = R2 / (torch.norm(R2) + 1e-8)
-        return -torch.norm(R1_norm - R2_norm).item()  # Negative distance = similarity
+        return -torch.norm(R1_norm - R2_norm).item()
+    
+    def _select_top_k_similar(self) -> List[Dict]:
+        """
+        Select TOP-K most similar historical task models.
+        
+        Returns:
+            List of {task_id, similarity, params}
+        """
+        if self.current_task == 0 or len(self.task_representations) <= 1:
+            return []
+        
+        current_rep = self.task_representations.get(self.current_task)
+        if current_rep is None:
+            return []
+        
+        # Compute similarity with all previous tasks
+        similarities = []
+        for tid in range(self.current_task):
+            if tid in self.task_representations and tid in self.task_global_models:
+                hist_rep = self.task_representations[tid]
+                sim = self._compute_similarity(current_rep, hist_rep)
+                similarities.append({
+                    "task_id": tid,
+                    "similarity": sim,
+                    "params": self.task_global_models[tid]
+                })
+        
+        # Sort by similarity (descending) and select TOP-K
+        similarities.sort(key=lambda x: x["similarity"], reverse=True)
+        return similarities[:self.top_k]
+    
+    def _weighted_aggregate_with_history(
+        self, 
+        current_params: OrderedDict,
+        selected_models: List[Dict]
+    ) -> OrderedDict:
+        """
+        Weighted aggregation with historical models based on similarity.
+        
+        Formula: Final = (1 - λ) * Current + λ * Σ(w_i * Hist_i)
+        where w_i = softmax(similarity_i)
+        """
+        if not selected_models:
+            return current_params
+        
+        # Compute softmax weights from similarities
+        sim_scores = torch.tensor([s["similarity"] for s in selected_models])
+        weights = F.softmax(sim_scores, dim=0)
+        
+        # Aggregate historical models
+        hist_agg = None
+        for i, model_info in enumerate(selected_models):
+            hist_params = model_info["params"]
+            w = weights[i].item()
+            
+            if hist_agg is None:
+                hist_agg = OrderedDict(
+                    (k, w * v.float()) for k, v in hist_params.items()
+                    if v.dtype.is_floating_point
+                )
+                # Copy non-float parameters
+                for k, v in hist_params.items():
+                    if not v.dtype.is_floating_point:
+                        hist_agg[k] = v.clone()
+            else:
+                for k in hist_agg:
+                    if hist_agg[k].dtype.is_floating_point:
+                        hist_agg[k] += w * hist_params[k].float()
+        
+        # Blend with current: (1-λ) * current + λ * history
+        λ = self.cross_task_weight
+        result = OrderedDict()
+        
+        for k in current_params:
+            if current_params[k].dtype.is_floating_point:
+                hist_v = hist_agg[k].to(current_params[k].device)
+                result[k] = (1 - λ) * current_params[k] + λ * hist_v
+            else:
+                result[k] = current_params[k]
+        
+        return result
     
     def aggregate(
         self, 
@@ -304,54 +360,30 @@ class CGoFedAggregator(BaseAggregator):
         global_params: Optional[OrderedDict] = None,
         **kwargs
     ) -> OrderedDict:
-        """Aggregate with optional cross-task regularization."""
-        # Standard weighted average
+        """
+        Aggregate with similarity-based cross-task regularization.
+        
+        1. Standard weighted average of client updates
+        2. Store client representations
+        3. Select TOP-K similar historical models
+        4. Weighted blend with history
+        """
+        # 1. Standard weighted average
         agg_params = self._weighted_average(results)
         
-        # Save for future cross-task reference
+        # 2. Store representations from this round
+        self._store_client_representations(results)
+        
+        # 3. Save current model for future reference
         self.task_global_models[self.current_task] = OrderedDict(
             (k, v.cpu().clone()) for k, v in agg_params.items()
         )
         
-        # Cross-task regularization (if we have history)
-        if self.current_task > 0 and len(self.task_global_models) > 1:
-            agg_params = self._apply_cross_task_reg(agg_params)
+        # 4. Cross-task regularization (if we have history)
+        if self.current_task > 0:
+            selected = self._select_top_k_similar()
+            if selected:
+                print(f"📊 Selected TOP-{len(selected)} similar tasks: {[s['task_id'] for s in selected]}")
+                agg_params = self._weighted_aggregate_with_history(agg_params, selected)
         
         return agg_params
-    
-    def _apply_cross_task_reg(self, agg_params: OrderedDict) -> OrderedDict:
-        """Blend with historical models for stability."""
-        if len(self.task_global_models) <= 1:
-            return agg_params
-        
-        # Average of all previous task models
-        prev_tasks = [t for t in self.task_global_models if t < self.current_task]
-        if not prev_tasks:
-            return agg_params
-        
-        # Simple average of historical models
-        avg_old = None
-        for tid in prev_tasks:
-            hist = self.task_global_models[tid]
-            if avg_old is None:
-                avg_old = OrderedDict((k, v.clone().float()) for k, v in hist.items())
-            else:
-                for k in avg_old:
-                    if avg_old[k].dtype.is_floating_point:
-                        avg_old[k] += hist[k].float()
-        
-        for k in avg_old:
-            if avg_old[k].dtype.is_floating_point:
-                avg_old[k] /= len(prev_tasks)
-        
-        # Blend
-        w = self.cross_task_weight
-        result = OrderedDict()
-        for k in agg_params:
-            if agg_params[k].dtype.is_floating_point:
-                old_v = avg_old[k].to(agg_params[k].device)
-                result[k] = (1 - w) * agg_params[k] + w * old_v
-            else:
-                result[k] = agg_params[k]
-        
-        return result
