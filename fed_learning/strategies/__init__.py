@@ -3,7 +3,7 @@ Strategies Module - Learning algorithm implementations.
 
 This module provides pluggable learning strategies for different paradigms:
 - Federated Learning (FedAvg, FedProx, FedAvgM, Fed+)
-- Incremental Learning (future: EWC, LwF)
+- Incremental Learning (CGoFed)
 - Decentralized Learning (future: Gossip, DPSGD)
 
 Usage:
@@ -24,6 +24,11 @@ from .federated import (
     FedPlusTrainer, FedPlusAggregator,
 )
 
+# Import incremental learning strategies
+from .incremental import (
+    CGoFedTrainer, CGoFedAggregator,
+)
+
 # Registry of available strategies
 STRATEGIES: Dict[str, Dict[str, type]] = {
     "fedavg": {
@@ -42,6 +47,11 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
         "trainer": FedPlusTrainer,
         "aggregator": FedPlusAggregator,
     },
+    # Incremental Learning
+    "cgofed": {
+        "trainer": CGoFedTrainer,
+        "aggregator": CGoFedAggregator,
+    },
 }
 
 
@@ -58,10 +68,13 @@ def get_strategy(
             - "fedavgm": FedAvg with Server Momentum
             - "fedprox": Federated Proximal
             - "fedplus": Fed+ with Dynamic Regularization
+            - "cgofed": Constrained Gradient for Class Incremental Learning
         **config: Algorithm-specific configuration:
-            - mu: For FedProx/Fed+ (default: 0.01)
+            - mu: For FedProx/Fed+/CGoFed (default: 0.01)
             - server_momentum: For FedAvgM (default: 0.9)
             - server_lr: For FedAvgM (default: 1.0)
+            - gradient_memory_size: For CGoFed (default: 100)
+            - cross_task_weight: For CGoFed (default: 0.5)
     
     Returns:
         Tuple of (trainer, aggregator) instances
@@ -87,6 +100,12 @@ def get_strategy(
     # Create trainer
     if algo_lower in ("fedprox", "fedplus"):
         trainer = strategy["trainer"](mu=config.get("mu", 0.01))
+    elif algo_lower == "cgofed":
+        trainer = strategy["trainer"](
+            mu=config.get("mu", 0.01),
+            lambda_decay=config.get("lambda_decay", 0.1),
+            theta_threshold=config.get("theta_threshold", 0.1),
+        )
     else:
         trainer = strategy["trainer"]()
     
@@ -98,6 +117,10 @@ def get_strategy(
         )
     elif algo_lower in ("fedprox", "fedplus"):
         aggregator = strategy["aggregator"](mu=config.get("mu", 0.01))
+    elif algo_lower == "cgofed":
+        aggregator = strategy["aggregator"](
+            cross_task_weight=config.get("cross_task_weight", 0.5)
+        )
     else:
         aggregator = strategy["aggregator"]()
     
@@ -123,6 +146,7 @@ def list_strategies() -> Dict[str, str]:
         "fedavgm": "FedAvg + Server Momentum - accelerated convergence",
         "fedprox": "Federated Proximal - handles heterogeneity with proximal term",
         "fedplus": "Fed+ - dynamic regularization for heterogeneous data",
+        "cgofed": "CGoFed - Constrained Gradient for Class Incremental Learning",
     }
 
 

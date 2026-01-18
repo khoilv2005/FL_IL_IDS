@@ -1,0 +1,243 @@
+"""
+Federated Class Incremental Learning - Kaggle Training Script
+==============================================================
+Train with CGoFed for Class Incremental Learning on Kaggle.
+
+Usage:
+    Upload fed_learning folder to Kaggle dataset, then run this script.
+"""
+
+import os
+import sys
+import json
+from datetime import datetime
+
+import torch
+
+# =============================================================================
+# KAGGLE SETUP
+# =============================================================================
+MODULE_PATH = "/kaggle/input/ai4fids-fedlearning-modules"
+
+def setup_imports():
+    """Setup imports for both nested and flattened dataset structures."""
+    if not os.path.exists(MODULE_PATH):
+        print(f"⚠️ Warning: Module path {MODULE_PATH} not found!")
+        return
+
+    # Case 1: Standard structure
+    pkg_path = os.path.join(MODULE_PATH, "fed_learning")
+    if os.path.exists(pkg_path):
+        print(f"📦 Found standard package structure at {pkg_path}")
+        if MODULE_PATH not in sys.path:
+            sys.path.insert(0, MODULE_PATH)
+        return
+
+    # Case 2: Flattened structure - create symlink
+    init_path = os.path.join(MODULE_PATH, "__init__.py")
+    if os.path.exists(init_path):
+        print(f"📦 Found flattened package structure at {MODULE_PATH}")
+        try:
+            tmp_dir = "/tmp/fed_pkg_fix"
+            os.makedirs(tmp_dir, exist_ok=True)
+            symlink_path = os.path.join(tmp_dir, "fed_learning")
+            
+            if os.path.exists(symlink_path):
+                os.remove(symlink_path)
+                
+            os.symlink(MODULE_PATH, symlink_path)
+            
+            if tmp_dir not in sys.path:
+                sys.path.insert(0, tmp_dir)
+                
+            print(f"🔗 Created symlink {symlink_path} -> {MODULE_PATH}")
+        except Exception as e:
+            print(f"⚠️ Failed to create symlink: {e}")
+
+setup_imports()
+
+# Import
+try:
+    from fed_learning import FederatedClient, FederatedServer, train_federated_multigpu
+    from fed_learning.data.incremental_loader import IncrementalDataLoader
+    from fed_learning.strategies import get_strategy
+    from torch.utils.data import TensorDataset, DataLoader
+    print("✓ Imports ready!")
+except ImportError as e:
+    print(f"❌ Import failed: {e}")
+    sys.exit(1)
+
+
+# =============================================================================
+# CONFIG
+# =============================================================================
+CONFIG = {
+    # Data
+    "data_dir": "/kaggle/input/data-100clients",
+    "output_dir": "./results_incremental",
+    
+    # Incremental Learning
+    "num_clients": 100,
+    "total_classes": 34,
+    "base_classes": 5,        # Task 1: 5 classes
+    "classes_per_task": 4,    # Task 2+: +4 classes each
+    
+    # Algorithm
+    "algorithm": "cgofed",
+    "mu": 0.01,
+    "lambda_decay": 0.1,       # α decay rate
+    "theta_threshold": 0.1,    # AF threshold to reset α
+    "cross_task_weight": 0.3,
+    
+    # Training per task
+    "rounds_per_task": 5,
+    "local_epochs": 3,
+    "learning_rate": 1e-3,
+    "batch_size": 1024,
+    
+    # Eval
+    "eval_every": 1,
+}
+
+
+def main():
+    print("\n" + "="*80)
+    print("🚀 FEDERATED CLASS INCREMENTAL LEARNING - KAGGLE")
+    print("="*80)
+    
+    # Initialize incremental data loader
+    data_loader = IncrementalDataLoader(
+        data_dir=CONFIG["data_dir"],
+        num_clients=CONFIG["num_clients"],
+        base_classes=CONFIG["base_classes"],
+        classes_per_task=CONFIG["classes_per_task"],
+        total_classes=CONFIG["total_classes"],
+    )
+    
+    print(f"\n{data_loader}")
+    print(f"Total tasks: {data_loader.num_tasks}")
+    
+    # Get strategy
+    trainer, aggregator = get_strategy(
+        CONFIG["algorithm"],
+        mu=CONFIG["mu"],
+        lambda_decay=CONFIG["lambda_decay"],
+        theta_threshold=CONFIG["theta_threshold"],
+        cross_task_weight=CONFIG["cross_task_weight"],
+    )
+    
+    # History
+    all_history = {
+        "task_accuracies": [],
+        "task_forgetting": [],
+    }
+    
+    global_model = None
+    
+    for task_id in range(data_loader.num_tasks):
+        print(f"\n{'='*80}")
+        print(f"📚 TASK {task_id + 1}/{data_loader.num_tasks}")
+        print(f"{'='*80}")
+        
+        # Get data for this task
+        client_data, test_data, new_classes = data_loader.get_task_data(task_id)
+        seen_classes = data_loader.get_seen_classes(task_id)
+        
+        # Skip if no data
+        if all(len(cd.get("y_train", [])) == 0 for cd in client_data.values()):
+            print(f"⚠️ No training data for task {task_id}, skipping...")
+            continue
+        
+        # Set task
+        trainer.set_task(task_id, new_classes)
+        aggregator.set_task(task_id)
+        
+        # Create clients
+        clients = []
+        for cid in range(CONFIG["num_clients"]):
+            if len(client_data[cid]["y_train"]) > 0:
+                c = FederatedClient(
+                    client_id=cid,
+                    X_train=client_data[cid]["X_train"],
+                    y_train=client_data[cid]["y_train"],
+                )
+                clients.append(c)
+        
+        print(f"Active clients: {len(clients)}")
+        
+        if len(clients) == 0:
+            continue
+        
+        task_config = {
+            **CONFIG,
+            "num_rounds": CONFIG["rounds_per_task"],
+            "input_shape": data_loader.input_shape,
+            "num_classes": CONFIG["total_classes"],
+        }
+        
+        server = FederatedServer(clients, test_data, task_config)
+        
+        if global_model is not None:
+            server.set_global_params(global_model)
+        
+        server.trainer = trainer
+        server.aggregator = aggregator
+        
+        print(f"\n🎯 Training on {len(new_classes)} new classes: {new_classes}")
+        history = train_federated_multigpu(server, task_config)
+        
+        # Build representation space for gradient projection (SVD)
+        # Create a DataLoader from current task data for SVD
+        all_X = torch.cat([client_data[cid]["X_train"] for cid in client_data 
+                          if len(client_data[cid]["y_train"]) > 0], dim=0)
+        all_y = torch.cat([client_data[cid]["y_train"] for cid in client_data 
+                          if len(client_data[cid]["y_train"]) > 0], dim=0)
+        
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        rep_loader = DataLoader(
+            TensorDataset(all_X, all_y),
+            batch_size=CONFIG["batch_size"],
+            shuffle=True
+        )
+        trainer.build_representation_space(
+            model=server.global_model,
+            data_loader=rep_loader,
+            device=device
+        )
+        
+        global_model = server.get_global_params()
+        
+        print(f"\n📊 Evaluating on all {len(seen_classes)} seen classes...")
+        metrics = server.evaluate_global()
+        
+        print(f"  Accuracy: {metrics['accuracy']*100:.2f}%")
+        print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
+        
+        all_history["task_accuracies"].append({
+            "task": task_id,
+            "seen_classes": len(seen_classes),
+            "accuracy": metrics["accuracy"],
+            "f1_macro": metrics["f1_macro"],
+        })
+    
+    # Save results
+    os.makedirs(CONFIG["output_dir"], exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    hist_path = os.path.join(CONFIG["output_dir"], f"cgofed_incremental_{ts}.json")
+    with open(hist_path, "w") as f:
+        json.dump(all_history, f, indent=2)
+    print(f"\n💾 Saved: {hist_path}")
+    
+    # Summary
+    print("\n" + "="*80)
+    print("📊 INCREMENTAL LEARNING SUMMARY")
+    print("="*80)
+    for h in all_history["task_accuracies"]:
+        print(f"  Task {h['task']}: {h['seen_classes']} classes → Acc: {h['accuracy']*100:.2f}%")
+    
+    print("\n✅ DONE!")
+
+
+if __name__ == "__main__":
+    main()

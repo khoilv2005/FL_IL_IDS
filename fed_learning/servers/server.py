@@ -139,8 +139,8 @@ class FederatedServer:
         for t in threads:
             t.join()
         
-        # Collect results
-        results = [results_dict[i] for i in range(len(self.clients))]
+        # Collect results - use values() since client_ids may not be sequential
+        results = list(results_dict.values())
         
         # Aggregate using strategy
         new_params = self.aggregator.aggregate(results, global_params)
