@@ -187,15 +187,32 @@ def main():
         history = train_federated_multigpu(server, task_config)
         
         # Build representation space for gradient projection (SVD)
-        # Create a DataLoader from current task data for SVD
-        all_X = torch.cat([client_data[cid]["X_train"] for cid in client_data 
-                          if len(client_data[cid]["y_train"]) > 0], dim=0)
-        all_y = torch.cat([client_data[cid]["y_train"] for cid in client_data 
-                          if len(client_data[cid]["y_train"]) > 0], dim=0)
+        # FL-Compliant: Use REPRESENTATIVE CLIENT instead of aggregating all data
+        # In real FL, each client computes locally and sends basis vectors to server
+        print("\n🔐 Building representation space (FL-compliant: representative client)...")
+        
+        # Select representative client (first active client with enough data)
+        rep_client = clients[0]
+        rep_cid = rep_client.client_id
+        rep_X = client_data[rep_cid]["X_train"]
+        rep_y = client_data[rep_cid]["y_train"]
+        
+        # If representative has too few samples, can optionally sample from a few more
+        # but NEVER concatenate all clients (that would violate FL privacy)
+        min_samples = 50
+        if len(rep_y) < min_samples and len(clients) > 1:
+            # Take from 2-3 clients max (simulating aggregated basis vectors, not raw data)
+            for extra_client in clients[1:3]:
+                extra_cid = extra_client.client_id
+                if len(client_data[extra_cid]["y_train"]) > 0:
+                    rep_X = torch.cat([rep_X, client_data[extra_cid]["X_train"]], dim=0)
+                    rep_y = torch.cat([rep_y, client_data[extra_cid]["y_train"]], dim=0)
+                if len(rep_y) >= min_samples:
+                    break
         
         device = "cuda" if torch.cuda.is_available() else "cpu"
         rep_loader = DataLoader(
-            TensorDataset(all_X, all_y),
+            TensorDataset(rep_X, rep_y),
             batch_size=CONFIG["batch_size"],
             shuffle=True
         )

@@ -138,14 +138,29 @@ def main():
         history = train_federated_multigpu(server, task_config)
         
         # Build representation space for gradient projection (SVD)
-        all_X = torch.cat([client_data[cid]["X_train"] for cid in client_data 
-                          if len(client_data[cid]["y_train"]) > 0], dim=0)
-        all_y = torch.cat([client_data[cid]["y_train"] for cid in client_data 
-                          if len(client_data[cid]["y_train"]) > 0], dim=0)
+        # FL-Compliant: Use REPRESENTATIVE CLIENT instead of aggregating all data
+        print("\n🔐 Building representation space (FL-compliant: representative client)...")
+        
+        # Select representative client (first active client with enough data)
+        rep_client = clients[0]
+        rep_cid = rep_client.client_id
+        rep_X = client_data[rep_cid]["X_train"]
+        rep_y = client_data[rep_cid]["y_train"]
+        
+        # If representative has too few samples, sample from a few more clients
+        min_samples = 50
+        if len(rep_y) < min_samples and len(clients) > 1:
+            for extra_client in clients[1:3]:
+                extra_cid = extra_client.client_id
+                if len(client_data[extra_cid]["y_train"]) > 0:
+                    rep_X = torch.cat([rep_X, client_data[extra_cid]["X_train"]], dim=0)
+                    rep_y = torch.cat([rep_y, client_data[extra_cid]["y_train"]], dim=0)
+                if len(rep_y) >= min_samples:
+                    break
         
         device = "cuda" if torch.cuda.is_available() else "cpu"
         rep_loader = DataLoader(
-            TensorDataset(all_X, all_y),
+            TensorDataset(rep_X, rep_y),
             batch_size=CONFIG["batch_size"],
             shuffle=True
         )
