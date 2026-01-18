@@ -96,6 +96,7 @@ CONFIG = {
     "local_epochs": 5,           # Paper: 5 epochs
     "learning_rate": 2e-4,       # Slower learning for gradient projection to work
     "batch_size": 1024,
+    "workers_per_gpu": 3,        # Parallel workers per GPU (speed up ~3x)
     
     # Eval
     "eval_every": 1,
