@@ -14,7 +14,8 @@ from datetime import datetime
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
-from fed_learning import FederatedServer, train_federated_multigpu
+from fed_learning import train_federated_multigpu
+from fed_learning.servers import IncrementalServer
 from fed_learning.clients import CGoFedClient
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.strategies import get_strategy
@@ -131,7 +132,7 @@ def main():
             "num_classes": CONFIG["total_classes"],
         }
         
-        server = FederatedServer(clients, test_data, task_config)
+        server = IncrementalServer(clients, test_data, task_config)
         
         if global_model is not None:
             server.set_global_params(global_model)
@@ -177,11 +178,16 @@ def main():
         
         global_model = server.get_global_params()
         
+        # Check if this is the last task (for AUC calculation)
+        is_last_task = (task_id == data_loader.num_tasks - 1)
+        
         print(f"\n📊 Evaluating on all {len(seen_classes)} seen classes...")
-        metrics = server.evaluate_global()
+        metrics = server.evaluate_global(compute_auc=is_last_task)
         
         print(f"  Global Accuracy: {metrics['accuracy']*100:.2f}%")
         print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
+        if is_last_task and metrics.get('auc_macro_ovr') is not None:
+            print(f"  AUC (macro OvR): {metrics['auc_macro_ovr']*100:.2f}%")
         
         # [FIX] Compute per-task accuracy for accurate AF calculation
         print("\n🔍 Computing Per-Task Accuracy for AF...")
