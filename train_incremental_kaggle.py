@@ -86,9 +86,9 @@ CONFIG = {
     # Algorithm
     "algorithm": "cgofed",
     "mu": 0.01,
-    "lambda_decay": 0.1,       # α decay rate
-    "theta_threshold": 0.1,    # AF threshold to reset α
-    "cross_task_weight": 0.3,
+    "lambda_decay": 0.2,        # α decay rate (faster decay = more plasticity)
+    "theta_threshold": 0.05,    # AF threshold to reset α (more sensitive)
+    "cross_task_weight": 0.1,   # 10% history (less pull from old models)
     
     # Training per task
     "rounds_per_task": 5,
@@ -230,6 +230,10 @@ def main():
         
         print(f"  Accuracy: {metrics['accuracy']*100:.2f}%")
         print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
+        
+        # Update forgetting tracker (triggers α reset if AF > θ)
+        task_accuracies = {task_id: metrics['accuracy']}
+        trainer.update_forgetting(task_accuracies)
         
         all_history["task_accuracies"].append({
             "task": task_id,

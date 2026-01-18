@@ -66,7 +66,8 @@ class CGoFedClient(FederatedClient):
         Returns:
             Mean gradient vector [d] where d = total model parameters
         """
-        model.eval()
+        # Keep in train mode for GRU backward compatibility (cudnn requirement)
+        model.train()
         device = next(model.parameters()).device
         
         all_grads = []

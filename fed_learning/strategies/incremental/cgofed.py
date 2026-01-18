@@ -107,7 +107,8 @@ class CGoFedTrainer(BaseTrainer):
         device: str = "cuda"
     ):
         """Build representation space using SVD after training."""
-        model.eval()
+        # Keep in train mode for GRU backward compatibility (cudnn requirement)
+        model.train()
         
         all_grads = {name: [] for name, _ in model.named_parameters() if _.requires_grad}
         
