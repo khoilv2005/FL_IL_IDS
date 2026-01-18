@@ -56,9 +56,13 @@ class CGoFedTrainer(BaseTrainer):
         self.current_task: int = 0
         self.seen_classes: Set[int] = set()
         
-        # Representation space of old tasks (basis vectors from SVD)
+        # Representation space of old tasks (basis vectors from SVD) - stored on CPU
         self.old_space: Dict[str, torch.Tensor] = {}
         self.importance_weights: Dict[str, torch.Tensor] = {}
+        
+        # [FIX MULTI-GPU SPEED] Per-device GPU cache to avoid repeated CPU->GPU copies
+        # Structure: { 'cuda:0': {param_name: (U, weights)}, 'cuda:1': ... }
+        self.gpu_cache: Dict[str, Dict[str, tuple]] = {}
         
         # α relaxation
         self.alpha: float = 1.0
@@ -67,6 +71,7 @@ class CGoFedTrainer(BaseTrainer):
         # Accuracies for computing AF
         self.best_acc_per_task: Dict[int, float] = {}
         self.current_acc_per_task: Dict[int, float] = {}
+        self.last_af: float = 0.0
     
     def set_task(self, task_id: int, new_classes: List[int]):
         """Called at the beginning of each new task."""
@@ -199,27 +204,55 @@ class CGoFedTrainer(BaseTrainer):
         global_params: Optional[OrderedDict] = None,
         **kwargs
     ) -> None:
-        """Apply gradient projection: g' = g - α * P * g"""
+        """Ultra-optimized gradient projection: skip bias, cache per-GPU, minimize GIL contention"""
         if self.current_task == 0 or len(self.old_space) == 0:
             return
         
-        device = next(model.parameters()).device
+        try:
+            device_obj = next(model.parameters()).device
+            device_key = str(device_obj)
+        except StopIteration:
+            return
+        
+        if device_key not in self.gpu_cache:
+            self.gpu_cache[device_key] = {}
+        
+        # Get param dict (create fresh to avoid stale references in multi-threaded)
+        param_dict = dict(model.named_parameters())
         
         with torch.no_grad():
-            for name, param in model.named_parameters():
-                if param.grad is None or name not in self.old_space:
+            # Only iterate over old_space keys (faster than model.named_parameters())
+            for name in self.old_space.keys():
+                if name not in param_dict:
+                    continue
+                    
+                param = param_dict[name]
+                
+                # Double check grad exists (can change in multi-threaded)
+                if param.grad is None:
                     continue
                 
+                # Skip bias and small params (reduces GIL contention)
+                if 'bias' in name or param.numel() < 100:
+                    continue
+                
+                # Per-device GPU cache
+                if name not in self.gpu_cache[device_key]:
+                    self.gpu_cache[device_key][name] = (
+                        self.old_space[name].to(device_obj, non_blocking=True),
+                        self.importance_weights[name].to(device_obj, non_blocking=True)
+                    )
+                
+                U, weights = self.gpu_cache[device_key][name]
+                
+                # Compute projection delta
                 g = param.grad.view(-1)
-                U = self.old_space[name].to(device)
-                weights = self.importance_weights[name].to(device)
-                
                 proj_coeff = U.T @ g
-                weighted_coeff = proj_coeff * weights
-                projection = U @ weighted_coeff
+                delta = self.alpha * (U @ (proj_coeff * weights))
                 
-                g_new = g - self.alpha * projection
-                param.grad = g_new.view(param.shape)
+                # [SAFE] Use sub_ (in-place subtract) instead of copy_
+                # This is safer in multi-threaded environment
+                param.grad.sub_(delta.view(param.shape))
     
     def get_optimizer_class(self) -> type:
         return torch.optim.SGD

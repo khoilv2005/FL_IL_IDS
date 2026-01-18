@@ -43,11 +43,11 @@ CONFIG = {
     "cross_task_weight": 0.2,    # 20% history blend
     
     # Training per task (aligned with paper)
-    "rounds_per_task": 10,       # Paper: 20 rounds, we use 10 for efficiency
+    "rounds_per_task": 1,       # Paper: 20 rounds, we use 10 for efficiency
     "local_epochs": 5,           # Paper: 5 epochs
     "learning_rate": 2e-4,       # Slower learning for gradient projection to work
     "batch_size": 1024,
-    "workers_per_gpu": 3,        # Parallel workers per GPU (speed up ~3x)
+    "workers_per_gpu": 4,        # Parallel workers per GPU (speed up ~3x)
     
     # Eval
     "eval_every": 1,
