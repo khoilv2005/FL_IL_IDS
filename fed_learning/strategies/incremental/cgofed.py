@@ -124,9 +124,13 @@ class CGoFedTrainer(BaseTrainer):
             loss = F.cross_entropy(output, y)
             loss.backward()
             
+            # Handle None grads (from BatchNorm when batch_size=1) by replacing with zeros
             for name, param in model.named_parameters():
                 if param.grad is not None:
                     all_grads[name].append(param.grad.view(-1).cpu().clone())
+                else:
+                    # BatchNorm skipped when batch_size=1, fill with zeros
+                    all_grads[name].append(torch.zeros(param.numel()))
             
             sample_count += len(X)
         

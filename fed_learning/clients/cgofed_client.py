@@ -89,9 +89,16 @@ class CGoFedClient(FederatedClient):
             loss.backward()
             
             # Flatten and collect gradients
-            grad_vector = torch.cat([
-                p.grad.view(-1) for p in model.parameters() if p.grad is not None
-            ])
+            # Handle None grads (from BatchNorm when batch_size=1) by replacing with zeros
+            grads = []
+            for p in model.parameters():
+                if p.grad is not None:
+                    grads.append(p.grad.view(-1))
+                else:
+                    # BatchNorm skipped when batch_size=1, fill with zeros to keep consistent size
+                    grads.append(torch.zeros(p.numel(), device=device))
+            
+            grad_vector = torch.cat(grads)
             all_grads.append(grad_vector.cpu())
             sample_count += len(batch_idx)
         
