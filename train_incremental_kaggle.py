@@ -134,6 +134,7 @@ def main():
     }
     
     global_model = None
+    all_test_data = {}  # Store test data for each task to compute AF
     
     for task_id in range(data_loader.num_tasks):
         print(f"\n{'='*80}")
@@ -143,6 +144,9 @@ def main():
         # Get data for this task
         client_data, test_data, new_classes = data_loader.get_task_data(task_id)
         seen_classes = data_loader.get_seen_classes(task_id)
+        
+        # Store test data for AF calculation later
+        all_test_data[task_id] = test_data
         
         # Skip if no data
         if all(len(cd.get("y_train", [])) == 0 for cd in client_data.values()):
@@ -228,11 +232,25 @@ def main():
         print(f"\n📊 Evaluating on all {len(seen_classes)} seen classes...")
         metrics = server.evaluate_global()
         
-        print(f"  Accuracy: {metrics['accuracy']*100:.2f}%")
+        print(f"  Global Accuracy: {metrics['accuracy']*100:.2f}%")
         print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
         
-        # Update forgetting tracker (triggers α reset if AF > θ)
-        task_accuracies = {task_id: metrics['accuracy']}
+        # [FIX] Compute per-task accuracy for accurate AF calculation
+        print("\n🔍 Computing Per-Task Accuracy for AF...")
+        task_accuracies = {}
+        original_test_data = server.test_data  # Save original
+        
+        for prev_tid, prev_test_data in all_test_data.items():
+            # Temporarily set server test data to this task's data
+            server.test_data = prev_test_data
+            t_metrics = server.evaluate_global()
+            task_accuracies[prev_tid] = t_metrics['accuracy']
+            print(f"    Task {prev_tid} Acc: {t_metrics['accuracy']*100:.2f}%")
+        
+        # Restore original test data
+        server.test_data = original_test_data
+        
+        # Update forgetting with ALL task accuracies (triggers α reset if AF > θ)
         trainer.update_forgetting(task_accuracies)
         
         # Get and log Average Forgetting
@@ -245,6 +263,7 @@ def main():
             "seen_classes": len(seen_classes),
             "accuracy": metrics["accuracy"],
             "f1_macro": metrics["f1_macro"],
+            "per_task_acc": task_accuracies,
             "avg_forgetting": current_af,
             "alpha": trainer.alpha,
         })
