@@ -199,31 +199,75 @@ class CGoFedTrainer(BaseTrainer):
         global_params: Optional[OrderedDict] = None,
         **kwargs
     ) -> None:
-        """Apply gradient projection: g' = g - α * P * g"""
-        if self.current_task == 0 or len(self.old_space) == 0:
+        """
+        Ultra-optimized gradient projection: g' = g - α * P * g
+        
+        Optimizations:
+        - Skip bias layers (low impact, high overhead)
+        - Skip small layers (< 100 params)
+        - In-place operations (avoid memory allocation)
+        - GPU caching (avoid repeated CPU->GPU transfers)
+        """
+        if self.current_task == 0 or not self.old_space:
             return
         
-        device = next(model.parameters()).device
+        # Get device key for caching
+        try:
+            first_param = next(model.parameters())
+            device = first_param.device
+            device_key = str(device)
+        except StopIteration:
+            return
+        
+        # Initialize GPU cache if needed
+        if not hasattr(self, 'gpu_cache'):
+            self.gpu_cache = {}
+        if device_key not in self.gpu_cache:
+            self.gpu_cache[device_key] = {}
+        
+        current_cache = self.gpu_cache[device_key]
         
         with torch.no_grad():
             for name, param in model.named_parameters():
                 if param.grad is None or name not in self.old_space:
                     continue
                 
-                g = param.grad.view(-1)
-                U = self.old_space[name].to(device)
-                weights = self.importance_weights[name].to(device)
+                # [OPT 1] Skip bias layers (low impact, high overhead)
+                if 'bias' in name:
+                    continue
                 
-                proj_coeff = U.T @ g
-                weighted_coeff = proj_coeff * weights
-                projection = U @ weighted_coeff
+                # [OPT 2] Skip very small layers
+                if param.numel() < 100:
+                    continue
                 
-                g_new = g - self.alpha * projection
-                param.grad = g_new.view(param.shape)
+                # [OPT 3] Cache U and weights on GPU
+                if name in current_cache:
+                    U, weights = current_cache[name]
+                else:
+                    U = self.old_space[name].to(device, non_blocking=True)
+                    weights = self.importance_weights[name].to(device, non_blocking=True)
+                    current_cache[name] = (U, weights)
+                
+                # Gradient projection computation
+                g_flat = param.grad.view(-1)
+                
+                # proj_coeff = U.T @ g
+                proj_coeff = torch.matmul(U.T, g_flat)
+                
+                # [OPT 4] In-place multiply
+                proj_coeff.mul_(weights)
+                
+                # projection = U @ proj_coeff
+                projection = torch.matmul(U, proj_coeff)
+                
+                # [OPT 5] In-place subtract: g = g - alpha * projection
+                g_flat.sub_(projection, alpha=self.alpha)
     
     def get_optimizer_class(self) -> type:
         return torch.optim.SGD
 
+
+import os
 
 class CGoFedAggregator(BaseAggregator):
     """
@@ -235,17 +279,22 @@ class CGoFedAggregator(BaseAggregator):
     Args:
         cross_task_weight: Weight λ for blending with historical models
         top_k: Number of most similar historical models to select (paper: K=2)
+        save_dir: Directory to save historical models (to save RAM)
     """
     
-    def __init__(self, cross_task_weight: float = 0.3, top_k: int = 2):
+    def __init__(self, cross_task_weight: float = 0.3, top_k: int = 2, save_dir: str = "./history_models"):
         self.cross_task_weight = cross_task_weight
         self.top_k = top_k
+        self.save_dir = save_dir
+        
+        # Create history directory
+        os.makedirs(self.save_dir, exist_ok=True)
         
         # Store mean gradient vectors from clients: {client_id: {task_id: R_vector}}
         self.client_representations: Dict[int, Dict[int, torch.Tensor]] = {}
         
-        # Historical global models: {task_id: params}
-        self.task_global_models: Dict[int, OrderedDict] = {}
+        # Historical global models: {task_id: model_path} (Stored on DISK)
+        self.task_global_models: Dict[int, str] = {}
         
         # Mean representation per task (aggregated from clients)
         self.task_representations: Dict[int, torch.Tensor] = {}
@@ -307,7 +356,7 @@ class CGoFedAggregator(BaseAggregator):
                 similarities.append({
                     "task_id": tid,
                     "similarity": sim,
-                    "params": self.task_global_models[tid]
+                    "model_path": self.task_global_models[tid]
                 })
         
         # Sort by similarity (descending) and select TOP-K
@@ -335,7 +384,8 @@ class CGoFedAggregator(BaseAggregator):
         # Aggregate historical models
         hist_agg = None
         for i, model_info in enumerate(selected_models):
-            hist_params = model_info["params"]
+            # Load model from disk
+            hist_params = torch.load(model_info["model_path"], map_location='cpu')
             w = weights[i].item()
             
             if hist_agg is None:
@@ -351,6 +401,9 @@ class CGoFedAggregator(BaseAggregator):
                 for k in hist_agg:
                     if hist_agg[k].dtype.is_floating_point:
                         hist_agg[k] += w * hist_params[k].float()
+            
+            # Free memory
+            del hist_params
         
         # Blend with current: (1-λ) * current + λ * history
         λ = self.cross_task_weight
@@ -385,10 +438,11 @@ class CGoFedAggregator(BaseAggregator):
         # 2. Store representations from this round
         self._store_client_representations(results)
         
-        # 3. Save current model for future reference
-        self.task_global_models[self.current_task] = OrderedDict(
-            (k, v.cpu().clone()) for k, v in agg_params.items()
-        )
+        # 3. Save current model TO DISK instead of RAM
+        model_path = os.path.join(self.save_dir, f"task_{self.current_task}.pt")
+        torch.save(agg_params, model_path)
+        # Store path
+        self.task_global_models[self.current_task] = model_path
         
         # 4. Cross-task regularization (if we have history)
         if self.current_task > 0:

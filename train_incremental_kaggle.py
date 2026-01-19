@@ -9,6 +9,7 @@ Usage:
 
 import os
 import sys
+import gc
 import json
 from datetime import datetime
 
@@ -85,16 +86,18 @@ CONFIG = {
     "classes_per_task": 4,    # Task 2+: +4 classes each
     
     # Algorithm
+    # Algorithm
     "algorithm": "cgofed",
     "mu": 0.01,
-    "lambda_decay": 0.1,         # α decay rate (slower = more stability)
-    "theta_threshold": 0.01,     # AF threshold (paper: θ=0.01, very sensitive)
-    "cross_task_weight": 0.2,    # 20% history blend
+    "lambda_decay": 0.5,         # TĂNG: α giảm nhanh hơn -> dễ học cái mới
+    "theta_threshold": 0.05,     # TĂNG: Chấp nhận quên 5% để tránh reset liên tục
+    "cross_task_weight": 0.1,    # GIẢM: Ít phụ thuộc model cũ
+    "energy_threshold": 0.85,    # GIẢM: 85% energy -> nhiều Null Space hơn cho task mới
     
-    # Training per task (aligned with paper)
-    "rounds_per_task": 10,       # Paper: 20 rounds, we use 10 for efficiency
-    "local_epochs": 5,           # Paper: 5 epochs
-    "learning_rate": 2e-4,       # Slower learning for gradient projection to work
+    # Training per task
+    "rounds_per_task": 10,       # 10 rounds là tối ưu cho Kaggle GPU (9h limit). 20 rounds ~ 23h -> Timeout.
+    "local_epochs": 5,
+    "learning_rate": 0.005,      # TĂNG: Để học nhanh hơn với số round ít
     "batch_size": 1024,
     
     # Eval
@@ -126,6 +129,7 @@ def main():
         lambda_decay=CONFIG["lambda_decay"],
         theta_threshold=CONFIG["theta_threshold"],
         cross_task_weight=CONFIG["cross_task_weight"],
+        energy_threshold=CONFIG["energy_threshold"],
     )
     
     # History
@@ -273,6 +277,28 @@ def main():
             "avg_forgetting": current_af,
             "alpha": trainer.alpha,
         })
+        
+        # =============================================================================
+        # MEMORY CLEANUP & CHECKPOINTING
+        # =============================================================================
+        del server
+        del rep_loader
+        torch.cuda.empty_cache()
+        gc.collect()
+        
+        # Save Checkpoint
+        os.makedirs(CONFIG["output_dir"], exist_ok=True)
+        ckpt_path = os.path.join(CONFIG["output_dir"], f"checkpoint_task_{task_id}.pt")
+        torch.save({
+            'task_id': task_id,
+            'model_state_dict': global_model,
+            'old_space': trainer.old_space,
+            'importance_weights': trainer.importance_weights,
+            'alpha': trainer.alpha,
+            't_reset': trainer.t_reset,
+        }, ckpt_path)
+        print(f"💾 Checkpoint saved: {ckpt_path}")
+        print(f"🧹 Cleaned memory after Task {task_id}")
     
     # Save results
     os.makedirs(CONFIG["output_dir"], exist_ok=True)
