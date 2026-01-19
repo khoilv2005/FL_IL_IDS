@@ -87,14 +87,15 @@ CONFIG = {
     # Algorithm
     "algorithm": "cgofed",
     "mu": 0.01,
-    "lambda_decay": 0.1,         # α decay rate (slower = more stability)
-    "theta_threshold": 0.01,     # AF threshold (paper: θ=0.01, very sensitive)
-    "cross_task_weight": 0.2,    # 20% history blend
+    "lambda_decay": 0.5,         # Tăng từ 0.1 -> 0.5 (Alpha giảm nhanh hơn - More Plasticity)
+    "theta_threshold": 0.05,     # Tăng từ 0.01 -> 0.05 (Chấp nhận quên 5% thay vì 1%)
+    "cross_task_weight": 0.1,    # Giảm từ 0.2 -> 0.1 (Bớt phụ thuộc model cũ)
+    "energy_threshold": 0.85,    # MỚI: Chỉ giữ 85% năng lượng cũ
     
     # Training per task (aligned with paper)
-    "rounds_per_task": 10,       # Paper: 20 rounds, we use 10 for efficiency
+    "rounds_per_task": 10,       # Keep 10 rounds
     "local_epochs": 5,           # Paper: 5 epochs
-    "learning_rate": 2e-4,       # Slower learning for gradient projection to work
+    "learning_rate": 0.005,      # Tăng từ 2e-4 -> 0.005 (Học mạnh hơn)
     "batch_size": 1024,
     
     # Eval
@@ -126,6 +127,7 @@ def main():
         lambda_decay=CONFIG["lambda_decay"],
         theta_threshold=CONFIG["theta_threshold"],
         cross_task_weight=CONFIG["cross_task_weight"],
+        energy_threshold=CONFIG.get("energy_threshold", 0.95),
     )
     
     # History
