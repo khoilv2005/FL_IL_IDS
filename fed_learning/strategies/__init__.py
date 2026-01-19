@@ -106,6 +106,7 @@ def get_strategy(
             lambda_decay=config.get("lambda_decay", 0.1),
             theta_threshold=config.get("theta_threshold", 0.1),
             energy_threshold=config.get("energy_threshold", 0.95),
+            num_samples_rep=config.get("num_samples_rep", 100),
         )
     else:
         trainer = strategy["trainer"]()

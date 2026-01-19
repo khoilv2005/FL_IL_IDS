@@ -10,6 +10,7 @@ Usage:
 import os
 import sys
 import json
+import gc
 from datetime import datetime
 
 import torch
@@ -84,19 +85,20 @@ CONFIG = {
     "base_classes": 5,        # Task 1: 5 classes
     "classes_per_task": 4,    # Task 2+: +4 classes each
     
-    # Algorithm
+    # Algorithm - CIC IoT 2023 Optimized
     "algorithm": "cgofed",
     "mu": 0.01,
-    "lambda_decay": 0.5,         # Tăng từ 0.1 -> 0.5 (Alpha giảm nhanh hơn - More Plasticity)
-    "theta_threshold": 0.05,     # Tăng từ 0.01 -> 0.05 (Chấp nhận quên 5% thay vì 1%)
-    "cross_task_weight": 0.1,    # Giảm từ 0.2 -> 0.1 (Bớt phụ thuộc model cũ)
-    "energy_threshold": 0.85,    # MỚI: Chỉ giữ 85% năng lượng cũ
+    "lambda_decay": 0.5,          # Alpha giảm nhanh (task mới dễ học)
+    "theta_threshold": 0.15,      # Cho phép quên 15% trước reset α (CIC IoT cần linh hoạt)
+    "cross_task_weight": 0.1,     # Giảm phụ thuộc model cũ
+    "energy_threshold": 0.85,     # Giữ 85% SVD (chừa 15% cho task mới)
+    "num_samples_rep": 1000,      # Tăng mẫu SVD (dữ liệu mạng nhiễu, cần nhiều mẫu)
     
-    # Training per task (aligned with paper)
-    "rounds_per_task": 10,       # Keep 10 rounds
-    "local_epochs": 5,           # Paper: 5 epochs
-    "learning_rate": 0.005,      # Tăng từ 2e-4 -> 0.005 (Học mạnh hơn)
-    "batch_size": 1024,
+    # Training - CIC IoT 2023 Optimized
+    "rounds_per_task": 10,
+    "local_epochs": 5,
+    "learning_rate": 0.001,       # QUAN TRỌNG: Giảm từ 0.005 -> 0.001 (tránh Brain Dead)
+    "batch_size": 512,            # Giảm từ 1024 -> 512 (hội tụ tốt hơn)
     
     # Eval
     "eval_every": 1,
@@ -128,6 +130,7 @@ def main():
         theta_threshold=CONFIG["theta_threshold"],
         cross_task_weight=CONFIG["cross_task_weight"],
         energy_threshold=CONFIG.get("energy_threshold", 0.95),
+        num_samples_rep=CONFIG.get("num_samples_rep", 100),
     )
     
     # History
@@ -275,6 +278,26 @@ def main():
             "avg_forgetting": current_af,
             "alpha": trainer.alpha,
         })
+        
+        # [SAFETY] 💾 SAVE CHECKPOINT after each task
+        os.makedirs(CONFIG["output_dir"], exist_ok=True)
+        checkpoint_path = os.path.join(CONFIG["output_dir"], f"checkpoint_task_{task_id}.pt")
+        torch.save({
+            'task_id': task_id,
+            'model_state_dict': server.global_model.state_dict(),
+            'trainer_old_space': trainer.old_space,  # File paths for SVD
+            'trainer_importance_weights': trainer.importance_weights,
+            'config': CONFIG,
+            'seen_classes': list(seen_classes),
+        }, checkpoint_path)
+        print(f"💾 Checkpoint saved: {checkpoint_path}")
+        
+        # [SAFETY] 🧹 CLEAN MEMORY after each task
+        del client_data, clients
+        if 'rep_loader' in dir(): del rep_loader
+        torch.cuda.empty_cache()
+        gc.collect()
+        print(f"🧹 Memory cleaned after Task {task_id}")
     
     # Save results
     os.makedirs(CONFIG["output_dir"], exist_ok=True)

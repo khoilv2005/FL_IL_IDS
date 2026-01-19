@@ -17,6 +17,9 @@ from collections import OrderedDict
 from typing import Dict, List, Optional, Set, Tuple
 import copy
 import math
+import os
+import shutil
+import gc
 
 import torch
 import torch.nn as nn
@@ -45,6 +48,7 @@ class CGoFedTrainer(BaseTrainer):
         theta_threshold: float = 0.1,
         energy_threshold: float = 0.95,
         num_samples_rep: int = 100,
+        temp_dir: str = "./temp_svd_storage",
     ):
         self.mu = mu
         self.lambda_decay = lambda_decay
@@ -52,13 +56,22 @@ class CGoFedTrainer(BaseTrainer):
         self.energy_threshold = energy_threshold
         self.num_samples_rep = num_samples_rep
         
+        # Temp directory for Lazy Loading SVD matrices
+        self.temp_dir = temp_dir
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+        os.makedirs(self.temp_dir, exist_ok=True)
+        
         # Task tracking
         self.current_task: int = 0
         self.seen_classes: Set[int] = set()
         
-        # Representation space of old tasks (basis vectors from SVD)
-        self.old_space: Dict[str, torch.Tensor] = {}
-        self.importance_weights: Dict[str, torch.Tensor] = {}
+        # Representation space: stores FILE PATHS (str) instead of tensors
+        self.old_space: Dict[str, str] = {}
+        self.importance_weights: Dict[str, str] = {}
+        
+        # GPU cache for loaded tensors
+        self.gpu_cache: Dict[str, Dict[str, Tuple[torch.Tensor, torch.Tensor]]] = {}
         
         # α relaxation
         self.alpha: float = 1.0
@@ -67,6 +80,9 @@ class CGoFedTrainer(BaseTrainer):
         # Accuracies for computing AF
         self.best_acc_per_task: Dict[int, float] = {}
         self.current_acc_per_task: Dict[int, float] = {}
+        
+        # Tracking last AF
+        self.last_af: float = 0.0
     
     def set_task(self, task_id: int, new_classes: List[int]):
         """Called at the beginning of each new task."""
@@ -157,30 +173,57 @@ class CGoFedTrainer(BaseTrainer):
                 basis = Vh[:k].T
                 weights = torch.sigmoid(S[:k])
                 
+                # Load previous from disk if exists
                 if name in self.old_space:
-                    old_basis = self.old_space[name]
-                    old_weights = self.importance_weights[name]
+                    prev_path_basis = self.old_space[name]
+                    prev_path_w = self.importance_weights[name]
                     
-                    merged_basis = torch.cat([old_basis, basis], dim=1)
-                    merged_weights = torch.cat([old_weights, weights])
+                    # Load from disk
+                    prev_basis = torch.load(prev_path_basis, map_location='cpu')
+                    prev_w = torch.load(prev_path_w, map_location='cpu')
                     
-                    max_k = min(50, merged_basis.shape[1])
+                    merged_basis = torch.cat([prev_basis, basis], dim=1)
+                    merged_weights = torch.cat([prev_w, weights])
+                    
+                    # Keep top-K to limit file size
+                    max_k = min(100, merged_basis.shape[1])
                     if merged_weights.shape[0] > max_k:
                         _, topk_idx = torch.topk(merged_weights, max_k)
                         merged_basis = merged_basis[:, topk_idx]
                         merged_weights = merged_weights[topk_idx]
                     
-                    self.old_space[name] = merged_basis
-                    self.importance_weights[name] = merged_weights
+                    final_basis = merged_basis
+                    final_weights = merged_weights
+                    
+                    del prev_basis, prev_w
                 else:
-                    self.old_space[name] = basis
-                    self.importance_weights[name] = weights
+                    final_basis = basis
+                    final_weights = weights
+                
+                # --- SAVE TO DISK (Lazy Loading) ---
+                # Sanitize name for filesystem (replace . with _)
+                safe_name = name.replace(".", "_")
+                basis_path = os.path.join(self.temp_dir, f"{safe_name}_basis.pt")
+                weights_path = os.path.join(self.temp_dir, f"{safe_name}_weights.pt")
+                
+                torch.save(final_basis.cpu(), basis_path)
+                torch.save(final_weights.cpu(), weights_path)
+                
+                # Store only the paths
+                self.old_space[name] = basis_path
+                self.importance_weights[name] = weights_path
+                
+                # Free memory
+                del final_basis, final_weights, U, S, Vh, R, basis, weights
                     
             except Exception as e:
                 print(f"SVD failed for {name}: {e}")
                 continue
         
-        print(f"✓ Built representation space for task {self.current_task}")
+        # Clear GPU cache to force reload from disk
+        self.gpu_cache.clear()
+        gc.collect()
+        print(f"✓ Built representation space for task {self.current_task} (Saved to Disk)")
     
     def compute_loss(
         self, 
@@ -240,13 +283,30 @@ class CGoFedTrainer(BaseTrainer):
                 if param.numel() < 100:
                     continue
                 
-                # [OPT 3] Cache U and weights on GPU
+                # [OPT 3] Cache U and weights on GPU (Lazy Load from disk)
                 if name in current_cache:
+                    # Cache hit: use GPU tensors directly
                     U, weights = current_cache[name]
                 else:
-                    U = self.old_space[name].to(device, non_blocking=True)
-                    weights = self.importance_weights[name].to(device, non_blocking=True)
+                    # Cache miss: load from disk
+                    basis_ref = self.old_space[name]
+                    weight_ref = self.importance_weights[name]
+                    
+                    # If path (str), load from disk; else use tensor directly
+                    if isinstance(basis_ref, str):
+                        U_cpu = torch.load(basis_ref, map_location='cpu')
+                        w_cpu = torch.load(weight_ref, map_location='cpu')
+                    else:
+                        U_cpu = basis_ref
+                        w_cpu = weight_ref
+                    
+                    # Transfer to GPU and cache
+                    U = U_cpu.to(device, non_blocking=True)
+                    weights = w_cpu.to(device, non_blocking=True)
                     current_cache[name] = (U, weights)
+                    
+                    # Free CPU memory
+                    del U_cpu, w_cpu
                 
                 # Gradient projection computation
                 g_flat = param.grad.view(-1)
