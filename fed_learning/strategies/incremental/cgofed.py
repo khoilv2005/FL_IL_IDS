@@ -267,8 +267,6 @@ class CGoFedTrainer(BaseTrainer):
         return torch.optim.SGD
 
 
-import os
-
 class CGoFedAggregator(BaseAggregator):
     """
     CGoFed aggregation with similarity-based cross-task regularization.
@@ -279,22 +277,17 @@ class CGoFedAggregator(BaseAggregator):
     Args:
         cross_task_weight: Weight λ for blending with historical models
         top_k: Number of most similar historical models to select (paper: K=2)
-        save_dir: Directory to save historical models (to save RAM)
     """
     
-    def __init__(self, cross_task_weight: float = 0.3, top_k: int = 2, save_dir: str = "./history_models"):
+    def __init__(self, cross_task_weight: float = 0.3, top_k: int = 2):
         self.cross_task_weight = cross_task_weight
         self.top_k = top_k
-        self.save_dir = save_dir
-        
-        # Create history directory
-        os.makedirs(self.save_dir, exist_ok=True)
         
         # Store mean gradient vectors from clients: {client_id: {task_id: R_vector}}
         self.client_representations: Dict[int, Dict[int, torch.Tensor]] = {}
         
-        # Historical global models: {task_id: model_path} (Stored on DISK)
-        self.task_global_models: Dict[int, str] = {}
+        # Historical global models: {task_id: params}
+        self.task_global_models: Dict[int, OrderedDict] = {}
         
         # Mean representation per task (aggregated from clients)
         self.task_representations: Dict[int, torch.Tensor] = {}
@@ -356,7 +349,7 @@ class CGoFedAggregator(BaseAggregator):
                 similarities.append({
                     "task_id": tid,
                     "similarity": sim,
-                    "model_path": self.task_global_models[tid]
+                    "params": self.task_global_models[tid]
                 })
         
         # Sort by similarity (descending) and select TOP-K
@@ -384,8 +377,7 @@ class CGoFedAggregator(BaseAggregator):
         # Aggregate historical models
         hist_agg = None
         for i, model_info in enumerate(selected_models):
-            # Load model from disk
-            hist_params = torch.load(model_info["model_path"], map_location='cpu')
+            hist_params = model_info["params"]
             w = weights[i].item()
             
             if hist_agg is None:
@@ -401,9 +393,6 @@ class CGoFedAggregator(BaseAggregator):
                 for k in hist_agg:
                     if hist_agg[k].dtype.is_floating_point:
                         hist_agg[k] += w * hist_params[k].float()
-            
-            # Free memory
-            del hist_params
         
         # Blend with current: (1-λ) * current + λ * history
         λ = self.cross_task_weight
@@ -438,11 +427,10 @@ class CGoFedAggregator(BaseAggregator):
         # 2. Store representations from this round
         self._store_client_representations(results)
         
-        # 3. Save current model TO DISK instead of RAM
-        model_path = os.path.join(self.save_dir, f"task_{self.current_task}.pt")
-        torch.save(agg_params, model_path)
-        # Store path
-        self.task_global_models[self.current_task] = model_path
+        # 3. Save current model for future reference
+        self.task_global_models[self.current_task] = OrderedDict(
+            (k, v.cpu().clone()) for k, v in agg_params.items()
+        )
         
         # 4. Cross-task regularization (if we have history)
         if self.current_task > 0:
