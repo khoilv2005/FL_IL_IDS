@@ -3,6 +3,10 @@ Federated Class Incremental Learning - Kaggle Training Script
 ==============================================================
 Train with CGoFed or FedAvg for Class Incremental Learning on Kaggle.
 
+Reference:
+    "CGoFed: Constrained Gradient Optimization Strategy for Federated Class 
+    Incremental Learning", IEEE TKDE, Vol. 37, No. 5, May 2025
+
 Usage:
     Upload fed_learning folder to Kaggle dataset, then run this script.
 """
@@ -89,20 +93,21 @@ CONFIG = {
     "base_classes": 10,         # Task 0: 10 classes (0-9)
     "classes_per_task": 5,      # Task 1-5: +5 classes per task
     
-    # Algorithm - CGoFed Paper (IEEE TKDE 2025) recommended params
+    # Algorithm - CGoFed Paper Parameters
     "algorithm": "cgofed",        # "cgofed" or "fedavg"
-    "mu": 1.0,                    # Paper: strong constraint (was 0.01)
-    "lambda_decay": 0.07,         # Paper: slow α decay (was 0.5)
-    "theta_threshold": 0.15,      # Paper: tighter AF threshold (was 2.0)
-    "cross_task_weight": 0.3,     # Paper: blend with historical models
-    "energy_threshold": 0.98,     # Paper: high energy retention (was 0.70)
-    "num_samples_rep": 1024,      # Samples for SVD (was 2000)
+    "mu": 0.01,                   # Proximal regularization weight
+    "lambda_decay": 0.06,         # α decay rate (paper: λ)
+    "theta_threshold": 0.13,      # AF threshold to reset α (paper: θ)
+    "cross_task_weight": 0.35,    # Cross-task regularization weight (paper: λ)
+    "energy_threshold": 0.97,     # SVD energy threshold (paper: ε)
+    "num_samples_rep": 100,       # Samples for gradient-based representation
+    "top_k": 2,                   # TOP-K similar models (paper: K=2)
     
-    # Training
-    "rounds_per_task": 10,
-    "local_epochs": 5,
-    "learning_rate": 0.001,
-    "batch_size": 512,
+    # Training - Fit Kaggle (full run ~8-10 hours)
+    "rounds_per_task": 10,        # Was 15, reduced to fit session limit
+    "local_epochs": 5,            # Was 8, balanced for time/quality
+    "learning_rate": 0.0008,      # Safe for GRU
+    "batch_size": 1024,            # Large batch = faster + stable
     
     # Eval
     "eval_every": 1,
@@ -135,16 +140,55 @@ def create_clients(client_data, config):
 
 
 def build_representation_space(trainer, client_data, server, config):
-    """Build representation space for CGoFed (SVD-based gradient projection)."""
-    if not hasattr(trainer, 'update_representation_from_client_data'):
+    """
+    Build representation space for CGoFed (paper eq. 2-4).
+    
+    Paper CGoFed Section 5.1:
+    - Uses gradient vectors from samples
+    - SVD decomposition to find principal directions
+    - Stores basis for gradient projection in future tasks
+    """
+    if not hasattr(trainer, 'build_representation_space'):
         return
     
-    print("\n🔐 Building representation space...")
+    print("\n🔐 Building gradient-based representation space (paper Section 5.1)...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    trainer.update_representation_from_client_data(
-        client_data=client_data,
+    
+    # Find clients with data (FL-compliant: use representative clients)
+    active_cids = [cid for cid, data in client_data.items() 
+                   if len(data.get("y_train", [])) > 0]
+    
+    if len(active_cids) == 0:
+        print("⚠️ No client data available for representation space")
+        return
+    
+    # Select representative client (first active client)
+    rep_cid = active_cids[0]
+    rep_X = client_data[rep_cid]["X_train"]
+    rep_y = client_data[rep_cid]["y_train"]
+    
+    # If representative has too few samples, sample from a few more clients
+    # But NEVER aggregate all clients (that would violate FL privacy)
+    min_samples = 50
+    if len(rep_y) < min_samples and len(active_cids) > 1:
+        for extra_cid in active_cids[1:3]:  # Max 2-3 clients
+            if len(client_data[extra_cid].get("y_train", [])) > 0:
+                rep_X = torch.cat([rep_X, client_data[extra_cid]["X_train"]], dim=0)
+                rep_y = torch.cat([rep_y, client_data[extra_cid]["y_train"]], dim=0)
+            if len(rep_y) >= min_samples:
+                break
+    
+    # Create DataLoader with small batch size for per-sample gradients
+    rep_loader = DataLoader(
+        TensorDataset(rep_X, rep_y),
+        batch_size=32,  # Small batch for per-sample gradient computation
+        shuffle=True
+    )
+    
+    # Build representation space using gradient vectors
+    trainer.build_representation_space(
         model=server.global_model,
-        batch_size=config["batch_size"],
+        data_loader=rep_loader,
         device=device
     )
 
@@ -226,7 +270,8 @@ def save_checkpoint(server, trainer, config, task_id, seen_classes):
 # =============================================================================
 def main():
     print("\n" + "="*80)
-    print("🚀 FEDERATED CLASS INCREMENTAL LEARNING - KAGGLE")
+    print("🚀 FEDERATED CLASS INCREMENTAL LEARNING (CGoFed) - KAGGLE")
+    print("   Paper: IEEE TKDE 2025 - Constrained Gradient Optimization")
     print("="*80)
     
     # Cleanup temp folders from previous runs
@@ -254,6 +299,7 @@ def main():
         cross_task_weight=CONFIG["cross_task_weight"],
         energy_threshold=CONFIG["energy_threshold"],
         num_samples_rep=CONFIG["num_samples_rep"],
+        top_k=CONFIG.get("top_k", 2),
     )
     
     # Initialize tracking variables
@@ -383,11 +429,19 @@ def main():
     
     # Print summary
     print("\n" + "="*80)
-    print("📊 INCREMENTAL LEARNING SUMMARY")
+    print("📊 INCREMENTAL LEARNING SUMMARY (CGoFed)")
     print("="*80)
     for h in all_history["task_accuracies"]:
         af_str = f", AF: {h['avg_forgetting']*100:.2f}%" if h['avg_forgetting'] > 0 else ""
-        print(f"  Task {h['task']}: {h['seen_classes']} classes → Acc: {h['accuracy']*100:.2f}%{af_str}")
+        alpha_str = f", α={h['alpha']:.3f}" if h.get('alpha') else ""
+        print(f"  Task {h['task']}: {h['seen_classes']} classes → "
+              f"Acc: {h['accuracy']*100:.2f}%{af_str}{alpha_str}")
+    
+    # Final metrics
+    if all_history["task_accuracies"]:
+        final = all_history["task_accuracies"][-1]
+        print(f"\n  🎯 Final Accuracy (all classes): {final['accuracy']*100:.2f}%")
+        print(f"  🎯 Final Average Forgetting: {final['avg_forgetting']*100:.2f}%")
     
     print("\n✅ DONE!")
 

@@ -3,12 +3,17 @@ Federated Class Incremental Learning - Training Script
 ======================================================
 Train with CGoFed for Class Incremental Learning.
 
+Reference:
+    "CGoFed: Constrained Gradient Optimization Strategy for Federated Class 
+    Incremental Learning", IEEE TKDE, Vol. 37, No. 5, May 2025
+
 Usage:
     python train_incremental.py
 """
 
 import os
 import json
+import shutil
 from datetime import datetime
 
 import torch
@@ -35,30 +40,40 @@ CONFIG = {
     "base_classes": 5,        # Task 1: 5 classes
     "classes_per_task": 4,    # Task 2+: +4 classes each
     
-    # Algorithm - CIC IoT 2023 Optimized
+    # Algorithm - CGoFed Paper Parameters
     "algorithm": "cgofed",
-    "mu": 0.01,
-    "lambda_decay": 0.5,          # Alpha giảm nhanh (task mới dễ học)
-    "theta_threshold": 0.15,      # Cho phép quên 15% trước reset α (CIC IoT cần linh hoạt)
-    "cross_task_weight": 0.1,     # Giảm phụ thuộc model cũ
-    "energy_threshold": 0.85,     # Giữ 85% SVD (chừa 15% cho task mới)
-    "num_samples_rep": 1000,      # Tăng mẫu SVD (dữ liệu mạng nhiễu, cần nhiều mẫu)
+    "mu": 0.01,                   # Proximal regularization weight
+    "lambda_decay": 0.5,          # α decay rate (paper: λ)
+    "theta_threshold": 0.15,      # AF threshold to reset α (paper: θ)
+    "cross_task_weight": 0.1,     # Cross-task regularization weight
+    "energy_threshold": 0.85,     # SVD energy threshold (paper: ε)
+    "num_samples_rep": 100,       # Samples for building representation space
+    "top_k": 2,                   # TOP-K similar models (paper: K=2)
     
-    # Training - CIC IoT 2023 Optimized
+    # Training
     "rounds_per_task": 10,
     "local_epochs": 5,
-    "learning_rate": 0.001,       # QUAN TRỌNG: Giảm từ 0.005 -> 0.001 (tránh Brain Dead)
-    "batch_size": 512,            # Giảm từ 1024 -> 512 (hội tụ tốt hơn)
+    "learning_rate": 0.001,
+    "batch_size": 512,
     
     # Eval
     "eval_every": 1,
+    
+    # Storage
+    "temp_svd_dir": "./temp_svd_storage",
 }
 
 
 def main():
     print("\n" + "="*80)
-    print("🚀 FEDERATED CLASS INCREMENTAL LEARNING")
+    print("🚀 FEDERATED CLASS INCREMENTAL LEARNING (CGoFed)")
+    print("   Paper: IEEE TKDE 2025 - Constrained Gradient Optimization")
     print("="*80)
+    
+    # Cleanup temp SVD storage from previous runs
+    if os.path.exists(CONFIG["temp_svd_dir"]):
+        shutil.rmtree(CONFIG["temp_svd_dir"])
+        print(f"🧹 Cleaned up {CONFIG['temp_svd_dir']}")
     
     # Initialize incremental data loader
     data_loader = IncrementalDataLoader(
@@ -72,7 +87,7 @@ def main():
     print(f"\n{data_loader}")
     print(f"Total tasks: {data_loader.num_tasks}")
     
-    # Get strategy
+    # Get strategy (CGoFed trainer + aggregator)
     trainer, aggregator = get_strategy(
         CONFIG["algorithm"],
         mu=CONFIG["mu"],
@@ -81,7 +96,12 @@ def main():
         cross_task_weight=CONFIG["cross_task_weight"],
         energy_threshold=CONFIG.get("energy_threshold", 0.95),
         num_samples_rep=CONFIG.get("num_samples_rep", 100),
+        top_k=CONFIG.get("top_k", 2),
     )
+    
+    # Set temp directory for SVD storage
+    trainer.temp_dir = CONFIG["temp_svd_dir"]
+    os.makedirs(trainer.temp_dir, exist_ok=True)
     
     # History
     all_history = {
@@ -147,9 +167,10 @@ def main():
         print(f"\n🎯 Training on {len(new_classes)} new classes: {new_classes}")
         history = train_federated_multigpu(server, task_config)
         
-        # Build representation space for gradient projection (SVD)
-        # FL-Compliant: Use REPRESENTATIVE CLIENT instead of aggregating all data
-        print("\n🔐 Building representation space (FL-compliant: representative client)...")
+        # Build representation space for gradient projection (paper eq. 2-4)
+        # This uses GRADIENT vectors, not activations
+        # FL-Compliant: Use representative client(s) instead of aggregating all data
+        print("\n🔐 Building gradient-based representation space (paper Section 5.1)...")
         
         # Select representative client (first active client with enough data)
         rep_client = clients[0]
@@ -158,9 +179,10 @@ def main():
         rep_y = client_data[rep_cid]["y_train"]
         
         # If representative has too few samples, sample from a few more clients
+        # But NEVER aggregate all clients (that would violate FL privacy)
         min_samples = 50
         if len(rep_y) < min_samples and len(clients) > 1:
-            for extra_client in clients[1:3]:
+            for extra_client in clients[1:3]:  # Max 2-3 clients
                 extra_cid = extra_client.client_id
                 if len(client_data[extra_cid]["y_train"]) > 0:
                     rep_X = torch.cat([rep_X, client_data[extra_cid]["X_train"]], dim=0)
@@ -171,9 +193,12 @@ def main():
         device = "cuda" if torch.cuda.is_available() else "cpu"
         rep_loader = DataLoader(
             TensorDataset(rep_X, rep_y),
-            batch_size=CONFIG["batch_size"],
+            batch_size=32,  # Small batch for per-sample gradients
             shuffle=True
         )
+        
+        # Build representation space using gradient vectors (paper eq. 2-4)
+        # SVD decomposition to find principal gradient directions
         trainer.build_representation_space(
             model=server.global_model,
             data_loader=rep_loader,
@@ -193,8 +218,8 @@ def main():
         if is_last_task and metrics.get('auc_macro_ovr') is not None:
             print(f"  AUC (macro OvR): {metrics['auc_macro_ovr']*100:.2f}%")
         
-        # [FIX] Compute per-task accuracy for accurate AF calculation
-        print("\n🔍 Computing Per-Task Accuracy for AF...")
+        # [Paper eq. 16] Compute per-task accuracy for AF calculation
+        print("\n🔍 Computing Per-Task Accuracy for AF (paper eq. 16)...")
         task_accuracies = {}
         original_test_data = server.test_data  # Save original
         
@@ -208,13 +233,13 @@ def main():
         # Restore original test data
         server.test_data = original_test_data
         
-        # Update forgetting with ALL task accuracies (triggers α reset if AF > θ)
+        # [Paper eq. 7] Update forgetting and potentially reset α
         trainer.update_forgetting(task_accuracies)
         
         # Get and log Average Forgetting
         current_af = trainer.get_current_af()
-        print(f"  Average Forgetting (AF): {current_af*100:.2f}%")
-        print(f"  Current α: {trainer.alpha:.4f}")
+        print(f"\n  📈 Average Forgetting (AF): {current_af*100:.2f}%")
+        print(f"  📈 Current α (relaxation): {trainer.alpha:.4f}")
         
         all_history["task_accuracies"].append({
             "task": task_id,
@@ -237,10 +262,23 @@ def main():
     
     # Summary
     print("\n" + "="*80)
-    print("📊 INCREMENTAL LEARNING SUMMARY")
+    print("📊 INCREMENTAL LEARNING SUMMARY (CGoFed)")
     print("="*80)
     for h in all_history["task_accuracies"]:
-        print(f"  Task {h['task']}: {h['seen_classes']} classes → Acc: {h['accuracy']*100:.2f}%")
+        af_str = f", AF={h['avg_forgetting']*100:.1f}%" if h['avg_forgetting'] > 0 else ""
+        print(f"  Task {h['task']}: {h['seen_classes']} classes → "
+              f"Acc: {h['accuracy']*100:.2f}%, α={h['alpha']:.3f}{af_str}")
+    
+    # Final metrics
+    if all_history["task_accuracies"]:
+        final = all_history["task_accuracies"][-1]
+        print(f"\n  🎯 Final Accuracy (all classes): {final['accuracy']*100:.2f}%")
+        print(f"  🎯 Final Average Forgetting: {final['avg_forgetting']*100:.2f}%")
+    
+    # Cleanup temp files
+    if os.path.exists(CONFIG["temp_svd_dir"]):
+        shutil.rmtree(CONFIG["temp_svd_dir"])
+        print(f"\n🧹 Cleaned up {CONFIG['temp_svd_dir']}")
     
     print("\n✅ DONE!")
 
