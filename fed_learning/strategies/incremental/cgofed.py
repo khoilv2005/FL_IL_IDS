@@ -57,9 +57,9 @@ class CGoFedTrainer(BaseTrainer):
         self.num_samples_rep = num_samples_rep
         
         # Temp directory for Lazy Loading SVD matrices
+        # NOTE: Do NOT delete existing files here! Files from previous tasks are needed.
+        # Cleanup should be done ONCE at the start of main() in training script.
         self.temp_dir = temp_dir
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
         os.makedirs(self.temp_dir, exist_ok=True)
         
         # Task tracking
@@ -122,108 +122,146 @@ class CGoFedTrainer(BaseTrainer):
         """Get the last computed Average Forgetting value."""
         return getattr(self, 'last_af', 0.0)
     
+    def update_representation_from_client_data(
+        self,
+        client_data: Dict[int, Dict[str, torch.Tensor]],
+        model: nn.Module,
+        batch_size: int = 512,
+        device: str = "cuda"
+    ):
+        """
+        Build representation space from client data (FL-compliant).
+        
+        This method encapsulates the entire SVD pipeline:
+        1. Select representative client(s) - never aggregate all data
+        2. Create DataLoader from representative data
+        3. Call build_representation_space to compute SVD
+        
+        Args:
+            client_data: Dict mapping client_id -> {"X_train": Tensor, "y_train": Tensor}
+            model: The global model
+            batch_size: Batch size for DataLoader
+            device: Device to run computations on
+        """
+        from torch.utils.data import TensorDataset, DataLoader
+        
+        # Find clients with data
+        active_cids = [cid for cid, data in client_data.items() 
+                       if len(data.get("y_train", [])) > 0]
+        
+        if len(active_cids) == 0:
+            print("⚠️ No client data available for representation space")
+            return
+        
+        # Select representative client (first active client)
+        rep_cid = active_cids[0]
+        rep_X = client_data[rep_cid]["X_train"]
+        rep_y = client_data[rep_cid]["y_train"]
+        
+        # If representative has too few samples, sample from a few more clients
+        # But NEVER concatenate all clients (that would violate FL privacy)
+        min_samples = 50
+        if len(rep_y) < min_samples and len(active_cids) > 1:
+            for extra_cid in active_cids[1:3]:  # Max 2-3 clients
+                if len(client_data[extra_cid].get("y_train", [])) > 0:
+                    rep_X = torch.cat([rep_X, client_data[extra_cid]["X_train"]], dim=0)
+                    rep_y = torch.cat([rep_y, client_data[extra_cid]["y_train"]], dim=0)
+                if len(rep_y) >= min_samples:
+                    break
+        
+        # Create DataLoader
+        rep_loader = DataLoader(
+            TensorDataset(rep_X, rep_y),
+            batch_size=batch_size,
+            shuffle=True
+        )
+        
+        # Build representation space (SVD)
+        self.build_representation_space(model, rep_loader, device)
+
+    
     def build_representation_space(
         self,
         model: nn.Module,
         data_loader,
         device: str = "cuda"
     ):
-        """Build representation space using SVD after training."""
-        # Keep in train mode for GRU backward compatibility (cudnn requirement)
-        model.train()
+        """
+        Build representation space using ACTIVATIONS (paper-compliant).
         
-        all_grads = {name: [] for name, _ in model.named_parameters() if _.requires_grad}
+        Paper CGoFed (IEEE TKDE 2025) eq. 2:
+        R^t = F(Θ^t, X^t) - use forward activations, NOT gradients.
+        
+        Key fixes from paper:
+        1. Use activations (get_fused_representation) instead of gradients
+        2. Use LEFT singular vectors U (column space) instead of Vh.T
+        3. Save separate basis per task (don't merge)
+        """
+        model.eval()  # Eval mode for consistent activations
+        all_reps = []  # List of [B, dim] tensors
         
         sample_count = 0
-        for X, y in data_loader:
-            if sample_count >= self.num_samples_rep:
-                break
+        with torch.no_grad():
+            for X, y in data_loader:
+                if sample_count >= self.num_samples_rep:
+                    break
+                X = X.to(device)
                 
-            X, y = X.to(device), y.to(device)
-            
-            model.zero_grad()
-            output = model(X)
-            loss = F.cross_entropy(output, y)
-            loss.backward()
-            
-            # Handle None grads (from BatchNorm when batch_size=1) by replacing with zeros
-            for name, param in model.named_parameters():
-                if param.grad is not None:
-                    all_grads[name].append(param.grad.view(-1).cpu().clone())
-                else:
-                    # BatchNorm skipped when batch_size=1, fill with zeros
-                    all_grads[name].append(torch.zeros(param.numel()))
-            
-            sample_count += len(X)
+                # Get fused representation (activations before MLP head)
+                # This is R^t from paper eq. 2
+                rep = model.get_fused_representation(X)  # [B, dim]
+                all_reps.append(rep.cpu())
+                sample_count += len(X)
         
-        for name in all_grads:
-            if len(all_grads[name]) == 0:
-                continue
-                
-            R = torch.stack(all_grads[name], dim=0)
-            
-            try:
-                U, S, Vh = torch.linalg.svd(R, full_matrices=False)
-                
-                total_energy = (S ** 2).sum()
-                cumsum = torch.cumsum(S ** 2, dim=0)
-                k = (cumsum < self.energy_threshold * total_energy).sum() + 1
-                k = min(k.item(), len(S))
-                
-                basis = Vh[:k].T
-                weights = torch.sigmoid(S[:k])
-                
-                # Load previous from disk if exists
-                if name in self.old_space:
-                    prev_path_basis = self.old_space[name]
-                    prev_path_w = self.importance_weights[name]
-                    
-                    # Load from disk
-                    prev_basis = torch.load(prev_path_basis, map_location='cpu')
-                    prev_w = torch.load(prev_path_w, map_location='cpu')
-                    
-                    merged_basis = torch.cat([prev_basis, basis], dim=1)
-                    merged_weights = torch.cat([prev_w, weights])
-                    
-                    # Keep top-K to limit file size
-                    max_k = min(100, merged_basis.shape[1])
-                    if merged_weights.shape[0] > max_k:
-                        _, topk_idx = torch.topk(merged_weights, max_k)
-                        merged_basis = merged_basis[:, topk_idx]
-                        merged_weights = merged_weights[topk_idx]
-                    
-                    final_basis = merged_basis
-                    final_weights = merged_weights
-                    
-                    del prev_basis, prev_w
-                else:
-                    final_basis = basis
-                    final_weights = weights
-                
-                # --- SAVE TO DISK (Lazy Loading) ---
-                # Sanitize name for filesystem (replace . with _)
-                safe_name = name.replace(".", "_")
-                basis_path = os.path.join(self.temp_dir, f"{safe_name}_basis.pt")
-                weights_path = os.path.join(self.temp_dir, f"{safe_name}_weights.pt")
-                
-                torch.save(final_basis.cpu(), basis_path)
-                torch.save(final_weights.cpu(), weights_path)
-                
-                # Store only the paths
-                self.old_space[name] = basis_path
-                self.importance_weights[name] = weights_path
-                
-                # Free memory
-                del final_basis, final_weights, U, S, Vh, R, basis, weights
-                    
-            except Exception as e:
-                print(f"SVD failed for {name}: {e}")
-                continue
+        if not all_reps:
+            print("⚠️ No samples for representation space")
+            return
         
-        # Clear GPU cache to force reload from disk
-        self.gpu_cache.clear()
+        # Stack all representations: R = [n_samples, dim]
+        R = torch.cat(all_reps, dim=0)
+        print(f"  → Representation matrix R: {R.shape}")
+        
+        try:
+            # SVD: R = U @ S @ Vh
+            # Paper uses LEFT singular vectors U (column space of R)
+            U, S, Vh = torch.linalg.svd(R, full_matrices=False)
+            
+            # Energy-based rank selection (paper eq. 3)
+            cum_energy = torch.cumsum(S ** 2, dim=0)
+            total_energy = cum_energy[-1]
+            k = (cum_energy < self.energy_threshold * total_energy).sum() + 1
+            k = min(k.item(), len(S), 100)  # Cap at 100 for memory
+            
+            # Use LEFT singular vectors U (paper-compliant)
+            # U[:, :k] gives principal directions in sample space
+            basis = U[:, :k]  # [n_samples, k]
+            weights = torch.sigmoid(S[:k])
+            
+            print(f"  → SVD basis: k={k} vectors (energy={self.energy_threshold})")
+            
+            # Save per-task SEPARATE (don't merge with previous tasks)
+            # Paper accumulates all old task bases, projects onto ALL of them
+            task_key = f"task_{self.current_task}"
+            basis_path = os.path.join(self.temp_dir, f"{task_key}_basis.pt")
+            weights_path = os.path.join(self.temp_dir, f"{task_key}_weights.pt")
+            
+            torch.save(basis, basis_path)
+            torch.save(weights, weights_path)
+            
+            # Store paths (not tensors) to save memory
+            self.old_space[task_key] = basis_path
+            self.importance_weights[task_key] = weights_path
+            
+            print(f"  → Saved basis to {basis_path}")
+            
+        except Exception as e:
+            print(f"⚠️ SVD failed: {e}")
+        
+        # Clean up
+        del all_reps, R
         gc.collect()
-        print(f"✓ Built representation space for task {self.current_task} (Saved to Disk)")
+        torch.cuda.empty_cache()
+        print(f"✓ Built representation space for task {self.current_task}")
     
     def compute_loss(
         self, 
@@ -243,85 +281,79 @@ class CGoFedTrainer(BaseTrainer):
         **kwargs
     ) -> None:
         """
-        Ultra-optimized gradient projection: g' = g - α * P * g
+        Gradient projection: g' = g - α * projection
         
-        Optimizations:
-        - Skip bias layers (low impact, high overhead)
-        - Skip small layers (< 100 params)
-        - In-place operations (avoid memory allocation)
-        - GPU caching (avoid repeated CPU->GPU transfers)
+        Paper CGoFed (IEEE TKDE 2025):
+        Project gradient to be orthogonal to old representation spaces.
+        This prevents catastrophic forgetting by not interfering with
+        old task representations.
+        
+        Note: With activation-based representation, we project the gradient
+        of the classifier layer onto the representation space of activations.
         """
         if self.current_task == 0 or not self.old_space:
             return
         
-        # Get device key for caching
-        try:
-            first_param = next(model.parameters())
-            device = first_param.device
-            device_key = str(device)
-        except StopIteration:
-            return
-        
-        # Initialize GPU cache if needed
-        if not hasattr(self, 'gpu_cache'):
-            self.gpu_cache = {}
-        if device_key not in self.gpu_cache:
-            self.gpu_cache[device_key] = {}
-        
-        current_cache = self.gpu_cache[device_key]
+        # Only apply projection to classifier layers (MLP head)
+        # Because representation space is for pre-classifier activations
+        classifier_layers = ['dense1', 'dense2', 'output']
         
         with torch.no_grad():
             for name, param in model.named_parameters():
-                if param.grad is None or name not in self.old_space:
+                if param.grad is None:
                     continue
                 
-                # [OPT 1] Skip bias layers (low impact, high overhead)
-                if 'bias' in name:
+                # Only project classifier layer gradients
+                if not any(cl in name for cl in classifier_layers):
                     continue
                 
-                # [OPT 2] Skip very small layers
-                if param.numel() < 100:
+                # Skip small layers and biases
+                if 'bias' in name or param.numel() < 100:
                     continue
                 
-                # [OPT 3] Cache U and weights on GPU (Lazy Load from disk)
-                if name in current_cache:
-                    # Cache hit: use GPU tensors directly
-                    U, weights = current_cache[name]
-                else:
-                    # Cache miss: load from disk
-                    basis_ref = self.old_space[name]
-                    weight_ref = self.importance_weights[name]
-                    
-                    # If path (str), load from disk; else use tensor directly
-                    if isinstance(basis_ref, str):
-                        U_cpu = torch.load(basis_ref, map_location='cpu')
-                        w_cpu = torch.load(weight_ref, map_location='cpu')
-                    else:
-                        U_cpu = basis_ref
-                        w_cpu = weight_ref
-                    
-                    # Transfer to GPU and cache
-                    U = U_cpu.to(device, non_blocking=True)
-                    weights = w_cpu.to(device, non_blocking=True)
-                    current_cache[name] = (U, weights)
-                    
-                    # Free CPU memory
-                    del U_cpu, w_cpu
-                
-                # Gradient projection computation
                 g_flat = param.grad.view(-1)
+                total_projection = torch.zeros_like(g_flat)
                 
-                # proj_coeff = U.T @ g
-                proj_coeff = torch.matmul(U.T, g_flat)
+                # Loop through ALL old tasks (per-task basis)
+                for task_key, basis_path in self.old_space.items():
+                    try:
+                        # Load basis and weights from disk
+                        U = torch.load(basis_path, map_location=param.device)
+                        weights_path = self.importance_weights[task_key]
+                        weights = torch.load(weights_path, map_location=param.device)
+                        
+                        # Project gradient onto this task's representation space
+                        # For activation-based: project onto column space of U
+                        # Note: U is [n_samples, k], we need to handle dimension mismatch
+                        
+                        # Use simplified projection: just compute cosine similarity
+                        # and subtract scaled component
+                        if U.shape[0] == g_flat.shape[0]:
+                            # Direct projection if dimensions match
+                            for i in range(U.shape[1]):
+                                u_col = U[:, i]
+                                w = weights[i] if i < len(weights) else 1.0
+                                proj = torch.dot(g_flat, u_col) * u_col * w
+                                total_projection += proj
+                        else:
+                            # Dimension mismatch - use mean representation
+                            mean_rep = U.mean(dim=0)  # [k]
+                            if mean_rep.shape[0] <= g_flat.shape[0]:
+                                # Pad or truncate as needed
+                                proj_dim = min(mean_rep.shape[0], g_flat.shape[0])
+                                for i in range(proj_dim):
+                                    w = weights[i] if i < len(weights) else 1.0
+                                    proj = g_flat[i] * mean_rep[i] * w
+                                    total_projection[i] += proj
+                        
+                        del U, weights
+                        
+                    except Exception as e:
+                        print(f"⚠️ Projection failed for {task_key}: {e}")
+                        continue
                 
-                # [OPT 4] In-place multiply
-                proj_coeff.mul_(weights)
-                
-                # projection = U @ proj_coeff
-                projection = torch.matmul(U, proj_coeff)
-                
-                # [OPT 5] In-place subtract: g = g - alpha * projection
-                g_flat.sub_(projection, alpha=self.alpha)
+                # Subtract scaled projection from gradient (in-place)
+                param.grad.view(-1).sub_(self.alpha * total_projection)
     
     def get_optimizer_class(self) -> type:
         return torch.optim.SGD

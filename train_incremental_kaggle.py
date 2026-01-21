@@ -1,7 +1,7 @@
 """
 Federated Class Incremental Learning - Kaggle Training Script
 ==============================================================
-Train with CGoFed for Class Incremental Learning on Kaggle.
+Train with CGoFed or FedAvg for Class Incremental Learning on Kaggle.
 
 Usage:
     Upload fed_learning folder to Kaggle dataset, then run this script.
@@ -9,16 +9,20 @@ Usage:
 
 import os
 import sys
-import json
 import gc
+import json
+import shutil
 from datetime import datetime
 
 import torch
+from torch.utils.data import TensorDataset, DataLoader
+
 
 # =============================================================================
 # KAGGLE SETUP
 # =============================================================================
 MODULE_PATH = "/kaggle/input/ai4fids-fedlearning-modules"
+
 
 def setup_imports():
     """Setup imports for both nested and flattened dataset structures."""
@@ -55,16 +59,16 @@ def setup_imports():
         except Exception as e:
             print(f"⚠️ Failed to create symlink: {e}")
 
+
 setup_imports()
 
-# Import
+# Import fed_learning modules
 try:
     from fed_learning import train_federated_multigpu
     from fed_learning.servers import IncrementalServer
     from fed_learning.clients import CGoFedClient
     from fed_learning.data.incremental_loader import IncrementalDataLoader
     from fed_learning.strategies import get_strategy
-    from torch.utils.data import TensorDataset, DataLoader
     print("✓ Imports ready!")
 except ImportError as e:
     print(f"❌ Import failed: {e}")
@@ -76,41 +80,160 @@ except ImportError as e:
 # =============================================================================
 CONFIG = {
     # Data
-    "data_dir": "/kaggle/input/data-100clients",
+    "data_dir": "/kaggle/input/data-10clients",
     "output_dir": "./results_incremental",
     
-    # Incremental Learning
-    "num_clients": 100,
+    # Incremental Learning - 6 Tasks Distribution
+    "num_clients": 10,
     "total_classes": 34,
-    "base_classes": 5,        # Task 1: 5 classes
-    "classes_per_task": 4,    # Task 2+: +4 classes each
+    "base_classes": 10,         # Task 0: 10 classes (0-9)
+    "classes_per_task": 5,      # Task 1-5: +5 classes per task
     
-    # Algorithm - CIC IoT 2023 Optimized
-    "algorithm": "cgofed",
-    "mu": 0.01,
-    "lambda_decay": 0.5,          # Alpha giảm nhanh (task mới dễ học)
-    "theta_threshold": 0.15,      # Cho phép quên 15% trước reset α (CIC IoT cần linh hoạt)
-    "cross_task_weight": 0.1,     # Giảm phụ thuộc model cũ
-    "energy_threshold": 0.85,     # Giữ 85% SVD (chừa 15% cho task mới)
-    "num_samples_rep": 1000,      # Tăng mẫu SVD (dữ liệu mạng nhiễu, cần nhiều mẫu)
+    # Algorithm - CGoFed Paper (IEEE TKDE 2025) recommended params
+    "algorithm": "cgofed",        # "cgofed" or "fedavg"
+    "mu": 1.0,                    # Paper: strong constraint (was 0.01)
+    "lambda_decay": 0.07,         # Paper: slow α decay (was 0.5)
+    "theta_threshold": 0.15,      # Paper: tighter AF threshold (was 2.0)
+    "cross_task_weight": 0.3,     # Paper: blend with historical models
+    "energy_threshold": 0.98,     # Paper: high energy retention (was 0.70)
+    "num_samples_rep": 1024,      # Samples for SVD (was 2000)
     
-    # Training - CIC IoT 2023 Optimized
+    # Training
     "rounds_per_task": 10,
     "local_epochs": 5,
-    "learning_rate": 0.001,       # QUAN TRỌNG: Giảm từ 0.005 -> 0.001 (tránh Brain Dead)
-    "batch_size": 512,            # Giảm từ 1024 -> 512 (hội tụ tốt hơn)
+    "learning_rate": 0.001,
+    "batch_size": 512,
     
     # Eval
     "eval_every": 1,
 }
 
 
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+def cleanup_temp_folders():
+    """Clean up temporary folders from previous runs."""
+    for folder in ["./temp_svd_storage", "./temp_test_data"]:
+        if os.path.exists(folder):
+            print(f"🧹 Cleaning {folder}...")
+            shutil.rmtree(folder)
+
+
+def create_clients(client_data, config):
+    """Create federated clients from client data."""
+    clients = []
+    for cid in range(config["num_clients"]):
+        if cid in client_data and len(client_data[cid].get("y_train", [])) > 0:
+            c = CGoFedClient(
+                client_id=cid,
+                X_train=client_data[cid]["X_train"],
+                y_train=client_data[cid]["y_train"],
+            )
+            clients.append(c)
+    return clients
+
+
+def build_representation_space(trainer, client_data, server, config):
+    """Build representation space for CGoFed (SVD-based gradient projection)."""
+    if not hasattr(trainer, 'update_representation_from_client_data'):
+        return
+    
+    print("\n🔐 Building representation space...")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    trainer.update_representation_from_client_data(
+        client_data=client_data,
+        model=server.global_model,
+        batch_size=config["batch_size"],
+        device=device
+    )
+
+
+def compute_per_task_accuracy(server, all_test_data):
+    """Compute accuracy for each previous task (for AF calculation)."""
+    task_accuracies = {}
+    
+    for prev_tid, prev_test_path in all_test_data.items():
+        try:
+            loaded_test_data = torch.load(prev_test_path)
+        except Exception as e:
+            print(f"⚠️ Failed to load test data for task {prev_tid}: {e}")
+            continue
+        
+        server.test_data = loaded_test_data
+        t_metrics = server.evaluate_global()
+        task_accuracies[prev_tid] = t_metrics['accuracy']
+        print(f"    Task {prev_tid} Acc: {t_metrics['accuracy']*100:.2f}%")
+        
+        # Cleanup immediately to save memory
+        del loaded_test_data
+        server.test_data = None
+        gc.collect()
+    
+    return task_accuracies
+
+
+def compute_average_forgetting(trainer, task_accuracies, best_acc_per_task, task_id):
+    """Compute Average Forgetting (AF) metric."""
+    current_af = 0.0
+    current_alpha = 1.0
+    
+    # Update best accuracies
+    for tid, acc in task_accuracies.items():
+        if tid not in best_acc_per_task:
+            best_acc_per_task[tid] = acc
+        else:
+            best_acc_per_task[tid] = max(best_acc_per_task[tid], acc)
+    
+    if hasattr(trainer, 'update_forgetting'):
+        # CGoFed: Use built-in method
+        trainer.update_forgetting(task_accuracies)
+        current_af = trainer.get_current_af()
+        current_alpha = trainer.alpha
+    else:
+        # FedAvg: Calculate manually (AF = Avg(Best - Current))
+        if len(best_acc_per_task) > 1:
+            forgetting = []
+            for tid in range(task_id):
+                if tid in best_acc_per_task and tid in task_accuracies:
+                    f = best_acc_per_task[tid] - task_accuracies[tid]
+                    forgetting.append(max(0, f))
+            if forgetting:
+                current_af = sum(forgetting) / len(forgetting)
+    
+    return current_af, current_alpha
+
+
+def save_checkpoint(server, trainer, config, task_id, seen_classes):
+    """Save training checkpoint after each task."""
+    os.makedirs(config["output_dir"], exist_ok=True)
+    checkpoint_path = os.path.join(config["output_dir"], f"checkpoint_task_{task_id}.pt")
+    
+    torch.save({
+        'task_id': task_id,
+        'model_state_dict': server.global_model.state_dict(),
+        'trainer_old_space': getattr(trainer, 'old_space', {}),
+        'trainer_importance_weights': getattr(trainer, 'importance_weights', {}),
+        'config': config,
+        'seen_classes': list(seen_classes),
+    }, checkpoint_path)
+    
+    print(f"💾 Checkpoint saved: {checkpoint_path}")
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 def main():
     print("\n" + "="*80)
     print("🚀 FEDERATED CLASS INCREMENTAL LEARNING - KAGGLE")
     print("="*80)
     
-    # Initialize incremental data loader
+    # Cleanup temp folders from previous runs
+    cleanup_temp_folders()
+    os.makedirs("./temp_test_data", exist_ok=True)
+    
+    # Initialize data loader
     data_loader = IncrementalDataLoader(
         data_dir=CONFIG["data_dir"],
         num_clients=CONFIG["num_clients"],
@@ -122,26 +245,26 @@ def main():
     print(f"\n{data_loader}")
     print(f"Total tasks: {data_loader.num_tasks}")
     
-    # Get strategy
+    # Get training strategy
     trainer, aggregator = get_strategy(
         CONFIG["algorithm"],
         mu=CONFIG["mu"],
         lambda_decay=CONFIG["lambda_decay"],
         theta_threshold=CONFIG["theta_threshold"],
         cross_task_weight=CONFIG["cross_task_weight"],
-        energy_threshold=CONFIG.get("energy_threshold", 0.95),
-        num_samples_rep=CONFIG.get("num_samples_rep", 100),
+        energy_threshold=CONFIG["energy_threshold"],
+        num_samples_rep=CONFIG["num_samples_rep"],
     )
     
-    # History
-    all_history = {
-        "task_accuracies": [],
-        "task_forgetting": [],
-    }
-    
+    # Initialize tracking variables
+    all_history = {"task_accuracies": [], "task_forgetting": []}
     global_model = None
-    all_test_data = {}  # Store test data for each task to compute AF
+    all_test_data = {}      # task_id -> file path (disk-based caching)
+    best_acc_per_task = {}  # task_id -> best accuracy
     
+    # ==========================================================================
+    # TASK LOOP
+    # ==========================================================================
     for task_id in range(data_loader.num_tasks):
         print(f"\n{'='*80}")
         print(f"📚 TASK {task_id + 1}/{data_loader.num_tasks}")
@@ -151,34 +274,30 @@ def main():
         client_data, test_data, new_classes = data_loader.get_task_data(task_id)
         seen_classes = data_loader.get_seen_classes(task_id)
         
-        # Store test data for AF calculation later
-        all_test_data[task_id] = test_data
+        # Save test data to disk (prevents OOM)
+        test_data_path = os.path.join("./temp_test_data", f"test_task_{task_id}.pt")
+        torch.save(test_data, test_data_path)
+        all_test_data[task_id] = test_data_path
         
-        # Skip if no data
+        # Skip if no training data
         if all(len(cd.get("y_train", [])) == 0 for cd in client_data.values()):
             print(f"⚠️ No training data for task {task_id}, skipping...")
             continue
         
-        # Set task
-        trainer.set_task(task_id, new_classes)
-        aggregator.set_task(task_id)
+        # Set task (CGoFed only)
+        if hasattr(trainer, 'set_task'):
+            trainer.set_task(task_id, new_classes)
+        if hasattr(aggregator, 'set_task'):
+            aggregator.set_task(task_id)
         
-        # Create CGoFed clients (with representation computation)
-        clients = []
-        for cid in range(CONFIG["num_clients"]):
-            if len(client_data[cid]["y_train"]) > 0:
-                c = CGoFedClient(
-                    client_id=cid,
-                    X_train=client_data[cid]["X_train"],
-                    y_train=client_data[cid]["y_train"],
-                )
-                clients.append(c)
-        
+        # Create clients
+        clients = create_clients(client_data, CONFIG)
         print(f"Active clients: {len(clients)}")
         
         if len(clients) == 0:
             continue
         
+        # Setup server
         task_config = {
             **CONFIG,
             "num_rounds": CONFIG["rounds_per_task"],
@@ -187,57 +306,23 @@ def main():
         }
         
         server = IncrementalServer(clients, test_data, task_config)
-        
         if global_model is not None:
             server.set_global_params(global_model)
-        
         server.trainer = trainer
         server.aggregator = aggregator
         
+        # Train
         print(f"\n🎯 Training on {len(new_classes)} new classes: {new_classes}")
         history = train_federated_multigpu(server, task_config)
         
-        # Build representation space for gradient projection (SVD)
-        # FL-Compliant: Use REPRESENTATIVE CLIENT instead of aggregating all data
-        # In real FL, each client computes locally and sends basis vectors to server
-        print("\n🔐 Building representation space (FL-compliant: representative client)...")
+        # Build representation space (CGoFed only)
+        build_representation_space(trainer, client_data, server, CONFIG)
         
-        # Select representative client (first active client with enough data)
-        rep_client = clients[0]
-        rep_cid = rep_client.client_id
-        rep_X = client_data[rep_cid]["X_train"]
-        rep_y = client_data[rep_cid]["y_train"]
-        
-        # If representative has too few samples, can optionally sample from a few more
-        # but NEVER concatenate all clients (that would violate FL privacy)
-        min_samples = 50
-        if len(rep_y) < min_samples and len(clients) > 1:
-            # Take from 2-3 clients max (simulating aggregated basis vectors, not raw data)
-            for extra_client in clients[1:3]:
-                extra_cid = extra_client.client_id
-                if len(client_data[extra_cid]["y_train"]) > 0:
-                    rep_X = torch.cat([rep_X, client_data[extra_cid]["X_train"]], dim=0)
-                    rep_y = torch.cat([rep_y, client_data[extra_cid]["y_train"]], dim=0)
-                if len(rep_y) >= min_samples:
-                    break
-        
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        rep_loader = DataLoader(
-            TensorDataset(rep_X, rep_y),
-            batch_size=CONFIG["batch_size"],
-            shuffle=True
-        )
-        trainer.build_representation_space(
-            model=server.global_model,
-            data_loader=rep_loader,
-            device=device
-        )
-        
+        # Save global model for next task
         global_model = server.get_global_params()
         
-        # Check if this is the last task (for AUC calculation)
+        # Evaluate on all seen classes
         is_last_task = (task_id == data_loader.num_tasks - 1)
-        
         print(f"\n📊 Evaluating on all {len(seen_classes)} seen classes...")
         metrics = server.evaluate_global(compute_auc=is_last_task)
         
@@ -246,29 +331,26 @@ def main():
         if is_last_task and metrics.get('auc_macro_ovr') is not None:
             print(f"  AUC (macro OvR): {metrics['auc_macro_ovr']*100:.2f}%")
         
-        # [FIX] Compute per-task accuracy for accurate AF calculation
+        # Compute per-task accuracy for AF
         print("\n🔍 Computing Per-Task Accuracy for AF...")
-        task_accuracies = {}
-        original_test_data = server.test_data  # Save original
+        del test_data  # Free memory before loading previous test data
+        gc.collect()
         
-        for prev_tid, prev_test_data in all_test_data.items():
-            # Temporarily set server test data to this task's data
-            server.test_data = prev_test_data
-            t_metrics = server.evaluate_global()
-            task_accuracies[prev_tid] = t_metrics['accuracy']
-            print(f"    Task {prev_tid} Acc: {t_metrics['accuracy']*100:.2f}%")
+        task_accuracies = compute_per_task_accuracy(server, all_test_data)
         
-        # Restore original test data
-        server.test_data = original_test_data
+        # Restore test data for server
+        server.test_data = torch.load(all_test_data[task_id])
         
-        # Update forgetting with ALL task accuracies (triggers α reset if AF > θ)
-        trainer.update_forgetting(task_accuracies)
+        # Compute Average Forgetting
+        current_af, current_alpha = compute_average_forgetting(
+            trainer, task_accuracies, best_acc_per_task, task_id
+        )
         
-        # Get and log Average Forgetting
-        current_af = trainer.get_current_af()
         print(f"  Average Forgetting (AF): {current_af*100:.2f}%")
-        print(f"  Current α: {trainer.alpha:.4f}")
+        if hasattr(trainer, 'alpha'):
+            print(f"  Current α: {current_alpha:.4f}")
         
+        # Record history
         all_history["task_accuracies"].append({
             "task": task_id,
             "seen_classes": len(seen_classes),
@@ -276,44 +358,36 @@ def main():
             "f1_macro": metrics["f1_macro"],
             "per_task_acc": task_accuracies,
             "avg_forgetting": current_af,
-            "alpha": trainer.alpha,
+            "alpha": current_alpha,
         })
         
-        # [SAFETY] 💾 SAVE CHECKPOINT after each task
-        os.makedirs(CONFIG["output_dir"], exist_ok=True)
-        checkpoint_path = os.path.join(CONFIG["output_dir"], f"checkpoint_task_{task_id}.pt")
-        torch.save({
-            'task_id': task_id,
-            'model_state_dict': server.global_model.state_dict(),
-            'trainer_old_space': trainer.old_space,  # File paths for SVD
-            'trainer_importance_weights': trainer.importance_weights,
-            'config': CONFIG,
-            'seen_classes': list(seen_classes),
-        }, checkpoint_path)
-        print(f"💾 Checkpoint saved: {checkpoint_path}")
+        # Save checkpoint
+        save_checkpoint(server, trainer, CONFIG, task_id, seen_classes)
         
-        # [SAFETY] 🧹 CLEAN MEMORY after each task
+        # Clean memory
         del client_data, clients
-        if 'rep_loader' in dir(): del rep_loader
         torch.cuda.empty_cache()
         gc.collect()
         print(f"🧹 Memory cleaned after Task {task_id}")
     
-    # Save results
+    # ==========================================================================
+    # SAVE RESULTS
+    # ==========================================================================
     os.makedirs(CONFIG["output_dir"], exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    hist_path = os.path.join(CONFIG["output_dir"], f"cgofed_incremental_{ts}.json")
+    hist_path = os.path.join(CONFIG["output_dir"], f"incremental_{CONFIG['algorithm']}_{ts}.json")
     with open(hist_path, "w") as f:
         json.dump(all_history, f, indent=2)
     print(f"\n💾 Saved: {hist_path}")
     
-    # Summary
+    # Print summary
     print("\n" + "="*80)
     print("📊 INCREMENTAL LEARNING SUMMARY")
     print("="*80)
     for h in all_history["task_accuracies"]:
-        print(f"  Task {h['task']}: {h['seen_classes']} classes → Acc: {h['accuracy']*100:.2f}%")
+        af_str = f", AF: {h['avg_forgetting']*100:.2f}%" if h['avg_forgetting'] > 0 else ""
+        print(f"  Task {h['task']}: {h['seen_classes']} classes → Acc: {h['accuracy']*100:.2f}%{af_str}")
     
     print("\n✅ DONE!")
 

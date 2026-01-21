@@ -59,39 +59,6 @@ class CNN_GRU_Model(nn.Module):
         self.dropout2 = nn.Dropout(0.3)
         self.output = nn.Linear(128, num_classes)
         self.relu = nn.ReLU()
-    
-    def get_fused_representation(self, x):
-        """
-        Get fused CNN+GRU representation (activations before MLP head).
-        
-        This is the representation space R^t from CGoFed paper (eq. 2):
-        R^t = F(Θ^t, X^t) - intermediate representations before classifier.
-        
-        Returns:
-            Tensor of shape [batch_size, cnn_output_size + gru_output_size]
-        """
-        if x.ndim == 2:
-            x = x.unsqueeze(-1)
-        batch_size = x.size(0)
-
-        # CNN pathway
-        x_cnn = x.permute(0, 2, 1)
-        x_cnn = self.pool1(self.relu(self.bn1(self.conv1(x_cnn))))
-        x_cnn = self.dropout_cnn1(x_cnn)
-        x_cnn = self.pool2(self.relu(self.bn2(self.conv2(x_cnn))))
-        x_cnn = self.dropout_cnn2(x_cnn)
-        x_cnn = self.pool3(self.relu(self.bn3(self.conv3(x_cnn))))
-        x_cnn = self.dropout_cnn3(x_cnn)
-        cnn_output = x_cnn.view(batch_size, -1)
-
-        # GRU pathway
-        x_gru = x
-        x_gru, _ = self.gru1(x_gru)
-        x_gru, _ = self.gru2(x_gru)
-        gru_output = x_gru[:, -1, :]
-
-        # Fused representation (before MLP)
-        return torch.cat([cnn_output, gru_output], dim=1)
 
     def forward(self, x):
         if x.ndim == 2:
