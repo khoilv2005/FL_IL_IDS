@@ -106,14 +106,26 @@ class FederatedClient:
                 
                 if self.use_amp:
                     scaler.scale(loss).backward()
+                    # Unscale gradients BEFORE pre_step to avoid overflow in projection
+                    # AMP scales gradients by large factors (e.g., 65536) which causes NaN
+                    scaler.unscale_(optimizer)
+                    # Clip gradients to prevent exploding gradients
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    # Pre-step: gradient modification (CGoFed projection)
+                    trainer.pre_step(self.model, global_params, **kwargs)
                     scaler.step(optimizer)
                     scaler.update()
+                    # Post-step: weight correction (FedPlus)
+                    trainer.post_step(self.model, global_params, **kwargs)
                 else:
                     loss.backward()
+                    # Clip gradients to prevent exploding gradients
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    # Pre-step: gradient modification (CGoFed projection)
+                    trainer.pre_step(self.model, global_params, **kwargs)
                     optimizer.step()
-                
-                # Post-step hook (e.g., Fed+ correction)
-                trainer.post_step(self.model, global_params, **kwargs)
+                    # Post-step: weight correction (FedPlus)
+                    trainer.post_step(self.model, global_params, **kwargs)
                 
                 bs = len(y_batch)
                 total_loss += loss.item() * bs

@@ -72,6 +72,8 @@ class CGoFedClient(FederatedClient):
         sends it to server. Server uses R to compute similarity between 
         current task and historical tasks.
         
+        Memory-optimized: Uses running sum instead of storing all gradients.
+        
         Args:
             model: The trained model
             num_samples: Number of samples to use for gradient computation
@@ -84,18 +86,16 @@ class CGoFedClient(FederatedClient):
         model.train()
         device = next(model.parameters()).device
         
-        all_grads = []
-        sample_count = 0
+        # Memory-optimized: running sum instead of list
+        mean_grad = None
+        batch_count = 0
         
         # Sample indices
         n_available = min(num_samples, self.num_samples)
         indices = torch.randperm(self.num_samples)[:n_available]
         
-        # Collect per-sample gradients
+        # Collect per-batch gradients with running sum
         for i in range(0, len(indices), batch_size):
-            if sample_count >= num_samples:
-                break
-            
             batch_idx = indices[i:i+batch_size]
             X_batch = self.X_train[batch_idx].to(device)
             y_batch = self.y_train[batch_idx].to(device)
@@ -112,16 +112,24 @@ class CGoFedClient(FederatedClient):
                 if p.grad is not None:
                     grads.append(p.grad.view(-1))
                 else:
-                    # For frozen params or BatchNorm edge cases
                     grads.append(torch.zeros(p.numel(), device=device))
             
-            grad_vector = torch.cat(grads)
-            all_grads.append(grad_vector.cpu())
-            sample_count += len(batch_idx)
+            grad_vector = torch.cat(grads).cpu()
+            
+            # Running sum (memory efficient)
+            if mean_grad is None:
+                mean_grad = grad_vector
+            else:
+                mean_grad += grad_vector
+            
+            batch_count += 1
+            
+            # Free memory immediately
+            del grad_vector, grads, X_batch, y_batch
         
-        # Return mean gradient vector (Reduced representation)
-        if all_grads:
-            mean_grad = torch.stack(all_grads).mean(dim=0)
+        # Return mean gradient vector
+        if mean_grad is not None and batch_count > 0:
+            mean_grad /= batch_count
             return mean_grad
         else:
             # Return zero vector if no gradients computed

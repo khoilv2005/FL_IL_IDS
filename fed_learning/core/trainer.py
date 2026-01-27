@@ -49,6 +49,27 @@ class BaseTrainer(ABC):
         """
         return nn.CrossEntropyLoss()(output, target)
     
+    def pre_step(
+        self,
+        model: nn.Module,
+        global_params: Optional[OrderedDict] = None,
+        **kwargs
+    ) -> None:
+        """
+        Pre-optimization step hook (AFTER backward, BEFORE optimizer.step).
+        
+        Override this method to modify gradients before optimizer applies them
+        (e.g., CGoFed gradient projection onto old task subspace).
+        
+        Called between loss.backward() and optimizer.step().
+        
+        Args:
+            model: The model being trained
+            global_params: Global model parameters
+            **kwargs: Additional algorithm-specific parameters
+        """
+        pass
+    
     def post_step(
         self,
         model: nn.Module,
@@ -56,7 +77,7 @@ class BaseTrainer(ABC):
         **kwargs
     ) -> None:
         """
-        Post-optimization step hook.
+        Post-optimization step hook (AFTER optimizer.step).
         
         Override this method to apply corrections after optimizer.step()
         (e.g., Fed+ correction step).

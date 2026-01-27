@@ -62,7 +62,8 @@ def load_client_label_distributions(
     for cid in range(num_clients):
         path = os.path.join(data_dir, f"client_{cid}_train.npz")
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Missing: {path}")
+            print(f"  ⚠️  Missing: {path} (skipped)")
+            continue
 
         data = np.load(path)
         if "y_train" not in data:
@@ -93,9 +94,13 @@ def load_client_label_distributions(
         )
 
     # Xác định num_classes toàn cục
+    # Dùng max + 1 thay vì len để xử lý trường hợp labels không liên tục
+    if not all_labels:
+        raise FileNotFoundError("No client_*.npz files found to visualize.")
+
     all_labels_np = np.concatenate(all_labels)
     classes = np.unique(all_labels_np)
-    num_classes = int(len(classes))
+    num_classes = int(classes.max()) + 1  # FIX: max + 1 thay vì len
 
     print(f"\n  Detected num_classes: {num_classes}")
     print(f"  Total train samples: {len(all_labels_np):,}")
@@ -189,6 +194,8 @@ def bubble_and_heatmap(
     save_dir: str,
     max_clients_full: int = 50,
     class_names: Optional[List[str]] = None,
+    base_classes: int = 0,
+    classes_per_task: int = 0,
 ):
     """
     Vẽ bubble chart + heatmap nâng cao cho phân bố Non-IID.
@@ -217,29 +224,32 @@ def bubble_and_heatmap(
 
     width_scale = max(12, num_clients_vis * 0.5)
 
-    # Bubble chart (percentage per client/group)
-    # Tính % theo mỗi client/group (theo cột của mat_counts_T)
-    col_sums = mat_counts_T.sum(axis=0, keepdims=True)  # shape: (1, num_clients_vis)
-    col_sums_safe = np.where(col_sums == 0, 1, col_sums)
-    pct_T = mat_counts_T / col_sums_safe * 100.0
-
-    # Cải thiện: sử dụng sqrt scale để làm phẳng sự khác biệt, giúp bubble nhỏ dễ nhìn hơn
-    # và thêm minimum size để đảm bảo bubble nhỏ nhất vẫn nhìn thấy được
-    min_bubble_size = 10  # Kích thước tối thiểu để nhìn thấy rõ
-    max_bubble_size = 800  # Kích thước tối đa
-    base_scale = 25.0      # Hệ số nhân cơ bản
+    # Bubble chart (GLOBAL SCALE - Phản ánh đúng độ lớn giữa các Task)
+    # Thay vì % theo cột, ta tính % so với ô có giá trị lớn nhất toàn bộ matrix
+    max_val = mat_counts_T.max()
+    if max_val == 0: max_val = 1
     
-    # Tính kích thước bubble với sqrt scale để làm phẳng sự khác biệt
-    # sqrt scale giúp bubble nhỏ lớn hơn tương đối, bubble lớn nhỏ hơn tương đối
-    pct_flat = np.sqrt(pct_T)
-    # Normalize về [0, 1] rồi scale về [min_bubble_size, max_bubble_size]
-    pct_min = pct_flat.min()
-    pct_max = pct_flat.max()
-    if pct_max - pct_min > 1e-10:
-        pct_normalized = (pct_flat - pct_min) / (pct_max - pct_min)
+    # Tính "độ lớn" tương đối của từng ô so với ô lớn nhất (scale 0-100)
+    relative_scale = (mat_counts_T / max_val) * 100.0
+
+    # Sử dụng sqrt scale và base_scale theo yêu cầu để tạo độ contrast
+    min_bubble_size = 10     # Kích thước tối thiểu
+    max_bubble_size = 800   # Kích thước tối đa
+    base_scale = 25.0        # Hệ số nhân cơ bản
+    
+    # Sử dụng sqrt scale trên giá trị tương đối toàn cục
+    # sqrt giúp các giá trị nhỏ vẫn có thể nhìn thấy được
+    pct_flat = np.sqrt(relative_scale)
+    
+    # Normalize và scale trực tiếp về khoảng [min_bubble_size, max_bubble_size]
+    # KHÔNG dùng base_scale cố định nữa để max_bubble_size có hiệu lực
+    p_min, p_max = pct_flat.min(), pct_flat.max()
+    if p_max - p_min > 1e-10:
+        sizes_normalized = (pct_flat - p_min) / (p_max - p_min)
     else:
-        pct_normalized = np.ones_like(pct_flat) * 0.5  # Nếu tất cả bằng nhau
-    sizes_scaled = min_bubble_size + pct_normalized * (max_bubble_size - min_bubble_size)
+        sizes_normalized = np.zeros_like(pct_flat)
+        
+    sizes_scaled = min_bubble_size + (sizes_normalized * (max_bubble_size - min_bubble_size))
 
     xs, ys, sizes = [], [], []
     for j in range(num_clients_vis):         # X: client/group
@@ -250,14 +260,37 @@ def bubble_and_heatmap(
                 # Sử dụng kích thước đã scale với sqrt để bubble nhỏ dễ nhìn hơn
                 sizes.append(sizes_scaled[i, j])
 
+    # --- Chuẩn bị màu sắc cho bong bóng dựa trên Task IL ---
+    bubble_colors = []
+    
+    # Task 0: Đỏ, 1: Vàng, 2: Xanh biển, 3: Xanh lục, 4: Hồng
+    # Dùng màu đậm hơn cho bong bóng
+    task_palette = ['tab:red', 'gold', 'tab:blue', 'tab:green', 'deeppink']
+    
+    # Danh sách màu cho từng điểm dữ liệu (tương ứng với xs, ys)
+    if base_classes > 0 and classes_per_task > 0:
+        for cls_idx in ys:
+            # Xác định task_id của class này
+            if cls_idx < base_classes:
+                t_id = 0
+            else:
+                t_id = 1 + (cls_idx - base_classes) // classes_per_task
+            
+            # Lấy màu (cycle nếu vượt quá số lượng màu)
+            c = task_palette[t_id % len(task_palette)]
+            bubble_colors.append(c)
+    else:
+        # Mặc định xanh dương nếu không có thông tin task
+        bubble_colors = ["#1f77b4"] * len(xs)
+
     fig_bb, ax_bb = plt.subplots(figsize=(width_scale, max(8, num_classes * 0.4)))
 
-    # Bubble: dùng 1 màu cố định, kích thước đã được cải thiện với min size và sqrt scale
+    # Bubble: màu sắc thay đổi theo task
     sc = ax_bb.scatter(
         xs,
         ys,
         s=sizes,
-        c="#1f77b4",      # một màu xanh dương cố định
+        c=bubble_colors,
         alpha=0.8,
         edgecolors="white",
         linewidths=1.0,
@@ -271,7 +304,34 @@ def bubble_and_heatmap(
     ax_bb.set_ylim(-0.5, num_classes - 0.5)
     ax_bb.set_xlabel("Client")
     ax_bb.set_ylabel("Class")
-    ax_bb.set_title("Label Distribution - Bubble", fontsize=14)
+    ax_bb.set_title("Label Distribution - with IL Tasks (Bubble Colors)", fontsize=14)
+
+    # --- Thêm chú thích cho Task IL ---
+    if base_classes > 0 and classes_per_task > 0:
+        import matplotlib.lines as mlines
+        legend_handles = []
+        
+        # Tạo legend items thủ công
+        # Tính số lượng task tối đa dựa trên num_classes
+        max_task = 1 + (num_classes - base_classes - 1) // classes_per_task
+        if max_task < 0: max_task = 0
+        
+        for t_id in range(max_task + 1):
+            if t_id == 0:
+                label = f"Task 0 (0-{base_classes-1})"
+            else:
+                start = base_classes + (t_id - 1) * classes_per_task
+                end = start + classes_per_task - 1
+                label = f"Task {t_id} ({start}-{end})"
+            
+            c = task_palette[t_id % len(task_palette)]
+            
+            # Dùng marker giống scatter để làm legend
+            handle = mlines.Line2D([], [], color='white', marker='o', markerfacecolor=c, 
+                                   markersize=10, label=label)
+            legend_handles.append(handle)
+            
+        ax_bb.legend(handles=legend_handles, title="IL Tasks", bbox_to_anchor=(1.02, 1), loc='upper left')
 
     os.makedirs(save_dir, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -294,7 +354,10 @@ def run_visualization(
     num_clients: int,
     output_dir: str | None,
     max_clients_full: int = 50,
+
     class_names: Optional[List[str]] = None,
+    base_classes: int = 0,
+    classes_per_task: int = 0,
 ):
     """
     Hàm tiện ích để chạy full pipeline từ code khác / notebook.
@@ -319,6 +382,8 @@ def run_visualization(
         save_dir=target_output,
         max_clients_full=max_clients_full,
         class_names=adjusted_names,
+        base_classes=base_classes,
+        classes_per_task=classes_per_task,
     )
 
 
@@ -362,6 +427,7 @@ def parse_args():
             sys.argv.remove(arg)
             break
     
+
     parser = argparse.ArgumentParser(
         description="Non-IID Bubble + Heatmap Visualization"
     )
@@ -395,7 +461,11 @@ def parse_args():
         default=50,
         help="Ngưỡng số client tối đa vẽ đầy đủ; lớn hơn thì group lại",
     )
-    
+
+    # Thêm tham số cho Task Incremental Learning
+    parser.add_argument("--base_classes", type=int, default=0, help="Số class trong Task 0")
+    parser.add_argument("--classes_per_task", type=int, default=0, help="Số class thêm vào trong các Task sau")
+
     args = parser.parse_args()
     
     # Nếu có --{số}clients, tự động set num_clients và data_dir
@@ -419,12 +489,14 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    print("\n=== Non-IID Visualization (Bubble + Heatmap) ===")
+    print("\n=== Non-IID Visualization (Bubble + Heatmap + IL Tasks) ===")
     print(f"  data_dir      : {args.data_dir}")
     print(f"  num_clients   : {args.num_clients}")
     print(f"  output_dir    : {args.output_dir}")
     print(f"  class_names   : {args.class_names_file}")
     print(f"  max_clients   : {args.max_clients_full}")
+    if args.base_classes > 0:
+        print(f"  IL Split      : Base={args.base_classes}, Step={args.classes_per_task}")
 
     class_names = None
     class_names_file = args.class_names_file
@@ -450,6 +522,8 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         max_clients_full=args.max_clients_full,
         class_names=class_names,
+        base_classes=args.base_classes,
+        classes_per_task=args.classes_per_task,
     )
 
 

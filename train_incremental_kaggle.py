@@ -80,34 +80,39 @@ except ImportError as e:
 
 
 # =============================================================================
-# CONFIG
+# CONFIG - CGoFed Optimized for Better Retention
 # =============================================================================
 CONFIG = {
     # Data
     "data_dir": "/kaggle/input/data-10clients",
     "output_dir": "./results_incremental",
     
-    # Incremental Learning - 6 Tasks Distribution
+    # Incremental Learning - 5 Tasks Distribution
     "num_clients": 10,
     "total_classes": 34,
-    "base_classes": 10,         # Task 0: 10 classes (0-9)
-    "classes_per_task": 5,      # Task 1-5: +5 classes per task
+    "base_classes": 10,         # Task 0: 10 classes
+    "classes_per_task": 6,      # Task 1-4: +6 classes per task (10+6*4=34)
     
-    # Algorithm - CGoFed Paper Parameters
-    "algorithm": "cgofed",        # "cgofed" or "fedavg"
-    "mu": 0.01,                   # Proximal regularization weight
-    "lambda_decay": 0.06,         # α decay rate (paper: λ)
-    "theta_threshold": 0.13,      # AF threshold to reset α (paper: θ)
-    "cross_task_weight": 0.35,    # Cross-task regularization weight (paper: λ)
-    "energy_threshold": 0.97,     # SVD energy threshold (paper: ε)
-    "num_samples_rep": 100,       # Samples for gradient-based representation
-    "top_k": 2,                   # TOP-K similar models (paper: K=2)
+    # Algorithm - CGoFed Optimized
+    "algorithm": "cgofed",
+    "mu": 1.5,                    # Stronger constraint to prevent forgetting
     
-    # Training - Fit Kaggle (full run ~8-10 hours)
-    "rounds_per_task": 10,        # Was 15, reduced to fit session limit
-    "local_epochs": 5,            # Was 8, balanced for time/quality
-    "learning_rate": 0.0008,      # Safe for GRU
-    "batch_size": 1024,            # Large batch = faster + stable
+    # α Relaxation - Faster decay for plasticity
+    "lambda_decay": 0.05,         # Faster α decay → better plasticity
+    
+    # AF Threshold - Early detection
+    "theta_threshold": 0.01,      # Reset α when AF > 1% (early detection)
+    
+    "cross_task_weight": 0.35,    # Cross-task regularization
+    "energy_threshold": 0.97,     # High SVD basis retention
+    "num_samples_rep": 1536,      # Stable SVD with more samples
+    "top_k": 2,                   # Paper: K=2
+    
+    # Training - Optimized
+    "rounds_per_task": 5,         # Converges by round 4-5
+    "local_epochs": 5,            # OK
+    "learning_rate": 0.001,       # Balanced learning rate
+    "batch_size": 1024,             # Smaller batch → better gradient projection
     
     # Eval
     "eval_every": 1,
@@ -143,54 +148,68 @@ def build_representation_space(trainer, client_data, server, config):
     """
     Build representation space for CGoFed (paper eq. 2-4).
     
-    Paper CGoFed Section 5.1:
-    - Uses gradient vectors from samples
-    - SVD decomposition to find principal directions
-    - Stores basis for gradient projection in future tasks
+    Delegates to trainer.build_space_from_client_data() for encapsulation.
+    This keeps the runner file clean and algorithm-agnostic.
     """
-    if not hasattr(trainer, 'build_representation_space'):
-        return
-    
-    print("\n🔐 Building gradient-based representation space (paper Section 5.1)...")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    
-    # Find clients with data (FL-compliant: use representative clients)
-    active_cids = [cid for cid, data in client_data.items() 
-                   if len(data.get("y_train", [])) > 0]
-    
-    if len(active_cids) == 0:
-        print("⚠️ No client data available for representation space")
-        return
-    
-    # Select representative client (first active client)
-    rep_cid = active_cids[0]
-    rep_X = client_data[rep_cid]["X_train"]
-    rep_y = client_data[rep_cid]["y_train"]
-    
-    # If representative has too few samples, sample from a few more clients
-    # But NEVER aggregate all clients (that would violate FL privacy)
-    min_samples = 50
-    if len(rep_y) < min_samples and len(active_cids) > 1:
-        for extra_cid in active_cids[1:3]:  # Max 2-3 clients
-            if len(client_data[extra_cid].get("y_train", [])) > 0:
-                rep_X = torch.cat([rep_X, client_data[extra_cid]["X_train"]], dim=0)
-                rep_y = torch.cat([rep_y, client_data[extra_cid]["y_train"]], dim=0)
-            if len(rep_y) >= min_samples:
-                break
-    
-    # Create DataLoader with small batch size for per-sample gradients
-    rep_loader = DataLoader(
-        TensorDataset(rep_X, rep_y),
-        batch_size=32,  # Small batch for per-sample gradient computation
-        shuffle=True
-    )
-    
-    # Build representation space using gradient vectors
-    trainer.build_representation_space(
-        model=server.global_model,
-        data_loader=rep_loader,
-        device=device
-    )
+    # Check if trainer supports this (CGoFed only)
+    if hasattr(trainer, 'build_space_from_client_data'):
+        # New encapsulated method in CGoFedTrainer
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        trainer.build_space_from_client_data(
+            model=server.global_model,
+            client_data=client_data,
+            config=config,
+            device=device
+        )
+    elif hasattr(trainer, 'build_representation_space'):
+        # Fallback: old direct method (backward compatibility)
+        print("\n🔐 Building gradient-based representation space (paper Section 5.1)...")
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # Find clients with data
+        active_cids = [cid for cid, data in client_data.items() 
+                       if len(data.get("y_train", [])) > 0]
+        
+        if len(active_cids) == 0:
+            print("⚠️ No client data available for representation space")
+            return
+        
+        # Sample uniformly from available clients for robust gradient space
+        all_X, all_y = [], []
+        samples_per_client = max(10, config["num_samples_rep"] // len(active_cids) + 1)
+        
+        for cid in active_cids:
+            X = client_data[cid]["X_train"]
+            y = client_data[cid]["y_train"]
+            
+            if len(y) > samples_per_client:
+                indices = torch.randperm(len(y))[:samples_per_client]
+                X, y = X[indices], y[indices]
+            
+            all_X.append(X)
+            all_y.append(y)
+        
+        rep_X = torch.cat(all_X, dim=0)
+        rep_y = torch.cat(all_y, dim=0)
+        
+        # Limit to num_samples_rep
+        if len(rep_y) > config["num_samples_rep"]:
+            indices = torch.randperm(len(rep_y))[:config["num_samples_rep"]]
+            rep_X, rep_y = rep_X[indices], rep_y[indices]
+        
+        print(f"   Using {len(rep_y)} samples from {len(active_cids)} clients for SVD.")
+        
+        rep_loader = DataLoader(
+            TensorDataset(rep_X, rep_y),
+            batch_size=32,
+            shuffle=False
+        )
+        
+        trainer.build_representation_space(
+            model=server.global_model,
+            data_loader=rep_loader,
+            device=device
+        )
 
 
 def compute_per_task_accuracy(server, all_test_data):
@@ -233,7 +252,7 @@ def compute_average_forgetting(trainer, task_accuracies, best_acc_per_task, task
         # CGoFed: Use built-in method
         trainer.update_forgetting(task_accuracies)
         current_af = trainer.get_current_af()
-        current_alpha = trainer.alpha
+        current_alpha = trainer.mu_coefficient
     else:
         # FedAvg: Calculate manually (AF = Avg(Best - Current))
         if len(best_acc_per_task) > 1:
@@ -280,15 +299,11 @@ def main():
     
     # Initialize data loader
     data_loader = IncrementalDataLoader(
-        data_dir=CONFIG["data_dir"],
-        num_clients=CONFIG["num_clients"],
-        base_classes=CONFIG["base_classes"],
-        classes_per_task=CONFIG["classes_per_task"],
-        total_classes=CONFIG["total_classes"],
+        data_dir=CONFIG["data_dir"]
     )
     
     print(f"\n{data_loader}")
-    print(f"Total tasks: {data_loader.num_tasks}")
+    print(f"Total tasks: {data_loader.get_num_tasks()}")
     
     # Get training strategy
     trainer, aggregator = get_strategy(
@@ -311,14 +326,36 @@ def main():
     # ==========================================================================
     # TASK LOOP
     # ==========================================================================
-    for task_id in range(data_loader.num_tasks):
+    for task_id in range(data_loader.get_num_tasks()):
         print(f"\n{'='*80}")
-        print(f"📚 TASK {task_id + 1}/{data_loader.num_tasks}")
+        print(f"📚 TASK {task_id}/{data_loader.get_num_tasks()}")
         print(f"{'='*80}")
         
         # Get data for this task
-        client_data, test_data, new_classes = data_loader.get_task_data(task_id)
-        seen_classes = data_loader.get_seen_classes(task_id)
+        new_classes = data_loader.get_task_classes(task_id)
+        
+        # Derive seen classes
+        seen_classes = []
+        for t in range(task_id + 1):
+             seen_classes.extend(data_loader.get_task_classes(t))
+             
+        # Load client data for this task
+        client_data = {}
+        client_ids = data_loader.get_all_client_ids()
+        print(f"  Loading data for {len(client_ids)} clients...")
+        
+        for cid in client_ids:
+             X, y = data_loader.get_client_data(cid, task_id)
+             if len(y) > 0:
+                 # Check if server expects (X, y) or DataLoader. 
+                 # Existing code uses dict {"X_train": X, "y_train": y}
+                 client_data[cid] = {"X_train": X, "y_train": y}
+        
+        print(f"  Clients with data for task {task_id}: {len(client_data)}")
+
+        # Load global test data (cumulative)
+        test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+        test_data = {"X_test": test_X, "y_test": test_y}  # Server expects dict format
         
         # Save test data to disk (prevents OOM)
         test_data_path = os.path.join("./temp_test_data", f"test_task_{task_id}.pt")

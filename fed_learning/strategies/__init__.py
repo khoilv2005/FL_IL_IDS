@@ -28,6 +28,12 @@ from .federated import (
 from .incremental import (
     CGoFedTrainer, CGoFedAggregator,
 )
+from .incremental.ewc import (
+    EWCMixin, FedAvgEWCTrainer, FedProxEWCTrainer,
+)
+from .incremental.lwf import (
+    LwFMixin, FedAvgLwFTrainer, FedProxLwFTrainer,
+)
 
 # Registry of available strategies
 STRATEGIES: Dict[str, Dict[str, type]] = {
@@ -51,6 +57,24 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
     "cgofed": {
         "trainer": CGoFedTrainer,
         "aggregator": CGoFedAggregator,
+    },
+    # EWC-based (FedAvg + EWC, FedProx + EWC)
+    "fedavg_ewc": {
+        "trainer": FedAvgEWCTrainer,
+        "aggregator": FedAvgAggregator,  # Standard FedAvg aggregation
+    },
+    "fedprox_ewc": {
+        "trainer": FedProxEWCTrainer,
+        "aggregator": FedProxAggregator,
+    },
+    # LwF-based (FedAvg + LwF, FedProx + LwF)
+    "fedavg_lwf": {
+        "trainer": FedAvgLwFTrainer,
+        "aggregator": FedAvgAggregator,
+    },
+    "fedprox_lwf": {
+        "trainer": FedProxLwFTrainer,
+        "aggregator": FedProxAggregator,
     },
 }
 
@@ -108,6 +132,19 @@ def get_strategy(
             energy_threshold=config.get("energy_threshold", 0.95),
             num_samples_rep=config.get("num_samples_rep", 100),
         )
+    elif algo_lower in ("fedavg_ewc", "fedprox_ewc"):
+        trainer = strategy["trainer"](
+            ewc_lambda=config.get("ewc_lambda", 1000.0),
+            fisher_samples=config.get("fisher_samples", 200),
+            online_ewc=config.get("online_ewc", False),
+            mu=config.get("mu", 0.01),  # For FedProx base
+        )
+    elif algo_lower in ("fedavg_lwf", "fedprox_lwf"):
+        trainer = strategy["trainer"](
+            lwf_alpha=config.get("lwf_alpha", 1.0),
+            temperature=config.get("temperature", 2.0),
+            mu=config.get("mu", 0.01),  # For FedProx base
+        )
     else:
         trainer = strategy["trainer"]()
     
@@ -117,7 +154,7 @@ def get_strategy(
             momentum=config.get("server_momentum", 0.9),
             server_lr=config.get("server_lr", 1.0)
         )
-    elif algo_lower in ("fedprox", "fedplus"):
+    elif algo_lower in ("fedprox", "fedplus", "fedprox_ewc", "fedprox_lwf"):
         aggregator = strategy["aggregator"](mu=config.get("mu", 0.01))
     elif algo_lower == "cgofed":
         aggregator = strategy["aggregator"](
