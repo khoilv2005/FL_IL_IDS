@@ -85,7 +85,7 @@ except ImportError as e:
 CONFIG = {
     # Data
     "data_dir": "/kaggle/input/data-10clients",
-    "output_dir": "./results_incremental",
+    "output_dir": "./results_cgofed",
     
     # Incremental Learning - 5 Tasks Distribution
     "num_clients": 10,
@@ -544,6 +544,106 @@ def create_fedcbdr_clients(client_data, config):
     return clients
 
 
+def compute_per_task_accuracy_fedcbdr(server, all_test_data):
+    """
+    Compute accuracy for each previous task (for AF calculation) - FedCBDR version.
+    
+    Uses server's evaluate_per_task() method which handles task_classes internally.
+    For more control, can load test data from disk like CGoFed version.
+    """
+    task_accuracies = {}
+    
+    for prev_tid, prev_test_path in all_test_data.items():
+        try:
+            loaded_test_data = torch.load(prev_test_path)
+        except Exception as e:
+            print(f"⚠️ Failed to load test data for task {prev_tid}: {e}")
+            continue
+        
+        # Temporarily set test data
+        original_test_data = server.test_data
+        server.test_data = loaded_test_data
+        
+        # Evaluate
+        metrics = server.evaluate_global(seen_classes_only=False)
+        task_accuracies[prev_tid] = metrics['accuracy']
+        print(f"    Task {prev_tid} Acc: {metrics['accuracy']*100:.2f}%")
+        
+        # Restore and cleanup
+        server.test_data = original_test_data
+        del loaded_test_data
+        gc.collect()
+    
+    return task_accuracies
+
+
+def compute_average_forgetting_fedcbdr(server, task_accuracies, best_acc_per_task, task_id):
+    """
+    Compute Average Forgetting (AF) metric for FedCBDR.
+    
+    AF = (1/T-1) * Σ_{t=0}^{T-2} max_{t'≤T-1} (a_{t',t} - a_{T-1,t})
+    """
+    current_af = 0.0
+    
+    # Update best accuracies
+    for tid, acc in task_accuracies.items():
+        if tid not in best_acc_per_task:
+            best_acc_per_task[tid] = acc
+        else:
+            best_acc_per_task[tid] = max(best_acc_per_task[tid], acc)
+    
+    # Calculate forgetting for previous tasks
+    if task_id > 0:
+        forgetting = []
+        for tid in range(task_id):
+            if tid in best_acc_per_task and tid in task_accuracies:
+                f = best_acc_per_task[tid] - task_accuracies[tid]
+                forgetting.append(max(0, f))
+        if forgetting:
+            current_af = sum(forgetting) / len(forgetting)
+    
+    return current_af
+
+
+def save_checkpoint_fedcbdr(server, config, task_id, seen_classes, output_dir):
+    """Save training checkpoint for FedCBDR after each task."""
+    checkpoint_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
+    
+    checkpoint = {
+        'task_id': task_id,
+        'model_state_dict': server.global_model.state_dict(),
+        'seen_classes': list(seen_classes),
+        'task_classes': server.task_classes,
+        'config': config,
+        'history': server.history,
+        'trainer_state': {
+            'tau_old': server.trainer.tau_old,
+            'tau_new': server.trainer.tau_new,
+            'omega_old': server.trainer.omega_old,
+            'omega_new': server.trainer.omega_new,
+        }
+    }
+    
+    torch.save(checkpoint, checkpoint_path)
+    print(f"💾 FedCBDR Checkpoint saved: {checkpoint_path}")
+
+
+def print_replay_buffer_stats(clients):
+    """Print replay buffer statistics for FedCBDR clients."""
+    total_buffer = 0
+    classes_in_buffer = set()
+    
+    for client in clients:
+        if hasattr(client, 'replay_buffer'):
+            total_buffer += client.replay_buffer.total_samples
+            classes_in_buffer.update(client.replay_buffer.class_buffers.keys())
+    
+    print(f"   📦 Replay Buffer Statistics:")
+    print(f"      Total samples: {total_buffer}")
+    print(f"      Classes covered: {len(classes_in_buffer)}")
+    return total_buffer, len(classes_in_buffer)
+
+
 def main_fedcbdr():
     """Main training function for FedCBDR."""
     from fed_learning.servers.incremental_server import FedCBDRServer
@@ -702,19 +802,18 @@ def main_fedcbdr():
         # ==================================================================
         print(f"\n📊 Final evaluation for Task {task_id}...")
         
-        # Per-task accuracy
-        task_accs = server.evaluate_per_task()
+        # Compute per-task accuracy using helper function
+        print("\n🔍 Computing Per-Task Accuracy for AF...")
+        task_accs = compute_per_task_accuracy_fedcbdr(server, all_test_data)
         
-        print(f"   Per-task accuracies:")
-        for tid, acc in sorted(task_accs.items()):
-            status = "✓" if acc > 0.7 else "⚠️"
-            print(f"    {status} Task {tid}: {acc*100:.2f}%")
+        # Compute Average Forgetting using helper function
+        current_af = compute_average_forgetting_fedcbdr(
+            server, task_accs, best_acc_per_task, task_id
+        )
         
-        # Average forgetting
         if task_id > 0:
-            af = server.compute_average_forgetting()
-            all_history["task_forgetting"].append(af)
-            print(f"   Average Forgetting: {af*100:.2f}%")
+            all_history["task_forgetting"].append(current_af)
+            print(f"   Average Forgetting (AF): {current_af*100:.2f}%")
         
         # Overall metrics
         final_metrics = server.evaluate_global(
@@ -725,9 +824,11 @@ def main_fedcbdr():
         print(f"      Accuracy: {final_metrics['accuracy']*100:.2f}%")
         print(f"      F1 (macro): {final_metrics['f1_macro']*100:.2f}%")
         
-        # Save checkpoint
-        checkpoint_path = f"{output_dir}/checkpoint_task{task_id}.pt"
-        server.save_checkpoint(checkpoint_path, task_id)
+        # Print replay buffer stats using helper function
+        print_replay_buffer_stats(list(all_clients.values()))
+        
+        # Save checkpoint using helper function
+        save_checkpoint_fedcbdr(server, CONFIG_FEDCBDR, task_id, seen_classes, output_dir)
         
         # Record history
         all_history["task_accuracies"].append({
@@ -736,6 +837,7 @@ def main_fedcbdr():
             "accuracy": final_metrics["accuracy"],
             "f1_macro": final_metrics["f1_macro"],
             "per_task_acc": task_accs,
+            "avg_forgetting": current_af,
         })
         
         # Cleanup
@@ -825,6 +927,112 @@ def create_fedlwf_clients(client_data, config):
     return clients
 
 
+def compute_per_task_accuracy_fedlwf(server, all_test_data):
+    """
+    Compute accuracy for each previous task (for AF calculation) - FedLwF version.
+    
+    Uses the same approach as FedCBDR for consistency.
+    """
+    task_accuracies = {}
+    
+    for prev_tid, prev_test_path in all_test_data.items():
+        try:
+            loaded_test_data = torch.load(prev_test_path)
+        except Exception as e:
+            print(f"⚠️ Failed to load test data for task {prev_tid}: {e}")
+            continue
+        
+        # Temporarily set test data
+        original_test_data = server.test_data
+        server.test_data = loaded_test_data
+        
+        # Evaluate
+        metrics = server.evaluate_global(seen_classes_only=False)
+        task_accuracies[prev_tid] = metrics['accuracy']
+        print(f"    Task {prev_tid} Acc: {metrics['accuracy']*100:.2f}%")
+        
+        # Restore and cleanup
+        server.test_data = original_test_data
+        del loaded_test_data
+        gc.collect()
+    
+    return task_accuracies
+
+
+def compute_average_forgetting_fedlwf(server, task_accuracies, best_acc_per_task, task_id):
+    """
+    Compute Average Forgetting (AF) metric for FedLwF.
+    
+    AF = (1/T-1) * Σ_{t=0}^{T-2} (best_acc[t] - current_acc[t])
+    """
+    current_af = 0.0
+    
+    # Update best accuracies
+    for tid, acc in task_accuracies.items():
+        if tid not in best_acc_per_task:
+            best_acc_per_task[tid] = acc
+        else:
+            best_acc_per_task[tid] = max(best_acc_per_task[tid], acc)
+    
+    # Calculate forgetting for previous tasks
+    if task_id > 0:
+        forgetting = []
+        for tid in range(task_id):
+            if tid in best_acc_per_task and tid in task_accuracies:
+                f = best_acc_per_task[tid] - task_accuracies[tid]
+                forgetting.append(max(0, f))
+        if forgetting:
+            current_af = sum(forgetting) / len(forgetting)
+    
+    return current_af
+
+
+def save_checkpoint_fedlwf(server, config, task_id, seen_classes, output_dir, current_alpha):
+    """Save training checkpoint for FedLwF after each task."""
+    checkpoint_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
+    
+    checkpoint = {
+        'task_id': task_id,
+        'model_state_dict': server.global_model.state_dict(),
+        'seen_classes': list(seen_classes),
+        'task_classes': server.task_classes,
+        'config': config,
+        'history': server.history,
+        'trainer_state': {
+            'lwf_alpha': server.trainer.lwf_alpha,
+            'temperature': server.trainer.temperature,
+            'current_alpha': current_alpha,
+        }
+    }
+    
+    torch.save(checkpoint, checkpoint_path)
+    print(f"💾 FedLwF Checkpoint saved: {checkpoint_path}")
+
+
+def get_kd_alpha_for_task(config, task_id):
+    """
+    Calculate Knowledge Distillation alpha for a given task.
+    
+    α_t = α_base * (α_scale)^(t-1) for t > 0
+    α_0 = α_base (no KD for first task)
+    """
+    if task_id == 0:
+        return config["lwf_alpha"]
+    
+    return config["lwf_alpha"] * (config["lwf_alpha_scale"] ** (task_id - 1))
+
+
+def print_kd_info(task_id, current_alpha, temperature):
+    """Print Knowledge Distillation information for FedLwF."""
+    print(f"   🎓 Knowledge Distillation Settings:")
+    print(f"      α (KD weight): {current_alpha:.3f}")
+    print(f"      Temperature: {temperature}")
+    if task_id == 0:
+        print(f"      Note: First task - no KD applied (no old knowledge)")
+    else:
+        print(f"      KD active: Preserving knowledge from {task_id} previous task(s)")
+
+
 def main_fedlwf():
     """Main training function for FedLwF."""
     from fed_learning.servers.incremental_server import FedLwFServer
@@ -867,6 +1075,7 @@ def main_fedlwf():
     all_history = {"task_accuracies": [], "task_forgetting": []}
     all_clients = {}
     all_test_data = {}
+    best_acc_per_task = {}  # Track best accuracy per task for AF calculation
     server = None
     current_alpha = CONFIG_FEDLWF["lwf_alpha"]
     
@@ -878,10 +1087,11 @@ def main_fedlwf():
         print(f"📚 TASK {task_id}/{data_loader.get_num_tasks()}")
         print(f"{'='*80}")
         
-        # Adjust alpha for current task
-        if task_id > 0:
-            current_alpha = CONFIG_FEDLWF["lwf_alpha"] * (CONFIG_FEDLWF["lwf_alpha_scale"] ** (task_id - 1))
-            print(f"   Current KD α: {current_alpha:.3f}")
+        # Adjust alpha for current task using helper function
+        current_alpha = get_kd_alpha_for_task(CONFIG_FEDLWF, task_id)
+        
+        # Print KD info using helper function
+        print_kd_info(task_id, current_alpha, CONFIG_FEDLWF["temperature"])
         
         # Get data for this task
         new_classes = data_loader.get_task_classes(task_id)
@@ -987,19 +1197,18 @@ def main_fedlwf():
         # ==================================================================
         print(f"\n📊 Final evaluation for Task {task_id}...")
         
-        # Per-task accuracy
-        task_accs = server.evaluate_per_task()
+        # Compute per-task accuracy using helper function
+        print("\n🔍 Computing Per-Task Accuracy for AF...")
+        task_accs = compute_per_task_accuracy_fedlwf(server, all_test_data)
         
-        print(f"   Per-task accuracies:")
-        for tid, acc in sorted(task_accs.items()):
-            status = "✓" if acc > 0.7 else "⚠️"
-            print(f"    {status} Task {tid}: {acc*100:.2f}%")
+        # Compute Average Forgetting using helper function
+        current_af = compute_average_forgetting_fedlwf(
+            server, task_accs, best_acc_per_task, task_id
+        )
         
-        # Average forgetting
         if task_id > 0:
-            af = server.compute_average_forgetting()
-            all_history["task_forgetting"].append(af)
-            print(f"   Average Forgetting: {af*100:.2f}%")
+            all_history["task_forgetting"].append(current_af)
+            print(f"   Average Forgetting (AF): {current_af*100:.2f}%")
         
         # Overall metrics
         final_metrics = server.evaluate_global(
@@ -1010,9 +1219,8 @@ def main_fedlwf():
         print(f"      Accuracy: {final_metrics['accuracy']*100:.2f}%")
         print(f"      F1 (macro): {final_metrics['f1_macro']*100:.2f}%")
         
-        # Save checkpoint
-        checkpoint_path = f"{output_dir}/checkpoint_task{task_id}.pt"
-        server.save_checkpoint(checkpoint_path, task_id)
+        # Save checkpoint using helper function
+        save_checkpoint_fedlwf(server, CONFIG_FEDLWF, task_id, seen_classes, output_dir, current_alpha)
         
         # Record history
         all_history["task_accuracies"].append({
@@ -1022,6 +1230,7 @@ def main_fedlwf():
             "f1_macro": final_metrics["f1_macro"],
             "per_task_acc": task_accs,
             "kd_alpha": current_alpha,
+            "avg_forgetting": current_af,
         })
         
         # Cleanup
