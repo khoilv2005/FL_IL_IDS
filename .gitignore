@@ -13,3 +13,7 @@
 __pycache__/
 *.pyc
 *.pyo
+prepare_data/data.rar
+*.rar
+*.zip
+*.pdf

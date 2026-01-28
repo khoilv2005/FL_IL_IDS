@@ -49,7 +49,6 @@ class EWCMixin:
         online_ewc: bool = False,
         gamma: float = 0.9,
         temp_dir: str = "./temp_ewc_storage",
-        **kwargs
     ):
         """
         Args:
@@ -59,9 +58,6 @@ class EWCMixin:
             gamma: Decay factor for Online EWC
             temp_dir: Directory to store Fisher matrices
         """
-        # Call parent __init__ (for Mixin pattern)
-        super().__init__(**kwargs)
-        
         self.ewc_lambda = ewc_lambda
         self.fisher_samples = fisher_samples
         self.online_ewc = online_ewc
@@ -101,7 +97,14 @@ class EWCMixin:
         
         Approximated using empirical samples.
         """
-        model.eval()
+        # Switch to train mode to allow RNN backward pass (required by cuDNN)
+        # But we want to freeze Batch Norm stats and disable Dropout for deterministic Fisher
+        model.train()
+        
+        # Optional: Disable dropout manually for stable Fisher estimation
+        for m in model.modules():
+            if isinstance(m, (nn.Dropout, nn.Dropout2d, nn.Dropout3d)):
+                m.training = False
         fisher = {name: torch.zeros_like(param) for name, param in model.named_parameters()
                   if param.requires_grad}
         
@@ -264,8 +267,27 @@ from ..federated.fedprox import FedProxTrainer
 
 class FedAvgEWCTrainer(EWCMixin, FedAvgTrainer):
     """FedAvg + EWC: Standard averaging with EWC regularization."""
-    pass
+    def __init__(self, **kwargs):
+        ewc_args = {
+            'ewc_lambda': kwargs.pop('ewc_lambda', 1000.0),
+            'fisher_samples': kwargs.pop('fisher_samples', 200),
+            'online_ewc': kwargs.pop('online_ewc', False),
+            'gamma': kwargs.pop('gamma', 0.9),
+            'temp_dir': kwargs.pop('temp_dir', "./temp_ewc_storage")
+        }
+        EWCMixin.__init__(self, **ewc_args)
+        FedAvgTrainer.__init__(self)
 
 class FedProxEWCTrainer(EWCMixin, FedProxTrainer):
     """FedProx + EWC: Proximal regularization with EWC."""
-    pass
+    def __init__(self, **kwargs):
+        ewc_args = {
+            'ewc_lambda': kwargs.pop('ewc_lambda', 1000.0),
+            'fisher_samples': kwargs.pop('fisher_samples', 200),
+            'online_ewc': kwargs.pop('online_ewc', False),
+            'gamma': kwargs.pop('gamma', 0.9),
+            'temp_dir': kwargs.pop('temp_dir', "./temp_ewc_storage")
+        }
+        mu = kwargs.pop('mu', 0.01)
+        EWCMixin.__init__(self, **ewc_args)
+        FedProxTrainer.__init__(self, mu=mu)

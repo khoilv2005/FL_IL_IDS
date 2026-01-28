@@ -31,9 +31,6 @@ from .incremental import (
 from .incremental.ewc import (
     EWCMixin, FedAvgEWCTrainer, FedProxEWCTrainer,
 )
-from .incremental.lwf import (
-    LwFMixin, FedAvgLwFTrainer, FedProxLwFTrainer,
-)
 
 # Registry of available strategies
 STRATEGIES: Dict[str, Dict[str, type]] = {
@@ -61,19 +58,10 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
     # EWC-based (FedAvg + EWC, FedProx + EWC)
     "fedavg_ewc": {
         "trainer": FedAvgEWCTrainer,
-        "aggregator": FedAvgAggregator,  # Standard FedAvg aggregation
+        "aggregator": FedAvgAggregator,
     },
     "fedprox_ewc": {
         "trainer": FedProxEWCTrainer,
-        "aggregator": FedProxAggregator,
-    },
-    # LwF-based (FedAvg + LwF, FedProx + LwF)
-    "fedavg_lwf": {
-        "trainer": FedAvgLwFTrainer,
-        "aggregator": FedAvgAggregator,
-    },
-    "fedprox_lwf": {
-        "trainer": FedProxLwFTrainer,
         "aggregator": FedProxAggregator,
     },
 }
@@ -93,23 +81,15 @@ def get_strategy(
             - "fedprox": Federated Proximal
             - "fedplus": Fed+ with Dynamic Regularization
             - "cgofed": Constrained Gradient for Class Incremental Learning
-        **config: Algorithm-specific configuration:
-            - mu: For FedProx/Fed+/CGoFed (default: 0.01)
-            - server_momentum: For FedAvgM (default: 0.9)
-            - server_lr: For FedAvgM (default: 1.0)
-            - gradient_memory_size: For CGoFed (default: 100)
-            - cross_task_weight: For CGoFed (default: 0.5)
+            - "fedavg_ewc": FedAvg + EWC
+            - "fedprox_ewc": FedProx + EWC
+        **config: Algorithm-specific configuration
     
     Returns:
         Tuple of (trainer, aggregator) instances
         
     Raises:
         ValueError: If algorithm is not recognized
-        
-    Example:
-        >>> trainer, aggregator = get_strategy("fedprox", mu=0.01)
-        >>> loss = trainer.compute_loss(model, output, target, global_params)
-        >>> new_params = aggregator.aggregate(results, global_params)
     """
     algo_lower = algorithm.lower()
     
@@ -139,12 +119,6 @@ def get_strategy(
             online_ewc=config.get("online_ewc", False),
             mu=config.get("mu", 0.01),  # For FedProx base
         )
-    elif algo_lower in ("fedavg_lwf", "fedprox_lwf"):
-        trainer = strategy["trainer"](
-            lwf_alpha=config.get("lwf_alpha", 1.0),
-            temperature=config.get("temperature", 2.0),
-            mu=config.get("mu", 0.01),  # For FedProx base
-        )
     else:
         trainer = strategy["trainer"]()
     
@@ -154,7 +128,7 @@ def get_strategy(
             momentum=config.get("server_momentum", 0.9),
             server_lr=config.get("server_lr", 1.0)
         )
-    elif algo_lower in ("fedprox", "fedplus", "fedprox_ewc", "fedprox_lwf"):
+    elif algo_lower in ("fedprox", "fedplus", "fedprox_ewc"):
         aggregator = strategy["aggregator"](mu=config.get("mu", 0.01))
     elif algo_lower == "cgofed":
         aggregator = strategy["aggregator"](
