@@ -732,7 +732,7 @@ def main_fedcbdr():
             print(f"⚠️ No training data for task {task_id}, skipping...")
             continue
         
-        # Create/update clients
+        # Create/update clients with task info
         for cid, data in client_data.items():
             if cid not in all_clients:
                 all_clients[cid] = FedCBDRClient(
@@ -741,10 +741,20 @@ def main_fedcbdr():
                     y_train=data["y_train"],
                     buffer_size=CONFIG_FEDCBDR.get("buffer_size", 500),
                 )
-            else:
+                # Set task info for new client
                 all_clients[cid].set_task_data(
                     X_train=data["X_train"],
                     y_train=data["y_train"],
+                    task_id=task_id,
+                    task_classes=new_classes,
+                )
+            else:
+                # Update existing client with new task data
+                all_clients[cid].set_task_data(
+                    X_train=data["X_train"],
+                    y_train=data["y_train"],
+                    task_id=task_id,
+                    task_classes=new_classes,
                 )
         
         participating_clients = [
@@ -763,10 +773,6 @@ def main_fedcbdr():
         
         # Set task for server
         server.set_task(task_id, new_classes)
-        
-        # Update all clients with task info
-        for client in participating_clients:
-            client.set_task(task_id, new_classes)
         
         # ==================================================================
         # TRAINING ROUNDS
@@ -1127,7 +1133,7 @@ def main_fedlwf():
             print(f"⚠️ No training data for task {task_id}, skipping...")
             continue
         
-        # Create/update clients
+        # Create/update clients with task info
         for cid, data in client_data.items():
             if cid not in all_clients:
                 all_clients[cid] = FedLwFClient(
@@ -1135,10 +1141,20 @@ def main_fedlwf():
                     X_train=data["X_train"],
                     y_train=data["y_train"],
                 )
-            else:
+                # Set task info for new client
                 all_clients[cid].set_task_data(
                     X_train=data["X_train"],
                     y_train=data["y_train"],
+                    task_id=task_id,
+                    task_classes=new_classes,
+                )
+            else:
+                # Update existing client with new task data
+                all_clients[cid].set_task_data(
+                    X_train=data["X_train"],
+                    y_train=data["y_train"],
+                    task_id=task_id,
+                    task_classes=new_classes,
                 )
         
         participating_clients = [
@@ -1161,10 +1177,6 @@ def main_fedlwf():
         
         # Set task for server
         server.set_task(task_id, new_classes)
-        
-        # Update all clients with task info
-        for client in participating_clients:
-            client.set_task(task_id, new_classes)
         
         # ==================================================================
         # TRAINING ROUNDS
