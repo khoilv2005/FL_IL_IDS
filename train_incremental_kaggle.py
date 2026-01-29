@@ -517,9 +517,9 @@ CONFIG_FEDCBDR = {
     
     # Training
     "rounds_per_task": 5,
-    "local_epochs": 3,
+    "local_epochs": 5,
     "learning_rate": 0.001,
-    "batch_size": 128,
+    "batch_size": 1024,
     
     # Eval
     "eval_every": 1,
@@ -929,9 +929,9 @@ CONFIG_FEDLWF = {
     
     # Training
     "rounds_per_task": 5,
-    "local_epochs": 3,
+    "local_epochs": 5,
     "learning_rate": 0.001,
-    "batch_size": 128,
+    "batch_size": 1024,
     
     # Eval
     "eval_every": 1,
