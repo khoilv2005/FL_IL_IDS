@@ -101,7 +101,7 @@ CONFIG = {
     
     # Algorithm Selection
     # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf", "fedcbdr"
-    "algorithm": "fedprox_ewc",
+    "algorithm": "cgofed",
     
     # Output
     "output_dir": "./results_incremental",
@@ -123,7 +123,7 @@ CONFIG = {
     # --- Algorithm Specific Params ---
     
     # CGoFed
-    "lambda_decay": 0.05,
+    "lambda_decay": 0.02,
     "theta_threshold": 0.01,
     "cross_task_weight": 0.35,
     "energy_threshold": 0.97,
@@ -148,12 +148,26 @@ CONFIG = {
     "omega_new": 0.9,
     "buffer_size": 500,
     "replay_ratio": 0.5,
+    "seed": 42
 }
 
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+def set_seed(seed=42):
+    """Set random seed for reproducibility."""
+    import random
+    import numpy as np
+    
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    print(f"🌱 Seed set to {seed}")
 def cleanup_temp_folders():
     """Clean up temporary folders."""
     folders = [
@@ -449,7 +463,7 @@ def main():
         ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
         torch.save({
             'task_id': task_id,
-            'model_state_dict': global_model.state_dict(),
+            'model_state_dict': global_model,
             'config': CONFIG,
             'seen_classes': list(seen_classes)
         }, ckpt_path)
