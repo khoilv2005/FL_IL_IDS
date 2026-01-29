@@ -1,74 +1,38 @@
 """
 FedCBDR Server - Server with Global-perspective Data Replay (GDR) for FCIL.
-
-Reference:
-    "Class-wise Balancing Data Replay for Federated Class-Incremental Learning"
-    Zhuang Qi et al., arXiv:2507.07712, 2025
-
-This server extends IncrementalServer with:
-1. GDR module for global coordination of replay buffer selection
-2. Privacy-preserving feature aggregation via ISVD
-3. Task-aware training orchestration
 """
 
-import time
-import os
-from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
-from threading import Thread
-import gc
-
+from typing import Dict
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from collections import OrderedDict
+from threading import Thread
+
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
     roc_auc_score
 )
 from sklearn.preprocessing import label_binarize
 
-from ..models.cnn_gru import CNN_GRU_Model
-from ..clients.fedcbdr_client import FedCBDRClient
-from ..training.fedcbdr_worker import train_fedcbdr_clients_on_gpu
-from ..strategies import get_strategy
-from ..strategies.incremental.fedcbdr import (
-    FedCBDRTrainer, FedCBDRAggregator, LeverageScoreCalculator
-)
-from ..core import BaseTrainer, BaseAggregator
-
 
 class FedCBDRServer:
     """
     Server for FedCBDR algorithm with Global-perspective Data Replay.
-    
-    Key components:
-    1. Standard FL training with FedAvg aggregation
-    2. GDR module for coordinated replay buffer updates
-    3. Task-aware evaluation across all seen classes
-    
-    Attributes:
-        clients: List of FedCBDRClient instances
-        global_model: Global CNN-GRU model
-        trainer: FedCBDRTrainer instance
-        aggregator: FedCBDRAggregator instance
-        leverage_calculator: For global leverage score computation
     """
     
     def __init__(
         self,
-        clients: List[FedCBDRClient],
+        clients,
         test_data: Dict,
         config: Dict
     ):
-        """
-        Initialize FedCBDR server.
+        from ..models.cnn_gru import CNN_GRU_Model
+        from ..strategies.incremental.fedcbdr import (
+            FedCBDRTrainer, FedCBDRAggregator, LeverageScoreCalculator
+        )
         
-        Args:
-            clients: List of FedCBDR clients
-            test_data: Test data dict with X_test, y_test
-            config: Configuration dict
-        """
         self.clients = clients
         self.test_data = test_data
         self.config = config
@@ -108,8 +72,8 @@ class FedCBDRServer:
         
         # Task tracking
         self.current_task: int = 0
-        self.seen_classes: List[int] = []
-        self.task_classes: Dict[int, List[int]] = {}
+        self.seen_classes = []
+        self.task_classes: Dict[int, list] = {}
         
         # History
         self.history = {
@@ -141,14 +105,8 @@ class FedCBDRServer:
             {k: v.to(self.primary_device) for k, v in params.items()}
         )
     
-    def set_task(self, task_id: int, task_classes: List[int]):
-        """
-        Set up for a new task.
-        
-        Args:
-            task_id: Task identifier
-            task_classes: List of class IDs in this task
-        """
+    def set_task(self, task_id: int, task_classes: list):
+        """Set up for a new task."""
         self.current_task = task_id
         self.task_classes[task_id] = task_classes
         self.seen_classes.extend(task_classes)
@@ -161,19 +119,13 @@ class FedCBDRServer:
     
     def train_round(
         self,
-        participating_clients: Optional[List[FedCBDRClient]] = None,
+        participating_clients=None,
         verbose: bool = True
     ) -> Dict:
-        """
-        Train one federated round.
+        """Train one federated round."""
+        import time
+        from ..training.fedcbdr_worker import train_fedcbdr_clients_on_gpu
         
-        Args:
-            participating_clients: Clients to train (default: all)
-            verbose: Whether to print progress
-            
-        Returns:
-            Dict with train_loss and round_time
-        """
         round_start = time.time()
         
         clients = participating_clients or self.clients
@@ -188,11 +140,6 @@ class FedCBDRServer:
         clients_per_gpu = [[] for _ in range(self.num_gpus)]
         for i, c in enumerate(clients):
             clients_per_gpu[i % self.num_gpus].append(c)
-        
-        if verbose:
-            for gpu_id, gpu_clients in enumerate(clients_per_gpu):
-                device_label = "CPU" if self.use_cpu else f"GPU {gpu_id}"
-                print(f"   {device_label}: {len(gpu_clients)} clients")
         
         # Train clients in parallel
         results_dict = {}
@@ -241,26 +188,12 @@ class FedCBDRServer:
     
     def coordinate_gdr(
         self,
-        participating_clients: Optional[List[FedCBDRClient]] = None,
+        participating_clients=None,
         verbose: bool = True
     ):
-        """
-        Coordinate Global-perspective Data Replay (GDR).
+        """Coordinate Global-perspective Data Replay (GDR)."""
+        import gc
         
-        This is called after task completion to update replay buffers
-        using globally-coordinated leverage scores.
-        
-        Paper Section 4.1: GDR Module
-        1. Clients extract and encrypt features
-        2. Server aggregates and computes global SVD
-        3. Server computes leverage scores
-        4. Server sends selection indices back to clients
-        5. Clients update their replay buffers
-        
-        Args:
-            participating_clients: Clients that participated in this task
-            verbose: Whether to print progress
-        """
         clients = participating_clients or self.clients
         
         if verbose:
@@ -286,10 +219,7 @@ class FedCBDRServer:
                 print("   No features collected, skipping GDR")
             return
         
-        # Step 2: Aggregate features (simplified - in paper this uses ISVD for privacy)
-        # For simplicity, we compute leverage scores per-client
-        # Full privacy-preserving version would use encrypted aggregation
-        
+        # Step 2: Compute leverage scores and update
         for client in clients:
             if client.client_id not in client_features:
                 continue
@@ -299,7 +229,7 @@ class FedCBDRServer:
             # Compute leverage scores
             scores = self.leverage_calculator.compute_scores(features)
             
-            # Select top samples based on leverage scores
+            # Select top samples
             buffer_per_class = client.buffer_size // max(1, len(self.seen_classes))
             n_select = min(
                 buffer_per_class * len(client.current_classes),
@@ -331,17 +261,7 @@ class FedCBDRServer:
         compute_auc: bool = False,
         seen_classes_only: bool = True
     ) -> Dict:
-        """
-        Evaluate global model on test set.
-        
-        Args:
-            batch_size: Batch size for evaluation
-            compute_auc: Whether to compute AUC
-            seen_classes_only: Only evaluate on seen classes
-            
-        Returns:
-            Dict with metrics
-        """
+        """Evaluate global model."""
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()
         
@@ -393,7 +313,6 @@ class FedCBDRServer:
             "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
         }
         
-        # AUC
         metrics["auc_macro_ovr"] = None
         if compute_auc and all_proba:
             try:
@@ -410,24 +329,15 @@ class FedCBDRServer:
         return metrics
     
     def evaluate_per_task(self, batch_size: int = 1024) -> Dict[int, float]:
-        """
-        Evaluate accuracy per task (for forgetting analysis).
-        
-        Returns:
-            Dict mapping task_id to accuracy on that task's classes
-        """
+        """Evaluate accuracy per task."""
         self.global_model.eval()
-        
         task_accuracies = {}
-        
         X_test = self.test_data['X_test']
         y_test = self.test_data['y_test']
         
         for task_id, task_classes in self.task_classes.items():
-            if not task_classes:
-                continue
+            if not task_classes: continue
             
-            # Filter test data for this task's classes
             task_class_set = set(task_classes)
             mask = torch.tensor([y.item() in task_class_set for y in y_test])
             
@@ -438,7 +348,6 @@ class FedCBDRServer:
             X_task = X_test[mask]
             y_task = y_test[mask]
             
-            # Evaluate
             all_preds = []
             all_targets = []
             
@@ -449,7 +358,6 @@ class FedCBDRServer:
                     
                     out = self.global_model(X_batch)
                     preds = out.argmax(dim=1)
-                    
                     all_preds.extend(preds.cpu().numpy())
                     all_targets.extend(y_batch.numpy())
             
@@ -458,49 +366,9 @@ class FedCBDRServer:
         return task_accuracies
     
     def compute_average_forgetting(self) -> float:
-        """
-        Compute Average Forgetting (AF) metric.
-        
-        AF = (1/T-1) * Σ_{t=0}^{T-2} max_{t'≤T-1} (a_{t',t} - a_{T-1,t})
-        
-        Returns:
-            Average forgetting value
-        """
+        """Compute Average Forgetting (AF)."""
         if self.current_task == 0:
             return 0.0
-        
         current_accs = self.evaluate_per_task()
-        
-        # Update trainer's tracking
         self.trainer.update_forgetting(current_accs)
-        
         return self.trainer.last_af
-    
-    def save_checkpoint(self, path: str, task_id: int):
-        """Save model checkpoint."""
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        
-        checkpoint = {
-            "task_id": task_id,
-            "model_state_dict": self.global_model.state_dict(),
-            "seen_classes": self.seen_classes,
-            "task_classes": self.task_classes,
-            "config": self.config,
-            "history": self.history,
-        }
-        
-        torch.save(checkpoint, path)
-        print(f"💾 Checkpoint saved: {path}")
-    
-    def load_checkpoint(self, path: str):
-        """Load model checkpoint."""
-        checkpoint = torch.load(path, map_location=self.primary_device)
-        
-        self.global_model.load_state_dict(checkpoint["model_state_dict"])
-        self.seen_classes = checkpoint["seen_classes"]
-        self.task_classes = checkpoint["task_classes"]
-        self.current_task = checkpoint["task_id"]
-        self.history = checkpoint.get("history", self.history)
-        
-        print(f"📂 Checkpoint loaded: {path}")
-        print(f"   Task: {self.current_task}, Seen classes: {len(self.seen_classes)}")

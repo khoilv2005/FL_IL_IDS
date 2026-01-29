@@ -1,13 +1,15 @@
 """
-Federated Class Incremental Learning - Kaggle Training Script
+Federated Class Incremental Learning - Unified Training Script
 ==============================================================
-Train with CGoFed or FedAvg for Class Incremental Learning on Kaggle.
-
-Reference:
-    "CGoFed: Constrained Gradient Optimization Strategy for Federated Class 
-    Incremental Learning", IEEE TKDE, Vol. 37, No. 5, May 2025
+Unified entry point for CGoFed, EWC, FedLwF, and other strategies.
 
 Usage:
+    Switch algorithm in CONFIG["algorithm"]:
+    - "cgofed": Constrained Gradient Optimization
+    - "fedavg_ewc" / "fedprox_ewc": Elastic Weight Consolidation
+    - "fedavg_lwf" / "fedprox_lwf": Learning without Forgetting
+    - "fedcbdr": Class-Balancing Data Replay
+
     Upload fed_learning folder to Kaggle dataset, then run this script.
 """
 
@@ -17,6 +19,7 @@ import gc
 import json
 import shutil
 from datetime import datetime
+from typing import Dict, List
 
 import torch
 from torch.utils.data import TensorDataset, DataLoader
@@ -26,7 +29,6 @@ from torch.utils.data import TensorDataset, DataLoader
 # KAGGLE SETUP
 # =============================================================================
 MODULE_PATH = "/kaggle/input/ai4fids-fedlearning-modules"
-
 
 def setup_imports():
     """Setup imports for both nested and flattened dataset structures."""
@@ -63,7 +65,6 @@ def setup_imports():
         except Exception as e:
             print(f"⚠️ Failed to create symlink: {e}")
 
-
 setup_imports()
 
 # Import fed_learning modules
@@ -73,821 +74,37 @@ try:
     from fed_learning.clients import CGoFedClient
     from fed_learning.data.incremental_loader import IncrementalDataLoader
     from fed_learning.strategies import get_strategy
+    # Import specific implementation classes for client creation and checks
+    from fed_learning.clients.fedcbdr_client import FedCBDRClient
+    from fed_learning.clients.fedlwf_client import FedLwFClient
+    
+    # Updated imports for Servers
+    from fed_learning.servers import (
+        IncrementalServer, 
+        FedCBDRServer, 
+        FedLwFServer
+    )
+    
+    from fed_learning.strategies.incremental.fedlwf import FedLwFTrainer
+    from fed_learning.strategies.incremental.ewc import EWCMixin
     print("✓ Imports ready!")
 except ImportError as e:
-    print(f"❌ Import failed: {e}")
-    sys.exit(1)
+    print(f"❌ Import failed (some optional modules might be missing): {e}")
 
 
 # =============================================================================
-# CONFIG - CGoFed Optimized for Better Retention
+# CONFIGURATION
 # =============================================================================
 CONFIG = {
     # Data
     "data_dir": "/kaggle/input/data-10clients",
-    "output_dir": "./results_cgofed",
     
-    # Incremental Learning - 5 Tasks Distribution
-    "num_clients": 10,
-    "total_classes": 34,
-    "base_classes": 10,         # Task 0: 10 classes
-    "classes_per_task": 6,      # Task 1-4: +6 classes per task (10+6*4=34)
+    # Algorithm Selection
+    # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf", "fedcbdr"
+    "algorithm": "fedprox_ewc",
     
-    # Algorithm - CGoFed Optimized
-    "algorithm": "cgofed",
-    "mu": 1.5,                    # Stronger constraint to prevent forgetting
-    
-    # α Relaxation - Faster decay for plasticity
-    "lambda_decay": 0.05,         # Faster α decay → better plasticity
-    
-    # AF Threshold - Early detection
-    "theta_threshold": 0.01,      # Reset α when AF > 1% (early detection)
-    
-    "cross_task_weight": 0.35,    # Cross-task regularization
-    "energy_threshold": 0.97,     # High SVD basis retention
-    "num_samples_rep": 1536,      # Stable SVD with more samples
-    "top_k": 2,                   # Paper: K=2
-    
-    # Training - Optimized
-    "rounds_per_task": 5,         # Converges by round 4-5
-    "local_epochs": 5,            # OK
-    "learning_rate": 0.001,       # Balanced learning rate
-    "batch_size": 1024,             # Smaller batch → better gradient projection
-    
-    # Eval
-    "eval_every": 1,
-}
-
-
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-def cleanup_temp_folders():
-    """Clean up temporary folders from previous runs."""
-    for folder in ["./temp_svd_storage", "./temp_test_data"]:
-        if os.path.exists(folder):
-            print(f"🧹 Cleaning {folder}...")
-            shutil.rmtree(folder)
-
-
-def create_clients(client_data, config):
-    """Create federated clients from client data."""
-    clients = []
-    for cid in range(config["num_clients"]):
-        if cid in client_data and len(client_data[cid].get("y_train", [])) > 0:
-            c = CGoFedClient(
-                client_id=cid,
-                X_train=client_data[cid]["X_train"],
-                y_train=client_data[cid]["y_train"],
-            )
-            clients.append(c)
-    return clients
-
-
-def build_representation_space(trainer, client_data, server, config):
-    """
-    Build representation space for CGoFed (paper eq. 2-4).
-    
-    Delegates to trainer.build_space_from_client_data() for encapsulation.
-    This keeps the runner file clean and algorithm-agnostic.
-    """
-    # Check if trainer supports this (CGoFed only)
-    if hasattr(trainer, 'build_space_from_client_data'):
-        # New encapsulated method in CGoFedTrainer
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        trainer.build_space_from_client_data(
-            model=server.global_model,
-            client_data=client_data,
-            config=config,
-            device=device
-        )
-    elif hasattr(trainer, 'build_representation_space'):
-        # Fallback: old direct method (backward compatibility)
-        print("\n🔐 Building gradient-based representation space (paper Section 5.1)...")
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        
-        # Find clients with data
-        active_cids = [cid for cid, data in client_data.items() 
-                       if len(data.get("y_train", [])) > 0]
-        
-        if len(active_cids) == 0:
-            print("⚠️ No client data available for representation space")
-            return
-        
-        # Sample uniformly from available clients for robust gradient space
-        all_X, all_y = [], []
-        samples_per_client = max(10, config["num_samples_rep"] // len(active_cids) + 1)
-        
-        for cid in active_cids:
-            X = client_data[cid]["X_train"]
-            y = client_data[cid]["y_train"]
-            
-            if len(y) > samples_per_client:
-                indices = torch.randperm(len(y))[:samples_per_client]
-                X, y = X[indices], y[indices]
-            
-            all_X.append(X)
-            all_y.append(y)
-        
-        rep_X = torch.cat(all_X, dim=0)
-        rep_y = torch.cat(all_y, dim=0)
-        
-        # Limit to num_samples_rep
-        if len(rep_y) > config["num_samples_rep"]:
-            indices = torch.randperm(len(rep_y))[:config["num_samples_rep"]]
-            rep_X, rep_y = rep_X[indices], rep_y[indices]
-        
-        print(f"   Using {len(rep_y)} samples from {len(active_cids)} clients for SVD.")
-        
-        rep_loader = DataLoader(
-            TensorDataset(rep_X, rep_y),
-            batch_size=32,
-            shuffle=False
-        )
-        
-        trainer.build_representation_space(
-            model=server.global_model,
-            data_loader=rep_loader,
-            device=device
-        )
-
-
-def compute_per_task_accuracy(server, all_test_data):
-    """Compute accuracy for each previous task (for AF calculation)."""
-    task_accuracies = {}
-    
-    for prev_tid, prev_test_path in all_test_data.items():
-        try:
-            loaded_test_data = torch.load(prev_test_path)
-        except Exception as e:
-            print(f"⚠️ Failed to load test data for task {prev_tid}: {e}")
-            continue
-        
-        server.test_data = loaded_test_data
-        t_metrics = server.evaluate_global()
-        task_accuracies[prev_tid] = t_metrics['accuracy']
-        print(f"    Task {prev_tid} Acc: {t_metrics['accuracy']*100:.2f}%")
-        
-        # Cleanup immediately to save memory
-        del loaded_test_data
-        server.test_data = None
-        gc.collect()
-    
-    return task_accuracies
-
-
-def compute_average_forgetting(trainer, task_accuracies, best_acc_per_task, task_id):
-    """Compute Average Forgetting (AF) metric."""
-    current_af = 0.0
-    current_alpha = 1.0
-    
-    # Update best accuracies
-    for tid, acc in task_accuracies.items():
-        if tid not in best_acc_per_task:
-            best_acc_per_task[tid] = acc
-        else:
-            best_acc_per_task[tid] = max(best_acc_per_task[tid], acc)
-    
-    if hasattr(trainer, 'update_forgetting'):
-        # CGoFed: Use built-in method
-        trainer.update_forgetting(task_accuracies)
-        current_af = trainer.get_current_af()
-        current_alpha = trainer.mu_coefficient
-    else:
-        # FedAvg: Calculate manually (AF = Avg(Best - Current))
-        if len(best_acc_per_task) > 1:
-            forgetting = []
-            for tid in range(task_id):
-                if tid in best_acc_per_task and tid in task_accuracies:
-                    f = best_acc_per_task[tid] - task_accuracies[tid]
-                    forgetting.append(max(0, f))
-            if forgetting:
-                current_af = sum(forgetting) / len(forgetting)
-    
-    return current_af, current_alpha
-
-
-def save_checkpoint(server, trainer, config, task_id, seen_classes):
-    """Save training checkpoint after each task."""
-    os.makedirs(config["output_dir"], exist_ok=True)
-    checkpoint_path = os.path.join(config["output_dir"], f"checkpoint_task_{task_id}.pt")
-    
-    torch.save({
-        'task_id': task_id,
-        'model_state_dict': server.global_model.state_dict(),
-        'trainer_old_space': getattr(trainer, 'old_space', {}),
-        'trainer_importance_weights': getattr(trainer, 'importance_weights', {}),
-        'config': config,
-        'seen_classes': list(seen_classes),
-    }, checkpoint_path)
-    
-    print(f"💾 Checkpoint saved: {checkpoint_path}")
-
-
-# =============================================================================
-# MAIN
-# =============================================================================
-def main():
-    print("\n" + "="*80)
-    print("🚀 FEDERATED CLASS INCREMENTAL LEARNING (CGoFed) - KAGGLE")
-    print("   Paper: IEEE TKDE 2025 - Constrained Gradient Optimization")
-    print("="*80)
-    
-    # Cleanup temp folders from previous runs
-    cleanup_temp_folders()
-    os.makedirs("./temp_test_data", exist_ok=True)
-    
-    # Initialize data loader
-    data_loader = IncrementalDataLoader(
-        data_dir=CONFIG["data_dir"]
-    )
-    
-    print(f"\n{data_loader}")
-    print(f"Total tasks: {data_loader.get_num_tasks()}")
-    
-    # Get training strategy
-    trainer, aggregator = get_strategy(
-        CONFIG["algorithm"],
-        mu=CONFIG["mu"],
-        lambda_decay=CONFIG["lambda_decay"],
-        theta_threshold=CONFIG["theta_threshold"],
-        cross_task_weight=CONFIG["cross_task_weight"],
-        energy_threshold=CONFIG["energy_threshold"],
-        num_samples_rep=CONFIG["num_samples_rep"],
-        top_k=CONFIG.get("top_k", 2),
-    )
-    
-    # Initialize tracking variables
-    all_history = {"task_accuracies": [], "task_forgetting": []}
-    global_model = None
-    all_test_data = {}      # task_id -> file path (disk-based caching)
-    best_acc_per_task = {}  # task_id -> best accuracy
-    
-    # ==========================================================================
-    # TASK LOOP
-    # ==========================================================================
-    for task_id in range(data_loader.get_num_tasks()):
-        print(f"\n{'='*80}")
-        print(f"📚 TASK {task_id}/{data_loader.get_num_tasks()}")
-        print(f"{'='*80}")
-        
-        # Get data for this task
-        new_classes = data_loader.get_task_classes(task_id)
-        
-        # Derive seen classes
-        seen_classes = []
-        for t in range(task_id + 1):
-             seen_classes.extend(data_loader.get_task_classes(t))
-             
-        # Load client data for this task
-        client_data = {}
-        client_ids = data_loader.get_all_client_ids()
-        print(f"  Loading data for {len(client_ids)} clients...")
-        
-        for cid in client_ids:
-             X, y = data_loader.get_client_data(cid, task_id)
-             if len(y) > 0:
-                 # Check if server expects (X, y) or DataLoader. 
-                 # Existing code uses dict {"X_train": X, "y_train": y}
-                 client_data[cid] = {"X_train": X, "y_train": y}
-        
-        print(f"  Clients with data for task {task_id}: {len(client_data)}")
-
-        # Load global test data (cumulative)
-        test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
-        test_data = {"X_test": test_X, "y_test": test_y}  # Server expects dict format
-        
-        # Save test data to disk (prevents OOM)
-        test_data_path = os.path.join("./temp_test_data", f"test_task_{task_id}.pt")
-        torch.save(test_data, test_data_path)
-        all_test_data[task_id] = test_data_path
-        
-        # Skip if no training data
-        if all(len(cd.get("y_train", [])) == 0 for cd in client_data.values()):
-            print(f"⚠️ No training data for task {task_id}, skipping...")
-            continue
-        
-        # Set task (CGoFed only)
-        if hasattr(trainer, 'set_task'):
-            trainer.set_task(task_id, new_classes)
-        if hasattr(aggregator, 'set_task'):
-            aggregator.set_task(task_id)
-        
-        # Create clients
-        clients = create_clients(client_data, CONFIG)
-        print(f"Active clients: {len(clients)}")
-        
-        if len(clients) == 0:
-            continue
-        
-        # Setup server
-        task_config = {
-            **CONFIG,
-            "num_rounds": CONFIG["rounds_per_task"],
-            "input_shape": data_loader.input_shape,
-            "num_classes": CONFIG["total_classes"],
-        }
-        
-        server = IncrementalServer(clients, test_data, task_config)
-        if global_model is not None:
-            server.set_global_params(global_model)
-        server.trainer = trainer
-        server.aggregator = aggregator
-        
-        # Train
-        print(f"\n🎯 Training on {len(new_classes)} new classes: {new_classes}")
-        history = train_federated_multigpu(server, task_config)
-        
-        # Build representation space (CGoFed only)
-        build_representation_space(trainer, client_data, server, CONFIG)
-        
-        # Save global model for next task
-        global_model = server.get_global_params()
-        
-        # Evaluate on all seen classes
-        is_last_task = (task_id == data_loader.num_tasks - 1)
-        print(f"\n📊 Evaluating on all {len(seen_classes)} seen classes...")
-        metrics = server.evaluate_global(compute_auc=is_last_task)
-        
-        print(f"  Global Accuracy: {metrics['accuracy']*100:.2f}%")
-        print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
-        if is_last_task and metrics.get('auc_macro_ovr') is not None:
-            print(f"  AUC (macro OvR): {metrics['auc_macro_ovr']*100:.2f}%")
-        
-        # Compute per-task accuracy for AF
-        print("\n🔍 Computing Per-Task Accuracy for AF...")
-        del test_data  # Free memory before loading previous test data
-        gc.collect()
-        
-        task_accuracies = compute_per_task_accuracy(server, all_test_data)
-        
-        # Restore test data for server
-        server.test_data = torch.load(all_test_data[task_id])
-        
-        # Compute Average Forgetting
-        current_af, current_alpha = compute_average_forgetting(
-            trainer, task_accuracies, best_acc_per_task, task_id
-        )
-        
-        print(f"  Average Forgetting (AF): {current_af*100:.2f}%")
-        if hasattr(trainer, 'alpha'):
-            print(f"  Current α: {current_alpha:.4f}")
-        
-        # Record history
-        all_history["task_accuracies"].append({
-            "task": task_id,
-            "seen_classes": len(seen_classes),
-            "accuracy": metrics["accuracy"],
-            "f1_macro": metrics["f1_macro"],
-            "per_task_acc": task_accuracies,
-            "avg_forgetting": current_af,
-            "alpha": current_alpha,
-        })
-        
-        # Save checkpoint
-        save_checkpoint(server, trainer, CONFIG, task_id, seen_classes)
-        
-        # Clean memory
-        del client_data, clients
-        torch.cuda.empty_cache()
-        gc.collect()
-        print(f"🧹 Memory cleaned after Task {task_id}")
-    
-    # ==========================================================================
-    # SAVE RESULTS
-    # ==========================================================================
-    os.makedirs(CONFIG["output_dir"], exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
-    hist_path = os.path.join(CONFIG["output_dir"], f"incremental_{CONFIG['algorithm']}_{ts}.json")
-    with open(hist_path, "w") as f:
-        json.dump(all_history, f, indent=2)
-    print(f"\n💾 Saved: {hist_path}")
-    
-    # Print summary
-    print("\n" + "="*80)
-    print("📊 INCREMENTAL LEARNING SUMMARY (CGoFed)")
-    print("="*80)
-    for h in all_history["task_accuracies"]:
-        af_str = f", AF: {h['avg_forgetting']*100:.2f}%" if h['avg_forgetting'] > 0 else ""
-        alpha_str = f", α={h['alpha']:.3f}" if h.get('alpha') else ""
-        print(f"  Task {h['task']}: {h['seen_classes']} classes → "
-              f"Acc: {h['accuracy']*100:.2f}%{af_str}{alpha_str}")
-    
-    # Final metrics
-    if all_history["task_accuracies"]:
-        final = all_history["task_accuracies"][-1]
-        print(f"\n  🎯 Final Accuracy (all classes): {final['accuracy']*100:.2f}%")
-        print(f"  🎯 Final Average Forgetting: {final['avg_forgetting']*100:.2f}%")
-    
-    print("\n✅ DONE!")
-
-
-# =============================================================================
-# FEDCBDR TRAINING FUNCTIONS
-# =============================================================================
-
-CONFIG_FEDCBDR = {
-    # Data
-    "data_dir": "/kaggle/input/data-10clients",
-    "output_dir": "./results_fedcbdr",
-    
-    # Incremental Learning - 5 Tasks Distribution
-    "num_clients": 10,
-    "total_classes": 34,
-    "base_classes": 10,         # Task 0: 10 classes
-    "classes_per_task": 6,      # Task 1-4: +6 classes per task (10+6*4=34)
-    
-    # FedCBDR Algorithm
-    "algorithm": "fedcbdr",
-    
-    # Task-aware Temperature Scaling (TTS) - Paper recommended
-    "tau_old": 0.9,             # Temperature for old task logits
-    "tau_new": 1.1,             # Temperature for new task logits
-    "omega_old": 1.1,           # Weight for old task samples
-    "omega_new": 0.9,           # Weight for new task samples
-    
-    # Replay Buffer
-    "buffer_size": 500,         # Max samples per client in replay buffer
-    "leverage_rank": 50,        # Rank for SVD in leverage score computation
-    "use_replay": True,
-    "replay_ratio": 0.5,
-    "use_herding": True,
-    
-    # Training
-    "rounds_per_task": 5,
-    "local_epochs": 3,
-    "learning_rate": 0.001,
-    "batch_size": 128,
-    
-    # Eval
-    "eval_every": 1,
-}
-
-
-def create_fedcbdr_clients(client_data, config):
-    """Create FedCBDR clients from client data."""
-    from fed_learning.clients.fedcbdr_client import FedCBDRClient
-    
-    clients = []
-    
-    for cid, data in client_data.items():
-        if len(data.get("y_train", [])) > 0:
-            client = FedCBDRClient(
-                client_id=cid,
-                X_train=data["X_train"],
-                y_train=data["y_train"],
-                buffer_size=config.get("buffer_size", 500),
-            )
-            clients.append(client)
-    
-    return clients
-
-
-def compute_per_task_accuracy_fedcbdr(server, all_test_data):
-    """
-    Compute accuracy for each previous task (for AF calculation) - FedCBDR version.
-    
-    Uses server's evaluate_per_task() method which handles task_classes internally.
-    For more control, can load test data from disk like CGoFed version.
-    """
-    task_accuracies = {}
-    
-    for prev_tid, prev_test_path in all_test_data.items():
-        try:
-            loaded_test_data = torch.load(prev_test_path)
-        except Exception as e:
-            print(f"⚠️ Failed to load test data for task {prev_tid}: {e}")
-            continue
-        
-        # Temporarily set test data
-        original_test_data = server.test_data
-        server.test_data = loaded_test_data
-        
-        # Evaluate
-        metrics = server.evaluate_global(seen_classes_only=False)
-        task_accuracies[prev_tid] = metrics['accuracy']
-        print(f"    Task {prev_tid} Acc: {metrics['accuracy']*100:.2f}%")
-        
-        # Restore and cleanup
-        server.test_data = original_test_data
-        del loaded_test_data
-        gc.collect()
-    
-    return task_accuracies
-
-
-def compute_average_forgetting_fedcbdr(server, task_accuracies, best_acc_per_task, task_id):
-    """
-    Compute Average Forgetting (AF) metric for FedCBDR.
-    
-    AF = (1/T-1) * Σ_{t=0}^{T-2} max_{t'≤T-1} (a_{t',t} - a_{T-1,t})
-    """
-    current_af = 0.0
-    
-    # Update best accuracies
-    for tid, acc in task_accuracies.items():
-        if tid not in best_acc_per_task:
-            best_acc_per_task[tid] = acc
-        else:
-            best_acc_per_task[tid] = max(best_acc_per_task[tid], acc)
-    
-    # Calculate forgetting for previous tasks
-    if task_id > 0:
-        forgetting = []
-        for tid in range(task_id):
-            if tid in best_acc_per_task and tid in task_accuracies:
-                f = best_acc_per_task[tid] - task_accuracies[tid]
-                forgetting.append(max(0, f))
-        if forgetting:
-            current_af = sum(forgetting) / len(forgetting)
-    
-    return current_af
-
-
-def save_checkpoint_fedcbdr(server, config, task_id, seen_classes, output_dir):
-    """Save training checkpoint for FedCBDR after each task."""
-    checkpoint_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
-    
-    checkpoint = {
-        'task_id': task_id,
-        'model_state_dict': server.global_model.state_dict(),
-        'seen_classes': list(seen_classes),
-        'task_classes': server.task_classes,
-        'config': config,
-        'history': server.history,
-        'trainer_state': {
-            'tau_old': server.trainer.tau_old,
-            'tau_new': server.trainer.tau_new,
-            'omega_old': server.trainer.omega_old,
-            'omega_new': server.trainer.omega_new,
-        }
-    }
-    
-    torch.save(checkpoint, checkpoint_path)
-    print(f"💾 FedCBDR Checkpoint saved: {checkpoint_path}")
-
-
-def print_replay_buffer_stats(clients):
-    """Print replay buffer statistics for FedCBDR clients."""
-    total_buffer = 0
-    classes_in_buffer = set()
-    
-    for client in clients:
-        if hasattr(client, 'replay_buffer'):
-            total_buffer += client.replay_buffer.total_samples
-            classes_in_buffer.update(client.replay_buffer.class_buffers.keys())
-    
-    print(f"   📦 Replay Buffer Statistics:")
-    print(f"      Total samples: {total_buffer}")
-    print(f"      Classes covered: {len(classes_in_buffer)}")
-    return total_buffer, len(classes_in_buffer)
-
-
-def main_fedcbdr():
-    """Main training function for FedCBDR."""
-    from fed_learning.servers.incremental_server import FedCBDRServer
-    from fed_learning.clients.fedcbdr_client import FedCBDRClient
-    
-    print("\n" + "="*80)
-    print("🚀 FEDCBDR - Class-wise Balancing Data Replay for FCIL")
-    print("="*80)
-    print(f"   τ_old={CONFIG_FEDCBDR['tau_old']}, τ_new={CONFIG_FEDCBDR['tau_new']}")
-    print(f"   ω_old={CONFIG_FEDCBDR['omega_old']}, ω_new={CONFIG_FEDCBDR['omega_new']}")
-    print(f"   Buffer size: {CONFIG_FEDCBDR['buffer_size']}")
-    print(f"   Replay ratio: {CONFIG_FEDCBDR['replay_ratio']}")
-    
-    # Cleanup
-    cleanup_temp_folders()
-    os.makedirs("./temp_test_data", exist_ok=True)
-    
-    # Create output directory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = f"{CONFIG_FEDCBDR['output_dir']}_{timestamp}"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Save config
-    with open(f"{output_dir}/config.json", "w") as f:
-        json.dump(CONFIG_FEDCBDR, f, indent=2, default=str)
-    
-    # Initialize data loader
-    print(f"\n📂 Loading data from: {CONFIG_FEDCBDR['data_dir']}")
-    data_loader = IncrementalDataLoader(
-        data_dir=CONFIG_FEDCBDR["data_dir"]
-    )
-    
-    print(f"\n{data_loader}")
-    
-    # Get input shape
-    input_shape = data_loader.input_shape
-    CONFIG_FEDCBDR["input_shape"] = input_shape
-    CONFIG_FEDCBDR["num_classes"] = CONFIG_FEDCBDR["total_classes"]
-    
-    # Initialize tracking variables
-    all_history = {"task_accuracies": [], "task_forgetting": []}
-    all_clients = {}
-    all_test_data = {}
-    best_acc_per_task = {}
-    server = None
-    
-    # ==========================================================================
-    # TASK LOOP
-    # ==========================================================================
-    for task_id in range(data_loader.get_num_tasks()):
-        print(f"\n{'='*80}")
-        print(f"📚 TASK {task_id}/{data_loader.get_num_tasks()}")
-        print(f"{'='*80}")
-        
-        # Get data for this task
-        new_classes = data_loader.get_task_classes(task_id)
-        
-        # Derive seen classes
-        seen_classes = []
-        for t in range(task_id + 1):
-            seen_classes.extend(data_loader.get_task_classes(t))
-        
-        # Load client data for this task
-        client_data = {}
-        client_ids = data_loader.get_all_client_ids()
-        print(f"  Loading data for {len(client_ids)} clients...")
-        
-        for cid in client_ids:
-            X, y = data_loader.get_client_data(cid, task_id)
-            if len(y) > 0:
-                client_data[cid] = {"X_train": X, "y_train": y}
-        
-        print(f"  Clients with data for task {task_id}: {len(client_data)}")
-        
-        # Load global test data (cumulative)
-        test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
-        test_data = {"X_test": test_X, "y_test": test_y}
-        
-        # Save test data to disk
-        test_data_path = os.path.join("./temp_test_data", f"test_task_{task_id}.pt")
-        torch.save(test_data, test_data_path)
-        all_test_data[task_id] = test_data_path
-        
-        # Skip if no training data
-        if all(len(cd.get("y_train", [])) == 0 for cd in client_data.values()):
-            print(f"⚠️ No training data for task {task_id}, skipping...")
-            continue
-        
-        # Create/update clients with task info
-        for cid, data in client_data.items():
-            if cid not in all_clients:
-                all_clients[cid] = FedCBDRClient(
-                    client_id=cid,
-                    X_train=data["X_train"],
-                    y_train=data["y_train"],
-                    buffer_size=CONFIG_FEDCBDR.get("buffer_size", 500),
-                )
-                # Set task info for new client
-                all_clients[cid].set_task_data(
-                    X_train=data["X_train"],
-                    y_train=data["y_train"],
-                    task_id=task_id,
-                    task_classes=new_classes,
-                )
-            else:
-                # Update existing client with new task data
-                all_clients[cid].set_task_data(
-                    X_train=data["X_train"],
-                    y_train=data["y_train"],
-                    task_id=task_id,
-                    task_classes=new_classes,
-                )
-        
-        participating_clients = [
-            all_clients[cid] for cid in client_data.keys()
-        ]
-        
-        # Initialize or update server
-        if server is None:
-            task_config = {
-                **CONFIG_FEDCBDR,
-                "num_rounds": CONFIG_FEDCBDR["rounds_per_task"],
-                "input_shape": input_shape,
-                "num_classes": CONFIG_FEDCBDR["total_classes"],
-            }
-            server = FedCBDRServer(participating_clients, test_data, task_config)
-        
-        # Set task for server
-        server.set_task(task_id, new_classes)
-        
-        # ==================================================================
-        # TRAINING ROUNDS
-        # ==================================================================
-        print(f"\n🏋️ Training Task {task_id} for {CONFIG_FEDCBDR['rounds_per_task']} rounds...")
-        
-        for round_idx in range(CONFIG_FEDCBDR["rounds_per_task"]):
-            print(f"\n--- Round {round_idx + 1}/{CONFIG_FEDCBDR['rounds_per_task']} ---")
-            
-            # Train round
-            round_result = server.train_round(
-                participating_clients=participating_clients,
-                verbose=True
-            )
-            
-            # Evaluate
-            if (round_idx + 1) % CONFIG_FEDCBDR["eval_every"] == 0:
-                metrics = server.evaluate_global(seen_classes_only=True)
-                print(f"  Accuracy: {metrics['accuracy']*100:.2f}%")
-                print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
-        
-        # ==================================================================
-        # POST-TASK: Update Replay Buffers via GDR
-        # ==================================================================
-        print(f"\n🔄 Updating replay buffers for Task {task_id}...")
-        server.coordinate_gdr(
-            participating_clients=participating_clients,
-            verbose=True
-        )
-        
-        # ==================================================================
-        # TASK EVALUATION
-        # ==================================================================
-        print(f"\n📊 Final evaluation for Task {task_id}...")
-        
-        # Compute per-task accuracy using helper function
-        print("\n🔍 Computing Per-Task Accuracy for AF...")
-        task_accs = compute_per_task_accuracy_fedcbdr(server, all_test_data)
-        
-        # Compute Average Forgetting using helper function
-        current_af = compute_average_forgetting_fedcbdr(
-            server, task_accs, best_acc_per_task, task_id
-        )
-        
-        if task_id > 0:
-            all_history["task_forgetting"].append(current_af)
-            print(f"   Average Forgetting (AF): {current_af*100:.2f}%")
-        
-        # Overall metrics
-        final_metrics = server.evaluate_global(
-            seen_classes_only=True,
-            compute_auc=True
-        )
-        print(f"\n   📈 Overall (seen classes):")
-        print(f"      Accuracy: {final_metrics['accuracy']*100:.2f}%")
-        print(f"      F1 (macro): {final_metrics['f1_macro']*100:.2f}%")
-        
-        # Print replay buffer stats using helper function
-        print_replay_buffer_stats(list(all_clients.values()))
-        
-        # Save checkpoint using helper function
-        save_checkpoint_fedcbdr(server, CONFIG_FEDCBDR, task_id, seen_classes, output_dir)
-        
-        # Record history
-        all_history["task_accuracies"].append({
-            "task": task_id,
-            "seen_classes": len(seen_classes),
-            "accuracy": final_metrics["accuracy"],
-            "f1_macro": final_metrics["f1_macro"],
-            "per_task_acc": task_accs,
-            "avg_forgetting": current_af,
-        })
-        
-        # Cleanup
-        gc.collect()
-        torch.cuda.empty_cache() if torch.cuda.is_available() else None
-    
-    # ==========================================================================
-    # FINAL SUMMARY
-    # ==========================================================================
-    print("\n" + "="*80)
-    print("🎉 FEDCBDR TRAINING COMPLETE")
-    print("="*80)
-    
-    # Final evaluation
-    print("\n📊 Final Evaluation (all classes):")
-    final_metrics = server.evaluate_global(
-        seen_classes_only=False,
-        compute_auc=True
-    )
-    print(f"   Accuracy:    {final_metrics['accuracy']*100:.2f}%")
-    print(f"   F1 (macro):  {final_metrics['f1_macro']*100:.2f}%")
-    print(f"   F1 (weight): {final_metrics['f1_weighted']*100:.2f}%")
-    
-    # Forgetting summary
-    if all_history["task_forgetting"]:
-        print(f"\n📉 Forgetting Analysis:")
-        print(f"   Final AF: {all_history['task_forgetting'][-1]*100:.2f}%")
-    
-    # Save results
-    with open(f"{output_dir}/results.json", "w") as f:
-        json.dump(all_history, f, indent=2, default=lambda x: float(x) if hasattr(x, 'item') else str(x))
-    
-    print(f"\n💾 Results saved to: {output_dir}")
-    print("="*80)
-
-
-# =============================================================================
-# FEDLWF TRAINING FUNCTIONS
-# =============================================================================
-
-CONFIG_FEDLWF = {
-    # Data
-    "data_dir": "/kaggle/input/data-10clients",
-    "output_dir": "./results_fedlwf",
+    # Output
+    "output_dir": "./results_incremental",
     
     # Incremental Learning - 5 Tasks Distribution
     "num_clients": 10,
@@ -895,389 +112,363 @@ CONFIG_FEDLWF = {
     "base_classes": 10,
     "classes_per_task": 6,
     
-    # FedLwF Algorithm
-    "algorithm": "fedlwf",
+    # Common Parameters
+    "mu": 1.5,                    # Proximal term (FedProx/CGoFed)
+    "rounds_per_task": 5,
+    "local_epochs": 5,
+    "learning_rate": 0.001,
+    "batch_size": 1024,
+    "eval_every": 1,
     
-    # Knowledge Distillation settings
-    "lwf_alpha": 1.0,           # Base KD weight
-    "lwf_alpha_scale": 1.5,     # Scale factor per task
-    "temperature": 2.0,         # Temperature for soft targets
+    # --- Algorithm Specific Params ---
+    
+    # CGoFed
+    "lambda_decay": 0.05,
+    "theta_threshold": 0.01,
+    "cross_task_weight": 0.35,
+    "energy_threshold": 0.97,
+    "num_samples_rep": 1536,
+    "top_k": 2,
+    
+    # EWC
+    "ewc_lambda": 1000.0,
+    "fisher_samples": 200,
+    "online_ewc": False,
+    
+    # LwF (FedLwF)
+    "lwf_alpha": 1.0,
+    "temperature": 2.0,
+    "lwf_alpha_scale": 1.0, # Decay/Growth factor for alpha
     "distill_on_new_only": False,
     
-    # Training
-    "rounds_per_task": 5,
-    "local_epochs": 3,
-    "learning_rate": 0.001,
-    "batch_size": 128,
-    
-    # Eval
-    "eval_every": 1,
+    # FedCBDR
+    "tau_old": 0.9,
+    "tau_new": 1.1,
+    "omega_old": 1.1,
+    "omega_new": 0.9,
+    "buffer_size": 500,
+    "replay_ratio": 0.5,
 }
 
 
-def create_fedlwf_clients(client_data, config):
-    """Create FedLwF clients from client data."""
-    from fed_learning.clients.fedlwf_client import FedLwFClient
-    
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+def cleanup_temp_folders():
+    """Clean up temporary folders."""
+    folders = [
+        "./temp_svd_storage", 
+        "./temp_ewc_storage", 
+        "./temp_fedlwf_storage", 
+        "./temp_test_data"
+    ]
+    for folder in folders:
+        if os.path.exists(folder):
+            print(f"🧹 Cleaning {folder}...")
+            shutil.rmtree(folder)
+
+def create_clients(client_data, config, task_id, new_classes):
+    """Factory to create clients based on algorithm."""
+    algo = config["algorithm"].lower()
     clients = []
     
-    for cid, data in client_data.items():
-        if len(data.get("y_train", [])) > 0:
-            client = FedLwFClient(
-                client_id=cid,
-                X_train=data["X_train"],
-                y_train=data["y_train"],
+    client_ids = sorted(client_data.keys())
+    
+    for cid in client_ids:
+        data = client_data[cid]
+        X, y = data["X_train"], data["y_train"]
+        
+        if algo == "fedcbdr":
+            # FedCBDR Client - Needs persistence for Replay Buffer
+            # Check if client already exists in a global map (simulated here via kwargs or global var)
+            # In this script, we'll create a new client but initialize it. 
+            # ideally, the main loop should maintain `all_clients` map.
+            # Here we just instantiate. The main loop must handle persistence.
+            client = FedCBDRClient(
+                cid, X, y, 
+                buffer_size=config.get("buffer_size", 500),
+                leverage_rank=config.get("leverage_rank", 50)
             )
             clients.append(client)
-    
+            
+        elif algo in ["fedavg_lwf", "fedprox_lwf"]:
+             clients.append(FedLwFClient(cid, X, y))
+             
+        else:
+            # Standard/CGoFed Client
+            clients.append(CGoFedClient(cid, X, y))
+            
     return clients
 
-
-def compute_per_task_accuracy_fedlwf(server, all_test_data):
-    """
-    Compute accuracy for each previous task (for AF calculation) - FedLwF version.
+def get_algorithm_specific_components(config, clients, test_data, task_config):
+    """Factory for Server and any logic hooks."""
+    algo = config["algorithm"].lower()
     
-    Uses the same approach as FedCBDR for consistency.
-    """
-    task_accuracies = {}
-    
-    for prev_tid, prev_test_path in all_test_data.items():
-        try:
-            loaded_test_data = torch.load(prev_test_path)
-        except Exception as e:
-            print(f"⚠️ Failed to load test data for task {prev_tid}: {e}")
-            continue
-        
-        # Temporarily set test data
-        original_test_data = server.test_data
-        server.test_data = loaded_test_data
-        
-        # Evaluate
-        metrics = server.evaluate_global(seen_classes_only=False)
-        task_accuracies[prev_tid] = metrics['accuracy']
-        print(f"    Task {prev_tid} Acc: {metrics['accuracy']*100:.2f}%")
-        
-        # Restore and cleanup
-        server.test_data = original_test_data
-        del loaded_test_data
-        gc.collect()
-    
-    return task_accuracies
-
-
-def compute_average_forgetting_fedlwf(server, task_accuracies, best_acc_per_task, task_id):
-    """
-    Compute Average Forgetting (AF) metric for FedLwF.
-    
-    AF = (1/T-1) * Σ_{t=0}^{T-2} (best_acc[t] - current_acc[t])
-    """
-    current_af = 0.0
-    
-    # Update best accuracies
-    for tid, acc in task_accuracies.items():
-        if tid not in best_acc_per_task:
-            best_acc_per_task[tid] = acc
-        else:
-            best_acc_per_task[tid] = max(best_acc_per_task[tid], acc)
-    
-    # Calculate forgetting for previous tasks
-    if task_id > 0:
-        forgetting = []
-        for tid in range(task_id):
-            if tid in best_acc_per_task and tid in task_accuracies:
-                f = best_acc_per_task[tid] - task_accuracies[tid]
-                forgetting.append(max(0, f))
-        if forgetting:
-            current_af = sum(forgetting) / len(forgetting)
-    
-    return current_af
-
-
-def save_checkpoint_fedlwf(server, config, task_id, seen_classes, output_dir, current_alpha):
-    """Save training checkpoint for FedLwF after each task."""
-    checkpoint_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
-    
-    checkpoint = {
-        'task_id': task_id,
-        'model_state_dict': server.global_model.state_dict(),
-        'seen_classes': list(seen_classes),
-        'task_classes': server.task_classes,
-        'config': config,
-        'history': server.history,
-        'trainer_state': {
-            'lwf_alpha': server.trainer.lwf_alpha,
-            'temperature': server.trainer.temperature,
-            'current_alpha': current_alpha,
-        }
-    }
-    
-    torch.save(checkpoint, checkpoint_path)
-    print(f"💾 FedLwF Checkpoint saved: {checkpoint_path}")
-
-
-def get_kd_alpha_for_task(config, task_id):
-    """
-    Calculate Knowledge Distillation alpha for a given task.
-    
-    α_t = α_base * (α_scale)^(t-1) for t > 0
-    α_0 = α_base (no KD for first task)
-    """
-    if task_id == 0:
-        return config["lwf_alpha"]
-    
-    return config["lwf_alpha"] * (config["lwf_alpha_scale"] ** (task_id - 1))
-
-
-def print_kd_info(task_id, current_alpha, temperature):
-    """Print Knowledge Distillation information for FedLwF."""
-    print(f"   🎓 Knowledge Distillation Settings:")
-    print(f"      α (KD weight): {current_alpha:.3f}")
-    print(f"      Temperature: {temperature}")
-    if task_id == 0:
-        print(f"      Note: First task - no KD applied (no old knowledge)")
+    if algo == "fedcbdr":
+        return FedCBDRServer(clients, test_data, task_config)
+    elif algo in ["fedavg_lwf", "fedprox_lwf"]:
+        return FedLwFServer(clients, test_data, task_config)
     else:
-        print(f"      KD active: Preserving knowledge from {task_id} previous task(s)")
+        return IncrementalServer(clients, test_data, task_config)
+
+def post_task_processing(trainer, server, client_data, config, participating_clients=None):
+    """Handle post-task logic (Fisher, Snapshot, SVD, Buffer Update)."""
+    algo = config["algorithm"].lower()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # 1. CGoFed: Build Representation Space
+    if algo == "cgofed":
+        if hasattr(trainer, 'build_space_from_client_data'):
+            trainer.build_space_from_client_data(
+                model=server.global_model,
+                client_data=client_data,
+                config=config,
+                device=device
+            )
+            
+    # 2. EWC: Consolidate (Compute Fisher)
+    elif "ewc" in algo: # fedavg_ewc, fedprox_ewc
+        if hasattr(trainer, 'consolidate'):
+            print(f"\n🔐 Computing Fisher Information for EWC...")
+            # Aggregate data for Fisher
+            all_X, all_y = [], []
+            for data in client_data.values():
+                if len(data.get("y_train", [])) > 0:
+                    all_X.append(data["X_train"])
+                    all_y.append(data["y_train"])
+            
+            if all_X:
+                X = torch.cat(all_X)
+                y = torch.cat(all_y)
+                # Limit samples
+                if len(y) > config.get("fisher_samples", 200):
+                    idx = torch.randperm(len(y))[:config["fisher_samples"]]
+                    X, y = X[idx], y[idx]
+                
+                loader = DataLoader(TensorDataset(X, y), batch_size=32, shuffle=True)
+                trainer.consolidate(server.global_model, loader, device)
+
+    # 3. LwF: Save Snapshot - Check for FedLwFTrainer explicitly
+    elif isinstance(trainer, FedLwFTrainer) or "lwf" in algo:
+        print(f"\n📸 Saving model snapshot for LwF...")
+        if hasattr(trainer, 'save_model_snapshot'):
+            trainer.save_model_snapshot(server.global_model)
+        elif hasattr(server, 'save_global_snapshot'):
+            server.save_global_snapshot()
+
+    # 4. FedCBDR: GDR Update
+    if algo == "fedcbdr" and hasattr(server, 'coordinate_gdr'):
+        print(f"\n🔄 Updating Replay Buffers (GDR)...")
+        server.coordinate_gdr(participating_clients, verbose=True)
 
 
-def main_fedlwf():
-    """Main training function for FedLwF."""
-    from fed_learning.servers.incremental_server import FedLwFServer
-    from fed_learning.clients.fedlwf_client import FedLwFClient
-    
-    print("\n" + "="*80)
-    print("🚀 FEDLWF - Federated Learning without Forgetting")
-    print("="*80)
-    print(f"   α (KD weight): {CONFIG_FEDLWF['lwf_alpha']}")
-    print(f"   Temperature: {CONFIG_FEDLWF['temperature']}")
-    print(f"   α scale per task: {CONFIG_FEDLWF['lwf_alpha_scale']}")
-    
-    # Cleanup
-    cleanup_temp_folders()
-    os.makedirs("./temp_test_data", exist_ok=True)
-    
-    # Create output directory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = f"{CONFIG_FEDLWF['output_dir']}_{timestamp}"
+# =============================================================================
+# MAIN
+# =============================================================================
+def main():
+    # Setup Output
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = f"{CONFIG['output_dir']}_{CONFIG['algorithm']}_{ts}"
     os.makedirs(output_dir, exist_ok=True)
     
-    # Save config
+    # Save Config
     with open(f"{output_dir}/config.json", "w") as f:
-        json.dump(CONFIG_FEDLWF, f, indent=2, default=str)
+        json.dump(CONFIG, f, indent=2, default=str)
+
+    print("\n" + "="*80)
+    print(f"🚀 FEDERATED CLASS INCREMENTAL LEARNING - {CONFIG['algorithm'].upper()}")
+    print("="*80)
     
-    # Initialize data loader
-    print(f"\n📂 Loading data from: {CONFIG_FEDLWF['data_dir']}")
-    data_loader = IncrementalDataLoader(
-        data_dir=CONFIG_FEDLWF["data_dir"]
-    )
-    
+    cleanup_temp_folders()
+    os.makedirs("./temp_test_data", exist_ok=True)
+
+    # Load Data
+    data_loader = IncrementalDataLoader(data_dir=CONFIG["data_dir"])
     print(f"\n{data_loader}")
     
-    # Get input shape
-    input_shape = data_loader.input_shape
-    CONFIG_FEDLWF["input_shape"] = input_shape
-    CONFIG_FEDLWF["num_classes"] = CONFIG_FEDLWF["total_classes"]
-    
-    # Initialize tracking variables
+    # Update Config with Data Params
+    CONFIG["input_shape"] = data_loader.input_shape
+    CONFIG["num_classes"] = CONFIG["total_classes"]
+
+    # Get Strategy (Trainer & Aggregator)
+    # CONFIG includes "algorithm" key, so we pass **CONFIG directly
+    trainer, aggregator = get_strategy(**CONFIG)
+    print(f"✓ Trainer: {trainer.__class__.__name__}")
+    print(f"✓ Aggregator: {aggregator.__class__.__name__}")
+
+    # State Variables
+    global_model = None
     all_history = {"task_accuracies": [], "task_forgetting": []}
-    all_clients = {}
     all_test_data = {}
-    best_acc_per_task = {}  # Track best accuracy per task for AF calculation
-    server = None
-    current_alpha = CONFIG_FEDLWF["lwf_alpha"]
+    best_acc_per_task = {}
     
-    # ==========================================================================
-    # TASK LOOP
-    # ==========================================================================
+    # Persistent Clients (needed for FedCBDR/LwF state)
+    persistent_clients: Dict[int, object] = {}
+
+    # --- Task Loop ---
     for task_id in range(data_loader.get_num_tasks()):
-        print(f"\n{'='*80}")
-        print(f"📚 TASK {task_id}/{data_loader.get_num_tasks()}")
-        print(f"{'='*80}")
+        print(f"\n{'='*80}\n📚 TASK {task_id}/{data_loader.get_num_tasks()}\n{'='*80}")
         
-        # Adjust alpha for current task using helper function
-        current_alpha = get_kd_alpha_for_task(CONFIG_FEDLWF, task_id)
-        
-        # Print KD info using helper function
-        print_kd_info(task_id, current_alpha, CONFIG_FEDLWF["temperature"])
-        
-        # Get data for this task
+        # 1. Prepare Data
         new_classes = data_loader.get_task_classes(task_id)
-        
-        # Derive seen classes
         seen_classes = []
         for t in range(task_id + 1):
             seen_classes.extend(data_loader.get_task_classes(t))
-        
-        # Load client data for this task
-        client_data = {}
-        client_ids = data_loader.get_all_client_ids()
-        print(f"  Loading data for {len(client_ids)} clients...")
-        
-        for cid in client_ids:
+            
+        # Get Client Data
+        client_data_map = {}
+        for cid in data_loader.get_all_client_ids():
             X, y = data_loader.get_client_data(cid, task_id)
             if len(y) > 0:
-                client_data[cid] = {"X_train": X, "y_train": y}
+                client_data_map[cid] = {"X_train": X, "y_train": y}
         
-        print(f"  Clients with data for task {task_id}: {len(client_data)}")
-        
-        # Load global test data (cumulative)
+        print(f"  Clients with data: {len(client_data_map)}")
+        if not client_data_map:
+            print("  ⚠️ No data for this task, skipping.")
+            continue
+
+        # 2. Prepare Test Data
         test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
         test_data = {"X_test": test_X, "y_test": test_y}
-        
-        # Save test data to disk
         test_data_path = os.path.join("./temp_test_data", f"test_task_{task_id}.pt")
         torch.save(test_data, test_data_path)
         all_test_data[task_id] = test_data_path
         
-        # Skip if no training data
-        if all(len(cd.get("y_train", [])) == 0 for cd in client_data.values()):
-            print(f"⚠️ No training data for task {task_id}, skipping...")
-            continue
+        # 3. Manage Clients (Persistent State)
+        participating_clients = []
         
-        # Create/update clients with task info
-        for cid, data in client_data.items():
-            if cid not in all_clients:
-                all_clients[cid] = FedLwFClient(
-                    client_id=cid,
-                    X_train=data["X_train"],
-                    y_train=data["y_train"],
-                )
-                # Set task info for new client
-                all_clients[cid].set_task_data(
-                    X_train=data["X_train"],
-                    y_train=data["y_train"],
-                    task_id=task_id,
-                    task_classes=new_classes,
-                )
+        # Initialize persistence map if first task
+        if task_id == 0:
+            persistent_clients = {}
+
+        for cid, data in client_data_map.items():
+            if cid not in persistent_clients:
+                # Instantiate new client
+                if CONFIG["algorithm"] == "fedcbdr":
+                    persistent_clients[cid] = FedCBDRClient(
+                        cid, data["X_train"], data["y_train"], 
+                        buffer_size=CONFIG.get("buffer_size", 500),
+                        leverage_rank=CONFIG.get("leverage_rank", 50)
+                    )
+                elif "lwf" in CONFIG["algorithm"]:
+                    persistent_clients[cid] = FedLwFClient(cid, data["X_train"], data["y_train"])
+                else:
+                    # Standard/CGoFed (Stateless between tasks usually, but we keep for consistency)
+                    persistent_clients[cid] = CGoFedClient(cid, data["X_train"], data["y_train"])
+            
+            # Retrieve client
+            client = persistent_clients[cid]
+            
+            # Update client with new task data
+            if hasattr(client, 'set_task_data'): # FedCBDR/LwF Clients
+                client.set_task_data(data["X_train"], data["y_train"], task_id, new_classes)
             else:
-                # Update existing client with new task data
-                all_clients[cid].set_task_data(
-                    X_train=data["X_train"],
-                    y_train=data["y_train"],
-                    task_id=task_id,
-                    task_classes=new_classes,
-                )
-        
-        participating_clients = [
-            all_clients[cid] for cid in client_data.keys()
-        ]
-        
-        # Initialize or update server
-        if server is None:
-            task_config = {
-                **CONFIG_FEDLWF,
-                "num_rounds": CONFIG_FEDLWF["rounds_per_task"],
-                "input_shape": input_shape,
-                "num_classes": CONFIG_FEDLWF["total_classes"],
-                "lwf_alpha": current_alpha,
-            }
-            server = FedLwFServer(participating_clients, test_data, task_config)
-        else:
-            # Update alpha in trainer
-            server.trainer.lwf_alpha = current_alpha
-        
-        # Set task for server
-        server.set_task(task_id, new_classes)
-        
-        # ==================================================================
-        # TRAINING ROUNDS
-        # ==================================================================
-        print(f"\n🏋️ Training Task {task_id} for {CONFIG_FEDLWF['rounds_per_task']} rounds...")
-        
-        for round_idx in range(CONFIG_FEDLWF["rounds_per_task"]):
-            print(f"\n--- Round {round_idx + 1}/{CONFIG_FEDLWF['rounds_per_task']} ---")
+                # Stateless Clients: Just replace data
+                client.X_train = data["X_train"]
+                client.y_train = data["y_train"]
+                client.num_samples = len(data["y_train"])
             
-            # Train round
-            round_result = server.train_round(
-                participating_clients=participating_clients,
-                verbose=True
-            )
-            
-            # Evaluate
-            if (round_idx + 1) % CONFIG_FEDLWF["eval_every"] == 0:
-                metrics = server.evaluate_global(seen_classes_only=True)
-                print(f"  Accuracy: {metrics['accuracy']*100:.2f}%")
-                print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
+            participating_clients.append(client)
+
+        # 4. Prepare Server
+        task_config = {
+            **CONFIG, 
+            "num_classes": CONFIG["total_classes"],
+            "num_rounds": CONFIG["rounds_per_task"]
+        }
         
-        # ==================================================================
-        # POST-TASK: Save model snapshot for KD
-        # ==================================================================
-        print(f"\n📸 Saving model snapshot for Task {task_id}...")
-        server.save_global_snapshot()
+        # Adjust dynamic params (e.g. LwF alpha decay)
+        if "lwf" in CONFIG["algorithm"]:
+            current_alpha = CONFIG["lwf_alpha"] * (CONFIG.get("lwf_alpha_scale", 1.0) ** max(0, task_id - 1)) if task_id > 0 else CONFIG["lwf_alpha"]
+            task_config["lwf_alpha"] = current_alpha
+            if hasattr(trainer, 'lwf_alpha'):
+                trainer.lwf_alpha = current_alpha
+            print(f"   LwF Alpha: {current_alpha:.4f}")
+
+        server = get_algorithm_specific_components(CONFIG, participating_clients, test_data, task_config)
         
-        # ==================================================================
-        # TASK EVALUATION
-        # ==================================================================
-        print(f"\n📊 Final evaluation for Task {task_id}...")
+        if global_model is not None:
+            server.set_global_params(global_model)
         
-        # Compute per-task accuracy using helper function
-        print("\n🔍 Computing Per-Task Accuracy for AF...")
-        task_accs = compute_per_task_accuracy_fedlwf(server, all_test_data)
+        server.trainer = trainer
+        server.aggregator = aggregator
         
-        # Compute Average Forgetting using helper function
-        current_af = compute_average_forgetting_fedlwf(
-            server, task_accs, best_acc_per_task, task_id
-        )
+        if hasattr(server, 'set_task'):
+            server.set_task(task_id, new_classes)
+        if hasattr(trainer, 'set_task'):
+            trainer.set_task(task_id, new_classes)
+        if hasattr(aggregator, 'set_task'):
+            aggregator.set_task(task_id)
+
+        # 5. Train
+        print(f"\n🎯 Training on {len(new_classes)} new classes...")
+        train_federated_multigpu(server, task_config)
         
+        # 6. Post-Task Processing (Logic Hook)
+        post_task_processing(trainer, server, client_data_map, CONFIG, participating_clients)
+        
+        # 7. Update Global Model
+        global_model = server.get_global_params()
+        
+        # 8. Evaluate & Metrics
+        print(f"\n📊 Evaluation:")
+        metrics = server.evaluate_global(compute_auc=(task_id == data_loader.num_tasks - 1))
+        print(f"  Accuracy: {metrics['accuracy']*100:.2f}% | F1: {metrics['f1_macro']*100:.2f}%")
+        
+        # Forgetting Calculation
+        print("  🔍 Computing Forgetting...")
+        del test_data; gc.collect()
+        
+        # Compute accuracy per previous task
+        current_task_accuracies = {}
+        for prev_tid, path in all_test_data.items():
+            loaded_test = torch.load(path)
+            server.test_data = loaded_test
+            tm = server.evaluate_global(seen_classes_only=False) # Evaluate on specific task set
+            current_task_accuracies[prev_tid] = tm['accuracy']
+            # Track best
+            best_acc_per_task[prev_tid] = max(best_acc_per_task.get(prev_tid, 0), tm['accuracy'])
+        
+        # Calculate AF
+        af = 0.0
         if task_id > 0:
-            all_history["task_forgetting"].append(current_af)
-            print(f"   Average Forgetting (AF): {current_af*100:.2f}%")
-        
-        # Overall metrics
-        final_metrics = server.evaluate_global(
-            seen_classes_only=True,
-            compute_auc=True
-        )
-        print(f"\n   📈 Overall (seen classes):")
-        print(f"      Accuracy: {final_metrics['accuracy']*100:.2f}%")
-        print(f"      F1 (macro): {final_metrics['f1_macro']*100:.2f}%")
-        
-        # Save checkpoint using helper function
-        save_checkpoint_fedlwf(server, CONFIG_FEDLWF, task_id, seen_classes, output_dir, current_alpha)
-        
-        # Record history
+            diffs = [max(0, best_acc_per_task[t] - current_task_accuracies[t]) for t in range(task_id)]
+            af = sum(diffs) / len(diffs) if diffs else 0.0
+        print(f"  Avg Forgetting: {af*100:.2f}%")
+
+        # Save History
         all_history["task_accuracies"].append({
             "task": task_id,
-            "seen_classes": len(seen_classes),
-            "accuracy": final_metrics["accuracy"],
-            "f1_macro": final_metrics["f1_macro"],
-            "per_task_acc": task_accs,
-            "kd_alpha": current_alpha,
-            "avg_forgetting": current_af,
+            "accuracy": metrics["accuracy"],
+            "f1_macro": metrics["f1_macro"],
+            "avg_forgetting": af,
+            "per_task_acc": current_task_accuracies
         })
+        
+        # 9. Checkpoint
+        ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
+        torch.save({
+            'task_id': task_id,
+            'model_state_dict': global_model.state_dict(),
+            'config': CONFIG,
+            'seen_classes': list(seen_classes)
+        }, ckpt_path)
+        print(f"💾 Checkpoint saved: {ckpt_path}")
         
         # Cleanup
         gc.collect()
-        torch.cuda.empty_cache() if torch.cuda.is_available() else None
-    
-    # ==========================================================================
-    # FINAL SUMMARY
-    # ==========================================================================
-    print("\n" + "="*80)
-    print("🎉 FEDLWF TRAINING COMPLETE")
-    print("="*80)
-    
-    # Final evaluation
-    print("\n📊 Final Evaluation (all classes):")
-    final_metrics = server.evaluate_global(
-        seen_classes_only=False,
-        compute_auc=True
-    )
-    print(f"   Accuracy:    {final_metrics['accuracy']*100:.2f}%")
-    print(f"   F1 (macro):  {final_metrics['f1_macro']*100:.2f}%")
-    print(f"   F1 (weight): {final_metrics['f1_weighted']*100:.2f}%")
-    
-    # Forgetting summary
-    if all_history["task_forgetting"]:
-        print(f"\n📉 Forgetting Analysis:")
-        print(f"   Final AF: {all_history['task_forgetting'][-1]*100:.2f}%")
-    
-    # Save results
-    with open(f"{output_dir}/results.json", "w") as f:
-        json.dump(all_history, f, indent=2, default=lambda x: float(x) if hasattr(x, 'item') else str(x))
-    
-    print(f"\n💾 Results saved to: {output_dir}")
-    print("="*80)
+        torch.cuda.empty_cache()
 
+    # Final Summary
+    print("\n" + "="*80)
+    print("🏁 TRAINING COMPLETE")
+    print("="*80)
+    final = all_history["task_accuracies"][-1]
+    print(f"Final Accuracy: {final['accuracy']*100:.2f}%")
+    print(f"Final Forgetting: {final['avg_forgetting']*100:.2f}%")
+    
+    with open(f"{output_dir}/results.json", "w") as f:
+        json.dump(all_history, f, indent=2)
 
 if __name__ == "__main__":
     main()

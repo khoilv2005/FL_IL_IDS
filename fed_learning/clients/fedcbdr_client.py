@@ -122,9 +122,30 @@ class FedCBDRClient(FederatedClient):
             selected_indices: Pre-selected indices (from GDR server coordination)
             use_herding: Whether to use herding for sample selection
         """
+        import gc
+        
         if self.num_samples == 0:
             return
         
+        # If we have pre-selected indices, skip feature extraction entirely
+        # This saves significant memory on Kaggle
+        if selected_indices is not None:
+            X_selected = self.X_train[selected_indices].cpu()
+            y_selected = self.y_train[selected_indices].cpu()
+            # Use uniform importance for pre-selected samples
+            imp_selected = torch.ones(len(selected_indices)) / len(selected_indices)
+            
+            # Add to replay buffer
+            self.replay_buffer.add_samples(
+                X_selected, y_selected, imp_selected,
+                class_ids=list(self.current_classes)
+            )
+            
+            print(f"    Client {self.client_id}: Buffer updated (GDR), "
+                  f"total={self.replay_buffer.total_samples} samples")
+            return
+        
+        # Only extract features if no pre-selected indices
         device = next(model.parameters()).device
         
         # Compute importance scores for current task data
@@ -132,7 +153,7 @@ class FedCBDRClient(FederatedClient):
             model.eval()
             
             # Process in batches to avoid OOM
-            batch_size = 256
+            batch_size = 128  # Smaller batch for memory efficiency
             all_features = []
             
             for i in range(0, self.num_samples, batch_size):
@@ -146,20 +167,22 @@ class FedCBDRClient(FederatedClient):
                     features = self._extract_features(model, X_batch)
                 
                 all_features.append(features.cpu())
+                
+                # Clean up GPU memory
+                del X_batch, features
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
             
             features = torch.cat(all_features, dim=0)
+            del all_features
+            gc.collect()
         
         # Compute leverage scores
         importance_scores = self.leverage_calculator.compute_scores(
             features, normalize=True
         )
         
-        if selected_indices is not None:
-            # Use pre-selected indices from server
-            X_selected = self.X_train[selected_indices]
-            y_selected = self.y_train[selected_indices]
-            imp_selected = importance_scores[selected_indices]
-        elif use_herding:
+        if use_herding:
             # Use herding selection
             X_selected, y_selected, imp_selected = self._herding_selection(
                 features, importance_scores
@@ -169,6 +192,10 @@ class FedCBDRClient(FederatedClient):
             X_selected, y_selected, imp_selected = self._importance_sampling(
                 importance_scores
             )
+        
+        # Clean up features
+        del features, importance_scores
+        gc.collect()
         
         # Add to replay buffer
         self.replay_buffer.add_samples(
@@ -330,7 +357,7 @@ class FedCBDRClient(FederatedClient):
     def extract_features_for_gdr(
         self,
         model: nn.Module,
-        batch_size: int = 256
+        batch_size: int = 128
     ) -> torch.Tensor:
         """
         Extract features for Global-perspective Data Replay (GDR).
@@ -338,13 +365,17 @@ class FedCBDRClient(FederatedClient):
         These features are sent to server for global SVD and
         leverage score computation.
         
+        MEMORY OPTIMIZED: Uses smaller batches and explicit cleanup.
+        
         Args:
             model: Global model for feature extraction
-            batch_size: Batch size for processing
+            batch_size: Batch size for processing (default 128 for memory efficiency)
             
         Returns:
-            Feature matrix [N, D] for current task data
+            Feature matrix [N, D] for current task data (on CPU)
         """
+        import gc
+        
         if self.num_samples == 0:
             return torch.empty(0)
         
@@ -362,11 +393,20 @@ class FedCBDRClient(FederatedClient):
                 else:
                     features = self._extract_features(model, X_batch)
                 
+                # Move to CPU immediately
                 all_features.append(features.cpu())
+                
+                # Clean up GPU memory after each batch
+                del X_batch, features
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
             
-            features = torch.cat(all_features, dim=0)
+            # Concatenate on CPU
+            result = torch.cat(all_features, dim=0)
+            del all_features
+            gc.collect()
         
-        return features
+        return result
     
     def _create_combined_batches(self, batch_size: int, replay_ratio: float = 0.5):
         """
