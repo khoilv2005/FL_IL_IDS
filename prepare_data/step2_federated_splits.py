@@ -676,8 +676,8 @@ class FederatedSplitter:
 def main():
     config = Config(
         chunks_dir='./data/raw_chunks',
-        output_dir='./data/federated_splits/500-clients',
-        num_clients=500,
+        output_dir='./data/federated_splits/5-clients',
+        num_clients=5,
         base_classes=10,
         classes_per_task=6,
         distribution_strategy="dirichlet",
