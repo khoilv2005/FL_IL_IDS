@@ -616,14 +616,11 @@ def main_fedcbdr():
     CONFIG_FEDCBDR["input_shape"] = data_loader.input_shape
     CONFIG_FEDCBDR["num_classes"] = CONFIG_FEDCBDR["total_classes"]
 
-    # Get Strategy (Trainer & Aggregator)
-    # CONFIG includes "algorithm" key, so we pass **CONFIG directly
-    trainer, aggregator = get_strategy(**CONFIG)
-    print(f"✓ Trainer: {trainer.__class__.__name__}")
-    print(f"✓ Aggregator: {aggregator.__class__.__name__}")
+    # Note: FedCBDRServer creates its own FedCBDRTrainer internally,
+    # so we don't need to call get_strategy() here.
+    print(f"✓ Using FedCBDRServer with built-in FedCBDRTrainer")
 
     # State Variables
-    global_model = None
     server = None  # Initialize server as None
     input_shape = data_loader.input_shape  # Get input shape from data loader
     all_history = {"task_accuracies": [], "task_forgetting": []}
