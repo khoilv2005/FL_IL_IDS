@@ -508,11 +508,12 @@ CONFIG_FEDCBDR = {
     "omega_new": 0.9,           # Weight for new task samples
     
     # Replay Buffer
-    "buffer_size": 500,         # Max samples per client in replay buffer
-    "leverage_rank": 50,        # Rank for SVD in leverage score computation
+    "buffer_size": 300,         # REDUCED: Max samples per client (was 500)
+    "leverage_rank": 30,        # REDUCED: Rank for SVD (was 50)
     "use_replay": True,
-    "replay_ratio": 0.5,
-    "use_herding": True,
+    "replay_ratio": 0.3,        # REDUCED: Less replay ratio (was 0.5)
+    "use_herding": False,       # DISABLED: Save memory on Kaggle
+    "use_gdr": True,            # Enable GDR (can disable if OOM)
     
     # Training
     "rounds_per_task": 5,
@@ -795,13 +796,35 @@ def main_fedcbdr():
                 print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
         
         # ==================================================================
-        # POST-TASK: Update Replay Buffers via GDR
+        # POST-TASK: Update Replay Buffers
         # ==================================================================
-        print(f"\n🔄 Updating replay buffers for Task {task_id}...")
-        server.coordinate_gdr(
-            participating_clients=participating_clients,
-            verbose=True
-        )
+        if CONFIG_FEDCBDR.get("use_gdr", True):
+            # Use GDR (Global-perspective Data Replay) with leverage scores
+            print(f"\n🔄 Updating replay buffers via GDR for Task {task_id}...")
+            try:
+                server.coordinate_gdr(
+                    participating_clients=participating_clients,
+                    verbose=True
+                )
+            except Exception as e:
+                print(f"⚠️ GDR failed: {e}")
+                print("   Falling back to random sampling...")
+                # Fallback: random sampling for each client
+                for client in participating_clients:
+                    client.update_replay_buffer(
+                        server.global_model,
+                        selected_indices=None,
+                        use_herding=False
+                    )
+        else:
+            # Simple random sampling (no GDR - saves memory)
+            print(f"\n🔄 Updating replay buffers (random) for Task {task_id}...")
+            for client in participating_clients:
+                client.update_replay_buffer(
+                    server.global_model,
+                    selected_indices=None,
+                    use_herding=False
+                )
         
         # ==================================================================
         # TASK EVALUATION

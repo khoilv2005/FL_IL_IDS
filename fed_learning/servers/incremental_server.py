@@ -333,6 +333,8 @@ class FedCBDRServer:
         4. Server sends selection indices back to clients
         5. Clients update their replay buffers
         
+        MEMORY OPTIMIZED: Process one client at a time to avoid OOM on Kaggle.
+        
         Args:
             participating_clients: Clients that participated in this task
             verbose: Whether to print progress
@@ -344,60 +346,68 @@ class FedCBDRServer:
         if verbose:
             print(f"\n🔄 GDR: Coordinating replay buffer updates for {len(clients)} clients")
         
-        # Step 1: Collect features from all clients
-        client_features = {}
+        # Move model to CPU to free GPU memory for feature extraction
+        device = next(self.global_model.parameters()).device
+        self.global_model.eval()
         
-        for client in clients:
+        # Process clients ONE AT A TIME to save memory
+        processed_count = 0
+        
+        for idx, client in enumerate(clients):
             if client.num_samples == 0:
                 continue
             
-            features = client.extract_features_for_gdr(
-                self.global_model,
-                batch_size=256
-            )
-            
-            if len(features) > 0:
-                client_features[client.client_id] = features
-        
-        if not client_features:
             if verbose:
-                print("   No features collected, skipping GDR")
-            return
-        
-        # Step 2: Aggregate features (simplified - in paper this uses ISVD for privacy)
-        # For simplicity, we compute leverage scores per-client
-        # Full privacy-preserving version would use encrypted aggregation
-        
-        for client in clients:
-            if client.client_id not in client_features:
+                print(f"   Processing client {client.client_id} ({idx+1}/{len(clients)})...")
+            
+            try:
+                # Step 1: Extract features for this client only
+                features = client.extract_features_for_gdr(
+                    self.global_model,
+                    batch_size=128  # Smaller batch to save memory
+                )
+                
+                if features is None or len(features) == 0:
+                    if verbose:
+                        print(f"   ⚠️ No features for client {client.client_id}")
+                    continue
+                
+                # Step 2: Compute leverage scores
+                scores = self.leverage_calculator.compute_scores(features)
+                
+                # Step 3: Select top samples based on leverage scores
+                buffer_per_class = client.buffer_size // max(1, len(self.seen_classes))
+                n_select = min(
+                    buffer_per_class * len(client.current_classes),
+                    len(scores)
+                )
+                
+                _, top_indices = scores.topk(min(n_select, len(scores)))
+                
+                # Step 4: Update client's replay buffer
+                client.update_replay_buffer(
+                    self.global_model,
+                    selected_indices=top_indices,
+                    use_herding=False  # Disable herding to save memory
+                )
+                
+                processed_count += 1
+                
+                # CRITICAL: Clean up immediately after each client
+                del features, scores, top_indices
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                    
+            except Exception as e:
+                print(f"   ❌ Error processing client {client.client_id}: {e}")
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
                 continue
-            
-            features = client_features[client.client_id]
-            
-            # Compute leverage scores
-            scores = self.leverage_calculator.compute_scores(features)
-            
-            # Select top samples based on leverage scores
-            buffer_per_class = client.buffer_size // max(1, len(self.seen_classes))
-            n_select = min(
-                buffer_per_class * len(client.current_classes),
-                len(scores)
-            )
-            
-            _, top_indices = scores.topk(min(n_select, len(scores)))
-            
-            # Update client's replay buffer
-            client.update_replay_buffer(
-                self.global_model,
-                selected_indices=top_indices,
-                use_herding=True
-            )
         
-        # Clean up
-        del client_features
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        if verbose:
+            print(f"   ✅ GDR complete: {processed_count} clients updated")
         
         if verbose:
             total_buffer = sum(c.replay_buffer.total_samples for c in clients)
