@@ -199,37 +199,28 @@ class FedCBDRServer:
         if verbose:
             print(f"\n🔄 GDR: Coordinating replay buffer updates for {len(clients)} clients")
         
-        # Step 1: Collect features from all clients
-        client_features = {}
-        
-        for client in clients:
+        # Process ONE CLIENT AT A TIME to save memory
+        for idx, client in enumerate(clients):
             if client.num_samples == 0:
                 continue
             
+            if verbose:
+                print(f"   Processing client {client.client_id} ({idx+1}/{len(clients)})...")
+            
+            # Step 1: Extract features for this client
+            gdr_batch = self.config.get("gdr_batch_size", 32)
             features = client.extract_features_for_gdr(
                 self.global_model,
-                batch_size=256
+                batch_size=gdr_batch
             )
             
-            if len(features) > 0:
-                client_features[client.client_id] = features
-        
-        if not client_features:
-            if verbose:
-                print("   No features collected, skipping GDR")
-            return
-        
-        # Step 2: Compute leverage scores and update
-        for client in clients:
-            if client.client_id not in client_features:
+            if len(features) == 0:
                 continue
             
-            features = client_features[client.client_id]
-            
-            # Compute leverage scores
+            # Step 2: Compute leverage scores
             scores = self.leverage_calculator.compute_scores(features)
             
-            # Select top samples
+            # Step 3: Select top samples
             buffer_per_class = client.buffer_size // max(1, len(self.seen_classes))
             n_select = min(
                 buffer_per_class * len(client.current_classes),
@@ -238,18 +229,19 @@ class FedCBDRServer:
             
             _, top_indices = scores.topk(min(n_select, len(scores)))
             
-            # Update client's replay buffer
+            # Step 4: Update client's replay buffer
+            use_herding = self.config.get("use_herding", False)
             client.update_replay_buffer(
                 self.global_model,
                 selected_indices=top_indices,
-                use_herding=True
+                use_herding=use_herding
             )
-        
-        # Clean up
-        del client_features
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+            
+            # IMMEDIATELY free memory after each client
+            del features, scores, top_indices
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         
         if verbose:
             total_buffer = sum(c.replay_buffer.total_samples for c in clients)

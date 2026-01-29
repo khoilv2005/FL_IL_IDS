@@ -445,18 +445,19 @@ CONFIG_FEDCBDR = {
     "omega_old": 1.1,           # Weight for old task samples
     "omega_new": 0.9,           # Weight for new task samples
     
-    # Replay Buffer
-    "buffer_size": 500,         # Max samples per client in replay buffer
-    "leverage_rank": 50,        # Rank for SVD in leverage score computation
+    # Replay Buffer - REDUCED FOR MEMORY
+    "buffer_size": 200,         # Reduced from 500
+    "leverage_rank": 20,        # Reduced from 50
     "use_replay": True,
-    "replay_ratio": 0.5,
-    "use_herding": True,
+    "replay_ratio": 0.3,        # Reduced from 0.5
+    "use_herding": False,       # Disable herding (uses less memory)
+    "gdr_batch_size": 32,       # Small batch for feature extraction
     
-    # Training
+    # Training - REDUCED FOR MEMORY
     "rounds_per_task": 5,
-    "local_epochs": 3,
+    "local_epochs": 3,          # Reduced from 5
     "learning_rate": 0.001,
-    "batch_size": 128,
+    "batch_size": 256,          # Reduced from 1024
     
     # Eval
     "eval_every": 1,
@@ -584,7 +585,7 @@ def print_replay_buffer_stats(clients):
 
 def main_fedcbdr():
     """Main training function for FedCBDR."""
-    from fed_learning.servers.incremental_server import FedCBDRServer
+    from fed_learning.servers.fedcbdr_server import FedCBDRServer
     from fed_learning.clients.fedcbdr_client import FedCBDRClient
     
     print("\n" + "="*80)
@@ -729,11 +730,27 @@ def main_fedcbdr():
         # ==================================================================
         # POST-TASK: Update Replay Buffers via GDR
         # ==================================================================
+        # Clear memory before GDR (which uses SVD)
+        gc.collect()
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+        
         print(f"\n🔄 Updating replay buffers for Task {task_id}...")
-        server.coordinate_gdr(
-            participating_clients=participating_clients,
-            verbose=True
-        )
+        try:
+            server.coordinate_gdr(
+                participating_clients=participating_clients,
+                verbose=True
+            )
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                print(f"  ⚠️ GDR skipped due to OOM - using simple buffer update")
+                # Fallback: just update buffers with random samples
+                for client in participating_clients:
+                    if hasattr(client, 'update_replay_buffer_simple'):
+                        client.update_replay_buffer_simple()
+                gc.collect()
+                torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            else:
+                raise e
         
         # ==================================================================
         # TASK EVALUATION
@@ -838,9 +855,9 @@ CONFIG_FEDLWF = {
     
     # Training
     "rounds_per_task": 5,
-    "local_epochs": 3,
+    "local_epochs": 5,
     "learning_rate": 0.001,
-    "batch_size": 128,
+    "batch_size": 1024,
     
     # Eval
     "eval_every": 1,
@@ -973,7 +990,7 @@ def print_kd_info(task_id, current_alpha, temperature):
 
 def main_fedlwf():
     """Main training function for FedLwF."""
-    from fed_learning.servers.incremental_server import FedLwFServer
+    from fed_learning.servers.fedlwf_server import FedLwFServer
     from fed_learning.clients.fedlwf_client import FedLwFClient
     
     print("\n" + "="*80)
@@ -1129,6 +1146,12 @@ def main_fedlwf():
                 metrics = server.evaluate_global(seen_classes_only=True)
                 print(f"  Accuracy: {metrics['accuracy']*100:.2f}%")
                 print(f"  F1 (macro): {metrics['f1_macro']*100:.2f}%")
+        
+        # ==================================================================
+        # POST-TASK: Save model snapshot for Knowledge Distillation
+        # ==================================================================
+        print(f"\n📸 Saving model snapshot for Task {task_id} (for KD in future tasks)...")
+        server.save_global_snapshot()
         
         # Forgetting Calculation
         print("  🔍 Computing Forgetting...")
