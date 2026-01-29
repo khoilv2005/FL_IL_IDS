@@ -266,6 +266,23 @@ def post_task_processing(trainer, server, client_data, config, participating_cli
 # MAIN
 # =============================================================================
 def main():
+    """Main entry point - routes to appropriate algorithm."""
+    algo = CONFIG["algorithm"].lower()
+    
+    print("\n" + "="*80)
+    print(f"🎯 Selected Algorithm: {algo.upper()}")
+    print("="*80)
+    
+    if algo == "fedcbdr":
+        main_fedcbdr()
+    elif algo in ["fedavg_lwf", "fedprox_lwf"]:
+        main_fedlwf()
+    else:
+        main_cgofed()  # Default: CGoFed or EWC
+
+
+def main_cgofed():
+    """Main training for CGoFed/EWC algorithms."""
     # Setup Output
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = f"{CONFIG['output_dir']}_{CONFIG['algorithm']}_{ts}"
@@ -278,19 +295,130 @@ def main():
     print("\n" + "="*80)
     print(f"🚀 FEDERATED CLASS INCREMENTAL LEARNING - {CONFIG['algorithm'].upper()}")
     print("="*80)
+    
+    # Cleanup temp folders
+    cleanup_temp_folders()
+    os.makedirs("./temp_test_data", exist_ok=True)
+    
+    # Load Data
+    data_loader = IncrementalDataLoader(data_dir=CONFIG["data_dir"])
+    print(f"\n{data_loader}")
+    
+    # Update Config
+    CONFIG["input_shape"] = data_loader.input_shape
+    CONFIG["num_classes"] = CONFIG["total_classes"]
+    
+    # Get Strategy
+    trainer, aggregator = get_strategy(**CONFIG)
+    print(f"✓ Trainer: {trainer.__class__.__name__}")
+    print(f"✓ Aggregator: {aggregator.__class__.__name__}")
+    
+    # State Variables
+    all_history = {"task_accuracies": [], "task_forgetting": []}
+    all_test_data = {}
+    best_acc_per_task = {}
+    server = None
+    
+    # Task Loop
+    for task_id in range(data_loader.get_num_tasks()):
+        print(f"\n{'='*80}\n📚 TASK {task_id}/{data_loader.get_num_tasks()}\n{'='*80}")
+        
+        # Get Data
+        new_classes = data_loader.get_task_classes(task_id)
+        seen_classes = []
+        for t in range(task_id + 1):
+            seen_classes.extend(data_loader.get_task_classes(t))
+        
+        # Client Data
+        client_data = {}
+        for cid in data_loader.get_all_client_ids():
+            X, y = data_loader.get_client_data(cid, task_id)
+            if len(y) > 0:
+                client_data[cid] = {"X_train": X, "y_train": y}
+        
+        print(f"  Clients with data: {len(client_data)}")
+        if not client_data:
+            continue
+        
+        # Test Data
+        test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+        test_data = {"X_test": test_X, "y_test": test_y}
+        test_data_path = f"./temp_test_data/test_task_{task_id}.pt"
+        torch.save(test_data, test_data_path)
+        all_test_data[task_id] = test_data_path
+        
+        # Create Clients
+        clients = create_clients(client_data, CONFIG, task_id, new_classes)
+        
+        # Initialize Server
+        if server is None:
+            task_config = {
+                **CONFIG,
+                "num_rounds": CONFIG["rounds_per_task"],
+            }
+            server = get_algorithm_specific_components(CONFIG, clients, test_data, task_config)
+        
+        server.set_task(task_id, new_classes)
+        
+        # Training Rounds
+        print(f"\n🏋️ Training for {CONFIG['rounds_per_task']} rounds...")
+        for round_idx in range(CONFIG["rounds_per_task"]):
+            print(f"--- Round {round_idx + 1}/{CONFIG['rounds_per_task']} ---")
+            server.train_round(participating_clients=clients, verbose=True)
+            
+            if (round_idx + 1) % CONFIG["eval_every"] == 0:
+                metrics = server.evaluate_global(seen_classes_only=True)
+                print(f"  Accuracy: {metrics['accuracy']*100:.2f}%")
+        
+        # Post-task Processing
+        post_task_processing(trainer, server, client_data, CONFIG, clients)
+        
+        # Forgetting Calculation
+        task_accuracies = {}
+        for prev_tid, path in all_test_data.items():
+            loaded_test = torch.load(path)
+            server.test_data = loaded_test
+            m = server.evaluate_global(seen_classes_only=False)
+            task_accuracies[prev_tid] = m['accuracy']
+            best_acc_per_task[prev_tid] = max(best_acc_per_task.get(prev_tid, 0), m['accuracy'])
+        
+        # Average Forgetting
+        af = 0.0
+        if task_id > 0:
+            diffs = [max(0, best_acc_per_task[t] - task_accuracies[t]) for t in range(task_id)]
+            af = sum(diffs) / len(diffs) if diffs else 0.0
+        
+        # Record
+        final_metrics = server.evaluate_global(seen_classes_only=True)
+        all_history["task_accuracies"].append({
+            "task": task_id,
+            "seen_classes": len(seen_classes),
+            "accuracy": final_metrics["accuracy"],
+            "avg_forgetting": af,
+        })
+        
+        gc.collect()
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+    
+    # Summary
+    print("\n" + "="*80)
+    print("🎉 TRAINING COMPLETE")
+    print("="*80)
     for h in all_history["task_accuracies"]:
         af_str = f", AF: {h['avg_forgetting']*100:.2f}%" if h['avg_forgetting'] > 0 else ""
-        alpha_str = f", α={h['alpha']:.3f}" if h.get('alpha') else ""
-        print(f"  Task {h['task']}: {h['seen_classes']} classes → "
-              f"Acc: {h['accuracy']*100:.2f}%{af_str}{alpha_str}")
+        print(f"  Task {h['task']}: {h['seen_classes']} classes → Acc: {h['accuracy']*100:.2f}%{af_str}")
     
-    # Final metrics
     if all_history["task_accuracies"]:
         final = all_history["task_accuracies"][-1]
-        print(f"\n  🎯 Final Accuracy (all classes): {final['accuracy']*100:.2f}%")
+        print(f"\n  🎯 Final Accuracy: {final['accuracy']*100:.2f}%")
         print(f"  🎯 Final Average Forgetting: {final['avg_forgetting']*100:.2f}%")
     
-    print("\n✅ DONE!")
+    # Save Results
+    with open(f"{output_dir}/results.json", "w") as f:
+        json.dump(all_history, f, indent=2, default=lambda x: float(x) if hasattr(x, 'item') else str(x))
+    
+    print(f"\n💾 Results saved to: {output_dir}")
+    print("✅ DONE!")
 
 
 # =============================================================================
@@ -470,14 +598,23 @@ def main_fedcbdr():
     # Cleanup
     cleanup_temp_folders()
     os.makedirs("./temp_test_data", exist_ok=True)
+    
+    # Create output directory
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = f"{CONFIG_FEDCBDR['output_dir']}_{timestamp}"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Save config
+    with open(f"{output_dir}/config.json", "w") as f:
+        json.dump(CONFIG_FEDCBDR, f, indent=2, default=str)
 
     # Load Data
-    data_loader = IncrementalDataLoader(data_dir=CONFIG["data_dir"])
+    data_loader = IncrementalDataLoader(data_dir=CONFIG_FEDCBDR["data_dir"])
     print(f"\n{data_loader}")
     
     # Update Config with Data Params
-    CONFIG["input_shape"] = data_loader.input_shape
-    CONFIG["num_classes"] = CONFIG["total_classes"]
+    CONFIG_FEDCBDR["input_shape"] = data_loader.input_shape
+    CONFIG_FEDCBDR["num_classes"] = CONFIG_FEDCBDR["total_classes"]
 
     # Get Strategy (Trainer & Aggregator)
     # CONFIG includes "algorithm" key, so we pass **CONFIG directly
@@ -487,12 +624,14 @@ def main_fedcbdr():
 
     # State Variables
     global_model = None
+    server = None  # Initialize server as None
+    input_shape = data_loader.input_shape  # Get input shape from data loader
     all_history = {"task_accuracies": [], "task_forgetting": []}
     all_test_data = {}
     best_acc_per_task = {}
     
     # Persistent Clients (needed for FedCBDR/LwF state)
-    persistent_clients: Dict[int, object] = {}
+    all_clients: Dict[int, object] = {}  # Renamed from persistent_clients
 
     # --- Task Loop ---
     for task_id in range(data_loader.get_num_tasks()):
@@ -524,12 +663,12 @@ def main_fedcbdr():
         all_test_data[task_id] = test_data_path
         
         # Skip if no training data
-        if all(len(cd.get("y_train", [])) == 0 for cd in client_data.values()):
+        if all(len(cd.get("y_train", [])) == 0 for cd in client_data_map.values()):
             print(f"⚠️ No training data for task {task_id}, skipping...")
             continue
         
         # Create/update clients with task info
-        for cid, data in client_data.items():
+        for cid, data in client_data_map.items():
             if cid not in all_clients:
                 all_clients[cid] = FedCBDRClient(
                     client_id=cid,
@@ -554,7 +693,7 @@ def main_fedcbdr():
                 )
         
         participating_clients = [
-            all_clients[cid] for cid in client_data.keys()
+            all_clients[cid] for cid in client_data_map.keys()
         ]
         
         # Initialize or update server
@@ -1028,8 +1167,8 @@ def main_fedlwf():
         ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
         torch.save({
             'task_id': task_id,
-            'model_state_dict': global_model.state_dict(),
-            'config': CONFIG,
+            'model_state_dict': server.global_model.state_dict(),
+            'config': CONFIG_FEDLWF,
             'seen_classes': list(seen_classes)
         }, ckpt_path)
         print(f"💾 Checkpoint saved: {ckpt_path}")
