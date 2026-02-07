@@ -150,9 +150,9 @@ CONFIG = {
     # Projection: 3.0 cân bằng stability-plasticity, tránh chặn gradient hữu ích
     # giữa các class tương tự (DDoS/DoS variants share gradient directions)
     "mu_cgofed": 3.0,  # Gradient projection coefficient (paper Eq. 9)
-    # Relaxation: 0.3 cho decay hợp lý qua 3 tasks (0.3 -> 0.09 -> 0.027)
-    # tránh oscillation của config cũ (lambda=0.05 + theta=0.01 -> liên tục reset)
-    "lambda_decay": 0.3,  # Power decay α^(t-t_reset), task 1: 0.3, task 2: 0.09
+    # Relaxation: 0.5 cho decay vừa phải qua 5 tasks (0.5 -> 0.25 -> 0.125 -> clamped 0.1)
+    # FIXED: Was 0.3, too aggressive - mu decayed to near-zero by task 3
+    "lambda_decay": 0.5,  # Power decay α^(t-t_reset), task 1: 0.5, task 2: 0.25
     "theta_threshold": 0.05,  # AF > 5% mới reset mu, tránh trigger quá nhạy
     # Cross-task: 0.1 blend vừa phải, tận dụng class groups tương tự (DDoS, DoS, Recon)
     "cross_task_weight": 0.1,
@@ -571,6 +571,11 @@ def main():
             ]
             af = sum(diffs) / len(diffs) if diffs else 0.0
         print(f"  Avg Forgetting: {af * 100:.2f}%")
+
+        # CRITICAL FIX: Feed AF back to trainer for μ reset mechanism (paper Eq. 8)
+        # Without this, trainer never knows AF > θ and cannot reset mu_coefficient
+        if hasattr(trainer, "update_forgetting"):
+            trainer.update_forgetting(current_task_accuracies)
 
         # Save History
         all_history["task_accuracies"].append(

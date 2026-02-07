@@ -127,9 +127,9 @@ class CGoFedTrainer(BaseTrainer):
         self.current_acc_per_task: Dict[int, float] = {}
         self.last_af: float = 0.0
 
-        # Cache for per-layer projection matrices (loaded once, used many times)
-        # {layer_idx: projection_matrix}
-        self._cached_proj_matrices: Optional[Dict[int, torch.Tensor]] = None
+        # Cache for per-layer projection matrices (loaded once per device, used many times)
+        # {device_str: {layer_name: projection_matrix}}
+        self._cached_proj_matrices_per_device: Dict[str, Dict[str, torch.Tensor]] = {}
 
     def set_task(self, task_id: int, new_classes: List[int]):
         """
@@ -145,13 +145,21 @@ class CGoFedTrainer(BaseTrainer):
         self.seen_classes.update(new_classes)
 
         # Invalidate cache when task changes (new basis may be added)
-        self._cached_proj_matrices = None
+        self._cached_proj_matrices_per_device = {}
 
         # Update μ with power decay (paper Eq. 7-8)
         # μ_t = μ_init * α^(t - t_reset)
         if task_id > 0:
             # Paper: f(α, t) = α^t, so μ_t = μ_init * α^(t - t_reset)
             self.mu_coefficient = self.lambda_decay ** (task_id - self.t_reset)
+
+            # FIXED: Enforce minimum coefficient to prevent decay to near-zero
+            # Without this, projection becomes ineffective after a few tasks
+            # (e.g. 0.3^3 = 0.027, practically no projection)
+            min_coefficient = 0.1
+            if self.mu_coefficient < min_coefficient:
+                self.mu_coefficient = min_coefficient
+
             print(
                 f"  μ_projection = {self.mu_projection} * {self.mu_coefficient:.4f} = {self.mu_projection * self.mu_coefficient:.4f}"
                 f"  (proximal μ = {self.mu})"
@@ -647,13 +655,17 @@ class CGoFedTrainer(BaseTrainer):
 
         with torch.no_grad():
             device = next(model.parameters()).device
+            device_key = str(device)
 
-            # Lazy load and cache projection matrices
-            if self._cached_proj_matrices is None:
-                self._cache_projection_matrices(device)
+            # Lazy load and cache projection matrices PER DEVICE
+            # This avoids race conditions when multiple GPU threads share the trainer
+            if device_key not in self._cached_proj_matrices_per_device:
+                self._cache_projection_matrices(device_key)
+
+            cached = self._cached_proj_matrices_per_device.get(device_key, {})
 
             # Skip if no cached projections
-            if not self._cached_proj_matrices:
+            if not cached:
                 return
 
             # Get module name to param mapping (only Linear layers for projection)
@@ -663,7 +675,7 @@ class CGoFedTrainer(BaseTrainer):
                     module_params[name] = module.weight
 
             # Apply projection per layer (Paper Eq. 9)
-            for layer_name, Uf in self._cached_proj_matrices.items():
+            for layer_name, Uf in cached.items():
                 if layer_name not in module_params:
                     continue
 
@@ -671,10 +683,7 @@ class CGoFedTrainer(BaseTrainer):
                 if param.grad is None:
                     continue
 
-                # Move to device if needed
-                if Uf.device != device:
-                    Uf = Uf.to(device)
-                    self._cached_proj_matrices[layer_name] = Uf
+                # No need to move device -- cached per-device already on correct device
 
                 # Get gradient shape info
                 grad_shape = param.grad.shape  # [out, in] or [out, in, k, k] or [out]
@@ -748,13 +757,16 @@ class CGoFedTrainer(BaseTrainer):
 
         Where M = U[:, :k] is left singular vectors from Paper Eq. 3
         and Λ = sigmoid(Σ) from Paper Eq. 5
+
+        FIXED: Cache per-device to avoid race conditions in multi-GPU training.
+        Each GPU thread loads its own copy of projection matrices.
         """
-        self._cached_proj_matrices = {}
+        cached = {}
 
         for task_key, layer_dict in self.layer_bases.items():
             for layer_name, info in layer_dict.items():
                 try:
-                    # Load basis and importance
+                    # Load basis and importance directly to the target device
                     basis = torch.load(info["basis"], map_location=device)
                     importance = torch.load(info["importance"], map_location=device)
 
@@ -769,20 +781,21 @@ class CGoFedTrainer(BaseTrainer):
                     Uf = torch.mm(basis * importance, basis.T)  # [d, d]
 
                     # Accumulate projections across tasks
-                    if layer_name in self._cached_proj_matrices:
-                        self._cached_proj_matrices[layer_name] += Uf
+                    if layer_name in cached:
+                        cached[layer_name] += Uf
                     else:
-                        self._cached_proj_matrices[layer_name] = Uf
+                        cached[layer_name] = Uf
 
                 except Exception as e:
                     print(f"⚠️ Failed to cache layer {layer_name}: {e}")
 
-        if self._cached_proj_matrices:
-            print(
-                f"  📦 Cached {len(self._cached_proj_matrices)} layer projection matrices"
-            )
+        # Store in per-device cache (thread-safe: each device writes to its own key)
+        self._cached_proj_matrices_per_device[device] = cached
+
+        if cached:
+            print(f"  📦 Cached {len(cached)} layer projection matrices on {device}")
             # Print which layers will be projected
-            proj_layers = list(self._cached_proj_matrices.keys())
+            proj_layers = list(cached.keys())
             print(f"     Target layers: {proj_layers}")
 
     def get_optimizer_class(self) -> type:
