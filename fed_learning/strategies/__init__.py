@@ -3,13 +3,12 @@ Strategies Module - Learning algorithm implementations.
 
 This module provides pluggable learning strategies for different paradigms:
 - Federated Learning (FedAvg, FedProx, FedAvgM, Fed+)
-- Incremental Learning (CGoFed)
-- Decentralized Learning (future: Gossip, DPSGD)
+- Incremental Learning (CGoFed, FedCBDR, EWC variants, LwF variants)
 
 Usage:
     from strategies import get_strategy
-    
-    trainer, aggregator = get_strategy("fedprox", mu=0.01)
+
+    trainer, aggregator = get_strategy("fedprox", mu_fedprox=0.5)
 """
 
 from typing import Tuple, Dict, Any
@@ -18,21 +17,32 @@ from ..core import BaseTrainer, BaseAggregator
 
 # Import federated strategies
 from .federated import (
-    FedAvgTrainer, FedAvgAggregator,
-    FedAvgMTrainer, FedAvgMAggregator,
-    FedProxTrainer, FedProxAggregator,
-    FedPlusTrainer, FedPlusAggregator,
+    FedAvgTrainer,
+    FedAvgAggregator,
+    FedAvgMTrainer,
+    FedAvgMAggregator,
+    FedProxTrainer,
+    FedProxAggregator,
+    FedPlusTrainer,
+    FedPlusAggregator,
 )
 
 # Import incremental learning strategies
 from .incremental import (
-    CGoFedTrainer, CGoFedAggregator,
+    CGoFedTrainer,
+    CGoFedAggregator,
+    FedCBDRTrainer,
+    FedCBDRAggregator,
 )
 from .incremental.ewc import (
-    EWCMixin, FedAvgEWCTrainer, FedProxEWCTrainer,
+    EWCMixin,
+    FedAvgEWCTrainer,
+    FedProxEWCTrainer,
 )
 from .incremental.fedlwf import (
-    FedLwFTrainer, FedLwFAggregator, FedLwFWithProximalTrainer
+    FedLwFTrainer,
+    FedLwFAggregator,
+    FedLwFWithProximalTrainer,
 )
 
 # Registry of available strategies
@@ -58,6 +68,10 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
         "trainer": CGoFedTrainer,
         "aggregator": CGoFedAggregator,
     },
+    "fedcbdr": {
+        "trainer": FedCBDRTrainer,
+        "aggregator": FedCBDRAggregator,
+    },
     # EWC-based (FedAvg + EWC, FedProx + EWC)
     "fedavg_ewc": {
         "trainer": FedAvgEWCTrainer,
@@ -79,13 +93,10 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
 }
 
 
-def get_strategy(
-    algorithm: str, 
-    **config
-) -> Tuple[BaseTrainer, BaseAggregator]:
+def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]:
     """
     Factory function to get trainer and aggregator for an algorithm.
-    
+
     Args:
         algorithm: Algorithm name (case-insensitive)
             - "fedavg": Federated Averaging
@@ -98,29 +109,30 @@ def get_strategy(
             - "fedavg_lwf": FedAvg + LwF
             - "fedprox_lwf": FedProx + LwF
         **config: Algorithm-specific configuration
-    
+
     Returns:
         Tuple of (trainer, aggregator) instances
-        
+
     Raises:
         ValueError: If algorithm is not recognized
     """
     algo_lower = algorithm.lower()
-    
+
     if algo_lower not in STRATEGIES:
         available = ", ".join(STRATEGIES.keys())
-        raise ValueError(
-            f"Unknown algorithm: '{algorithm}'. Available: {available}"
-        )
-    
+        raise ValueError(f"Unknown algorithm: '{algorithm}'. Available: {available}")
+
     strategy = STRATEGIES[algo_lower]
-    
+
     # Create trainer
     if algo_lower in ("fedprox", "fedplus"):
-        trainer = strategy["trainer"](mu=config.get("mu", 0.01))
+        trainer = strategy["trainer"](
+            mu=config.get("mu_fedprox", config.get("mu", 0.01))
+        )
     elif algo_lower == "cgofed":
         trainer = strategy["trainer"](
-            mu=config.get("mu", 0.01),
+            mu=config.get("mu_fedprox", config.get("mu", 0.01)),
+            mu_projection=config.get("mu_cgofed", config.get("mu", 5.0)),
             lambda_decay=config.get("lambda_decay", 0.1),
             theta_threshold=config.get("theta_threshold", 0.1),
             energy_threshold=config.get("energy_threshold", 0.95),
@@ -128,37 +140,46 @@ def get_strategy(
         )
     elif algo_lower in ("fedavg_ewc", "fedprox_ewc"):
         trainer = strategy["trainer"](
-            ewc_lambda=config.get("ewc_lambda", 1000.0),
+            ewc_lambda=config.get("ewc_lambda", 10.0),
             fisher_samples=config.get("fisher_samples", 200),
             online_ewc=config.get("online_ewc", False),
-            mu=config.get("mu", 0.01),  # For FedProx base
+            mu=config.get("mu_fedprox", config.get("mu", 0.01)),  # For FedProx base
         )
     elif algo_lower in ("fedavg_lwf", "fedprox_lwf"):
         trainer = strategy["trainer"](
             lwf_alpha=config.get("lwf_alpha", 1.0),
             temperature=config.get("temperature", 2.0),
             distill_on_new_only=config.get("distill_on_new_only", False),
-            mu=config.get("mu", 0.01),  # For FedProx base
+            mu=config.get("mu_fedprox", config.get("mu", 0.01)),  # For FedProx base
+        )
+    elif algo_lower == "fedcbdr":
+        trainer = strategy["trainer"](
+            tau_old=config.get("tau_old", 0.9),
+            tau_new=config.get("tau_new", 1.1),
+            omega_old=config.get("omega_old", 1.1),
+            omega_new=config.get("omega_new", 0.9),
         )
     else:
         trainer = strategy["trainer"]()
-    
+
     # Create aggregator
     if algo_lower == "fedavgm":
         aggregator = strategy["aggregator"](
             momentum=config.get("server_momentum", 0.9),
-            server_lr=config.get("server_lr", 1.0)
+            server_lr=config.get("server_lr", 1.0),
         )
-    elif algo_lower in ("fedprox", "fedplus", "fedprox_ewc", "fedprox_lwf"):
-        aggregator = strategy["aggregator"](mu=config.get("mu", 0.01))
+    elif algo_lower in ("fedprox", "fedplus", "fedprox_ewc"):
+        aggregator = strategy["aggregator"](
+            mu=config.get("mu_fedprox", config.get("mu", 0.01))
+        )
     elif algo_lower == "cgofed":
         aggregator = strategy["aggregator"](
             cross_task_weight=config.get("cross_task_weight", 0.3),
-            top_k=config.get("top_k", 2)
+            top_k=config.get("top_k", 2),
         )
     else:
         aggregator = strategy["aggregator"]()
-    
+
     return trainer, aggregator
 
 
@@ -182,6 +203,11 @@ def list_strategies() -> Dict[str, str]:
         "fedprox": "Federated Proximal - handles heterogeneity with proximal term",
         "fedplus": "Fed+ - dynamic regularization for heterogeneous data",
         "cgofed": "CGoFed - Constrained Gradient for Class Incremental Learning",
+        "fedcbdr": "FedCBDR - Class-Balancing Data Replay with temperature scaling",
+        "fedavg_ewc": "FedAvg + EWC - Elastic Weight Consolidation on FedAvg",
+        "fedprox_ewc": "FedProx + EWC - Elastic Weight Consolidation on FedProx",
+        "fedavg_lwf": "FedAvg + LwF - Learning without Forgetting on FedAvg",
+        "fedprox_lwf": "FedProx + LwF - Learning without Forgetting on FedProx",
     }
 
 

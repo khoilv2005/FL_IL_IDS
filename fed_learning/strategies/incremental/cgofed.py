@@ -2,7 +2,7 @@
 CGoFed Strategy - Constrained Gradient Optimization for Federated Class Incremental Learning.
 
 Reference:
-    "CGoFed: Constrained Gradient Optimization Strategy for Federated Class 
+    "CGoFed: Constrained Gradient Optimization Strategy for Federated Class
     Incremental Learning", IEEE TKDE, Vol. 37, No. 5, May 2025
     Authors: Jiyuan Feng, Xu Yang, Liwen Liang, Weihong Han, Binxing Fang, Qing Liao
 
@@ -49,9 +49,9 @@ from ...core import BaseTrainer, BaseAggregator
 class CGoFedTrainer(BaseTrainer):
     """
     CGoFed local training with ACTIVATION-based SVD gradient constraint.
-    
+
     Implements the Relax-Constrained Gradient Update from paper Section 5.1.
-    
+
     Key mechanism (Paper Eq. 2-9):
     - R^t = F(Θ^t, X^t): Collect ACTIVATIONS via forward propagation
     - SVD: R^t = U^t Σ^t (V^t)^T
@@ -59,9 +59,11 @@ class CGoFedTrainer(BaseTrainer):
     - Importance Λ^t = sigmoid(Σ^t)
     - Projection: ∇L ← ∇L - μ_t * (∇L @ M^t @ M^t^T)
     - Adaptive μ_t relaxation: μ_t = α^(t - t_τ)
-    
+
     Args:
-        mu: Proximal regularization weight (optional, default 0.01)
+        mu: Proximal regularization weight for FedProx term (optional, default 0.01)
+        mu_projection: Gradient projection coefficient (paper Eq. 9, separate from proximal)
+            If None, falls back to mu for backward compatibility.
         lambda_decay: Decay rate α for relaxation (paper Eq. 7: f(α,t) = α^t)
         theta_threshold: AF threshold τ to reset μ (paper Eq. 8)
         energy_threshold: SVD energy threshold for rank κ selection
@@ -69,99 +71,111 @@ class CGoFedTrainer(BaseTrainer):
         num_samples_rep: Number of samples n_s for building representation
         temp_dir: Directory for storing SVD basis matrices
     """
-    
+
     def __init__(
         self,
         mu: float = 0.01,
-        lambda_decay: float = 0.1,
+        mu_projection: Optional[float] = None,
+        lambda_decay: float = 0.8,  # FIXED: Was 0.1, too aggressive decay
         theta_threshold: float = 0.1,
         energy_threshold: float = 0.95,
         beta: float = 1.0,  # Scaling for sigmoid importance
         num_samples_rep: int = 100,
+        max_rank: int = 100,  # NEW: Configurable max rank for SVD
         temp_dir: str = "./temp_svd_storage",
     ):
-        self.mu = mu
+        self.mu = mu  # Proximal term (FedProx-like)
+        self.mu_projection = (
+            mu_projection if mu_projection is not None else mu
+        )  # Gradient projection (paper Eq. 9)
         self.lambda_decay = lambda_decay
         self.theta_threshold = theta_threshold
         self.energy_threshold = energy_threshold
         self.beta = beta
         self.num_samples_rep = num_samples_rep
-        
+        self.max_rank = max_rank  # NEW: Configurable max rank
+
+        # Projection statistics (for monitoring)
+        self._projection_stats = {"projected": 0, "skipped": 0, "total_reduction": 0.0}
+
         # Temp directory for SVD matrices (lazy loading)
         self.temp_dir = temp_dir
         os.makedirs(self.temp_dir, exist_ok=True)
-        
+
         # Task tracking
         self.current_task: int = 0
         self.seen_classes: Set[int] = set()
-        
+
         # Per-layer representation space
         # Key: task_key -> {layer_idx: {"basis": path, "importance": path}}
         self.layer_bases: Dict[str, Dict[int, Dict[str, str]]] = {}
-        
+
         # Legacy attributes for compatibility
         self.old_space: Dict[str, str] = {}
         self.importance_weights: Dict[str, str] = {}
-        
+
         # Gradient dimension (set when first building representation)
         self.gradient_dim: Optional[int] = None
-        
+
         # μ_t relaxation coefficient (paper Eq. 7-8)
         # μ_t = μ_init * α^(t - t_reset) where α = lambda_decay
         self.mu_coefficient: float = 1.0  # Starts at 1.0, decays each task
         self.t_reset: int = 0  # Reset point when AF > θ
-        
+
         # Accuracies for computing AF (Average Forgetting)
         self.best_acc_per_task: Dict[int, float] = {}
         self.current_acc_per_task: Dict[int, float] = {}
         self.last_af: float = 0.0
-        
+
         # Cache for per-layer projection matrices (loaded once, used many times)
         # {layer_idx: projection_matrix}
         self._cached_proj_matrices: Optional[Dict[int, torch.Tensor]] = None
-    
+
     def set_task(self, task_id: int, new_classes: List[int]):
         """
         Called at the beginning of each new task.
-        
+
         Updates μ_t according to paper Eq. 7-8:
         - Eq. 7: f(α, t) = α^t
         - Eq. 8: μ_t = μ_init * f(α, t - t_τ) if AF >= τ
-        
+
         Where α is the decay rate (lambda_decay in our code).
         """
         self.current_task = task_id
         self.seen_classes.update(new_classes)
-        
+
         # Invalidate cache when task changes (new basis may be added)
         self._cached_proj_matrices = None
-        
+
         # Update μ with power decay (paper Eq. 7-8)
         # μ_t = μ_init * α^(t - t_reset)
         if task_id > 0:
             # Paper: f(α, t) = α^t, so μ_t = μ_init * α^(t - t_reset)
             self.mu_coefficient = self.lambda_decay ** (task_id - self.t_reset)
-            print(f"  μ_t = {self.lambda_decay}^({task_id} - {self.t_reset}) = {self.mu_coefficient:.4f}")
-    
+            print(
+                f"  μ_projection = {self.mu_projection} * {self.mu_coefficient:.4f} = {self.mu_projection * self.mu_coefficient:.4f}"
+                f"  (proximal μ = {self.mu})"
+            )
+
     def update_forgetting(self, task_accuracies: Dict[int, float]):
         """
         Update Average Forgetting (AF) and reset α if needed.
-        
+
         Paper eq. 16:
         AF = (1/t) * Σ max(0, best_acc[j] - current_acc[j]) for j < t
-        
+
         Paper eq. 7:
         If AF > θ, reset t_reset = t and α = 1.0
         """
         self.current_acc_per_task = task_accuracies.copy()
-        
+
         # Update best accuracies
         for tid, acc in task_accuracies.items():
             if tid not in self.best_acc_per_task:
                 self.best_acc_per_task[tid] = acc
             else:
                 self.best_acc_per_task[tid] = max(self.best_acc_per_task[tid], acc)
-        
+
         # Calculate AF (paper eq. 16)
         self.last_af = 0.0
         if len(self.best_acc_per_task) > 1:
@@ -170,27 +184,29 @@ class CGoFedTrainer(BaseTrainer):
                 if tid in self.best_acc_per_task and tid in self.current_acc_per_task:
                     f = self.best_acc_per_task[tid] - self.current_acc_per_task[tid]
                     forgetting.append(max(0, f))
-            
+
             if forgetting:
                 self.last_af = sum(forgetting) / len(forgetting)
-                
+
                 # Check if need to reset μ (paper Eq. 8)
                 if self.last_af > self.theta_threshold:
                     self.t_reset = self.current_task
                     self.mu_coefficient = 1.0
-                    print(f"⚠️ AF={self.last_af:.4f} > θ={self.theta_threshold}, reset μ to 1.0")
-    
+                    print(
+                        f"⚠️ AF={self.last_af:.4f} > θ={self.theta_threshold}, reset μ to 1.0"
+                    )
+
     def get_current_af(self) -> float:
         """Get the last computed Average Forgetting value."""
         return self.last_af
-    
+
     def _get_weight_modules(self, model: nn.Module) -> List[Tuple[str, nn.Module]]:
         """
         Get weight modules (Conv, Linear) for activation hooks.
-        
+
         Paper Eq. 2: R^t = F(Θ^t, X^t)
         We collect input activations to these layers during forward pass.
-        
+
         Returns:
             List of (module_name, module) tuples for Conv/Linear layers
         """
@@ -199,43 +215,67 @@ class CGoFedTrainer(BaseTrainer):
             # Only Conv and Linear layers
             if isinstance(module, (nn.Conv1d, nn.Conv2d, nn.Linear)):
                 # Skip batch norm (they don't have 'weight' in typical naming)
-                if 'bn' in name or 'batch' in name.lower():
+                if "bn" in name or "batch" in name.lower():
                     continue
                 weight_modules.append((name, module))
         return weight_modules
-    
+
+    def _get_projection_target_modules(
+        self, model: nn.Module
+    ) -> List[Tuple[str, nn.Module]]:
+        """
+        Get modules that are suitable for gradient projection.
+
+        IMPORTANT: We only apply projection to Linear layers because:
+        - Linear: activation_dim = weight.in_features (dimensions match)
+        - Conv: activation_dim = C_in * H * W, weight_dim = C_in * K_h * K_w (don't match after pooling)
+
+        Returns:
+            List of (module_name, module) tuples for Linear layers only
+        """
+        target_modules = []
+        for name, module in model.named_modules():
+            # Include Conv1d, Conv2d, and Linear
+            if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d)):
+                # Skip output layer (classifier) - usually not projected
+                # Also skip batch norm if any slipped through
+                if "output" in name.lower() or "bn" in name.lower():
+                    continue
+                target_modules.append((name, module))
+        return target_modules
+
     def _collect_activations(
-        self,
-        model: nn.Module,
-        data_loader,
-        device: str,
-        num_samples: int
+        self, model: nn.Module, data_loader, device: str, num_samples: int
     ) -> Dict[str, List[torch.Tensor]]:
         """
         Collect per-layer INPUT ACTIVATIONS during forward pass.
-        
+
         Paper Eq. 2: R^t = F(Θ^t, X^t)
         This is the representation obtained through forward propagation.
-        
-        For each weight layer (Conv/Linear), we register a forward hook
-        to capture the INPUT tensor to that layer.
-        
+
+        NOTE: We only collect activations for Linear layers (not Conv) because
+        gradient projection only works well when activation_dim matches weight_dim.
+        Conv layers have mismatched dimensions due to spatial pooling.
+
         Args:
             model: Model to collect activations from
             data_loader: Data loader for samples
             device: Device to use
             num_samples: Number of samples to use
-            
+
         Returns:
             Dict mapping module_name -> list of input activation tensors
         """
-        weight_modules = self._get_weight_modules(model)
-        layer_activations: Dict[str, List[torch.Tensor]] = {name: [] for name, _ in weight_modules}
-        
+        # Only collect for projection target modules (Linear layers)
+        weight_modules = self._get_projection_target_modules(model)
+        layer_activations: Dict[str, List[torch.Tensor]] = {
+            name: [] for name, _ in weight_modules
+        }
+
         # Storage for captured activations
         captured: Dict[str, torch.Tensor] = {}
         handles = []
-        
+
         def make_hook(layer_name: str):
             def hook_fn(module, inp, out):
                 # inp is a tuple, take first element
@@ -243,248 +283,335 @@ class CGoFedTrainer(BaseTrainer):
                     activation = inp[0]
                 else:
                     activation = inp
-                # Flatten: [batch, ...] -> [batch, d]
-                activation = activation.detach().view(activation.size(0), -1)
-                captured[layer_name] = activation.cpu()
+
+                # Handle different layer types for correct projection dimension
+                if isinstance(module, nn.Linear):
+                    # Linear: [batch, in_features]
+                    # No unfolding needed, just flatten batch
+                    features = activation.detach().view(activation.size(0), -1)
+
+                elif isinstance(module, nn.Conv2d):
+                    # Conv2d: [batch, channel, height, width]
+                    # Need to UNFOLD into patches: [batch, channel*kernel_h*kernel_w, L]
+                    try:
+                        inp_unf = F.unfold(
+                            activation.detach(),
+                            kernel_size=module.kernel_size,
+                            dilation=module.dilation,
+                            padding=module.padding,
+                            stride=module.stride,
+                        )  # [B, C*Kh*Kw, L]
+                        # Transpose to [B, L, C*Kh*Kw] and flatten to [B*L, C*Kh*Kw]
+                        features = (
+                            inp_unf.transpose(1, 2)
+                            .contiguous()
+                            .view(-1, inp_unf.size(1))
+                        )
+                    except Exception as e:
+                        print(f"⚠️ Unfold failed for {layer_name}: {e}")
+                        return
+
+                elif isinstance(module, nn.Conv1d):
+                    # Conv1d: [batch, channel, length]
+                    # F.unfold only supports 4D, so we unsqueeze to [batch, channel, 1, length]
+                    try:
+                        inp_4d = activation.detach().unsqueeze(2)
+                        # Kernel size (1, k)
+                        k = (
+                            module.kernel_size[0]
+                            if isinstance(module.kernel_size, tuple)
+                            else module.kernel_size
+                        )
+                        s = (
+                            module.stride[0]
+                            if isinstance(module.stride, tuple)
+                            else module.stride
+                        )
+                        p = (
+                            module.padding[0]
+                            if isinstance(module.padding, tuple)
+                            else module.padding
+                        )
+                        d = (
+                            module.dilation[0]
+                            if isinstance(module.dilation, tuple)
+                            else module.dilation
+                        )
+
+                        inp_unf = F.unfold(
+                            inp_4d,
+                            kernel_size=(1, k),
+                            dilation=(1, d),
+                            padding=(0, p),
+                            stride=(1, s),
+                        )  # [B, C*1*K, L_out]
+
+                        features = (
+                            inp_unf.transpose(1, 2)
+                            .contiguous()
+                            .view(-1, inp_unf.size(1))
+                        )
+                    except Exception as e:
+                        print(f"⚠️ Unfold1d failed for {layer_name}: {e}")
+                        return
+
+                else:
+                    # Fallback
+                    features = activation.detach().view(activation.size(0), -1)
+
+                # Subsample if too many patches (to save memory)
+                # Max 2000 patches per batch to prevent explosion
+                if features.size(0) > 2000:
+                    indices = torch.randperm(features.size(0))[:2000]
+                    features = features[indices]
+
+                captured[layer_name] = features.cpu()
+
             return hook_fn
-        
+
         # Register hooks
         for name, module in weight_modules:
             handle = module.register_forward_hook(make_hook(name))
             handles.append(handle)
-        
+
         # Collect activations via forward pass
         model.eval()
         sample_count = 0
-        
+
         with torch.no_grad():
             for X, y in data_loader:
                 if sample_count >= num_samples:
                     break
-                
+
                 X = X.to(device)
                 batch_size = X.size(0)
-                
+
                 # Forward pass triggers hooks
                 _ = model(X)
-                
+
                 # Store captured activations for each layer
                 for name, _ in weight_modules:
                     if name in captured:
                         # Append each sample's activation
                         layer_activations[name].append(captured[name])
-                
+
                 sample_count += batch_size
                 captured.clear()
-        
+
         # Remove hooks
         for handle in handles:
             handle.remove()
-        
+
         return layer_activations
-    
+
     def build_space_from_client_data(
-        self,
-        model: nn.Module,
-        client_data: Dict,
-        config: Dict,
-        device: str = "cuda"
+        self, model: nn.Module, client_data: Dict, config: Dict, device: str = "cuda"
     ):
         """
         Encapsulated method to build representation space from client data.
-        
+
         This method handles the sampling logic internally, keeping the runner
         file clean and algorithm-agnostic.
-        
+
         Paper CGoFed Section 5.1:
         - Sample uniformly from available clients for robust gradient space
         - Uses gradient vectors from samples (not activations)
         - SVD decomposition to find principal gradient directions
-        
+
         Args:
             model: Global model to compute gradients on
             client_data: Dict of {client_id: {"X_train": tensor, "y_train": tensor}}
             config: Configuration dict with "num_samples_rep"
             device: Device to run computation on
         """
-        print("\n🔐 Building gradient-based representation space (paper Section 5.1)...")
-        
+        print(
+            "\n🔐 Building gradient-based representation space (paper Section 5.1)..."
+        )
+
         # Find clients with data
-        active_cids = [cid for cid, data in client_data.items() 
-                       if len(data.get("y_train", [])) > 0]
-        
+        active_cids = [
+            cid for cid, data in client_data.items() if len(data.get("y_train", [])) > 0
+        ]
+
         if len(active_cids) == 0:
             print("⚠️ No client data available for representation space")
             return
-        
+
         # Sample uniformly from available clients for robust gradient space
         # This ensures diversity in the representation
         all_X, all_y = [], []
         num_samples = config.get("num_samples_rep", self.num_samples_rep)
         samples_per_client = max(10, num_samples // len(active_cids) + 1)
-        
+
         for cid in active_cids:
             X = client_data[cid]["X_train"]
             y = client_data[cid]["y_train"]
-            
+
             # Random sample from this client
             if len(y) > samples_per_client:
                 indices = torch.randperm(len(y))[:samples_per_client]
                 X, y = X[indices], y[indices]
-            
+
             all_X.append(X)
             all_y.append(y)
-        
+
         # Concatenate all samples
         rep_X = torch.cat(all_X, dim=0)
         rep_y = torch.cat(all_y, dim=0)
-        
+
         # Limit to num_samples_rep
         if len(rep_y) > num_samples:
             indices = torch.randperm(len(rep_y))[:num_samples]
             rep_X, rep_y = rep_X[indices], rep_y[indices]
-        
+
         print(f"   Using {len(rep_y)} samples from {len(active_cids)} clients for SVD.")
-        
+
         # Create DataLoader
         from torch.utils.data import TensorDataset, DataLoader
+
         rep_loader = DataLoader(
             TensorDataset(rep_X, rep_y),
             batch_size=32,  # Small batch for per-sample gradient computation
-            shuffle=False
+            shuffle=False,
         )
-        
+
         # Delegate to the core build method
         self.build_representation_space(
-            model=model,
-            data_loader=rep_loader,
-            device=device
+            model=model, data_loader=rep_loader, device=device
         )
-    
+
     def build_representation_space(
-        self,
-        model: nn.Module,
-        data_loader,
-        device: str = "cuda"
+        self, model: nn.Module, data_loader, device: str = "cuda"
     ):
         """
         Build PER-LAYER representation space using ACTIVATIONS (Paper Eq. 2-5).
-        
+
         Paper Eq. 2: R^t = F(Θ^t, X^t)
         - R^t is the representation from forward propagation
-        
+
         Paper Eq. 3: SVD of R^t = U Σ V^T
         - Basis M^t = [u_1, ..., u_κ] from left singular vectors U
-        
+
         Paper Eq. 5: Importance Λ = sigmoid(Σ)
         - λ_i = 1 / (1 + exp(-σ_i))
-        
+
         For each layer, we:
         1. Collect input activations during forward pass
         2. SVD on activation matrix
         3. Store U[:, :k] as basis and sigmoid(S[:k]) as importance
         """
         was_training = model.training
-        
+
         print(f"  → Building ACTIVATION-based representation space (Paper Eq. 2-5)...")
-        
+
         # Collect per-layer activations via forward hooks
         layer_activations = self._collect_activations(
             model, data_loader, device, self.num_samples_rep
         )
-        
+
         if not layer_activations:
             print("⚠️ No activations collected")
             return
-        
-        # Get weight modules
-        weight_modules = self._get_weight_modules(model)
-        print(f"  → Found {len(weight_modules)} layers for projection")
-        
+
+        # Get target modules for projection (only Linear layers that will be projected)
+        # We only build representation space for layers that will actually be projected
+        weight_modules = self._get_projection_target_modules(model)
+        print(
+            f"  → Found {len(weight_modules)} layers for projection (Linear only, excluding output)"
+        )
+
         task_key = f"task_{self.current_task}"
         self.layer_bases[task_key] = {}
-        
+
         # Process each layer with SVD
         for layer_name, module in weight_modules:
             if layer_name not in layer_activations or not layer_activations[layer_name]:
                 continue
-            
+
             try:
                 # Stack activations: list of [batch, d] -> [N, d]
                 R = torch.cat(layer_activations[layer_name], dim=0)  # [N, d]
                 n_samples = R.shape[0]
                 d = R.shape[1]
-                
+
                 # Paper Eq. 3: SVD of R^T (or R, depending on convention)
                 # We use R^T so U columns span the feature space
                 A = R.T  # [d, N]
                 U, S, Vh = torch.linalg.svd(A, full_matrices=False)
-                
+
                 # Energy-based rank selection (Paper Eq. 4)
-                energy = S ** 2
+                energy = S**2
                 cum_energy = torch.cumsum(energy, dim=0)
                 total_energy = cum_energy[-1] + 1e-10
                 ratio = cum_energy / total_energy
-                
+
                 k = (ratio < self.energy_threshold).sum().item() + 1
-                k = min(k, len(S), 50)  # Cap per layer
-                
+                k = min(k, len(S), self.max_rank)  # FIXED: Use configurable max_rank
+
                 # Paper: M^t = [u_1, ..., u_κ] - left singular vectors
                 basis = U[:, :k]  # [d, k]
-                
+
                 # Paper Eq. 5: Λ = sigmoid(Σ)
                 importance = torch.sigmoid(self.beta * S[:k])
-                
+
                 # Save per-layer basis
-                basis_path = os.path.join(self.temp_dir, f"{task_key}_{layer_name}_basis.pt")
-                importance_path = os.path.join(self.temp_dir, f"{task_key}_{layer_name}_importance.pt")
-                
+                basis_path = os.path.join(
+                    self.temp_dir, f"{task_key}_{layer_name}_basis.pt"
+                )
+                importance_path = os.path.join(
+                    self.temp_dir, f"{task_key}_{layer_name}_importance.pt"
+                )
+
                 torch.save(basis.clone(), basis_path)
                 torch.save(importance.clone(), importance_path)
-                
+
                 self.layer_bases[task_key][layer_name] = {
                     "basis": basis_path,
                     "importance": importance_path,
-                    "shape": (d, k)
+                    "shape": (d, k),
                 }
-                
+
                 print(f"    Layer {layer_name}: R=[{n_samples}, {d}], k={k}")
-                
+
             except Exception as e:
                 print(f"  ⚠️ SVD failed for layer {layer_name}: {e}")
                 continue
-        
+
         # Print summary
         total_bases = sum(1 for task in self.layer_bases.values() for _ in task)
-        print(f"  → Built {len(self.layer_bases[task_key])} layer bases for task {self.current_task}")
+        print(
+            f"  → Built {len(self.layer_bases[task_key])} layer bases for task {self.current_task}"
+        )
         print(f"  → Total bases across all tasks: {total_bases}")
-        
+
         # Cleanup
         del layer_activations
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        
+
         if was_training:
             model.train()
-        
-        print(f"✓ Built activation-based representation space for task {self.current_task}")
-    
+
+        print(
+            f"✓ Built activation-based representation space for task {self.current_task}"
+        )
+
     def compute_loss(
-        self, 
+        self,
         model: nn.Module,
-        output: torch.Tensor, 
+        output: torch.Tensor,
         target: torch.Tensor,
         global_params: Optional[OrderedDict] = None,
-        **kwargs
+        **kwargs,
     ) -> torch.Tensor:
         """
         Compute loss with optional proximal regularization.
-        
+
         Loss = CE(output, target) + (μ/2) * ||θ - θ_global||^2
         """
         ce_loss = F.cross_entropy(output, target)
-        
+
         # Optional proximal term (like FedProx)
         if self.mu > 0 and global_params is not None:
             prox_term = 0.0
@@ -493,24 +620,21 @@ class CGoFedTrainer(BaseTrainer):
                     global_param = global_params[name].to(param.device)
                     prox_term += torch.sum((param - global_param) ** 2)
             return ce_loss + (self.mu / 2) * prox_term
-        
+
         return ce_loss
-    
+
     def pre_step(
-        self,
-        model: nn.Module,
-        global_params: Optional[OrderedDict] = None,
-        **kwargs
+        self, model: nn.Module, global_params: Optional[OrderedDict] = None, **kwargs
     ) -> None:
         """
         Gradient projection BEFORE optimizer step (paper eq. 8).
-        
+
         This is called between backward() and optimizer.step() to modify
         gradients before they are applied to weights.
-        
+
         Paper CGoFed eq. 8:
         g' = g - α * Σ_j Σ_i (w_{j,i} * (v_{j,i}^T @ g) * v_{j,i})
-        
+
         OPTIMIZED VERSION with NaN prevention:
         - Cache basis matrices in memory (no disk I/O per step)
         - Vectorized projection (no Python loop)
@@ -520,291 +644,369 @@ class CGoFedTrainer(BaseTrainer):
         # Skip for first task (no old space to project against)
         if self.current_task == 0 or not self.layer_bases:
             return
-        
+
         with torch.no_grad():
             device = next(model.parameters()).device
-            
+
             # Lazy load and cache projection matrices
             if self._cached_proj_matrices is None:
                 self._cache_projection_matrices(device)
-            
+
             # Skip if no cached projections
             if not self._cached_proj_matrices:
                 return
-            
-            # Get module name to param mapping
+
+            # Get module name to param mapping (only Linear layers for projection)
             module_params = {}
-            for name, module in model.named_modules():
-                if isinstance(module, (nn.Conv1d, nn.Conv2d, nn.Linear)):
-                    if hasattr(module, 'weight') and module.weight is not None:
-                        module_params[name] = module.weight
-            
+            for name, module in self._get_projection_target_modules(model):
+                if hasattr(module, "weight") and module.weight is not None:
+                    module_params[name] = module.weight
+
             # Apply projection per layer (Paper Eq. 9)
             for layer_name, Uf in self._cached_proj_matrices.items():
                 if layer_name not in module_params:
                     continue
-                
+
                 param = module_params[layer_name]
                 if param.grad is None:
                     continue
-                
+
                 # Move to device if needed
                 if Uf.device != device:
                     Uf = Uf.to(device)
                     self._cached_proj_matrices[layer_name] = Uf
-                
-                # Flatten gradient for projection
-                grad_flat = param.grad.view(-1)  # [out * in]
-                
-                # Check dimension compatibility
-                # Uf shape: [d, d] where d = input activation dim
-                # For Conv: d = C_in * kernel_size, For Linear: d = in_features
-                if grad_flat.shape[0] != Uf.shape[0]:
-                    # Uf dimension matches input activations, need to reshape grad
-                    # grad: [out, in] or [out, in, k, k] -> we project on 'in' dimension
-                    sz = param.grad.size(0)  # out_dim
-                    in_dim = param.grad.numel() // sz
-                    
-                    if in_dim != Uf.shape[0]:
-                        continue  # Dimension mismatch, skip
-                    
-                    grad_2d = param.grad.view(sz, in_dim)  # [out, in]
-                    
-                    # Apply projection: grad = grad - μ * (grad @ Uf)
-                    projected = torch.mm(grad_2d, Uf)  # [out, in]
-                    
+
+                # Get gradient shape info
+                grad_shape = param.grad.shape  # [out, in] or [out, in, k, k] or [out]
+                out_dim = grad_shape[0]
+
+                # For bias (1D), skip projection (no input dimension to project)
+                if len(grad_shape) == 1:
+                    continue
+
+                # Compute input dimension (flatten all dims except output dim)
+                in_dim = param.grad.numel() // out_dim
+
+                # Check dimension compatibility with Uf
+                # Uf shape: [d, d] where d = activation dimension
+                # For the projection to work, in_dim must match Uf.shape[0]
+                # Check dimension compatibility with Uf
+                # Uf shape: [d, d]. For Conv layers, d = C_in * K (kernel size) thanks to Unfold.
+                # grad_in_dim should now match d.
+                if in_dim != Uf.shape[0]:
+                    # If mismatch persists, it typically means Unfold logic didn't match Kernel size
+                    self._projection_stats["skipped"] += 1
+                    if self._projection_stats["skipped"] <= 5:
+                        print(
+                            f"    ⚠️ CGoFed: Dim mismatch {layer_name}: grad_in={in_dim} vs Uf={Uf.shape[0]}"
+                        )
+                    continue
+
+                # Reshape gradient to 2D: [out_dim, in_dim]
+                grad_2d = param.grad.view(out_dim, in_dim)
+
+                # Apply projection: grad = grad - μ_t * (grad @ Uf)
+                # Paper Eq. 9: g' = g - μ_t * g @ M @ M^T
+                # where Uf = M @ M^T (projection matrix)
+                try:
+                    projected = torch.mm(grad_2d, Uf)  # [out_dim, in_dim]
+
                     if torch.isnan(projected).any() or torch.isinf(projected).any():
+                        self._projection_stats["skipped"] += 1
                         continue
-                    
-                    # Paper Eq. 9: g = g - μ_t * g @ M @ M^T
-                    grad_new = grad_2d - self.mu_coefficient * projected
+
+                    # Compute adaptive μ_t (paper Eq. 8)
+                    # Sử dụng mu_projection riêng biệt với mu proximal
+                    mu_t = self.mu_projection * self.mu_coefficient
+
+                    # Apply projection
+                    grad_new = grad_2d - mu_t * projected
+
+                    # Track projection statistics
+                    orig_norm = grad_2d.norm().item()
+                    new_norm = grad_new.norm().item()
+                    if orig_norm > 1e-8:
+                        reduction = (orig_norm - new_norm) / orig_norm
+                        self._projection_stats["total_reduction"] += reduction
+                        self._projection_stats["projected"] += 1
+
+                    # Copy back to param.grad
                     param.grad.copy_(grad_new.view_as(param.grad))
-                else:
-                    # Direct projection (unlikely for most architectures)
-                    projected = torch.mv(Uf, grad_flat)
-                    if torch.isnan(projected).any() or torch.isinf(projected).any():
-                        continue
-                    grad_new = grad_flat - self.mu_coefficient * projected
-                    param.grad.copy_(grad_new.view_as(param.grad))
-    
+
+                except RuntimeError as e:
+                    # Handle any runtime errors during projection
+                    self._projection_stats["skipped"] += 1
+                    if self._projection_stats["skipped"] <= 5:
+                        print(f"    ⚠️ CGoFed: Projection error for {layer_name}: {e}")
+                    continue
+
     def _cache_projection_matrices(self, device: str):
         """
         Build and cache projection matrices for all layers from all old tasks.
-        
+
         Paper Eq. 9: Projection matrix M @ diag(Λ) @ M^T
-        
+
         Where M = U[:, :k] is left singular vectors from Paper Eq. 3
         and Λ = sigmoid(Σ) from Paper Eq. 5
         """
         self._cached_proj_matrices = {}
-        
+
         for task_key, layer_dict in self.layer_bases.items():
             for layer_name, info in layer_dict.items():
                 try:
                     # Load basis and importance
                     basis = torch.load(info["basis"], map_location=device)
                     importance = torch.load(info["importance"], map_location=device)
-                    
+
                     # Validate
                     if torch.isnan(basis).any() or torch.isinf(basis).any():
                         continue
                     if torch.isnan(importance).any() or torch.isinf(importance).any():
                         continue
-                    
+
                     # Build projection matrix: Uf = M @ diag(Λ) @ M^T (Paper Eq. 9)
                     # basis: [d, k], importance: [k]
                     Uf = torch.mm(basis * importance, basis.T)  # [d, d]
-                    
+
                     # Accumulate projections across tasks
                     if layer_name in self._cached_proj_matrices:
                         self._cached_proj_matrices[layer_name] += Uf
                     else:
                         self._cached_proj_matrices[layer_name] = Uf
-                        
+
                 except Exception as e:
                     print(f"⚠️ Failed to cache layer {layer_name}: {e}")
-        
+
         if self._cached_proj_matrices:
-            print(f"  📦 Cached {len(self._cached_proj_matrices)} layer projection matrices")
-    
+            print(
+                f"  📦 Cached {len(self._cached_proj_matrices)} layer projection matrices"
+            )
+            # Print which layers will be projected
+            proj_layers = list(self._cached_proj_matrices.keys())
+            print(f"     Target layers: {proj_layers}")
+
     def get_optimizer_class(self) -> type:
         """Use SGD as specified in paper experiments."""
         return torch.optim.SGD
+
+    def get_projection_stats(self, reset: bool = True) -> Dict:
+        """
+        Get and optionally reset projection statistics for monitoring.
+
+        Returns:
+            Dict with 'projected' (count), 'skipped' (count), 'avg_reduction' (float).
+        """
+        stats = self._projection_stats.copy()
+        if stats["projected"] > 0:
+            stats["avg_reduction"] = stats["total_reduction"] / stats["projected"]
+        else:
+            stats["avg_reduction"] = 0.0
+
+        if reset:
+            self._projection_stats = {
+                "projected": 0,
+                "skipped": 0,
+                "total_reduction": 0.0,
+            }
+
+        return stats
+
+    def log_projection_stats(self, reset: bool = True):
+        """
+        Log projection statistics to console.
+
+        Call this after each round or task to monitor projection effectiveness.
+        """
+        stats = self.get_projection_stats(reset=reset)
+        total = stats["projected"] + stats["skipped"]
+        if total > 0:
+            proj_rate = stats["projected"] / total * 100
+            print(
+                f"  📊 CGoFed Projection Stats: {stats['projected']}/{total} "
+                f"({proj_rate:.1f}%) projected, "
+                f"avg_reduction={stats['avg_reduction']:.4f}"
+            )
+        else:
+            print(f"  📊 CGoFed Projection Stats: No projections attempted")
 
 
 class CGoFedAggregator(BaseAggregator):
     """
     CGoFed aggregation with Cross-Task Gradient Regularization.
-    
+
     Implements paper Section 5.2: Cross-task Gradient Regularization.
-    
+
     Key mechanism:
     - Compute representation similarity between tasks (paper eq. 9)
     - Select TOP-K most similar historical models (paper eq. 10)
     - Personalized aggregation with history (paper eq. 11)
-    
+
     Args:
         cross_task_weight: Weight λ for blending with history (paper: λ)
         top_k: Number of similar models to select (paper: K, default 2)
     """
-    
+
     def __init__(self, cross_task_weight: float = 0.3, top_k: int = 2):
         self.cross_task_weight = cross_task_weight
         self.top_k = top_k
-        
+
         # Store gradient representations from clients
         # {client_id: {task_id: gradient_vector}}
         self.client_representations: Dict[int, Dict[int, torch.Tensor]] = {}
-        
+
         # Historical global models: {task_id: OrderedDict params}
         self.task_global_models: Dict[int, OrderedDict] = {}
-        
+
         # Mean representation per task (aggregated from clients)
         self.task_representations: Dict[int, torch.Tensor] = {}
-        
+
         self.current_task: int = 0
-    
+
     def set_task(self, task_id: int):
         """Set current task ID."""
         self.current_task = task_id
-    
+
     def _store_client_representations(self, results: List[Dict]):
         """
         Extract and store gradient representations from client results.
-        
+
         These are used for computing cross-task similarity (paper eq. 9).
         """
         task_reps = []
-        
+
         for r in results:
             if "representation" in r and r["representation"] is not None:
                 client_id = r["client_id"]
                 rep = r["representation"]
-                
+
                 # Skip NaN/Inf representations
                 if torch.isnan(rep).any() or torch.isinf(rep).any():
                     print(f"  ⚠️ Skipping NaN representation from client {client_id}")
                     continue
-                
+
                 # Store per-client per-task
                 if client_id not in self.client_representations:
                     self.client_representations[client_id] = {}
                 self.client_representations[client_id][self.current_task] = rep
-                
+
                 task_reps.append(rep)
-        
+
         # Compute mean representation for this task
         if task_reps:
             stacked = torch.stack(task_reps, dim=0)
             self.task_representations[self.current_task] = stacked.mean(dim=0)
-            print(f"  → Stored {len(task_reps)} representations for task {self.current_task}")
-    
+            print(
+                f"  → Stored {len(task_reps)} representations for task {self.current_task}"
+            )
+
     def _compute_similarity(self, R1: torch.Tensor, R2: torch.Tensor) -> float:
         """
         Compute similarity between two representation vectors.
-        
-        Paper eq. 9: Uses negative L2 distance of normalized vectors.
-        Higher value = more similar.
-        
-        sim(R1, R2) = -||R1/||R1|| - R2/||R2||||_2
+
+        FIXED: Now uses COSINE SIMILARITY instead of negative L2 distance.
+        Cosine similarity is more robust for high-dimensional representations.
+
+        sim(R1, R2) = (R1 · R2) / (||R1|| * ||R2||)  ∈ [-1, 1]
         """
         # Check for NaN/Inf
         if torch.isnan(R1).any() or torch.isinf(R1).any():
             return 0.0
         if torch.isnan(R2).any() or torch.isinf(R2).any():
             return 0.0
-            
-        # Normalize
+
+        # Compute norms
         norm1 = torch.norm(R1)
         norm2 = torch.norm(R2)
-        
+
         if norm1 < 1e-8 or norm2 < 1e-8:
             return 0.0
-            
-        R1_norm = R1 / (norm1 + 1e-8)
-        R2_norm = R2 / (norm2 + 1e-8)
-        
-        # Negative L2 distance (so higher = more similar)
-        dist = torch.norm(R1_norm - R2_norm).item()
-        
-        # Clamp to prevent extreme values
-        return max(-10.0, min(0.0, -dist))
-    
+
+        # Cosine similarity: dot product of normalized vectors
+        cosine_sim = torch.dot(R1.flatten(), R2.flatten()) / (norm1 * norm2)
+
+        # Clamp to valid range [-1, 1]
+        return float(torch.clamp(cosine_sim, -1.0, 1.0).item())
+
     def _select_top_k_similar(self) -> List[Dict]:
         """
         Select TOP-K most similar historical task models.
-        
+
         Paper eq. 10: Select K historical models with highest similarity
         to current task's representation.
-        
+
         Returns:
             List of {task_id, similarity, params}
         """
         if self.current_task == 0:
             return []
-        
+
         current_rep = self.task_representations.get(self.current_task)
         if current_rep is None:
             return []
-        
+
         # Compute similarity with all previous tasks
         similarities = []
         for tid in range(self.current_task):
             if tid in self.task_representations and tid in self.task_global_models:
                 hist_rep = self.task_representations[tid]
                 sim = self._compute_similarity(current_rep, hist_rep)
-                similarities.append({
-                    "task_id": tid,
-                    "similarity": sim,
-                    "params": self.task_global_models[tid]
-                })
-        
+                similarities.append(
+                    {
+                        "task_id": tid,
+                        "similarity": sim,
+                        "params": self.task_global_models[tid],
+                    }
+                )
+
         # Sort by similarity (descending) and select TOP-K
         similarities.sort(key=lambda x: x["similarity"], reverse=True)
-        selected = similarities[:self.top_k]
-        
+        selected = similarities[: self.top_k]
+
         return selected
-    
+
     def _weighted_aggregate_with_history(
-        self, 
-        current_params: OrderedDict,
-        selected_models: List[Dict]
+        self, current_params: OrderedDict, selected_models: List[Dict]
     ) -> OrderedDict:
         """
         Personalized aggregation with historical models (paper eq. 11).
-        
+
         Paper eq. 11:
         θ_final = (1 - λ) * θ_current + λ * Σ_i (w_i * θ_hist_i)
-        
+
         Where w_i = softmax(similarity_i) for selected models.
         """
         if not selected_models:
             return current_params
-        
+
         # Compute softmax weights from similarities
         # Filter out NaN/Inf similarities first
-        valid_models = [(s, i) for i, s in enumerate(selected_models) 
-                        if not (math.isnan(s["similarity"]) or math.isinf(s["similarity"]))]
-        
+        valid_models = [
+            (s, i)
+            for i, s in enumerate(selected_models)
+            if not (math.isnan(s["similarity"]) or math.isinf(s["similarity"]))
+        ]
+
         if not valid_models:
-            print("  ⚠️ All cross-task similarities are NaN/Inf, skipping historical blend")
+            print(
+                "  ⚠️ All cross-task similarities are NaN/Inf, skipping historical blend"
+            )
             return current_params
-            
+
         selected_models = [s for s, _ in valid_models]
         sim_scores = torch.tensor([s["similarity"] for s in selected_models])
-        
+
         # Prevent softmax numerical issues
         sim_scores = torch.clamp(sim_scores, min=-10.0, max=10.0)
         weights = F.softmax(sim_scores, dim=0)
-        
+
         print(f"  → Cross-task weights: {[f'{w:.3f}' for w in weights.tolist()]}")
-        
+
         # Weighted aggregation of historical models
         hist_agg = None
         for i, model_info in enumerate(selected_models):
             hist_params = model_info["params"]
             w = weights[i].item()
-            
+
             if hist_agg is None:
                 hist_agg = OrderedDict()
                 for k, v in hist_params.items():
@@ -816,35 +1018,36 @@ class CGoFedAggregator(BaseAggregator):
                 for k in hist_agg:
                     if hist_agg[k].dtype.is_floating_point:
                         hist_agg[k] += w * hist_params[k].float()
-        
+
         # Blend: (1-λ) * current + λ * history
         λ = self.cross_task_weight
         result = OrderedDict()
-        
+
         for k in current_params:
             if current_params[k].dtype.is_floating_point:
                 hist_v = hist_agg[k].to(current_params[k].device)
                 result[k] = (1 - λ) * current_params[k].float() + λ * hist_v
             else:
                 result[k] = current_params[k].clone()
-        
+
         # Final sanity check - if result has NaN, return current params
         for k, v in result.items():
-            if v.dtype.is_floating_point and (torch.isnan(v).any() or torch.isinf(v).any()):
-                print(f"  ⚠️ Historical blend produced NaN in {k}, using current params only")
+            if v.dtype.is_floating_point and (
+                torch.isnan(v).any() or torch.isinf(v).any()
+            ):
+                print(
+                    f"  ⚠️ Historical blend produced NaN in {k}, using current params only"
+                )
                 return current_params
-        
+
         return result
-    
+
     def aggregate(
-        self, 
-        results: List[Dict], 
-        global_params: Optional[OrderedDict] = None,
-        **kwargs
+        self, results: List[Dict], global_params: Optional[OrderedDict] = None, **kwargs
     ) -> OrderedDict:
         """
         Aggregate with cross-task regularization (paper Section 5.2).
-        
+
         Steps:
         1. Standard weighted average of client updates (FedAvg)
         2. Store client representations for similarity
@@ -854,21 +1057,23 @@ class CGoFedAggregator(BaseAggregator):
         """
         # 1. Standard weighted average (FedAvg)
         agg_params = self._weighted_average(results)
-        
+
         # 2. Store representations from clients
         self._store_client_representations(results)
-        
+
         # 3. Save current aggregated model for future cross-task reference
         self.task_global_models[self.current_task] = OrderedDict(
             (k, v.cpu().clone()) for k, v in agg_params.items()
         )
-        
+
         # 4 & 5. Cross-task regularization (if we have history)
         if self.current_task > 0:
             selected = self._select_top_k_similar()
             if selected:
-                task_ids = [s['task_id'] for s in selected]
-                print(f"📊 Cross-task: Selected TOP-{len(selected)} similar tasks: {task_ids}")
+                task_ids = [s["task_id"] for s in selected]
+                print(
+                    f"📊 Cross-task: Selected TOP-{len(selected)} similar tasks: {task_ids}"
+                )
                 agg_params = self._weighted_aggregate_with_history(agg_params, selected)
-        
+
         return agg_params

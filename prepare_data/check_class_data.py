@@ -147,7 +147,7 @@ def check_class_distribution(data_dir, target_class_id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check class data distribution across clients")
     parser.add_argument("--class_id", type=int, required=True, help="ID of the class to inspect")
-    parser.add_argument("--data_dir", type=str, default="./data/federated_splits/100-clients", 
+    parser.add_argument("--data_dir", type=str, default="./data/federated_splits/10-clients", 
                         help="Directory containing federated data splits")
     
     args = parser.parse_args()

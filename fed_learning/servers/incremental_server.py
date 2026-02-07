@@ -40,17 +40,25 @@ class IncrementalServer(FederatedServer):
         self.task_classes: Dict[int, list] = {}
         self.current_task = 0
 
-    def set_task(self, task_id: int, task_classes: list):
+    def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """
         Set up for a new task.
         
         Args:
             task_id: Task identifier
-            task_classes: List of class IDs in this task
+            task_classes: List of class IDs in this task (new classes)
+            seen_classes: Optional full list of all seen classes up to now.
+                         If provided, replaces self.seen_classes entirely.
         """
         self.current_task = task_id
         self.task_classes[task_id] = task_classes
-        self.seen_classes.extend(task_classes)
+        
+        # CRITICAL: Use explicit seen_classes list if provided (prevents reset bug)
+        if seen_classes is not None:
+            self.seen_classes = list(seen_classes)  # Use the full cumulative list
+        else:
+            # Fallback: extend (only works if Server persists across tasks)
+            self.seen_classes.extend(task_classes)
         
         print(f"\n📌 Task {task_id}: classes {task_classes}")
         print(f"   Total seen classes: {len(self.seen_classes)}")
@@ -75,15 +83,20 @@ class IncrementalServer(FederatedServer):
         X_test = self.test_data['X_test']
         y_test = self.test_data['y_test']
         
+        # print(f"   📊 Eval Debug: Global Test Set size = {len(y_test)}")
+        
         # Filter to seen classes if requested
         if seen_classes_only and self.seen_classes:
             seen_set = set(self.seen_classes)
+            # Use list comprehension (user reverted optimization, keeping as is)
             mask = torch.tensor([y.item() in seen_set for y in y_test])
             X_test = X_test[mask]
             y_test = y_test[mask]
+            # print(f"   📊 Eval Debug: After filtering (seen_classes), n_test = {len(y_test)}")
             
         n_test = len(y_test)
         if n_test == 0:
+            print(f"   ⚠️ CRITICAL: Test set is EMPTY after filtering for classes {self.seen_classes}!")
             return {
                 "loss": 0.0,
                 "accuracy": 0.0,
@@ -130,13 +143,28 @@ class IncrementalServer(FederatedServer):
         if compute_auc and all_proba:
             try:
                 y_proba = np.vstack(all_proba)
+                # Check which classes are present in y_true
+                present_classes = np.unique(y_true)
+                if len(present_classes) < self.num_classes and compute_auc:
+                     missing = set(range(self.num_classes)) - set(present_classes)
+                     print(f"⚠️ AUC Debug: Missing classes in y_true: {list(missing)[:10]}... (Total {len(missing)} missing)")
+
                 y_true_bin = label_binarize(y_true, classes=list(range(self.num_classes)))
-                if y_true_bin.shape[1] == 1:
-                    y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
-                metrics["auc_macro_ovr"] = roc_auc_score(
-                    y_true_bin, y_proba, average="macro", multi_class="ovr"
-                )
-            except Exception:
+                
+                # Handle edge case where only 1 class is present (e.g. very sparse test set)
+                if len(present_classes) < 2:
+                     metrics["auc_macro_ovr"] = 0.5 # Default for undefined
+                else:
+                    if y_true_bin.shape[1] == 1:
+                        y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
+                    
+                    metrics["auc_macro_ovr"] = roc_auc_score(
+                        y_true_bin, y_proba, average="macro", multi_class="ovr"
+                    )
+            except ValueError as e:
+                # print(f"⚠️ AUC Calculation Skipped: {e}")
+                pass
+            except Exception as e:
                 pass
         
         return metrics

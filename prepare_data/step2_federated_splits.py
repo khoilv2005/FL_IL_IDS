@@ -370,7 +370,7 @@ class DataDistributor:
 # DATA LOADER & SCALER
 # ============================================================================
 
-def load_raw_data(chunks_dir: str, max_samples_per_class: int = 0) -> Tuple[np.ndarray, np.ndarray]:
+def load_raw_data(chunks_dir: str, max_samples_per_class: int = 0, random_seed: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
     """Load raw data from chunks."""
     logger.info("=" * 60)
     logger.info("Loading raw data from chunks")
@@ -400,19 +400,20 @@ def load_raw_data(chunks_dir: str, max_samples_per_class: int = 0) -> Tuple[np.n
     # Balance if configured
     if max_samples_per_class > 0:
         logger.info(f"Balancing: max {max_samples_per_class} per class")
+        rng = np.random.default_rng(random_seed)  # Use seeded RNG
         classes, counts = np.unique(y_all, return_counts=True)
         keep_indices = []
         
         for c in classes:
             idx = np.where(y_all == c)[0]
             if len(idx) > max_samples_per_class:
-                selected = np.random.choice(idx, max_samples_per_class, replace=False)
+                selected = rng.choice(idx, max_samples_per_class, replace=False)  # Seeded random
                 keep_indices.extend(selected)
             else:
                 keep_indices.extend(idx)
         
         keep_indices = np.array(keep_indices)
-        np.random.shuffle(keep_indices)
+        rng.shuffle(keep_indices)  # Seeded shuffle
         X_all = X_all[keep_indices]
         y_all = y_all[keep_indices]
     
@@ -486,7 +487,8 @@ class FederatedSplitter:
         # Step 1: Load raw data
         X_all, y_all = load_raw_data(
             self.config.chunks_dir,
-            self.config.max_samples_per_class
+            self.config.max_samples_per_class,
+            self.config.random_seed  # Pass seed for reproducibility
         )
         
         total_classes = len(np.unique(y_all))

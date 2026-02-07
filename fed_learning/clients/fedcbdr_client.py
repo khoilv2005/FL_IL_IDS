@@ -105,6 +105,47 @@ class FedCBDRClient(FederatedClient):
         self.current_classes = set(task_classes)
         self.seen_classes.update(task_classes)
     
+    def update_replay_buffer_simple(self):
+        """
+        Simple replay buffer update without feature extraction (fallback for OOM).
+        
+        Randomly samples from current task data.
+        """
+        if self.num_samples == 0:
+            return
+        
+        samples_per_class = self.buffer_size // max(1, len(self.seen_classes))
+        
+        X_selected = []
+        y_selected = []
+        
+        for cls in self.current_classes:
+            mask = (self.y_train == cls)
+            if not mask.any():
+                continue
+            
+            cls_X = self.X_train[mask]
+            cls_y = self.y_train[mask]
+            
+            n_select = min(samples_per_class, len(cls_y))
+            indices = torch.randperm(len(cls_y))[:n_select]
+            
+            X_selected.append(cls_X[indices].cpu())
+            y_selected.append(cls_y[indices].cpu())
+        
+        if X_selected:
+            X_selected = torch.cat(X_selected, dim=0)
+            y_selected = torch.cat(y_selected, dim=0)
+            imp_selected = torch.ones(len(y_selected)) / len(y_selected)
+            
+            self.replay_buffer.add_samples(
+                X_selected, y_selected, imp_selected,
+                class_ids=list(self.current_classes)
+            )
+            
+            print(f"    Client {self.client_id}: Buffer updated (simple), "
+                  f"total={self.replay_buffer.total_samples} samples")
+    
     def update_replay_buffer(
         self,
         model: nn.Module,

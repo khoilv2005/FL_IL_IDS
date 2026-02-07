@@ -102,8 +102,9 @@ class CNN_GRU_Model(nn.Module):
         z = self.get_fused_representation(x)
         
         # MLP per DeepFed Eq(3): h'1 -> h'2 -> tau -> Softmax
-        z = self.relu(self.fc1(z))  # h'1 = ReLU(FC1(z))
-        z = self.fc2(z)              # h'2 = FC2(h'1) - no ReLU per paper
-        z = self.dropout(z)          # tau = Dropout(h'2) - Eq(3)
+        # FIXED: Dropout must happen BEFORE the final prediction layer
+        z = self.relu(self.fc1(z))   # h'1 = ReLU(FC1(z))
+        z = self.dropout(z)          # Apply dropout on features
+        z = self.fc2(z)              # h'2 = FC2(h'1) - final logits
         
         return z  # Softmax handled by CrossEntropyLoss
