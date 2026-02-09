@@ -153,13 +153,6 @@ class CGoFedTrainer(BaseTrainer):
             # Paper: f(α, t) = α^t, so μ_t = μ_init * α^(t - t_reset)
             self.mu_coefficient = self.lambda_decay ** (task_id - self.t_reset)
 
-            # FIXED: Enforce minimum coefficient to prevent decay to near-zero
-            # Without this, projection becomes ineffective after a few tasks
-            # (e.g. 0.3^3 = 0.027, practically no projection)
-            min_coefficient = 0.1
-            if self.mu_coefficient < min_coefficient:
-                self.mu_coefficient = min_coefficient
-
             print(
                 f"  μ_projection = {self.mu_projection} * {self.mu_coefficient:.4f} = {self.mu_projection * self.mu_coefficient:.4f}"
                 f"  (proximal μ = {self.mu})"
@@ -616,7 +609,7 @@ class CGoFedTrainer(BaseTrainer):
         """
         Compute loss with optional proximal regularization.
 
-        Loss = CE(output, target) + (μ/2) * ||θ - θ_global||^2
+        Loss = CE(output, target) + (μ/2) * ||θ - θ_global||²
         """
         ce_loss = F.cross_entropy(output, target)
 
@@ -627,7 +620,8 @@ class CGoFedTrainer(BaseTrainer):
                 if name in global_params:
                     global_param = global_params[name].to(param.device)
                     prox_term += torch.sum((param - global_param) ** 2)
-            return ce_loss + (self.mu / 2) * prox_term
+            total_loss = ce_loss + (self.mu / 2) * prox_term
+            return total_loss
 
         return ce_loss
 
@@ -779,6 +773,17 @@ class CGoFedTrainer(BaseTrainer):
                     # Build projection matrix: Uf = M @ diag(Λ) @ M^T (Paper Eq. 9)
                     # basis: [d, k], importance: [k]
                     Uf = torch.mm(basis * importance, basis.T)  # [d, d]
+
+                    # DEBUG #4: Projection matrix stats
+                    try:
+                        eigenvalues = torch.linalg.eigvalsh(Uf)
+                        print(
+                            f"    DEBUG[4]: {layer_name} | shape={Uf.shape} | rank={torch.linalg.matrix_rank(Uf).item()} | min_eig={eigenvalues.min().item():.6f} | max_eig={eigenvalues.max().item():.6f}"
+                        )
+                    except:
+                        print(
+                            f"    DEBUG[4]: {layer_name} | shape={Uf.shape} | (eig check failed)"
+                        )
 
                     # Accumulate projections across tasks
                     if layer_name in cached:

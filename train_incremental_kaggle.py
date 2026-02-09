@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import Dict, List
 
 import torch
+import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import confusion_matrix
 
@@ -146,19 +147,19 @@ CONFIG = {
     "batch_size": 1024,  # Large batch: gradient ổn định, tốc độ nhanh, cần GPU memory
     "eval_every": 1,
     # --- Algorithm Specific Params ---
-    # CGoFed - Tuned cho IoT CIC 2023 (34 classes, 46 features, 5 tasks)
-    # Projection: 3.0 cân bằng stability-plasticity, tránh chặn gradient hữu ích
-    # giữa các class tương tự (DDoS/DoS variants share gradient directions)
-    "mu_cgofed": 3.0,  # Gradient projection coefficient (paper Eq. 9)
-    # Relaxation: 0.5 cho decay vừa phải qua 5 tasks (0.5 -> 0.25 -> 0.125 -> clamped 0.1)
-    # FIXED: Was 0.3, too aggressive - mu decayed to near-zero by task 3
-    "lambda_decay": 0.5,  # Power decay α^(t-t_reset), task 1: 0.5, task 2: 0.25
-    "theta_threshold": 0.05,  # AF > 5% mới reset mu, tránh trigger quá nhạy
-    # Cross-task: 0.1 blend vừa phải, tận dụng class groups tương tự (DDoS, DoS, Recon)
-    "cross_task_weight": 0.1,
-    "energy_threshold": 0.95,  # 95% SVD energy, đủ cho 46-dim input
-    # Tăng num_samples_rep để SVD đủ diversity với batch_size lớn
-    "num_samples_rep": 2000,  # 2x batch_size, đủ cho representation space robust
+    # CGoFed - TUNED cho IoT CIC 2023 (34 classes, EXTREME IMBALANCED)
+    # FIXED: Giảm μ để tránh weight explosion khi reset (class 21 có 2.2M samples!)
+    "mu_cgofed": 0.8,  # Gradient projection: 0.8 → 0.48 → 0.29 → 0.17 → 0.10
+    # Tăng decay chậm hơn để projection luôn có tác dụng
+    "lambda_decay": 0.6,  # Power decay α^(t-t_reset)
+    # Tăng ngưỡng reset để tránh shock liên tục
+    "theta_threshold": 0.2,  # AF > 20% mới reset μ
+    # Tăng cross-task để leverage knowledge
+    "cross_task_weight": 0.15,  # Blend 15% với historical models
+    # FIXED: Giảm energy threshold để tăng SVD rank (quá thấp → rank 3/1124!)
+    "energy_threshold": 0.7,  # 70% SVD energy → rank ~20-30 thay vì 3-5
+    # Giữ nguyên
+    "num_samples_rep": 2000,
     "top_k": 2,
     # EWC
     "ewc_lambda": 10.0,
@@ -222,6 +223,13 @@ def create_clients(client_data, config, task_id, new_classes):
     for cid in client_ids:
         data = client_data[cid]
         X, y = data["X_train"], data["y_train"]
+
+        # DEBUG #3: Data distribution per client
+        unique, counts = np.unique(y.numpy(), return_counts=True)
+        dist_str = ", ".join([f"cls{c}:{n}" for c, n in zip(unique, counts)])
+        print(
+            f"  DEBUG[3]: Client {cid} | n_samples={len(y)} | distribution: {dist_str}"
+        )
 
         if algo == "fedcbdr":
             # FedCBDR Client - Needs persistence for Replay Buffer
@@ -516,6 +524,21 @@ def main():
             # 2. Check for collapse (predicting only 1 class)
             unique_preds = set(preds_cm)
             print(f"  🔍 Unique predicted classes: {sorted(list(unique_preds))}")
+
+            # DEBUG #2: Output layer weights
+            with torch.no_grad():
+                fc2_weight = server.global_model.fc2.weight
+                print(f"  DEBUG[2]: Output layer (fc2) weight norms per class:")
+                for c in sorted(set(y_test_cm.numpy())):
+                    print(f"    Class {c}: {fc2_weight[c].norm().item():.4f}")
+
+            # DEBUG #7: Class activation (mean probability per class)
+            with torch.no_grad():
+                probs_cm = torch.softmax(out_cm, dim=1)
+                print(f"  DEBUG[7]: Mean prediction probability per class:")
+                for c in sorted(set(y_test_cm.numpy())):
+                    print(f"    Class {c}: {probs_cm[:, c].mean().item():.6f}")
+
             if len(unique_preds) == 1:
                 print(
                     f"  ⚠️ WARNING: Model is predicting ONLY class {list(unique_preds)[0]}!"
