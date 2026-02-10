@@ -137,28 +137,29 @@ CONFIG = {
     "classes_per_task": 6,
     # Common Parameters
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)
-    # 0.5 đủ kéo model về global mà không giảm convergence speed
-    "mu_fedprox": 0.5,  # Proximal term ||θ - θ_global||² (FedProx/Fed+/EWC/LwF)
-    "rounds_per_task": 5,  # Tăng rounds, giảm local epochs -> communicate more often
-    "local_epochs": 3,  # Ít local epochs giảm client drift trong FL
-    # Large batch (1024) cần LR cao hơn theo Linear Scaling Rule
-    # Nhưng với CGoFed projection, không scale full 16x mà chỉ 5x để ổn định
-    "learning_rate": 0.002,  # Scaled up từ 0.001 (batch=64) cho batch=1024
-    "batch_size": 1024,  # Large batch: gradient ổn định, tốc độ nhanh, cần GPU memory
+    # LOG ANALYSIS: mu=0.5 quá mạnh → model bị anchor vào global cũ, không học được class mới
+    "mu_fedprox": 0.1,  # Giảm từ 0.5: proximal nhẹ hơn để model linh hoạt học class mới
+    "rounds_per_task": 5,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
+    "local_epochs": 2,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
+    # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
+    "learning_rate": 0.001,  # Giảm từ 0.002: scale theo batch_size nhỏ hơn
+    "batch_size": 512,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
     "eval_every": 1,
     # --- Algorithm Specific Params ---
-    # CGoFed - TUNED cho IoT CIC 2023 (34 classes, EXTREME IMBALANCED)
-    # FIXED: Giảm μ để tránh weight explosion khi reset (class 21 có 2.2M samples!)
-    "mu_cgofed": 0.8,  # Gradient projection: 0.8 → 0.48 → 0.29 → 0.17 → 0.10
-    # Tăng decay chậm hơn để projection luôn có tác dụng
-    "lambda_decay": 0.6,  # Power decay α^(t-t_reset)
-    # Tăng ngưỡng reset để tránh shock liên tục
-    "theta_threshold": 0.2,  # AF > 20% mới reset μ
-    # Tăng cross-task để leverage knowledge
-    "cross_task_weight": 0.15,  # Blend 15% với historical models
-    # FIXED: Giảm energy threshold để tăng SVD rank (quá thấp → rank 3/1124!)
-    "energy_threshold": 0.7,  # 70% SVD energy → rank ~20-30 thay vì 3-5
-    # Giữ nguyên
+    # CGoFed - RE-TUNED dựa trên training log analysis
+    # LOG: SVD rank chỉ 3/1124 trên fc1 (0.27%!) → projection gần như vô dụng
+    # LOG: AF reset mỗi task (>20%) → μ luôn = 1.0, decay không bao giờ hoạt động
+    "mu_cgofed": 1.0,  # Tăng từ 0.8: với SVD rank cao hơn, projection mạnh hơn có ý nghĩa
+    # Decay chậm hơn để projection duy trì hiệu quả qua nhiều round
+    "lambda_decay": 0.8,  # Tăng từ 0.6: 0.8^1=0.8, 0.8^2=0.64, 0.8^3=0.51 (giảm từ từ)
+    # LOG: AF luôn > 20% → reset liên tục. Tăng ngưỡng để decay thực sự hoạt động
+    "theta_threshold": 0.35,  # Tăng từ 0.2: chỉ reset khi forgetting thực sự nghiêm trọng
+    # LOG: cross-task weights luôn ~50/50 → history pha loãng quá nhiều
+    "cross_task_weight": 0.08,  # Giảm từ 0.15: blend nhẹ hơn với historical models
+    # CRITICAL FIX: energy_threshold quyết định SVD rank
+    # LOG: 0.7 → rank=3 trên fc1 (1124-dim). Cần 0.99 → rank~50-100+
+    "energy_threshold": 0.99,  # Tăng từ 0.7: capture 99% energy → rank cao hơn nhiều
+    # Paper: rank κ quyết định hoàn toàn bởi energy_threshold, không cần max_rank
     "num_samples_rep": 2000,
     "top_k": 2,
     # EWC

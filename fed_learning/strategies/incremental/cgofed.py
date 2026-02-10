@@ -56,8 +56,9 @@ class CGoFedTrainer(BaseTrainer):
     - R^t = F(Θ^t, X^t): Collect ACTIVATIONS via forward propagation
     - SVD: R^t = U^t Σ^t (V^t)^T
     - Basis M^t = [u_1, ..., u_κ]: LEFT singular vectors (U)
-    - Importance Λ^t = sigmoid(Σ^t)
-    - Projection: ∇L ← ∇L - μ_t * (∇L @ M^t @ M^t^T)
+    - Importance Λ^t = sigmoid(Σ^t) (scales basis vectors, Paper Eq. 5)
+    - Weighted basis M^t = [λ_1*u_1, ..., λ_κ*u_κ]
+    - Projection: ∇L ← ∇L - μ_t * (∇L @ M^t @ M^t^T)  (importance-weighted projector)
     - Adaptive μ_t relaxation: μ_t = α^(t - t_τ)
 
     Args:
@@ -81,7 +82,6 @@ class CGoFedTrainer(BaseTrainer):
         energy_threshold: float = 0.95,
         beta: float = 1.0,  # Scaling for sigmoid importance
         num_samples_rep: int = 100,
-        max_rank: int = 100,  # NEW: Configurable max rank for SVD
         temp_dir: str = "./temp_svd_storage",
     ):
         self.mu = mu  # Proximal term (FedProx-like)
@@ -93,10 +93,12 @@ class CGoFedTrainer(BaseTrainer):
         self.energy_threshold = energy_threshold
         self.beta = beta
         self.num_samples_rep = num_samples_rep
-        self.max_rank = max_rank  # NEW: Configurable max rank
 
         # Projection statistics (for monitoring)
         self._projection_stats = {"projected": 0, "skipped": 0, "total_reduction": 0.0}
+        self._pre_step_logged_this_task: bool = (
+            False  # Log projection details once per task
+        )
 
         # Temp directory for SVD matrices (lazy loading)
         self.temp_dir = temp_dir
@@ -146,6 +148,9 @@ class CGoFedTrainer(BaseTrainer):
 
         # Invalidate cache when task changes (new basis may be added)
         self._cached_proj_matrices_per_device = {}
+
+        # Reset debug log flag for new task
+        self._pre_step_logged_this_task = False
 
         # Update μ with power decay (paper Eq. 7-8)
         # μ_t = μ_init * α^(t - t_reset)
@@ -547,7 +552,9 @@ class CGoFedTrainer(BaseTrainer):
                 ratio = cum_energy / total_energy
 
                 k = (ratio < self.energy_threshold).sum().item() + 1
-                k = min(k, len(S), self.max_rank)  # FIXED: Use configurable max_rank
+                k = min(
+                    k, len(S)
+                )  # Paper Eq. 4: rank κ determined solely by energy threshold
 
                 # Paper: M^t = [u_1, ..., u_κ] - left singular vectors
                 basis = U[:, :k]  # [d, k]
@@ -640,7 +647,8 @@ class CGoFedTrainer(BaseTrainer):
         OPTIMIZED VERSION with NaN prevention:
         - Cache basis matrices in memory (no disk I/O per step)
         - Vectorized projection (no Python loop)
-        - Matrix operation: proj = V^T @ diag(w) @ V @ g
+        - Matrix operation: proj = P @ g where P = importance-weighted projector
+        - Union of subspaces across tasks via SVD re-orthogonalization
         - Comprehensive NaN/Inf checks at every step
         """
         # Skip for first task (no old space to project against)
@@ -668,7 +676,31 @@ class CGoFedTrainer(BaseTrainer):
                 if hasattr(module, "weight") and module.weight is not None:
                     module_params[name] = module.weight
 
+            # DEBUG[8]: Log projection coverage once per task (first pre_step call)
+            if not self._pre_step_logged_this_task:
+                # List ALL model layers and show which ones are protected
+                all_layers = [
+                    (n, m)
+                    for n, m in model.named_modules()
+                    if isinstance(m, (nn.Linear, nn.Conv1d, nn.Conv2d))
+                ]
+                projected_names = set(module_params.keys())
+                cached_names = set(cached.keys())
+                print(f"  DEBUG[8]: Projection coverage for task {self.current_task}:")
+                print(f"    Model layers (Linear/Conv): {[n for n, _ in all_layers]}")
+                print(f"    Layers selected for projection: {sorted(projected_names)}")
+                print(f"    Layers with cached projector: {sorted(cached_names)}")
+                print(
+                    f"    Layers ACTUALLY projected (intersection): {sorted(projected_names & cached_names)}"
+                )
+                # Show which layers are NOT protected
+                unprotected = set(n for n, _ in all_layers) - (
+                    projected_names & cached_names
+                )
+                print(f"    Layers NOT protected: {sorted(unprotected)}")
+
             # Apply projection per layer (Paper Eq. 9)
+            per_layer_reduction = {}  # For debug logging
             for layer_name, Uf in cached.items():
                 if layer_name not in module_params:
                     continue
@@ -708,9 +740,9 @@ class CGoFedTrainer(BaseTrainer):
                 # Reshape gradient to 2D: [out_dim, in_dim]
                 grad_2d = param.grad.view(out_dim, in_dim)
 
-                # Apply projection: grad = grad - μ_t * (grad @ Uf)
-                # Paper Eq. 9: g' = g - μ_t * g @ M @ M^T
-                # where Uf = M @ M^T (projection matrix)
+                # Apply projection: grad = grad - μ_t * (grad @ P)
+                # Paper Eq. 5+9: g' = g - μ_t * g @ M @ M^T
+                # where M = importance-weighted basis, P = M @ M^T
                 try:
                     projected = torch.mm(grad_2d, Uf)  # [out_dim, in_dim]
 
@@ -732,6 +764,14 @@ class CGoFedTrainer(BaseTrainer):
                         reduction = (orig_norm - new_norm) / orig_norm
                         self._projection_stats["total_reduction"] += reduction
                         self._projection_stats["projected"] += 1
+                        # Collect per-layer reduction for debug log
+                        if not self._pre_step_logged_this_task:
+                            per_layer_reduction[layer_name] = {
+                                "reduction_pct": reduction * 100,
+                                "orig_norm": orig_norm,
+                                "new_norm": new_norm,
+                                "proj_rank": Uf.shape[0],
+                            }
 
                     # Copy back to param.grad
                     param.grad.copy_(grad_new.view_as(param.grad))
@@ -743,19 +783,39 @@ class CGoFedTrainer(BaseTrainer):
                         print(f"    ⚠️ CGoFed: Projection error for {layer_name}: {e}")
                     continue
 
+            # DEBUG[9]: Log per-layer gradient reduction (first pre_step call only)
+            if not self._pre_step_logged_this_task and per_layer_reduction:
+                print(
+                    f"  DEBUG[9]: Per-layer gradient reduction (first batch, task {self.current_task}):"
+                )
+                for ln, info in per_layer_reduction.items():
+                    print(
+                        f"    {ln}: reduction={info['reduction_pct']:.1f}% | "
+                        f"grad_norm {info['orig_norm']:.4f} → {info['new_norm']:.4f} | "
+                        f"projector_dim={info['proj_rank']}"
+                    )
+                self._pre_step_logged_this_task = True
+
     def _cache_projection_matrices(self, device: str):
         """
         Build and cache projection matrices for all layers from all old tasks.
 
-        Paper Eq. 9: Projection matrix M @ diag(Λ) @ M^T
+        Paper Eq. 5 + Eq. 9:
+        - M^t = [λ_1*u_1, ..., λ_κ*u_κ]  (importance-weighted basis, Eq. 5)
+        - P = M^t @ (M^t)^T                (projection matrix, Eq. 9)
+        - g' = g - μ_t * g @ P             (gradient update, Eq. 9)
 
-        Where M = U[:, :k] is left singular vectors from Paper Eq. 3
-        and Λ = sigmoid(Σ) from Paper Eq. 5
+        FIX: Instead of SUMMING per-task projection matrices (which causes
+        eigenvalues > 1 and AMPLIFIES gradients), we concatenate importance-
+        weighted basis vectors from all old tasks and re-orthogonalize via SVD.
+        The re-orthogonalized projector captures the union of all old task
+        subspaces with eigenvalues bounded in [0, 1].
 
         FIXED: Cache per-device to avoid race conditions in multi-GPU training.
         Each GPU thread loads its own copy of projection matrices.
         """
-        cached = {}
+        # Step 1: Collect importance-weighted basis vectors per layer across tasks
+        layer_all_weighted_bases: Dict[str, List[torch.Tensor]] = {}
 
         for task_key, layer_dict in self.layer_bases.items():
             for layer_name, info in layer_dict.items():
@@ -770,29 +830,62 @@ class CGoFedTrainer(BaseTrainer):
                     if torch.isnan(importance).any() or torch.isinf(importance).any():
                         continue
 
-                    # Build projection matrix: Uf = M @ diag(Λ) @ M^T (Paper Eq. 9)
-                    # basis: [d, k], importance: [k]
-                    Uf = torch.mm(basis * importance, basis.T)  # [d, d]
+                    # Paper Eq. 5: M^t = [λ_1*u_1, ..., λ_κ*u_κ]
+                    # basis: [d, k], importance: [k] -> weighted_basis: [d, k]
+                    weighted_basis = basis * importance  # broadcasting
 
-                    # DEBUG #4: Projection matrix stats
-                    try:
-                        eigenvalues = torch.linalg.eigvalsh(Uf)
-                        print(
-                            f"    DEBUG[4]: {layer_name} | shape={Uf.shape} | rank={torch.linalg.matrix_rank(Uf).item()} | min_eig={eigenvalues.min().item():.6f} | max_eig={eigenvalues.max().item():.6f}"
-                        )
-                    except:
-                        print(
-                            f"    DEBUG[4]: {layer_name} | shape={Uf.shape} | (eig check failed)"
-                        )
-
-                    # Accumulate projections across tasks
-                    if layer_name in cached:
-                        cached[layer_name] += Uf
-                    else:
-                        cached[layer_name] = Uf
+                    if layer_name not in layer_all_weighted_bases:
+                        layer_all_weighted_bases[layer_name] = []
+                    layer_all_weighted_bases[layer_name].append(weighted_basis)
 
                 except Exception as e:
-                    print(f"⚠️ Failed to cache layer {layer_name}: {e}")
+                    print(f"⚠️ Failed to load basis for {layer_name}: {e}")
+
+        # Step 2: Build projector per layer via union of importance-weighted subspaces
+        cached = {}
+
+        for layer_name, bases_list in layer_all_weighted_bases.items():
+            try:
+                # Concatenate all importance-weighted basis vectors: [d, k1+k2+...]
+                all_weighted = torch.cat(bases_list, dim=1)
+
+                # Re-orthogonalize via SVD to get the union of subspaces
+                # This ensures the projector eigenvalues are bounded in [0, 1]
+                U, S, Vh = torch.linalg.svd(all_weighted, full_matrices=False)
+
+                # Keep only significant components (singular value > threshold)
+                significant = S > 1e-6
+                U_orth = U[:, significant]  # [d, r] orthonormal basis
+                S_sig = S[significant]  # [r] singular values
+
+                # Normalize singular values to [0, 1] range for importance weighting
+                # S_sig reflects the importance-weighted magnitude of each direction
+                # Max singular value caps the projection strength
+                S_normalized = S_sig / (S_sig.max() + 1e-10)
+
+                # Build importance-weighted projector: P = U @ diag(S_norm²) @ U^T
+                # S_norm² ensures eigenvalues of P are in [0, 1]
+                # This preserves the paper's intent: more important directions
+                # (higher singular value) get stronger projection
+                Uf = torch.mm(U_orth * (S_normalized**2), U_orth.T)  # [d, d]
+
+                # DEBUG #4: Projection matrix stats
+                try:
+                    eigenvalues = torch.linalg.eigvalsh(Uf)
+                    print(
+                        f"    DEBUG[4]: {layer_name} | shape={Uf.shape} | rank={U_orth.shape[1]} "
+                        f"(from {all_weighted.shape[1]} weighted basis vectors) | "
+                        f"min_eig={eigenvalues.min().item():.6f} | max_eig={eigenvalues.max().item():.6f}"
+                    )
+                except:
+                    print(
+                        f"    DEBUG[4]: {layer_name} | shape={Uf.shape} | (eig check failed)"
+                    )
+
+                cached[layer_name] = Uf
+
+            except Exception as e:
+                print(f"⚠️ Failed to build projector for {layer_name}: {e}")
 
         # Store in per-device cache (thread-safe: each device writes to its own key)
         self._cached_proj_matrices_per_device[device] = cached
@@ -975,6 +1068,33 @@ class CGoFedAggregator(BaseAggregator):
                         "params": self.task_global_models[tid],
                     }
                 )
+
+        # DEBUG[10]: Log raw similarity scores and representation info
+        print(f"  DEBUG[10]: Cross-task similarity details (task {self.current_task}):")
+        print(
+            f"    Current rep norm: {torch.norm(current_rep).item():.4f}, "
+            f"dim: {current_rep.shape[0]}, "
+            f"nonzero: {(current_rep.abs() > 1e-8).sum().item()}/{current_rep.shape[0]}"
+        )
+        for s in similarities:
+            tid = s["task_id"]
+            hist_rep = self.task_representations[tid]
+            print(
+                f"    Task {tid}: raw_cosine_sim={s['similarity']:.6f} | "
+                f"hist_rep_norm={torch.norm(hist_rep).item():.4f}"
+            )
+        if len(similarities) >= 2:
+            sims = [s["similarity"] for s in similarities]
+            print(
+                f"    Sim range: [{min(sims):.6f}, {max(sims):.6f}], "
+                f"diff={max(sims) - min(sims):.6f}"
+            )
+            # Show what softmax would produce
+            sim_t = torch.tensor(sims)
+            sw = F.softmax(sim_t, dim=0)
+            print(
+                f"    softmax({[f'{s:.4f}' for s in sims]}) = {[f'{w:.4f}' for w in sw.tolist()]}"
+            )
 
         # Sort by similarity (descending) and select TOP-K
         similarities.sort(key=lambda x: x["similarity"], reverse=True)
