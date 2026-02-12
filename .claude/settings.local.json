@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(python -m pytest:*)",
+      "WebFetch(domain:ar5iv.labs.arxiv.org)"
     ]
   }
 }

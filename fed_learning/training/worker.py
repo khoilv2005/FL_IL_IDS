@@ -20,13 +20,14 @@ def train_clients_on_gpu(
     config: Dict,
     results_dict: Dict,
     trainer: BaseTrainer,
-    use_cpu: bool = False
+    use_cpu: bool = False,
+    local_reg_info: Dict = None,
 ):
     """
     Train a group of clients on a specific GPU (or CPU).
-    
+
     This function runs in a separate thread for multi-GPU parallelism.
-    
+
     Args:
         gpu_id: GPU index (0, 1, 2, ...)
         clients: List of clients to train
@@ -42,39 +43,46 @@ def train_clients_on_gpu(
     else:
         device = f"cuda:{gpu_id}"
         device_name = f"GPU {gpu_id}"
-    
+
     gpu_start = time.time()
-    
+
     # Create model for this device
     model = CNN_GRU_Model(config["input_shape"], config["num_classes"]).to(device)
-    
+
     print(f"      [{device_name}] Starting {len(clients)} clients...")
-    
+
     for idx, client in enumerate(clients):
         # Load global params into model
         model.load_state_dict({k: v.to(device) for k, v in global_params.items()})
-        
+
         # Setup client for this GPU
         client.setup_for_gpu(model, device)
-        
+
         # Train using strategy
+        # Paper Eq. 14: Pass local regularization info for CGoFed cross-task regularization
+        train_kwargs = {"global_params": global_params}
+        if local_reg_info:
+            train_kwargs.update(local_reg_info)
+
         result = client.train(
             trainer=trainer,
             epochs=config["local_epochs"],
             batch_size=config["batch_size"],
             lr=config["learning_rate"],
-            global_params=global_params,
+            **train_kwargs,
         )
-        
+
         # Log progress
         if (idx + 1) % 50 == 0 or idx == len(clients) - 1:
-            print(f"      [{device_name}] Progress: {idx+1}/{len(clients)} clients done")
-        
+            print(
+                f"      [{device_name}] Progress: {idx + 1}/{len(clients)} clients done"
+            )
+
         results_dict[client.client_id] = result
-    
+
     gpu_time = time.time() - gpu_start
     print(f"      [{device_name}] ✓ All {len(clients)} clients done in {gpu_time:.2f}s")
-    
+
     # Clear GPU memory
     del model
     if not use_cpu:

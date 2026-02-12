@@ -1,12 +1,20 @@
 """
 EWC (Elastic Weight Consolidation) Strategy for Federated Incremental Learning.
 
-Reference:
-    Kirkpatrick et al., "Overcoming catastrophic forgetting in neural networks",
-    PNAS 2017
+References:
+    [1] Kirkpatrick et al., "Overcoming catastrophic forgetting in neural networks",
+        PNAS 2017  (Standard EWC)
+    [2] Huszar, "On Quadratic Penalties in Elastic Weight Consolidation", 2018
+        (Corrected EWC - fixes double-counting bias)
+    [3] Schwarz et al., "Progress & Compress: A scalable framework for continual
+        learning", ICML 2018  (Online EWC)
 
-EWC prevents catastrophic forgetting by adding a regularization term that
-penalizes changes to parameters that were important for previous tasks.
+Implementation:
+    Corrected EWC (Huszar 2018) with Online EWC option:
+    - Single penalty with accumulated Fisher (no double-counting)
+    - Single anchor at latest optimal parameters
+    - Online mode: additive Fisher accumulation with decay (Schwarz 2018)
+    - Fisher matrices cached in memory for fast compute_loss()
 
 Usage:
     # Combine with any Federated method using Mixin pattern:
@@ -16,7 +24,6 @@ Usage:
 
 from collections import OrderedDict
 from typing import Dict, List, Optional, Set
-import copy
 import os
 
 import torch
@@ -30,13 +37,20 @@ class EWCMixin:
     """
     EWC Mixin - adds Elastic Weight Consolidation to any trainer.
 
-    EWC Loss (Kirkpatrick et al., 2017):
-        L = L_base + (λ/2) * Σ_i F_i * (θ_i - θ_i*)²
+    Corrected EWC Loss (Huszar 2018):
+        L = L_base + (λ/2) * Σ_i F_acc_i * (θ_i - θ*_latest_i)²
 
     Where:
-        - F_i: Fisher Information for parameter i (importance)
-        - θ_i*: Optimal parameters after previous task
+        - F_acc_i: Accumulated Fisher across ALL previous tasks (single penalty)
+        - θ*_latest_i: Optimal parameters after the MOST RECENT task (single anchor)
         - λ: EWC regularization strength
+
+    Fix vs original EWC (Kirkpatrick 2017):
+        Original uses separate penalty per task → double-counts earlier tasks.
+        Corrected uses single accumulated penalty → mathematically correct.
+
+    Online EWC option (Schwarz 2018):
+        F_acc = γ * F_acc_prev + F_new  (additive with decay, NOT weighted average)
 
     This mixin should be placed BEFORE the base trainer in MRO:
         class FedAvgEWCTrainer(EWCMixin, FedAvgTrainer): pass
@@ -54,9 +68,9 @@ class EWCMixin:
         Args:
             ewc_lambda: Regularization strength (λ in paper)
             fisher_samples: Number of samples for Fisher computation
-            online_ewc: If True, use Online EWC (running average of Fisher)
-            gamma: Decay factor for Online EWC
-            temp_dir: Directory to store Fisher matrices
+            online_ewc: If True, use Online EWC with additive Fisher accumulation
+            gamma: Decay factor for Online EWC (applied to accumulated Fisher)
+            temp_dir: Directory to store Fisher matrices on disk (backup)
         """
         self.ewc_lambda = ewc_lambda
         self.fisher_samples = fisher_samples
@@ -65,9 +79,15 @@ class EWCMixin:
         self.temp_dir = temp_dir
         os.makedirs(temp_dir, exist_ok=True)
 
-        # Storage for Fisher matrices and optimal params per task
+        # Disk paths for Fisher matrices and optimal params per task
         # {task_id: {"fisher": path, "params": path}}
         self.ewc_data: Dict[int, Dict[str, str]] = {}
+
+        # In-memory cache: accumulated Fisher + latest optimal params
+        # Loaded once per task, used for all compute_loss() calls
+        self._cached_fisher_acc: Optional[Dict[str, torch.Tensor]] = None
+        self._cached_optimal_params: Optional[Dict[str, torch.Tensor]] = None
+        self._cache_device: Optional[str] = None
 
         # Task tracking
         self.current_task: int = 0
@@ -83,6 +103,10 @@ class EWCMixin:
         """Called at the beginning of each new task."""
         self.current_task = task_id
         self.seen_classes.update(new_classes)
+        # Invalidate cache so it reloads on first compute_loss()
+        self._cached_fisher_acc = None
+        self._cached_optimal_params = None
+        self._cache_device = None
 
     def compute_fisher_information(
         self, model: nn.Module, data_loader, device: str = "cuda"
@@ -92,16 +116,14 @@ class EWCMixin:
 
         F_i = E[(∂L/∂θ_i)²]
 
-        Approximated using empirical samples.
+        Approximated using empirical samples with per-sample gradients.
         """
-        # Switch to train mode to allow RNN backward pass (required by cuDNN)
-        # But we want to freeze Batch Norm stats and disable Dropout for deterministic Fisher
+        # Train mode for RNN backward (cuDNN), but disable Dropout
         model.train()
-
-        # Optional: Disable dropout manually for stable Fisher estimation
         for m in model.modules():
             if isinstance(m, (nn.Dropout, nn.Dropout2d, nn.Dropout3d)):
                 m.training = False
+
         fisher = {
             name: torch.zeros_like(param)
             for name, param in model.named_parameters()
@@ -117,28 +139,26 @@ class EWCMixin:
 
             X, y = X.to(device), y.to(device)
 
-            # Compute gradients for each sample
+            # Per-sample gradient computation (important for Fisher diagonal)
             for i in range(len(X)):
                 if sample_count >= self.fisher_samples:
                     break
 
                 model.zero_grad()
                 output = model(X[i : i + 1])
-
-                # Use log-likelihood (negative loss)
                 loss = criterion(output, y[i : i + 1])
                 loss.backward()
 
-                # Accumulate squared gradients
                 for name, param in model.named_parameters():
                     if param.requires_grad and param.grad is not None:
                         fisher[name] += param.grad.detach() ** 2
 
                 sample_count += 1
 
-        # Average
-        for name in fisher:
-            fisher[name] /= sample_count
+        # Average over samples
+        if sample_count > 0:
+            for name in fisher:
+                fisher[name] /= sample_count
 
         return fisher
 
@@ -146,43 +166,51 @@ class EWCMixin:
         """
         Consolidate knowledge after completing a task.
 
-        Computes Fisher Information and stores optimal parameters.
+        Computes Fisher and accumulates it following Huszar (2018) correction:
+        - Standard mode: F_acc = F_acc_prev + F_new
+        - Online mode:   F_acc = γ * F_acc_prev + F_new  (Schwarz 2018)
+
+        Always stores the LATEST optimal params as the single anchor point.
         """
         print(
             f"  🔐 Computing Fisher Information for EWC (task {self.current_task})..."
         )
 
-        # Compute Fisher
-        fisher = self.compute_fisher_information(model, data_loader, device)
+        # Compute Fisher for current task
+        fisher_new = self.compute_fisher_information(model, data_loader, device)
 
-        # Store optimal parameters
+        # Store optimal parameters (single anchor = latest task optimum)
         optimal_params = {
             name: param.detach().cpu().clone()
             for name, param in model.named_parameters()
             if param.requires_grad
         }
 
-        # Online EWC: running average of Fisher
-        # Formula: F_cumulative = gamma * F_old + (1-gamma) * F_new
-        # Reference: Schwarz et al., "Progress & Compress", 2018
-        if self.online_ewc and self.current_task > 0:
-            prev_task = self.current_task - 1
-            if prev_task in self.ewc_data:
-                prev_fisher = torch.load(self.ewc_data[prev_task]["fisher"])
-                for name in fisher:
-                    if name in prev_fisher:
-                        fisher[name] = (
-                            self.gamma * prev_fisher[name].to(device)
-                            + (1.0 - self.gamma) * fisher[name]
-                        )
+        # Accumulate Fisher (Huszar correction: single accumulated penalty)
+        if self.current_task > 0 and self._get_prev_fisher_acc() is not None:
+            prev_fisher_acc = self._get_prev_fisher_acc()
+            fisher_acc = {}
+            for name in fisher_new:
+                if name in prev_fisher_acc:
+                    prev_f = prev_fisher_acc[name].to(device)
+                    if self.online_ewc:
+                        # Online EWC (Schwarz 2018): F_acc = γ * F_acc_prev + F_new
+                        fisher_acc[name] = self.gamma * prev_f + fisher_new[name]
+                    else:
+                        # Corrected EWC (Huszar 2018): F_acc = F_acc_prev + F_new
+                        fisher_acc[name] = prev_f + fisher_new[name]
+                else:
+                    fisher_acc[name] = fisher_new[name]
+        else:
+            # First task: accumulated Fisher = Fisher of task 0
+            fisher_acc = fisher_new
 
-        # Save to disk
+        # Save to disk (backup)
         task_key = f"task_{self.current_task}"
-        fisher_path = os.path.join(self.temp_dir, f"{task_key}_fisher.pt")
+        fisher_path = os.path.join(self.temp_dir, f"{task_key}_fisher_acc.pt")
         params_path = os.path.join(self.temp_dir, f"{task_key}_params.pt")
 
-        # Move Fisher to CPU for storage
-        fisher_cpu = {name: f.cpu() for name, f in fisher.items()}
+        fisher_cpu = {name: f.cpu() for name, f in fisher_acc.items()}
         torch.save(fisher_cpu, fisher_path)
         torch.save(optimal_params, params_path)
 
@@ -191,9 +219,56 @@ class EWCMixin:
             "params": params_path,
         }
 
+        # Update in-memory cache immediately
+        self._cached_fisher_acc = fisher_cpu
+        self._cached_optimal_params = optimal_params
+        self._cache_device = None  # Will be loaded to correct device on first use
+
+        n_params = sum(f.numel() for f in fisher_cpu.values())
+        fisher_mean = sum(f.mean().item() for f in fisher_cpu.values()) / max(len(fisher_cpu), 1)
         print(
-            f"  ✓ Stored Fisher matrix and optimal params for task {self.current_task}"
+            f"  ✓ Accumulated Fisher for task {self.current_task} "
+            f"({n_params} params, mean importance: {fisher_mean:.6f})"
         )
+
+    def _get_prev_fisher_acc(self) -> Optional[Dict[str, torch.Tensor]]:
+        """Get the accumulated Fisher from the previous task (from memory or disk)."""
+        if self._cached_fisher_acc is not None:
+            return self._cached_fisher_acc
+
+        # Load from disk if available
+        prev_task = self.current_task - 1
+        if prev_task in self.ewc_data:
+            return torch.load(
+                self.ewc_data[prev_task]["fisher"], map_location="cpu"
+            )
+        return None
+
+    def _ensure_cache_loaded(self, device: str):
+        """Load accumulated Fisher + optimal params into memory cache on correct device."""
+        if self._cached_fisher_acc is not None and self._cache_device == device:
+            return  # Already cached on correct device
+
+        if not self.ewc_data:
+            return
+
+        # Use the LATEST task's accumulated Fisher + optimal params (single penalty)
+        latest_task = max(self.ewc_data.keys())
+        data = self.ewc_data[latest_task]
+
+        if self._cached_fisher_acc is None:
+            self._cached_fisher_acc = torch.load(data["fisher"], map_location="cpu")
+        if self._cached_optimal_params is None:
+            self._cached_optimal_params = torch.load(data["params"], map_location="cpu")
+
+        # Move to target device
+        self._cached_fisher_acc = {
+            name: f.to(device) for name, f in self._cached_fisher_acc.items()
+        }
+        self._cached_optimal_params = {
+            name: p.to(device) for name, p in self._cached_optimal_params.items()
+        }
+        self._cache_device = device
 
     def compute_loss(
         self,
@@ -204,12 +279,13 @@ class EWCMixin:
         **kwargs,
     ) -> torch.Tensor:
         """
-        Compute loss with EWC regularization.
+        Compute loss with Corrected EWC regularization (Huszar 2018).
 
-        L = L_base + (λ/2) * Σ_i F_i * (θ_i - θ_i*)²
+        L = L_base + (λ/2) * Σ_i F_acc_i * (θ_i - θ*_latest_i)²
 
-        Reference: Kirkpatrick et al., "Overcoming catastrophic forgetting
-        in neural networks", PNAS 2017
+        Single penalty term with accumulated Fisher and latest anchor.
+        No double-counting of earlier tasks.
+        Fisher loaded from memory cache (no disk I/O per batch).
         """
         # Get base loss from parent (FedAvg, FedProx, etc.)
         base_loss = super().compute_loss(model, output, target, global_params, **kwargs)
@@ -219,34 +295,28 @@ class EWCMixin:
             return base_loss
 
         device = next(model.parameters()).device
+
+        # Load cache if needed (once per task, not per batch)
+        self._ensure_cache_loaded(str(device))
+
+        if self._cached_fisher_acc is None or self._cached_optimal_params is None:
+            return base_loss
+
+        # Single accumulated penalty (Huszar correction)
         ewc_penalty = torch.tensor(0.0, device=device)
 
-        # Sum over all previous tasks (or just latest for Online EWC)
-        tasks_to_consider = (
-            [max(self.ewc_data.keys())]
-            if self.online_ewc
-            else list(self.ewc_data.keys())
-        )
-
-        for task_id in tasks_to_consider:
-            if task_id not in self.ewc_data:
+        for name, param in model.named_parameters():
+            if not param.requires_grad:
+                continue
+            if name not in self._cached_fisher_acc:
+                continue
+            if name not in self._cached_optimal_params:
                 continue
 
-            # Load Fisher and optimal params
-            fisher = torch.load(self.ewc_data[task_id]["fisher"], map_location=device)
-            optimal_params = torch.load(
-                self.ewc_data[task_id]["params"], map_location=device
-            )
-
-            for name, param in model.named_parameters():
-                if not param.requires_grad:
-                    continue
-                if name not in fisher or name not in optimal_params:
-                    continue
-
-                # EWC penalty: F_i * (θ_i - θ_i*)²
-                diff = param - optimal_params[name].to(device)
-                ewc_penalty += (fisher[name].to(device) * diff**2).sum()
+            fisher_val = self._cached_fisher_acc[name]
+            optimal_val = self._cached_optimal_params[name]
+            diff = param - optimal_val
+            ewc_penalty += (fisher_val * diff ** 2).sum()
 
         return base_loss + (self.ewc_lambda / 2.0) * ewc_penalty
 

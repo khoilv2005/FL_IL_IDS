@@ -107,7 +107,12 @@ try:
     from fed_learning.clients.fedlwf_client import FedLwFClient
 
     # Updated imports for Servers
-    from fed_learning.servers import IncrementalServer, FedCBDRServer, FedLwFServer
+    from fed_learning.servers import (
+        IncrementalServer,
+        FedCBDRServer,
+        FedLwFServer,
+        CGoFedServer,
+    )
 
     from fed_learning.strategies.incremental.fedlwf import FedLwFTrainer
     from fed_learning.strategies.incremental.ewc import EWCMixin
@@ -137,8 +142,8 @@ CONFIG = {
     "classes_per_task": 6,
     # Common Parameters
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)
-    # LOG ANALYSIS: mu=0.5 quá mạnh → model bị anchor vào global cũ, không học được class mới
-    "mu_fedprox": 0.1,  # Giảm từ 0.5: proximal nhẹ hơn để model linh hoạt học class mới
+    # CGoFed Paper Eq. 14: NO proximal term! Only cross-task regularization A(Θ)
+    "mu_fedprox": 0.0,  # 0.0 for CGoFed (paper doesn't have proximal term)
     "rounds_per_task": 5,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
     "local_epochs": 2,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
@@ -156,6 +161,8 @@ CONFIG = {
     "theta_threshold": 0.35,  # Tăng từ 0.2: chỉ reset khi forgetting thực sự nghiêm trọng
     # LOG: cross-task weights luôn ~50/50 → history pha loãng quá nhiều
     "cross_task_weight": 0.08,  # Giảm từ 0.15: blend nhẹ hơn với historical models
+    # Eq.14 local regularization coefficient (separate from Eq.11 blend weight)
+    "lambda_cross_task": 0.08,
     # CRITICAL FIX: energy_threshold quyết định SVD rank
     # LOG: 0.7 → rank=3 trên fc1 (1124-dim). Cần 0.99 → rank~50-100+
     "energy_threshold": 0.99,  # Tăng từ 0.7: capture 99% energy → rank cao hơn nhiều
@@ -163,7 +170,7 @@ CONFIG = {
     "num_samples_rep": 2000,
     "top_k": 2,
     # EWC
-    "ewc_lambda": 10.0,
+    "ewc_lambda": 1000.0,
     "fisher_samples": 200,
     "online_ewc": False,
     # LwF (FedLwF)
@@ -265,6 +272,9 @@ def get_algorithm_specific_components(config, clients, test_data, task_config):
         return FedCBDRServer(clients, test_data, task_config)
     elif algo in ["fedavg_lwf", "fedprox_lwf"]:
         return FedLwFServer(clients, test_data, task_config)
+    elif algo == "cgofed":
+        # CGoFed uses specialized server with proper Eq.14 and Eq.12 implementation
+        return CGoFedServer(clients, test_data, task_config)
     else:
         return IncrementalServer(clients, test_data, task_config)
 

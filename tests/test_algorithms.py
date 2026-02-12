@@ -44,6 +44,8 @@ from fed_learning.strategies.incremental.fedcbdr import (
 from fed_learning.core.trainer import BaseTrainer
 from fed_learning.core.aggregator import BaseAggregator
 from fed_learning.models import CNN_GRU_Model
+from fed_learning.clients.cgofed_client import CGoFedClient
+from fed_learning.servers.cgofed_server import CGoFedServer
 
 
 # =============================================================================
@@ -149,19 +151,29 @@ class TestStrategyFactory:
         assert trainer.mu == 0.3
 
     def test_cgofed_separate_mu(self):
-        """CGoFed should get separate mu_fedprox and mu_cgofed values."""
+        """CGoFed should have mu=0 (no proximal) and separate mu_projection for gradient projection."""
         trainer, _ = get_strategy(
             "cgofed",
-            mu_fedprox=1.5,
+            mu_fedprox=1.5,  # Ignored for CGoFed - paper has no proximal term
             mu_cgofed=5.0,
         )
-        assert trainer.mu == 1.5, "Proximal mu should be 1.5"
+        assert trainer.mu == 0.0, "CGoFed paper has no proximal term (mu=0)"
         assert trainer.mu_projection == 5.0, "Projection mu should be 5.0"
 
     def test_cgofed_mu_projection_defaults_to_mu(self):
         """If mu_projection not given, CGoFedTrainer defaults to mu."""
         trainer = CGoFedTrainer(mu=0.5)
         assert trainer.mu_projection == 0.5
+
+    def test_cgofed_separate_cross_task_hyperparams(self):
+        """Eq.11 cross_task_weight and Eq.14 lambda_cross_task must be independently configurable."""
+        trainer, aggregator = get_strategy(
+            "cgofed",
+            cross_task_weight=0.03,   # Eq.11 global blend
+            lambda_cross_task=0.17,   # Eq.14 local regularization
+        )
+        assert abs(aggregator.cross_task_weight - 0.03) < 1e-8
+        assert abs(trainer.lambda_cross_task - 0.17) < 1e-8
 
     def test_list_strategies(self):
         """list_strategies should return all 10 registered strategies."""
@@ -376,34 +388,52 @@ class TestCGoFed:
         trainer = CGoFedTrainer(mu=2.0)
         assert trainer.mu_projection == 2.0
 
-    def test_cgofed_proximal_uses_mu(self):
-        """compute_loss proximal term should use self.mu, not mu_projection."""
-        trainer = CGoFedTrainer(mu=1.0, mu_projection=10.0)
+    def test_cgofed_local_regularization(self):
+        """Paper Eq. 14: CGoFed has local cross-task regularization A(Θ)."""
+        trainer = CGoFedTrainer(
+            mu=0.0, lambda_cross_task=0.1
+        )  # No proximal, has cross-task reg
+        trainer.set_task(1, [0, 1, 2, 3, 4])  # Task 1 so historical models apply
         model = make_simple_model()
-        global_params = copy.deepcopy(model.state_dict())
 
-        # Perturb model
-        with torch.no_grad():
-            for p in model.parameters():
-                p.add_(torch.ones_like(p) * 0.1)
+        # Create historical model (different from current)
+        hist_model = make_simple_model()
+        historical_models = {0: copy.deepcopy(hist_model.state_dict())}
+        similarity_weights = {0: 1.0}
 
         x = torch.randn(4, 10)
         output = model(x)
         target = torch.randint(0, 5, (4,))
 
-        loss = trainer.compute_loss(model, output, target, global_params=global_params)
+        loss = trainer.compute_loss(
+            model,
+            output,
+            target,
+            historical_models=historical_models,
+            similarity_weights=similarity_weights,
+        )
         loss_ce = nn.CrossEntropyLoss()(output, target)
 
-        # Manually compute proximal with mu=1.0 (not 10.0)
-        prox = sum(
-            torch.sum((p - global_params[n].to(p.device)) ** 2)
-            for n, p in model.named_parameters()
-            if n in global_params
+        # Paper Eq. 14: Loss = CE + A(Θ), should be greater than CE alone
+        assert loss.item() > loss_ce.item(), (
+            f"CGoFed Eq.14 should have A(Θ) regularization, got loss={loss.item()}, CE={loss_ce.item()}"
         )
-        expected_loss = loss_ce + (1.0 / 2) * prox  # mu=1.0
 
-        assert abs(loss.item() - expected_loss.item()) < 1e-4, (
-            f"Proximal should use mu=1.0, got loss={loss.item()}, expected={expected_loss.item()}"
+    def test_cgofed_no_proximal_term(self):
+        """Paper Eq. 14: CGoFed does NOT have proximal term (unlike FedProx)."""
+        trainer = CGoFedTrainer(mu=0.0)  # Paper: no proximal term
+        model = make_simple_model()
+
+        x = torch.randn(4, 10)
+        output = model(x)
+        target = torch.randint(0, 5, (4,))
+
+        # Without historical models, should be pure CE (no proximal, no reg)
+        loss = trainer.compute_loss(model, output, target)
+        loss_ce = nn.CrossEntropyLoss()(output, target)
+
+        assert abs(loss.item() - loss_ce.item()) < 1e-6, (
+            f"CGoFed should NOT have proximal term when no historical models, got loss={loss.item()}, expected CE={loss_ce.item()}"
         )
 
     def test_cgofed_set_task(self):
@@ -459,6 +489,115 @@ class TestCGoFed:
         results = make_client_results(3)
         agg = aggregator.aggregate(results)
         assert isinstance(agg, OrderedDict)
+
+
+# =============================================================================
+# TEST: CGoFed Server
+# =============================================================================
+
+
+class TestCGoFedServer:
+    """Test CGoFedServer integration logic for Eq.12/Eq.14 paths."""
+
+    @staticmethod
+    def _make_server(clients, test_data=None):
+        if test_data is None:
+            test_data = {
+                "X_test": torch.randn(8, 32),
+                "y_test": torch.randint(0, 4, (8,)),
+            }
+        config = {
+            "algorithm": "cgofed",
+            "input_shape": (32,),
+            "num_classes": 4,
+            "num_gpus": 0,
+            "top_k": 1,
+            "rounds_per_task": 1,
+        }
+        return CGoFedServer(clients, test_data, config)
+
+    def test_set_task_eq14_per_client_reg_info(self, monkeypatch):
+        """Eq.14 should prepare different historical selections per current client when similarities differ."""
+        clients = [
+            CGoFedClient(0, torch.randn(8, 32), torch.randint(0, 2, (8,))),
+            CGoFedClient(1, torch.randn(8, 32), torch.randint(0, 2, (8,))),
+        ]
+        server = self._make_server(clients)
+        agg = CGoFedAggregator(top_k=1, rounds_per_task=1)
+        server.aggregator = agg
+
+        base = server.get_global_params()
+        model_a = OrderedDict(
+            (k, (v + 0.1) if v.dtype.is_floating_point else v.clone())
+            for k, v in base.items()
+        )
+        model_b = OrderedDict(
+            (k, (v + 0.2) if v.dtype.is_floating_point else v.clone())
+            for k, v in base.items()
+        )
+
+        agg.client_historical_models = {
+            10: {0: model_a},
+            11: {0: model_b},
+        }
+        agg.client_representations = {
+            10: {0: torch.tensor([[1.0, 0.0], [0.0, 1.0]])},
+            11: {0: torch.tensor([[0.0, 1.0], [1.0, 0.0]])},
+        }
+
+        def fake_rep(client, num_samples=100):
+            if client.client_id == 0:
+                return torch.tensor([[1.0, 0.0], [0.0, 1.0]])
+            return torch.tensor([[0.0, 1.0], [1.0, 0.0]])
+
+        monkeypatch.setattr(server, "_compute_client_task_representation", fake_rep)
+        server.set_task(1, [2, 3], [0, 1, 2, 3])
+
+        assert 0 in server._client_reg_info
+        assert 1 in server._client_reg_info
+
+        keys_client0 = list(server._client_reg_info[0]["historical_models"].keys())
+        keys_client1 = list(server._client_reg_info[1]["historical_models"].keys())
+        assert len(keys_client0) == 1
+        assert len(keys_client1) == 1
+        assert keys_client0[0] != keys_client1[0]
+
+    def test_set_task_does_not_depend_on_test_data_for_eq14(self):
+        """Eq.14 setup should rely on client train data, not test_data tensors."""
+        clients = [CGoFedClient(0, torch.randn(8, 32), torch.randint(0, 2, (8,)))]
+        server = self._make_server(clients, test_data={"y_test": torch.tensor([0, 1])})
+        server.aggregator = CGoFedAggregator(top_k=1, rounds_per_task=1)
+
+        # Should not raise KeyError for missing X_test in set_task.
+        server.set_task(1, [2, 3], [0, 1, 2, 3])
+        assert isinstance(server._client_reg_info, dict)
+
+    def test_eq12_personalization_uses_matrix_similarity(self):
+        """Eq.12 personalization should be driven by matrix distance, not mean-vector collapse."""
+        clients = [CGoFedClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
+        server = self._make_server(clients)
+        server.eq12_self_weight = 0.0  # isolate weighted sum of other-client models
+
+        results = [
+            {
+                "client_id": 0,
+                "params": OrderedDict({"w": torch.tensor([0.0])}),
+                "representation": torch.tensor([[1.0, 0.0], [0.0, 1.0]]),
+            },
+            {
+                "client_id": 1,
+                "params": OrderedDict({"w": torch.tensor([2.0])}),
+                "representation": torch.tensor([[1.0, 1.0], [0.0, 0.0]]),
+            },
+            {
+                "client_id": 2,
+                "params": OrderedDict({"w": torch.tensor([10.0])}),
+                "representation": torch.tensor([[0.0, 1.0], [1.0, 0.0]]),
+            },
+        ]
+        personalized = server._compute_personalized_models(results)
+        # If means were used, both distances become 0 and this tends to equal weighting (value ~6).
+        assert personalized[0]["w"].item() < 6.0
 
 
 # =============================================================================
@@ -617,11 +756,9 @@ class TestConfigIntegration:
             mu_fedprox=1.5,
             mu_cgofed=5.0,
         )
-        assert trainer.mu != trainer.mu_projection, (
-            "mu (proximal) and mu_projection should be different"
-        )
-        assert trainer.mu == 1.5
-        assert trainer.mu_projection == 5.0
+        # Paper: CGoFed has no proximal term (mu=0), only projection mu
+        assert trainer.mu == 0.0, "CGoFed paper has no proximal term"
+        assert trainer.mu_projection == 5.0, "Projection mu should be 5.0"
 
 
 # =============================================================================

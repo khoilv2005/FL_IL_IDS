@@ -131,12 +131,15 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
         )
     elif algo_lower == "cgofed":
         trainer = strategy["trainer"](
-            mu=config.get("mu_fedprox", config.get("mu", 0.01)),
-            mu_projection=config.get("mu_cgofed", config.get("mu", 5.0)),
-            lambda_decay=config.get("lambda_decay", 0.1),
-            theta_threshold=config.get("theta_threshold", 0.1),
-            energy_threshold=config.get("energy_threshold", 0.95),
-            num_samples_rep=config.get("num_samples_rep", 100),
+            mu=0.0,  # Paper Eq. 14: NO proximal term in CGoFed
+            mu_projection=config.get("mu_cgofed", 1.0),
+            lambda_decay=config.get("lambda_decay", 0.8),
+            theta_threshold=config.get("theta_threshold", 0.35),
+            energy_threshold=config.get("energy_threshold", 0.99),
+            num_samples_rep=config.get("num_samples_rep", 2000),
+            lambda_cross_task=config.get(
+                "lambda_cross_task", config.get("cross_task_weight", 0.08)
+            ),
         )
     elif algo_lower in ("fedavg_ewc", "fedprox_ewc"):
         trainer = strategy["trainer"](
@@ -176,6 +179,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
         aggregator = strategy["aggregator"](
             cross_task_weight=config.get("cross_task_weight", 0.3),
             top_k=config.get("top_k", 2),
+            rounds_per_task=config.get("rounds_per_task", 5),
         )
     else:
         aggregator = strategy["aggregator"]()

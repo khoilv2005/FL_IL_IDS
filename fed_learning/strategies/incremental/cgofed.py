@@ -35,7 +35,6 @@ Paper Algorithm Summary:
 from collections import OrderedDict
 from typing import Dict, List, Optional, Set, Tuple
 import copy
-import math
 import os
 import gc
 
@@ -75,16 +74,17 @@ class CGoFedTrainer(BaseTrainer):
 
     def __init__(
         self,
-        mu: float = 0.01,
+        mu: float = 0.0,  # Paper Eq. 14: NO proximal term in CGoFed
         mu_projection: Optional[float] = None,
-        lambda_decay: float = 0.8,  # FIXED: Was 0.1, too aggressive decay
+        lambda_decay: float = 0.8,
         theta_threshold: float = 0.1,
         energy_threshold: float = 0.95,
-        beta: float = 1.0,  # Scaling for sigmoid importance
+        beta: float = 1.0,
         num_samples_rep: int = 100,
         temp_dir: str = "./temp_svd_storage",
+        lambda_cross_task: float = 0.1,  # Paper Eq. 14: cross-task regularization weight
     ):
-        self.mu = mu  # Proximal term (FedProx-like)
+        self.mu = mu  # No proximal term (Paper Eq. 14 doesn't have it)
         self.mu_projection = (
             mu_projection if mu_projection is not None else mu
         )  # Gradient projection (paper Eq. 9)
@@ -93,12 +93,15 @@ class CGoFedTrainer(BaseTrainer):
         self.energy_threshold = energy_threshold
         self.beta = beta
         self.num_samples_rep = num_samples_rep
+        self.lambda_cross_task = lambda_cross_task  # Paper Eq. 14
+
+        # Historical models for cross-task regularization (Paper Eq. 11, 14)
+        # {task_id: {param_name: param_tensor}}
+        self.historical_models: Dict[int, OrderedDict] = {}
 
         # Projection statistics (for monitoring)
         self._projection_stats = {"projected": 0, "skipped": 0, "total_reduction": 0.0}
-        self._pre_step_logged_this_task: bool = (
-            False  # Log projection details once per task
-        )
+        self._pre_step_logged_this_task: bool = False
 
         # Temp directory for SVD matrices (lazy loading)
         self.temp_dir = temp_dir
@@ -122,7 +125,7 @@ class CGoFedTrainer(BaseTrainer):
         # μ_t relaxation coefficient (paper Eq. 7-8)
         # μ_t = μ_init * α^(t - t_reset) where α = lambda_decay
         self.mu_coefficient: float = 1.0  # Starts at 1.0, decays each task
-        self.t_reset: int = 0  # Reset point when AF > θ
+        self.t_reset: int = -1  # Reset point when AF > θ (paper 1-based offset)
 
         # Accuracies for computing AF (Average Forgetting)
         self.best_acc_per_task: Dict[int, float] = {}
@@ -614,21 +617,41 @@ class CGoFedTrainer(BaseTrainer):
         **kwargs,
     ) -> torch.Tensor:
         """
-        Compute loss with optional proximal regularization.
+        Compute loss with cross-task regularization (Paper Eq. 14).
 
-        Loss = CE(output, target) + (μ/2) * ||θ - θ_global||²
+        Paper Eq. 14: Local objective includes cross-task regularization term A(Θ):
+        Loss = CE(output, target) + A(Θ_k^t, Θ_old)
+
+        Where A(Θ_k^t, Θ_old) encourages the local model to stay close to
+        similar historical task models during training.
         """
         ce_loss = F.cross_entropy(output, target)
 
-        # Optional proximal term (like FedProx)
-        if self.mu > 0 and global_params is not None:
-            prox_term = 0.0
-            for name, param in model.named_parameters():
-                if name in global_params:
-                    global_param = global_params[name].to(param.device)
-                    prox_term += torch.sum((param - global_param) ** 2)
-            total_loss = ce_loss + (self.mu / 2) * prox_term
-            return total_loss
+        # Paper Eq. 14: Add cross-task regularization A(Θ_k^t, Θ_old)
+        # Get historical models and similarity weights from kwargs (passed by server)
+        historical_models = kwargs.get("historical_models", {})
+        similarity_weights = kwargs.get("similarity_weights", {})
+
+        if historical_models and self.current_task > 0:
+            reg_term = 0.0
+            for task_id, hist_params in historical_models.items():
+                # Get similarity weight for this historical task
+                weight = similarity_weights.get(task_id, 1.0 / len(historical_models))
+
+                # Compute ||Θ - Θ_hist||^2
+                task_reg = 0.0
+                for name, param in model.named_parameters():
+                    if name in hist_params:
+                        hist_param = hist_params[name].to(param.device)
+                        task_reg += torch.sum((param - hist_param) ** 2)
+
+                reg_term += weight * task_reg
+
+            if reg_term > 0:
+                # Scale by lambda_cross_task
+                lambda_reg = getattr(self, "lambda_cross_task", 0.1)
+                total_loss = ce_loss + (lambda_reg / 2) * reg_term
+                return total_loss
 
         return ce_loss
 
@@ -948,34 +971,72 @@ class CGoFedAggregator(BaseAggregator):
     Implements paper Section 5.2: Cross-task Gradient Regularization.
 
     Key mechanism:
-    - Compute representation similarity between tasks (paper eq. 9)
-    - Select TOP-K most similar historical models (paper eq. 10)
-    - Personalized aggregation with history (paper eq. 11)
+    - Compute activation-based representation similarity between tasks (paper Eq. 10)
+    - Select TOP-K most similar historical models (paper Eq. 10)
+    - Personalized aggregation with history (paper Eq. 11, 12)
 
     Args:
         cross_task_weight: Weight λ for blending with history (paper: λ)
         top_k: Number of similar models to select (paper: K, default 2)
+        rounds_per_task: Number of rounds per task (for end-of-task computation)
     """
 
-    def __init__(self, cross_task_weight: float = 0.3, top_k: int = 2):
+    def __init__(
+        self, cross_task_weight: float = 0.3, top_k: int = 2, rounds_per_task: int = 5
+    ):
         self.cross_task_weight = cross_task_weight
         self.top_k = top_k
+        self.rounds_per_task = rounds_per_task
 
-        # Store gradient representations from clients
-        # {client_id: {task_id: gradient_vector}}
+        # Store activation representations from clients (Paper Eq. 2)
+        # {client_id: {task_id: activation_vector}}
         self.client_representations: Dict[int, Dict[int, torch.Tensor]] = {}
 
         # Historical global models: {task_id: OrderedDict params}
         self.task_global_models: Dict[int, OrderedDict] = {}
 
+        # Personalized historical models per client (Paper Eq. 12)
+        # {client_id: {task_id: OrderedDict params}}
+        self.client_historical_models: Dict[int, Dict[int, OrderedDict]] = {}
+
         # Mean representation per task (aggregated from clients)
         self.task_representations: Dict[int, torch.Tensor] = {}
 
+        # Full representation matrices per task (Paper Eq. 2, 10)
+        # {task_id: tensor[n_samples, hidden_dim]}
+        self.task_representation_matrices: Dict[int, torch.Tensor] = {}
+
+        # Current similarity weights and historical models for Eq. 14 local regularization
+        self._current_similarity_weights: Dict[int, float] = {}
+        self._current_historical_models: Dict[int, OrderedDict] = {}
+
         self.current_task: int = 0
+        self._round_in_task: int = 0  # Track round within current task (Issue 5)
 
     def set_task(self, task_id: int):
-        """Set current task ID."""
+        """Set current task ID and reset round counter."""
         self.current_task = task_id
+        self._round_in_task = 0
+        # Reset current regularization info for new task
+        self._current_similarity_weights = {}
+        self._current_historical_models = {}
+
+    def get_local_regularization_info(self) -> Dict:
+        """
+        Get historical models and similarity weights for local regularization (Paper Eq. 14).
+
+        This should be called by server after aggregate() and passed to clients
+        via kwargs in client.train() for compute_loss().
+
+        Returns:
+            Dict with keys:
+                - historical_models: Dict[task_id, OrderedDict] - historical task models
+                - similarity_weights: Dict[task_id, float] - similarity weights
+        """
+        return {
+            "historical_models": self._current_historical_models.copy(),
+            "similarity_weights": self._current_similarity_weights.copy(),
+        }
 
     def _store_client_representations(self, results: List[Dict]):
         """
@@ -1002,48 +1063,62 @@ class CGoFedAggregator(BaseAggregator):
 
                 task_reps.append(rep)
 
-        # Compute mean representation for this task
+        # Compute aggregated representation matrix for this task
+        # Paper Eq. 2: R^t = F(Θ^t, X^t) - concatenate all client representations
         if task_reps:
-            stacked = torch.stack(task_reps, dim=0)
-            self.task_representations[self.current_task] = stacked.mean(dim=0)
+            # task_reps contains matrices [n_samples_client, hidden_dim] from each client
+            # Stack them to get full representation matrix [total_samples, hidden_dim]
+            all_reps = torch.cat(task_reps, dim=0)
+            # Store full representation matrix (not just mean) for proper similarity computation
+            # Paper Eq. 10: similarity should be computed on representation matrices
+            if not hasattr(self, "task_representation_matrices"):
+                self.task_representation_matrices: Dict[int, torch.Tensor] = {}
+            self.task_representation_matrices[self.current_task] = all_reps
+            # Also store mean for logging/debugging
+            self.task_representations[self.current_task] = all_reps.mean(dim=0)
             print(
-                f"  → Stored {len(task_reps)} representations for task {self.current_task}"
+                f"  → Stored {len(task_reps)} client representations for task {self.current_task}, "
+                f"total samples: {all_reps.shape[0]}, shape: {all_reps.shape}"
             )
 
     def _compute_similarity(self, R1: torch.Tensor, R2: torch.Tensor) -> float:
         """
-        Compute similarity between two representation vectors.
+        Compute similarity between two representation matrices (Paper Eq. 10).
 
-        FIXED: Now uses COSINE SIMILARITY instead of negative L2 distance.
-        Cosine similarity is more robust for high-dimensional representations.
+        Paper Eq. 10: Uses NEGATIVE Frobenius norm distance on representation matrices.
+        sim(R1, R2) = -||R1 - R2||_F
 
-        sim(R1, R2) = (R1 · R2) / (||R1|| * ||R2||)  ∈ [-1, 1]
+        Where R1, R2 are representation matrices [n_samples, hidden_dim] from Eq. 2.
+        Closer representations → smaller Frobenius distance → higher (less negative) similarity.
+
+        Note: Using activation-based representation matrices (not gradient-based).
         """
         # Check for NaN/Inf
         if torch.isnan(R1).any() or torch.isinf(R1).any():
-            return 0.0
+            return -1e6
         if torch.isnan(R2).any() or torch.isinf(R2).any():
-            return 0.0
+            return -1e6
 
-        # Compute norms
-        norm1 = torch.norm(R1)
-        norm2 = torch.norm(R2)
+        # Handle different matrix shapes (different number of samples)
+        # Paper Eq. 10: compute distance on representation matrices
+        if R1.shape != R2.shape:
+            # If shapes differ, compare mean vectors (prototypes)
+            # This avoids crash while still maintaining semantic meaning
+            r1_mean = R1.mean(dim=0)
+            r2_mean = R2.mean(dim=0)
+            l2_dist = torch.norm(r1_mean - r2_mean, p=2).item()
+        else:
+            # Same shape: use full matrix Frobenius norm
+            l2_dist = torch.norm(R1 - R2, p="fro").item()
 
-        if norm1 < 1e-8 or norm2 < 1e-8:
-            return 0.0
-
-        # Cosine similarity: dot product of normalized vectors
-        cosine_sim = torch.dot(R1.flatten(), R2.flatten()) / (norm1 * norm2)
-
-        # Clamp to valid range [-1, 1]
-        return float(torch.clamp(cosine_sim, -1.0, 1.0).item())
+        return -l2_dist
 
     def _select_top_k_similar(self) -> List[Dict]:
         """
         Select TOP-K most similar historical task models.
 
-        Paper eq. 10: Select K historical models with highest similarity
-        to current task's representation.
+        Paper Eq. 10: Select K historical models with highest similarity
+        using representation matrices R^t (not mean vectors).
 
         Returns:
             List of {task_id, similarity, params}
@@ -1051,16 +1126,24 @@ class CGoFedAggregator(BaseAggregator):
         if self.current_task == 0:
             return []
 
-        current_rep = self.task_representations.get(self.current_task)
-        if current_rep is None:
+        # Use representation matrices for proper similarity computation (Paper Eq. 10)
+        if not hasattr(self, "task_representation_matrices"):
             return []
 
-        # Compute similarity with all previous tasks
+        current_rep_matrix = self.task_representation_matrices.get(self.current_task)
+        if current_rep_matrix is None:
+            return []
+
+        # Compute similarity with all previous tasks using matrices
         similarities = []
         for tid in range(self.current_task):
-            if tid in self.task_representations and tid in self.task_global_models:
-                hist_rep = self.task_representations[tid]
-                sim = self._compute_similarity(current_rep, hist_rep)
+            if (
+                tid in self.task_representation_matrices
+                and tid in self.task_global_models
+            ):
+                hist_rep_matrix = self.task_representation_matrices[tid]
+                # Compute similarity on full matrices (Paper Eq. 10)
+                sim = self._compute_similarity(current_rep_matrix, hist_rep_matrix)
                 similarities.append(
                     {
                         "task_id": tid,
@@ -1071,17 +1154,17 @@ class CGoFedAggregator(BaseAggregator):
 
         # DEBUG[10]: Log raw similarity scores and representation info
         print(f"  DEBUG[10]: Cross-task similarity details (task {self.current_task}):")
+        current_mean = current_rep_matrix.mean(dim=0)
         print(
-            f"    Current rep norm: {torch.norm(current_rep).item():.4f}, "
-            f"dim: {current_rep.shape[0]}, "
-            f"nonzero: {(current_rep.abs() > 1e-8).sum().item()}/{current_rep.shape[0]}"
+            f"    Current rep matrix shape: {current_rep_matrix.shape}, "
+            f"mean norm: {torch.norm(current_mean).item():.4f}"
         )
         for s in similarities:
             tid = s["task_id"]
-            hist_rep = self.task_representations[tid]
+            hist_mean = self.task_representation_matrices[tid].mean(dim=0)
             print(
-                f"    Task {tid}: raw_cosine_sim={s['similarity']:.6f} | "
-                f"hist_rep_norm={torch.norm(hist_rep).item():.4f}"
+                f"    Task {tid}: neg_l2_dist={s['similarity']:.6f} | "
+                f"matrix shape: {self.task_representation_matrices[tid].shape}"
             )
         if len(similarities) >= 2:
             sims = [s["similarity"] for s in similarities]
@@ -1089,11 +1172,13 @@ class CGoFedAggregator(BaseAggregator):
                 f"    Sim range: [{min(sims):.6f}, {max(sims):.6f}], "
                 f"diff={max(sims) - min(sims):.6f}"
             )
-            # Show what softmax would produce
+            # Show what softmax would produce (with max-subtraction normalization)
             sim_t = torch.tensor(sims)
-            sw = F.softmax(sim_t, dim=0)
+            sim_t_norm = sim_t - sim_t.max()
+            sw = F.softmax(sim_t_norm, dim=0)
             print(
-                f"    softmax({[f'{s:.4f}' for s in sims]}) = {[f'{w:.4f}' for w in sw.tolist()]}"
+                f"    normalized({[f'{s:.4f}' for s in sim_t_norm.tolist()]}) "
+                f"→ softmax = {[f'{w:.4f}' for w in sw.tolist()]}"
             )
 
         # Sort by similarity (descending) and select TOP-K
@@ -1102,116 +1187,89 @@ class CGoFedAggregator(BaseAggregator):
 
         return selected
 
-    def _weighted_aggregate_with_history(
-        self, current_params: OrderedDict, selected_models: List[Dict]
-    ) -> OrderedDict:
-        """
-        Personalized aggregation with historical models (paper eq. 11).
-
-        Paper eq. 11:
-        θ_final = (1 - λ) * θ_current + λ * Σ_i (w_i * θ_hist_i)
-
-        Where w_i = softmax(similarity_i) for selected models.
-        """
-        if not selected_models:
-            return current_params
-
-        # Compute softmax weights from similarities
-        # Filter out NaN/Inf similarities first
-        valid_models = [
-            (s, i)
-            for i, s in enumerate(selected_models)
-            if not (math.isnan(s["similarity"]) or math.isinf(s["similarity"]))
-        ]
-
-        if not valid_models:
-            print(
-                "  ⚠️ All cross-task similarities are NaN/Inf, skipping historical blend"
-            )
-            return current_params
-
-        selected_models = [s for s, _ in valid_models]
-        sim_scores = torch.tensor([s["similarity"] for s in selected_models])
-
-        # Prevent softmax numerical issues
-        sim_scores = torch.clamp(sim_scores, min=-10.0, max=10.0)
-        weights = F.softmax(sim_scores, dim=0)
-
-        print(f"  → Cross-task weights: {[f'{w:.3f}' for w in weights.tolist()]}")
-
-        # Weighted aggregation of historical models
-        hist_agg = None
-        for i, model_info in enumerate(selected_models):
-            hist_params = model_info["params"]
-            w = weights[i].item()
-
-            if hist_agg is None:
-                hist_agg = OrderedDict()
-                for k, v in hist_params.items():
-                    if v.dtype.is_floating_point:
-                        hist_agg[k] = w * v.float()
-                    else:
-                        hist_agg[k] = v.clone()
-            else:
-                for k in hist_agg:
-                    if hist_agg[k].dtype.is_floating_point:
-                        hist_agg[k] += w * hist_params[k].float()
-
-        # Blend: (1-λ) * current + λ * history
-        λ = self.cross_task_weight
-        result = OrderedDict()
-
-        for k in current_params:
-            if current_params[k].dtype.is_floating_point:
-                hist_v = hist_agg[k].to(current_params[k].device)
-                result[k] = (1 - λ) * current_params[k].float() + λ * hist_v
-            else:
-                result[k] = current_params[k].clone()
-
-        # Final sanity check - if result has NaN, return current params
-        for k, v in result.items():
-            if v.dtype.is_floating_point and (
-                torch.isnan(v).any() or torch.isinf(v).any()
-            ):
-                print(
-                    f"  ⚠️ Historical blend produced NaN in {k}, using current params only"
-                )
-                return current_params
-
-        return result
-
     def aggregate(
         self, results: List[Dict], global_params: Optional[OrderedDict] = None, **kwargs
     ) -> OrderedDict:
         """
-        Aggregate with cross-task regularization (paper Section 5.2).
+        Aggregate with cross-task regularization (paper Section 5.2, Algorithm 1).
+
+        Paper Algorithm 1 (ON SERVER):
+        - Standard FedAvg aggregation of client updates
+        - Store representations for cross-task similarity (Paper Eq. 10)
+        - Save historical models for future reference
+        - Compute similarity weights for NEXT task's local regularization (Eq. 14)
+
+        NOTE: Paper Eq. 11 A(Θ) is a LOCAL training loss term (applied in
+        compute_loss()), NOT a server-side model blend. The server only computes
+        similarities and stores historical data. Per-client personalized
+        aggregation (Eq. 12) is handled by CGoFedServer.
 
         Steps:
         1. Standard weighted average of client updates (FedAvg)
-        2. Store client representations for similarity
-        3. Save current model for future reference
-        4. Select TOP-K similar historical models
-        5. Weighted blend with history
+        2. Store client representations for similarity (Paper Eq. 2)
+        3. Save current model for future reference (Paper Eq. 12)
+        4. Select TOP-K similar historical models (Paper Eq. 10)
+        5. Weighted blend with history (Paper Eq. 11) - ONLY at end of task
         """
+        # Track round within task (Issue 5)
+        self._round_in_task += 1
+        is_last_round = self._round_in_task >= self.rounds_per_task
+
         # 1. Standard weighted average (FedAvg)
         agg_params = self._weighted_average(results)
 
-        # 2. Store representations from clients
+        # 2. Store representations from clients (Paper Eq. 2)
         self._store_client_representations(results)
 
-        # 3. Save current aggregated model for future cross-task reference
-        self.task_global_models[self.current_task] = OrderedDict(
-            (k, v.cpu().clone()) for k, v in agg_params.items()
-        )
+        # 3. Save per-client models for personalized aggregation (Paper Eq. 12)
+        # Store each client's specific params (not aggregated global params)
+        for result in results:
+            client_id = result.get("client_id")
+            if client_id is not None and "params" in result:
+                if client_id not in self.client_historical_models:
+                    self.client_historical_models[client_id] = {}
+                # Store client's OWN model at end of task (not agg_params)
+                # This is the client's local model after training, before aggregation
+                if is_last_round:
+                    self.client_historical_models[client_id][self.current_task] = (
+                        OrderedDict(
+                            (k, v.cpu().clone()) for k, v in result["params"].items()
+                        )
+                    )
 
-        # 4 & 5. Cross-task regularization (if we have history)
-        if self.current_task > 0:
+        # 3b. Save global model for task (at end of task)
+        if is_last_round:
+            self.task_global_models[self.current_task] = OrderedDict(
+                (k, v.cpu().clone()) for k, v in agg_params.items()
+            )
+
+        # 4. Compute cross-task similarity at end of task (Paper Eq. 10)
+        # Store similarity weights and historical models for NEXT task's local
+        # training regularization (Paper Eq. 11, 14).
+        # NOTE: Paper Eq. 11 A(Θ) is a LOCAL training loss term applied in
+        # compute_loss(), NOT a server-side model blend. The server only
+        # computes similarities and stores historical data here.
+        # Paper Eq. 12 per-client personalization is handled in CGoFedServer.
+        if self.current_task > 0 and is_last_round:
             selected = self._select_top_k_similar()
             if selected:
                 task_ids = [s["task_id"] for s in selected]
                 print(
                     f"📊 Cross-task: Selected TOP-{len(selected)} similar tasks: {task_ids}"
                 )
-                agg_params = self._weighted_aggregate_with_history(agg_params, selected)
+                # Store similarity weights and historical models for local regularization
+                # Paper Eq. 14: These will be passed to clients for A(Θ) computation
+                self._current_similarity_weights = {
+                    s["task_id"]: float(
+                        torch.softmax(
+                            torch.tensor([x["similarity"] for x in selected]), dim=0
+                        )[i]
+                    )
+                    for i, s in enumerate(selected)
+                }
+                self._current_historical_models = {
+                    s["task_id"]: self.task_global_models[s["task_id"]]
+                    for s in selected
+                }
 
         return agg_params

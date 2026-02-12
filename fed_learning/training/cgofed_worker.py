@@ -21,14 +21,16 @@ def train_cgofed_clients_on_gpu(
     config: Dict,
     results_dict: Dict,
     trainer: BaseTrainer,
-    use_cpu: bool = False
+    use_cpu: bool = False,
+    client_reg_info: Dict = None,
+    client_init_models: Dict = None,
 ):
     """
     Train CGoFed clients on a specific GPU.
-    
+
     Similar to standard train_clients_on_gpu but uses CGoFedClient
     which automatically computes representation matrix after training.
-    
+
     Args:
         gpu_id: GPU index (0, 1, 2, ...)
         clients: List of CGoFedClient instances
@@ -44,39 +46,52 @@ def train_cgofed_clients_on_gpu(
     else:
         device = f"cuda:{gpu_id}"
         device_name = f"GPU {gpu_id}"
-    
+
     gpu_start = time.time()
-    
+
     # Create model for this device
     model = CNN_GRU_Model(config["input_shape"], config["num_classes"]).to(device)
-    
+
     print(f"      [{device_name}] Starting {len(clients)} CGoFed clients...")
-    
+
     for idx, client in enumerate(clients):
-        # Load global params into model
-        model.load_state_dict({k: v.to(device) for k, v in global_params.items()})
-        
+        # Eq.12: initialize from per-client personalized model when available
+        init_params = global_params
+        if client_init_models and client.client_id in client_init_models:
+            client_init = client_init_models[client.client_id]
+            if client_init is not None:
+                init_params = client_init
+
+        model.load_state_dict({k: v.to(device) for k, v in init_params.items()})
+
         # Setup client for this GPU
         client.setup_for_gpu(model, device)
-        
+
         # Train using CGoFed strategy (includes representation computation)
+        # Paper Eq.14: Pass per-client regularization info
+        train_kwargs = {"global_params": init_params}
+        if client_reg_info and client.client_id in client_reg_info:
+            train_kwargs.update(client_reg_info[client.client_id])
+
         result = client.train(
             trainer=trainer,
             epochs=config["local_epochs"],
             batch_size=config["batch_size"],
             lr=config["learning_rate"],
-            global_params=global_params,
+            **train_kwargs,
         )
-        
+
         # Log progress
         if (idx + 1) % 50 == 0 or idx == len(clients) - 1:
-            print(f"      [{device_name}] Progress: {idx+1}/{len(clients)} clients done")
-        
+            print(
+                f"      [{device_name}] Progress: {idx + 1}/{len(clients)} clients done"
+            )
+
         results_dict[client.client_id] = result
-    
+
     gpu_time = time.time() - gpu_start
     print(f"      [{device_name}] ✓ All {len(clients)} clients done in {gpu_time:.2f}s")
-    
+
     # Clear GPU memory
     del model
     if not use_cpu:
