@@ -37,6 +37,10 @@ from .incremental import (
     DERAggregator,
     NICETrainer,
     NICEAggregator,
+    GLFCTrainer,
+    GLFCAggregator,
+    ReFedTrainer,
+    ReFedAggregator,
 )
 from .incremental.ewc import (
     EWCMixin,
@@ -104,6 +108,16 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
         "trainer": NICETrainer,
         "aggregator": NICEAggregator,
     },
+    # GLFC (Global-Local Forgetting Compensation) - CVPR 2022
+    "glfc": {
+        "trainer": GLFCTrainer,
+        "aggregator": GLFCAggregator,
+    },
+    # Re-Fed (Retrieval-Enhanced Federated Incremental Learning) - CVPR 2024
+    "refed": {
+        "trainer": ReFedTrainer,
+        "aggregator": ReFedAggregator,
+    },
 }
 
 
@@ -124,6 +138,8 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             - "fedprox_lwf": FedProx + LwF
             - "der": DER - Dynamically Expandable Representation
             - "nice": NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)
+            - "glfc": GLFC - Global-Local Forgetting Compensation (CVPR 2022)
+            - "refed": Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)
         **config: Algorithm-specific configuration
 
     Returns:
@@ -193,6 +209,18 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             phase_epochs=config.get("nice_phase_epochs", 5),
             memo_per_class=config.get("memo_per_class", 50),
         )
+    elif algo_lower == "glfc":
+        trainer = strategy["trainer"](
+            memory_size=config.get("glfc_memory_size", 2000),
+            entropy_threshold=config.get("glfc_entropy_threshold", 1.2),
+            distill_weight=config.get("glfc_distill_weight", 0.5),
+        )
+    elif algo_lower == "refed":
+        trainer = strategy["trainer"](
+            memory_size=config.get("refed_memory_size", 2000),
+            lambda_pim=config.get("refed_lambda_pim", 0.5),
+            pim_iterations=config.get("refed_pim_iterations", 5),
+        )
     else:
         trainer = strategy["trainer"]()
 
@@ -245,6 +273,8 @@ def list_strategies() -> Dict[str, str]:
         "fedprox_lwf": "FedProx + LwF - Learning without Forgetting on FedProx",
         "der": "DER - Dynamically Expandable Representation for FCIL",
         "nice": "NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)",
+        "glfc": "GLFC - Global-Local Forgetting Compensation (CVPR 2022)",
+        "refed": "Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)",
     }
 
 

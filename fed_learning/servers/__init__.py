@@ -7,6 +7,8 @@ from .fedcbdr_server import FedCBDRServer
 from .fedlwf_server import FedLwFServer
 from .der_server import DERServer
 from .nice_server import NICEServer
+from .glfc_server import GLFCServer
+from .refed_server import ReFedServer
 
 __all__ = [
     "FederatedServer",
@@ -16,4 +18,6 @@ __all__ = [
     "FedLwFServer",
     "DERServer",
     "NICEServer",
+    "GLFCServer",
+    "ReFedServer",
 ]

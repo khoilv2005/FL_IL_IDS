@@ -109,6 +109,12 @@ try:
     from fed_learning.clients.der_client import DERClient
     from fed_learning.clients.nice_client import NICEClient
 
+    # GLFC Client and Server
+    from fed_learning.clients.glfc_client import GLFCClient
+
+    # Re-Fed Client and Server
+    from fed_learning.clients.refed_client import ReFedClient
+
     # Updated imports for Servers
     from fed_learning.servers import (
         IncrementalServer,
@@ -118,10 +124,13 @@ try:
         DERServer,
         FedWeITServer,
         NICEServer,
+        GLFCServer,
+        ReFedServer,
     )
 
     from fed_learning.strategies.incremental.fedlwf import FedLwFTrainer
     from fed_learning.strategies.incremental.ewc import EWCMixin
+    from fed_learning.strategies.incremental.glfc import GLFCTrainer
     from fed_learning.clients.fedweit_client import FedWeITClient
 
     print("✓ Imports ready!")
@@ -138,7 +147,7 @@ CONFIG = {
     # Reproducibility
     "random_seed": 42,  # Set to None for random behavior
     # Algorithm Selection
-    # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf", "fedcbdr", "der", "fedweit"
+    # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf", "fedcbdr", "der", "fedweit", "glfc", "refed"
     "algorithm": "der",
     # Output
     "output_dir": "./results_incremental",
@@ -210,6 +219,16 @@ CONFIG = {
     "nice_max_phases": 5,  # Number of phases per episode
     "nice_phase_epochs": 5,  # Epochs per phase
     "memo_per_class": 50,  # Activation memory samples per class for context detector
+    # GLFC (Global-Local Forgetting Compensation)
+    "glfc_memory_size": 2000,  # Total exemplar memory budget
+    "glfc_entropy_threshold": 1.2,  # Entropy change threshold for signal detection
+    "glfc_distill_weight": 0.5,  # Weight for distillation loss (paper: 0.5)
+    "glfc_recon_iters": 250,  # Gradient inversion iterations (proxy server)
+    "glfc_num_recon_images": 20,  # Number of reconstruction images per class
+    # Re-Fed (Retrieval-Enhanced Federated Incremental Learning)
+    "refed_memory_size": 2000,  # Maximum cached samples per client (M in paper)
+    "refed_lambda_pim": 0.5,  # PIM balance: 0→global, 1→local (λ in paper Eq.3)
+    "refed_pim_iterations": 5,  # Number of PIM update iterations (s in paper)
 }
 
 
@@ -281,6 +300,20 @@ def create_clients(client_data, config, task_id, new_classes):
         elif algo in ["fedavg_lwf", "fedprox_lwf"]:
             clients.append(FedLwFClient(cid, X, y))
 
+        elif algo == "glfc":
+            clients.append(GLFCClient(
+                cid, X, y,
+                memory_size=config.get("glfc_memory_size", 2000),
+            ))
+
+        elif algo == "refed":
+            clients.append(ReFedClient(
+                cid, X, y,
+                memory_size=config.get("refed_memory_size", 2000),
+                lambda_pim=config.get("refed_lambda_pim", 0.5),
+                pim_iterations=config.get("refed_pim_iterations", 5),
+            ))
+
         else:
             # Standard/CGoFed Client
             clients.append(CGoFedClient(cid, X, y))
@@ -305,6 +338,10 @@ def get_algorithm_specific_components(config, clients, test_data, task_config):
         return FedWeITServer(clients, test_data, task_config)
     elif algo == "nice":
         return NICEServer(clients, test_data, task_config)
+    elif algo == "glfc":
+        return GLFCServer(clients, test_data, task_config)
+    elif algo == "refed":
+        return ReFedServer(clients, test_data, task_config)
     else:
         return IncrementalServer(clients, test_data, task_config)
 
@@ -374,6 +411,24 @@ def post_task_processing(
     # 7. NICE: End-task processing (age transition, freeze masks, context detector)
     if algo == "nice" and hasattr(server, "end_task"):
         server.end_task()
+
+    # 8. GLFC: Save model snapshot and coordinate exemplar updates
+    if algo == "glfc":
+        if hasattr(trainer, "save_model_snapshot"):
+            trainer.save_model_snapshot(server.global_model)
+        if hasattr(server, "coordinate_exemplar_update"):
+            print(f"\n  Updating GLFC exemplar sets...")
+            server.coordinate_exemplar_update(participating_clients, verbose=True)
+        # Save snapshot to all clients for next task's distillation
+        if participating_clients:
+            global_state = server.get_global_params()
+            for client in participating_clients:
+                if hasattr(client, "save_model_snapshot"):
+                    client.save_model_snapshot(server.global_model)
+
+    # 9. Re-Fed: No special post-task processing needed
+    # PIM caching is done at the START of each new task (before training)
+    # The cache is already updated in coordinate_pim_caching()
 
 
 # =============================================================================
@@ -497,6 +552,22 @@ def main():
                 elif "lwf" in CONFIG["algorithm"]:
                     persistent_clients[cid] = FedLwFClient(
                         cid, data["X_train"], data["y_train"]
+                    )
+                elif CONFIG["algorithm"] == "glfc":
+                    persistent_clients[cid] = GLFCClient(
+                        cid,
+                        data["X_train"],
+                        data["y_train"],
+                        memory_size=CONFIG.get("glfc_memory_size", 2000),
+                    )
+                elif CONFIG["algorithm"] == "refed":
+                    persistent_clients[cid] = ReFedClient(
+                        cid,
+                        data["X_train"],
+                        data["y_train"],
+                        memory_size=CONFIG.get("refed_memory_size", 2000),
+                        lambda_pim=CONFIG.get("refed_lambda_pim", 0.5),
+                        pim_iterations=CONFIG.get("refed_pim_iterations", 5),
                     )
                 else:
                     # Standard/CGoFed (Stateless between tasks usually, but we keep for consistency)
@@ -634,6 +705,51 @@ def main():
             # wipes the classifier weights before Stage 2 training.
             if task_id > 0 and hasattr(server.global_model, 'weight_align'):
                 server.global_model.weight_align(len(new_classes))
+
+        elif CONFIG["algorithm"] == "glfc":
+            # GLFC: Standard round-based training with exemplar management
+            glfc_rounds = CONFIG.get("rounds_per_task", 5)
+            print(f"\n  === GLFC Training ({glfc_rounds} rounds) ===")
+            for r in range(glfc_rounds):
+                result = server.train_round(
+                    participating_clients=participating_clients,
+                    verbose=True,
+                )
+                if (r + 1) % CONFIG.get("eval_every", 1) == 0:
+                    eval_metrics = server.evaluate_global()
+                    print(f"    Round {r+1}/{glfc_rounds} -> "
+                          f"Acc: {eval_metrics['accuracy']*100:.2f}%")
+
+            # After all rounds: coordinate exemplar update for all participants
+            print("  Updating exemplar sets for all participants...")
+            server.coordinate_exemplar_update(participating_clients, verbose=True)
+
+        elif CONFIG["algorithm"] == "refed":
+            # Re-Fed: PIM-based caching + standard FedAvg training
+            refed_rounds = CONFIG.get("rounds_per_task", 5)
+
+            # Step 1: Coordinate PIM caching BEFORE training rounds
+            # Paper Algorithm 1, Steps 5-9: cache important previous samples
+            if task_id > 0:
+                print(f"\n  === Re-Fed: PIM Caching (Task {task_id}) ===")
+                server.coordinate_pim_caching(participating_clients, verbose=True)
+            else:
+                # First task: cache random subset for future replay
+                print(f"\n  === Re-Fed: Initial Caching (Task 0) ===")
+                server.coordinate_pim_caching(participating_clients, verbose=True)
+
+            # Step 2: Standard federated training on cached + new data
+            print(f"\n  === Re-Fed Training ({refed_rounds} rounds) ===")
+            for r in range(refed_rounds):
+                result = server.train_round(
+                    participating_clients=participating_clients,
+                    verbose=True,
+                )
+                if (r + 1) % CONFIG.get("eval_every", 1) == 0:
+                    eval_metrics = server.evaluate_global()
+                    print(f"    Round {r+1}/{refed_rounds} -> "
+                          f"Acc: {eval_metrics['accuracy']*100:.2f}%")
+
         else:
             train_federated_multigpu(server, task_config)
 
