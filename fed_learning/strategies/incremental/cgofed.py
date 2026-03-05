@@ -125,7 +125,7 @@ class CGoFedTrainer(BaseTrainer):
         # μ_t relaxation coefficient (paper Eq. 7-8)
         # μ_t = μ_init * α^(t - t_reset) where α = lambda_decay
         self.mu_coefficient: float = 1.0  # Starts at 1.0, decays each task
-        self.t_reset: int = -1  # Reset point when AF > θ (paper 1-based offset)
+        self.t_reset: int = 0  # Reset point when AF > θ; init=0 so task 1 decays as α^(1-0)=α^1
 
         # Accuracies for computing AF (Average Forgetting)
         self.best_acc_per_task: Dict[int, float] = {}
@@ -235,20 +235,33 @@ class CGoFedTrainer(BaseTrainer):
         """
         Get modules that are suitable for gradient projection.
 
-        IMPORTANT: We only apply projection to Linear layers because:
+        IMPORTANT: We exclude the output/classifier layer because:
+        - The output layer needs full freedom to learn new class logits
+        - Projecting its gradient blocks learning of new classes
+        - Paper Eq. 9 targets feature extraction layers, not the classifier
+
+        We also only apply projection to Linear layers because:
         - Linear: activation_dim = weight.in_features (dimensions match)
         - Conv: activation_dim = C_in * H * W, weight_dim = C_in * K_h * K_w (don't match after pooling)
 
         Returns:
             List of (module_name, module) tuples for Linear layers only
         """
+        # Find the last Linear layer (= output/classifier layer) to exclude it
+        last_linear_name = None
+        for name, module in model.named_modules():
+            if isinstance(module, nn.Linear):
+                last_linear_name = name
+
         target_modules = []
         for name, module in model.named_modules():
             # Include Conv1d, Conv2d, and Linear
             if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d)):
-                # Skip output layer (classifier) - usually not projected
-                # Also skip batch norm if any slipped through
-                if "output" in name.lower() or "bn" in name.lower():
+                # Skip batch norm if any slipped through
+                if "bn" in name.lower():
+                    continue
+                # Skip output/classifier layer (last Linear)
+                if name == last_linear_name:
                     continue
                 target_modules.append((name, module))
         return target_modules

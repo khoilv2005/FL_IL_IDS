@@ -46,10 +46,9 @@ class FedLwFTrainer(BaseTrainer):
     Args:
         lwf_alpha: Weight for distillation loss (α), default 1.0
         temperature: Temperature for soft targets (T), default 2.0
-        distill_on_new_only: If True, only distill on old class logits
-                            (restricts KD to old class indices for more targeted preservation).
-                            DEPRECATED name: use distill_old_classes_only instead.
-                            If False, distill on all class logits including new classes
+        distill_old_classes_only: If True, restrict KD to old class logits only
+                                  (more targeted: only preserves knowledge of past classes).
+                                  If False (default), distill on all class logits.
         temp_dir: Directory to store old model snapshots
     """
 
@@ -57,13 +56,13 @@ class FedLwFTrainer(BaseTrainer):
         self,
         lwf_alpha: float = 1.0,
         temperature: float = 2.0,
-        distill_on_new_only: bool = False,
+        distill_old_classes_only: bool = False,
         temp_dir: str = "./temp_fedlwf_storage",
         **kwargs,
     ):
         self.lwf_alpha = lwf_alpha
         self.temperature = temperature
-        self.distill_on_new_only = distill_on_new_only
+        self.distill_old_classes_only = distill_old_classes_only
         self.temp_dir = temp_dir
         os.makedirs(temp_dir, exist_ok=True)
 
@@ -254,9 +253,9 @@ class FedLwFTrainer(BaseTrainer):
             old_logits = old_model(inputs)
 
         # Compute distillation loss
-        # Option: chỉ distill trên old class outputs để bảo toàn kiến thức cũ tốt hơn
-        # Lưu ý: tên "distill_on_new_only" là sai - thực tế nó lọc theo OLD class indices
-        if self.distill_on_new_only:
+        # distill_old_classes_only=True: restrict KD to old class logits only
+        # distill_old_classes_only=False (default): distill on all class logits
+        if self.distill_old_classes_only:
             kd_loss = self.compute_distillation_loss(
                 old_logits,
                 output,

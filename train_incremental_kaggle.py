@@ -1,7 +1,7 @@
 """
 Federated Class Incremental Learning - Unified Training Script
 ==============================================================
-Unified entry point for CGoFed, EWC, FedLwF, and other strategies.
+Unified entry point for CGoFed, EWC, FedLwF, FedCBDR, and DER strategies.
 
 Usage:
     Switch algorithm in CONFIG["algorithm"]:
@@ -9,6 +9,7 @@ Usage:
     - "fedavg_ewc" / "fedprox_ewc": Elastic Weight Consolidation
     - "fedavg_lwf" / "fedprox_lwf": Learning without Forgetting
     - "fedcbdr": Class-Balancing Data Replay
+    - "der": Dynamically Expandable Representation
 
     Upload fed_learning folder to Kaggle dataset, then run this script.
 """
@@ -105,6 +106,8 @@ try:
     # Import specific implementation classes for client creation and checks
     from fed_learning.clients.fedcbdr_client import FedCBDRClient
     from fed_learning.clients.fedlwf_client import FedLwFClient
+    from fed_learning.clients.der_client import DERClient
+    from fed_learning.clients.nice_client import NICEClient
 
     # Updated imports for Servers
     from fed_learning.servers import (
@@ -112,10 +115,14 @@ try:
         FedCBDRServer,
         FedLwFServer,
         CGoFedServer,
+        DERServer,
+        FedWeITServer,
+        NICEServer,
     )
 
     from fed_learning.strategies.incremental.fedlwf import FedLwFTrainer
     from fed_learning.strategies.incremental.ewc import EWCMixin
+    from fed_learning.clients.fedweit_client import FedWeITClient
 
     print("✓ Imports ready!")
 except ImportError as e:
@@ -131,8 +138,8 @@ CONFIG = {
     # Reproducibility
     "random_seed": 42,  # Set to None for random behavior
     # Algorithm Selection
-    # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf", "fedcbdr"
-    "algorithm": "cgofed",
+    # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf", "fedcbdr", "der", "fedweit"
+    "algorithm": "der",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 5 Tasks Distribution
@@ -158,7 +165,7 @@ CONFIG = {
     # Decay chậm hơn để projection duy trì hiệu quả qua nhiều round
     "lambda_decay": 0.8,  # Tăng từ 0.6: 0.8^1=0.8, 0.8^2=0.64, 0.8^3=0.51 (giảm từ từ)
     # LOG: AF luôn > 20% → reset liên tục. Tăng ngưỡng để decay thực sự hoạt động
-    "theta_threshold": 0.35,  # Tăng từ 0.2: chỉ reset khi forgetting thực sự nghiêm trọng
+    "theta_threshold": 0.20,  # Reset μ khi AF > 20% (paper Eq. 8)
     # LOG: cross-task weights luôn ~50/50 → history pha loãng quá nhiều
     "cross_task_weight": 0.08,  # Giảm từ 0.15: blend nhẹ hơn với historical models
     # Eq.14 local regularization coefficient (separate from Eq.11 blend weight)
@@ -177,7 +184,7 @@ CONFIG = {
     "lwf_alpha": 1.0,
     "temperature": 2.0,
     "lwf_alpha_scale": 1.0,  # Decay/Growth factor for alpha
-    "distill_on_new_only": False,
+    "distill_old_classes_only": False,
     # FedCBDR
     "tau_old": 0.9,
     "tau_new": 1.1,
@@ -186,6 +193,23 @@ CONFIG = {
     "buffer_size": 500,
     "replay_ratio": 0.5,
     "seed": 42,
+    # DER (Dynamically Expandable Representation)
+    "lambda_aux": 1.0,  # Auxiliary classifier loss weight (Eq.11)
+    "lambda_sparsity": 0.1,  # Reduced from paper's 0.5: paper uses ResNet (millions of params);
+                              # our CNN-GRU has fewer params so normalized sparsity is larger.
+    "s_max": 15.0,  # Max annealing parameter for HAT masks (Eq.8)
+    "der_temperature": 2.0,  # Temperature scaling for Stage 2 classifier
+    "der_stage1_rounds": 5,  # Federated rounds for Stage 1 (representation)
+    "der_stage2_rounds": 3,  # Federated rounds for Stage 2 (classifier)
+    # FedWeIT (Federated Weighted Inter-client Transfer)
+    "lambda_l1": 1e-3,  # L1 sparsity penalty on mask + aw (Eq.2 term 2)
+    "lambda_l2": 100.0,  # Approximation loss weight (Eq.2 term 3, prevent forgetting)
+    "l1_threshold": 1e-3,  # Hard thresholding cho adaptive weights sau training
+    # NICE (Neurogenesis Inspired Contextual Encoding)
+    "tau": 0.95,  # Neuron selection threshold (Eq.1-2)
+    "nice_max_phases": 5,  # Number of phases per episode
+    "nice_phase_epochs": 5,  # Epochs per phase
+    "memo_per_class": 50,  # Activation memory samples per class for context detector
 }
 
 
@@ -270,11 +294,17 @@ def get_algorithm_specific_components(config, clients, test_data, task_config):
 
     if algo == "fedcbdr":
         return FedCBDRServer(clients, test_data, task_config)
+    elif algo == "der":
+        return DERServer(clients, test_data, task_config)
     elif algo in ["fedavg_lwf", "fedprox_lwf"]:
         return FedLwFServer(clients, test_data, task_config)
     elif algo == "cgofed":
         # CGoFed uses specialized server with proper Eq.14 and Eq.12 implementation
         return CGoFedServer(clients, test_data, task_config)
+    elif algo == "fedweit":
+        return FedWeITServer(clients, test_data, task_config)
+    elif algo == "nice":
+        return NICEServer(clients, test_data, task_config)
     else:
         return IncrementalServer(clients, test_data, task_config)
 
@@ -331,6 +361,20 @@ def post_task_processing(
         print(f"\n🔄 Updating Replay Buffers (GDR)...")
         server.coordinate_gdr(participating_clients, verbose=True)
 
+    # 5. DER: Exemplar Buffer Update (herding selection)
+    if algo == "der" and hasattr(server, "coordinate_exemplar_update"):
+        print(f"\n📸 DER: Updating exemplar buffers...")
+        server.coordinate_exemplar_update(participating_clients, verbose=True)
+
+    # 6. FedWeIT: Update Knowledge Base with adaptive params
+    if algo == "fedweit" and hasattr(server, "finalize_task"):
+        print(f"\n  FedWeIT: Updating Knowledge Base...")
+        server.finalize_task()
+
+    # 7. NICE: End-task processing (age transition, freeze masks, context detector)
+    if algo == "nice" and hasattr(server, "end_task"):
+        server.end_task()
+
 
 # =============================================================================
 # MAIN
@@ -377,6 +421,9 @@ def main():
 
     # Persistent Clients (needed for FedCBDR/LwF state)
     persistent_clients: Dict[int, object] = {}
+
+    # FedWeIT: Persistent Knowledge Base across tasks
+    fedweit_kb: Dict = {}
 
     # --- Task Loop ---
     for task_id in range(data_loader.get_num_tasks()):
@@ -426,6 +473,26 @@ def main():
                         data["y_train"],
                         buffer_size=CONFIG.get("buffer_size", 500),
                         leverage_rank=CONFIG.get("leverage_rank", 50),
+                    )
+                elif CONFIG["algorithm"] == "der":
+                    persistent_clients[cid] = DERClient(
+                        cid,
+                        data["X_train"],
+                        data["y_train"],
+                        buffer_size=CONFIG.get("buffer_size", 500),
+                    )
+                elif CONFIG["algorithm"] == "nice":
+                    persistent_clients[cid] = NICEClient(
+                        cid,
+                        data["X_train"],
+                        data["y_train"],
+                        max_phases=CONFIG.get("nice_max_phases", 5),
+                        phase_epochs=CONFIG.get("nice_phase_epochs", 5),
+                        tau=CONFIG.get("tau", 0.95),
+                    )
+                elif CONFIG["algorithm"] == "fedweit":
+                    persistent_clients[cid] = FedWeITClient(
+                        cid, data["X_train"], data["y_train"]
                     )
                 elif "lwf" in CONFIG["algorithm"]:
                     persistent_clients[cid] = FedLwFClient(
@@ -477,6 +544,10 @@ def main():
             CONFIG, participating_clients, test_data, task_config
         )
 
+        # FedWeIT: Restore persistent knowledge base
+        if CONFIG["algorithm"] == "fedweit" and fedweit_kb:
+            server.knowledge_base = fedweit_kb
+
         if global_model is not None:
             server.set_global_params(global_model)
 
@@ -494,12 +565,86 @@ def main():
 
         # 5. Train
         print(f"\n🎯 Training on {len(new_classes)} new classes...")
-        train_federated_multigpu(server, task_config)
+        if CONFIG["algorithm"] == "nice":
+            # NICE: Simple federated training (phase-based inside client)
+            nice_rounds = CONFIG.get("rounds_per_task", 5)
+            # Official: last episode uses tau=100% (keep all neurons)
+            is_last_task = (task_id == data_loader.get_num_tasks() - 1)
+            task_config["is_last_task"] = is_last_task
+            print(f"\n  === NICE Training ({nice_rounds} rounds) ==="
+                  f"{' [LAST EPISODE: tau=100%]' if is_last_task else ''}")
+            for r in range(nice_rounds):
+                result = server.train_round(
+                    participating_clients=participating_clients,
+                    verbose=True,
+                )
+                if (r + 1) % CONFIG.get("eval_every", 1) == 0:
+                    eval_metrics = server.evaluate_global()
+                    print(f"    Round {r+1}/{nice_rounds} -> "
+                          f"Acc: {eval_metrics['accuracy']*100:.2f}%")
+
+        elif CONFIG["algorithm"] == "der":
+            # DER: Two-stage federated training
+            # Stage 1: Representation learning (new extractor + masks + aux classifier)
+            stage1_rounds = CONFIG.get("der_stage1_rounds", CONFIG["rounds_per_task"])
+            stage2_rounds = CONFIG.get("der_stage2_rounds", 3)
+
+            if hasattr(trainer, "set_stage"):
+                trainer.set_stage(1)
+
+            print(f"\n  === DER Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
+            for r in range(stage1_rounds):
+                result = server.train_round(
+                    participating_clients=participating_clients,
+                    stage=1,
+                    verbose=True,
+                )
+                # Evaluate periodically
+                if (r + 1) % CONFIG.get("eval_every", 1) == 0:
+                    eval_metrics = server.evaluate_global()
+                    print(f"    Round {r+1}/{stage1_rounds} → "
+                          f"Acc: {eval_metrics['accuracy']*100:.2f}%")
+
+            # Stage 2: Classifier learning (freeze extractors, balanced data)
+            if hasattr(trainer, "set_stage"):
+                trainer.set_stage(2)
+
+            # Paper Section 3.2: "Re-initialize classifier H_t with random weights"
+            # Must happen ONCE before Stage 2, NOT every round (each round should
+            # continue training the same classifier, not restart from scratch).
+            if hasattr(server.global_model, 'reset_classifier'):
+                server.global_model.reset_classifier()
+                print("  → Classifier H_t re-initialized (paper Section 3.2)")
+
+            print(f"\n  === DER Stage 2: Classifier Learning ({stage2_rounds} rounds) ===")
+            for r in range(stage2_rounds):
+                result = server.train_round(
+                    participating_clients=participating_clients,
+                    stage=2,
+                    verbose=True,
+                )
+                if (r + 1) % CONFIG.get("eval_every", 1) == 0:
+                    eval_metrics = server.evaluate_global()
+                    print(f"    Round {r+1}/{stage2_rounds} → "
+                          f"Acc: {eval_metrics['accuracy']*100:.2f}%")
+
+            # Weight Alignment AFTER Stage 2 (PyCIL/original repo convention):
+            # Scale new-class weights to match old-class norms, prevents bias.
+            # Must be AFTER Stage 2 (not before), because reset_classifier()
+            # wipes the classifier weights before Stage 2 training.
+            if task_id > 0 and hasattr(server.global_model, 'weight_align'):
+                server.global_model.weight_align(len(new_classes))
+        else:
+            train_federated_multigpu(server, task_config)
 
         # 6. Post-Task Processing (Logic Hook)
         post_task_processing(
             trainer, server, client_data_map, CONFIG, participating_clients
         )
+
+        # 6b. FedWeIT: Persist KB across tasks
+        if CONFIG["algorithm"] == "fedweit" and hasattr(server, "knowledge_base"):
+            fedweit_kb = server.knowledge_base
 
         # 7. Update Global Model
         global_model = server.get_global_params()
@@ -538,10 +683,17 @@ def main():
 
             # DEBUG #2: Output layer weights
             with torch.no_grad():
-                fc2_weight = server.global_model.fc2.weight
-                print(f"  DEBUG[2]: Output layer (fc2) weight norms per class:")
-                for c in sorted(set(y_test_cm.numpy())):
-                    print(f"    Class {c}: {fc2_weight[c].norm().item():.4f}")
+                if hasattr(server.global_model, 'fc2'):
+                    fc2_weight = server.global_model.fc2.weight
+                elif hasattr(server.global_model, 'classifier'):
+                    fc2_weight = server.global_model.classifier.weight
+                else:
+                    fc2_weight = None
+                if fc2_weight is not None:
+                    print(f"  DEBUG[2]: Output layer weight norms per class:")
+                    for c in sorted(set(y_test_cm.numpy())):
+                        if c < fc2_weight.shape[0]:
+                            print(f"    Class {c}: {fc2_weight[c].norm().item():.4f}")
 
             # DEBUG #7: Class activation (mean probability per class)
             with torch.no_grad():

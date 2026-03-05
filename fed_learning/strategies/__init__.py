@@ -33,6 +33,10 @@ from .incremental import (
     CGoFedAggregator,
     FedCBDRTrainer,
     FedCBDRAggregator,
+    DERTrainer,
+    DERAggregator,
+    NICETrainer,
+    NICEAggregator,
 )
 from .incremental.ewc import (
     EWCMixin,
@@ -90,6 +94,16 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
         "trainer": FedLwFWithProximalTrainer,
         "aggregator": FedLwFAggregator,  # Uses same aggregator as FedAvg/LwF
     },
+    # DER (Dynamically Expandable Representation)
+    "der": {
+        "trainer": DERTrainer,
+        "aggregator": DERAggregator,
+    },
+    # NICE (Neurogenesis Inspired Contextual Encoding) - Replay-free
+    "nice": {
+        "trainer": NICETrainer,
+        "aggregator": NICEAggregator,
+    },
 }
 
 
@@ -108,6 +122,8 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             - "fedprox_ewc": FedProx + EWC
             - "fedavg_lwf": FedAvg + LwF
             - "fedprox_lwf": FedProx + LwF
+            - "der": DER - Dynamically Expandable Representation
+            - "nice": NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)
         **config: Algorithm-specific configuration
 
     Returns:
@@ -152,7 +168,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
         trainer = strategy["trainer"](
             lwf_alpha=config.get("lwf_alpha", 1.0),
             temperature=config.get("temperature", 2.0),
-            distill_on_new_only=config.get("distill_on_new_only", False),
+            distill_old_classes_only=config.get("distill_old_classes_only", False),
             mu=config.get("mu_fedprox", config.get("mu", 0.01)),  # For FedProx base
         )
     elif algo_lower == "fedcbdr":
@@ -161,6 +177,21 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             tau_new=config.get("tau_new", 1.1),
             omega_old=config.get("omega_old", 1.1),
             omega_new=config.get("omega_new", 0.9),
+        )
+    elif algo_lower == "der":
+        trainer = strategy["trainer"](
+            lambda_aux=config.get("lambda_aux", 1.0),
+            lambda_sparsity=config.get("lambda_sparsity", 0.5),
+            s_max=config.get("s_max", 15.0),
+            temperature=config.get("der_temperature", 2.0),
+            buffer_size=config.get("buffer_size", 500),
+        )
+    elif algo_lower == "nice":
+        trainer = strategy["trainer"](
+            tau=config.get("tau", 0.95),
+            max_phases=config.get("nice_max_phases", 5),
+            phase_epochs=config.get("nice_phase_epochs", 5),
+            memo_per_class=config.get("memo_per_class", 50),
         )
     else:
         trainer = strategy["trainer"]()
@@ -212,6 +243,8 @@ def list_strategies() -> Dict[str, str]:
         "fedprox_ewc": "FedProx + EWC - Elastic Weight Consolidation on FedProx",
         "fedavg_lwf": "FedAvg + LwF - Learning without Forgetting on FedAvg",
         "fedprox_lwf": "FedProx + LwF - Learning without Forgetting on FedProx",
+        "der": "DER - Dynamically Expandable Representation for FCIL",
+        "nice": "NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)",
     }
 
 

@@ -58,7 +58,7 @@ class FedLwFServer:
         self.trainer = FedLwFTrainer(
             lwf_alpha=config.get("lwf_alpha", 1.0),
             temperature=config.get("temperature", 2.0),
-            distill_on_new_only=config.get("distill_on_new_only", False),
+            distill_old_classes_only=config.get("distill_old_classes_only", False),
             temp_dir=config.get("temp_dir", "./temp_fedlwf_storage"),
         )
         self.aggregator = FedLwFAggregator()
@@ -116,9 +116,6 @@ class FedLwFServer:
             self.seen_classes = list(seen_classes)
         else:
             self.seen_classes.extend(task_classes)
-
-        # Update trainer
-        self.trainer.set_task(task_id, task_classes)
 
         print(f"\n📌 Task {task_id}: classes {task_classes}")
         print(f"   Total seen classes: {len(self.seen_classes)}")

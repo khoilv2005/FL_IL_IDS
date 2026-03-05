@@ -125,9 +125,6 @@ class FedCBDRServer:
         else:
             self.seen_classes.extend(task_classes)
 
-        # Update trainer
-        self.trainer.set_task(task_id, task_classes)
-
         print(f"\n📌 Task {task_id}: classes {task_classes}")
         print(f"   Total seen classes: {len(self.seen_classes)}")
 

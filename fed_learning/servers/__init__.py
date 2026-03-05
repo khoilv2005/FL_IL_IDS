@@ -5,6 +5,8 @@ from .incremental_server import IncrementalServer
 from .cgofed_server import CGoFedServer
 from .fedcbdr_server import FedCBDRServer
 from .fedlwf_server import FedLwFServer
+from .der_server import DERServer
+from .nice_server import NICEServer
 
 __all__ = [
     "FederatedServer",
@@ -12,4 +14,6 @@ __all__ = [
     "IncrementalServer",
     "FedCBDRServer",
     "FedLwFServer",
+    "DERServer",
+    "NICEServer",
 ]
