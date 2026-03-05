@@ -381,7 +381,10 @@ class GLFCServer:
 
         # Aggregate (FedAvg)
         new_params = self.aggregator.aggregate(results, global_params)
-        self.set_global_params(new_params)
+        if new_params is None:
+            print("    ⚠️ Aggregation returned None (all clients may have failed). Keeping current params.")
+        else:
+            self.set_global_params(new_params)
 
         # Process prototype gradients at proxy server
         if pool_grad:

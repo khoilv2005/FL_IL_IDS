@@ -381,7 +381,9 @@ class GLFCTrainer(BaseTrainer):
         Returns:
             Loss tensor
         """
-        num_class = self.numclass if self.numclass > 0 else output.size(1)
+        # Always use output dimension for one-hot: model outputs all 34 classes,
+        # even if only a subset has been seen so far
+        num_class = output.size(1)
         device = output.device
 
         # One-hot target

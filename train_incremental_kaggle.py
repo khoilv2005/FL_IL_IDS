@@ -115,14 +115,13 @@ try:
     # Re-Fed Client and Server
     from fed_learning.clients.refed_client import ReFedClient
 
-    # Updated imports for Servers
+    # Servers
     from fed_learning.servers import (
         IncrementalServer,
         FedCBDRServer,
         FedLwFServer,
         CGoFedServer,
         DERServer,
-        FedWeITServer,
         NICEServer,
         GLFCServer,
         ReFedServer,
@@ -131,11 +130,19 @@ try:
     from fed_learning.strategies.incremental.fedlwf import FedLwFTrainer
     from fed_learning.strategies.incremental.ewc import EWCMixin
     from fed_learning.strategies.incremental.glfc import GLFCTrainer
-    from fed_learning.clients.fedweit_client import FedWeITClient
 
     print("✓ Imports ready!")
 except ImportError as e:
     print(f"❌ Import failed (some optional modules might be missing): {e}")
+
+# Optional: FedWeIT (may not be implemented yet)
+FedWeITServer = None
+FedWeITClient = None
+try:
+    from fed_learning.servers import FedWeITServer
+    from fed_learning.clients.fedweit_client import FedWeITClient
+except ImportError:
+    print("⚠️ FedWeIT modules not found. FedWeIT algorithm disabled.")
 
 
 # =============================================================================
@@ -335,6 +342,8 @@ def get_algorithm_specific_components(config, clients, test_data, task_config):
         # CGoFed uses specialized server with proper Eq.14 and Eq.12 implementation
         return CGoFedServer(clients, test_data, task_config)
     elif algo == "fedweit":
+        if FedWeITServer is None:
+            raise ImportError("FedWeIT modules not available. Cannot use algorithm='fedweit'.")
         return FedWeITServer(clients, test_data, task_config)
     elif algo == "nice":
         return NICEServer(clients, test_data, task_config)
@@ -546,6 +555,8 @@ def main():
                         tau=CONFIG.get("tau", 0.95),
                     )
                 elif CONFIG["algorithm"] == "fedweit":
+                    if FedWeITClient is None:
+                        raise ImportError("FedWeIT modules not available.")
                     persistent_clients[cid] = FedWeITClient(
                         cid, data["X_train"], data["y_train"]
                     )
