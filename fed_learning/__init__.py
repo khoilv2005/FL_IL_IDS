@@ -3,14 +3,23 @@ Federated Learning with Multi-GPU Support
 ==========================================
 Modular package for federated learning training.
 
-Structure:
+Package Structure:
     core/           - Base abstractions (BaseTrainer, BaseAggregator)
-    strategies/     - Learning algorithms (FedAvg, FedProx, etc.)
-    clients/        - Federated client
-    servers/        - Federated server
-    models/         - Model definitions
+    strategies/     - Learning algorithms (FedAvg, FedProx, CGoFed, DER, etc.)
+        federated/      - Standard FL strategies
+        incremental/    - Class-incremental learning strategies
+    clients/        - Federated client implementations
+    servers/        - Federated server implementations
+    models/         - Neural network model definitions
     data/           - Data loading utilities
-    training/       - Training utilities
+    training/       - GPU workers and training orchestration
+    factories/      - Client and server creation factories
+    visualization/  - Plotting and metrics (IEEE style)
+    utils/          - Common utilities (seed, cleanup)
+
+Note: To avoid circular imports, some modules must be imported directly:
+    from fed_learning.training.task_loop import run_incremental_training
+    from fed_learning.factories import create_clients, create_server
 """
 
 from .models.cnn_gru import CNN_GRU_Model
@@ -21,6 +30,7 @@ from .training.runner import train_federated_multigpu
 from .training.worker import train_clients_on_gpu
 from .strategies import get_strategy, get_trainer, get_aggregator, list_strategies
 from .core import BaseTrainer, BaseAggregator
+from .utils import set_seed, cleanup_temp_folders
 
 __all__ = [
     # Models
@@ -41,4 +51,7 @@ __all__ = [
     # Core
     "BaseTrainer",
     "BaseAggregator",
+    # Utils
+    "set_seed",
+    "cleanup_temp_folders",
 ]

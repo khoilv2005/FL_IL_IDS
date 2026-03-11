@@ -3,15 +3,103 @@ DER Worker - Multi-GPU training worker for DER clients.
 
 Handles parallel training of DER clients on GPU with two-stage support.
 Uses DERModel instead of CNN_GRU_Model.
+
+Inherits from BaseGPUWorker, overriding:
+- create_model(): uses DERModel
+- prepare_model(): reconstructs task structure
+- get_train_kwargs(): passes stage and replay_ratio
+- prepare_client(): sets up annealing schedule
 """
 
-import time
 from collections import OrderedDict
 from typing import Dict, List
 
 import torch
 
 from ..models.der_model import DERModel
+from .base_worker import BaseGPUWorker
+
+
+class DERWorker(BaseGPUWorker):
+    """Worker for DER algorithm with two-stage training and DERModel."""
+
+    def __init__(
+        self,
+        gpu_id: int,
+        clients: list,
+        global_params: OrderedDict,
+        config: Dict,
+        results_dict: Dict,
+        trainer,
+        use_cpu: bool = False,
+        stage: int = 1,
+    ):
+        super().__init__(gpu_id, clients, global_params, config, results_dict, trainer, use_cpu)
+        self.stage = stage
+        self.replay_ratio = config.get("replay_ratio", 0.5)
+
+    def create_model(self):
+        """Create DERModel instead of CNN_GRU_Model."""
+        return DERModel(
+            self.config["input_shape"], self.config["num_classes"]
+        ).to(self.device)
+
+    def prepare_model(self, model):
+        """Reconstruct DERModel task structure to match global_params."""
+        _reconstruct_model_structure(model, self.global_params, self.config)
+        # Ensure all newly added modules are on the correct device
+        model.to(self.device)
+
+    def prepare_client(self, client, model, idx: int):
+        """Set up DER-specific annealing schedule per client."""
+        # Compute total batches PER EPOCH for annealing schedule (Eq.8)
+        if hasattr(self.trainer, 'total_batches'):
+            self.trainer.total_batches = max(1, client.num_samples // self.batch_size)
+        # Reset batch counter per client
+        if hasattr(self.trainer, 'current_batch'):
+            self.trainer.current_batch = 0
+
+    def get_train_kwargs(self, client, idx: int) -> Dict:
+        """Pass stage and replay_ratio to client.train()."""
+        return {
+            "global_params": self.global_params,
+            "stage": self.stage,
+            "replay_ratio": self.replay_ratio,
+        }
+
+    def run(self):
+        """Override run to customize logging message."""
+        import time
+        gpu_start = time.time()
+
+        model = self.create_model()
+        self.prepare_model(model)
+
+        for idx, client in enumerate(self.clients):
+            init_params = self.get_init_params(client)
+            self.load_params(model, init_params)
+
+            client.setup_for_gpu(model, self.device)
+            self.prepare_client(client, model, idx)
+
+            train_kwargs = self.get_train_kwargs(client, idx)
+            result = client.train(
+                trainer=self.trainer,
+                epochs=self.epochs,
+                batch_size=self.batch_size,
+                lr=self.lr,
+                **train_kwargs,
+            )
+
+            self.results_dict[client.client_id] = result
+
+        gpu_time = time.time() - gpu_start
+        print(f"      [{self.device_name}] Stage {self.stage}: "
+              f"{len(self.clients)} clients done in {gpu_time:.1f}s")
+
+        del model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 
 def train_der_clients_on_gpu(
@@ -27,9 +115,6 @@ def train_der_clients_on_gpu(
     """
     Train DER clients on a specific GPU.
 
-    This function runs in a separate thread for multi-GPU parallelism.
-    Same pattern as fedcbdr_worker but uses DERModel and passes stage.
-
     Args:
         gpu_id: GPU ID (0, 1, 2, ...)
         clients: List of DERClient instances
@@ -40,79 +125,11 @@ def train_der_clients_on_gpu(
         use_cpu: Whether to use CPU instead of GPU
         stage: Training stage (1=representation, 2=classifier)
     """
-    if use_cpu:
-        device = "cpu"
-        device_name = "CPU"
-    else:
-        device = f"cuda:{gpu_id}"
-        device_name = f"GPU {gpu_id}"
-
-    gpu_start = time.time()
-
-    # Create DERModel for this device (NOT CNN_GRU_Model)
-    model = DERModel(config["input_shape"], config["num_classes"]).to(device)
-
-    # DERModel needs task structure before loading state_dict.
-    # The global_params already contains the correct architecture
-    # (extractors.0.*, extractors.1.*, etc.) from server's global model.
-    # We need to add_task() the correct number of times to match the structure.
-    #
-    # Approach: infer num_tasks from global_params keys and reconstruct.
-    _reconstruct_model_structure(model, global_params, config)
-
-    # Belt-and-suspenders: ensure all newly added modules are on the correct device.
-    # DERModel uses _device_sentinel to auto-detect device in add_task(), but
-    # an explicit .to(device) here guarantees correctness regardless.
-    model.to(device)
-
-    # Training hyperparameters
-    epochs = config.get("local_epochs", 3)
-    batch_size = config.get("batch_size", 128)
-    lr = config.get("learning_rate", 0.001)
-    replay_ratio = config.get("replay_ratio", 0.5)
-
-    for idx, client in enumerate(clients):
-        # Load global params into model
-        model.load_state_dict(
-            {k: v.to(device) for k, v in global_params.items()},
-            strict=True,
-        )
-
-        # Setup client for this GPU (inherited from FederatedClient)
-        client.setup_for_gpu(model, device)
-
-        # Compute total batches PER EPOCH for annealing schedule (Eq.8).
-        # Paper: b is the batch index WITHIN one epoch (resets each epoch),
-        #        B is total batches IN ONE EPOCH.
-        # Must be per-client since each client has different data sizes.
-        if hasattr(trainer, 'total_batches'):
-            trainer.total_batches = max(1, client.num_samples // batch_size)
-
-        # Reset batch counter per client
-        if hasattr(trainer, 'current_batch'):
-            trainer.current_batch = 0
-
-        # Train
-        result = client.train(
-            trainer=trainer,
-            epochs=epochs,
-            batch_size=batch_size,
-            lr=lr,
-            global_params=global_params,
-            stage=stage,
-            replay_ratio=replay_ratio,
-        )
-
-        results_dict[client.client_id] = result
-
-    gpu_time = time.time() - gpu_start
-    print(f"      [{device_name}] Stage {stage}: "
-          f"{len(clients)} clients done in {gpu_time:.1f}s")
-
-    # Cleanup
-    del model
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    worker = DERWorker(
+        gpu_id, clients, global_params, config, results_dict,
+        trainer, use_cpu, stage,
+    )
+    worker.run()
 
 
 def _reconstruct_model_structure(

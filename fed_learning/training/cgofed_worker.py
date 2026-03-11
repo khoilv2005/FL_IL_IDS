@@ -1,17 +1,54 @@
 """
 CGoFed GPU Worker - Specialized worker for Class Incremental Learning.
 Trains CGoFed clients on specific GPU.
+
+Inherits from BaseGPUWorker, overriding:
+- get_init_params(): for Eq.12 personalized initialization
+- get_train_kwargs(): for per-client regularization info
 """
 
-import time
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-import torch
-
-from ..models.cnn_gru import CNN_GRU_Model
 from ..clients.cgofed_client import CGoFedClient
 from ..core import BaseTrainer
+from .base_worker import BaseGPUWorker
+
+
+class CGoFedWorker(BaseGPUWorker):
+    """Worker for CGoFed algorithm with per-client regularization."""
+
+    def __init__(
+        self,
+        gpu_id: int,
+        clients: List[CGoFedClient],
+        global_params: OrderedDict,
+        config: Dict,
+        results_dict: Dict,
+        trainer: BaseTrainer,
+        use_cpu: bool = False,
+        client_reg_info: Dict = None,
+        client_init_models: Dict = None,
+    ):
+        super().__init__(gpu_id, clients, global_params, config, results_dict, trainer, use_cpu)
+        self.client_reg_info = client_reg_info or {}
+        self.client_init_models = client_init_models or {}
+
+    def get_init_params(self, client) -> Optional[OrderedDict]:
+        """Eq.12: initialize from per-client personalized model when available."""
+        if client.client_id in self.client_init_models:
+            client_init = self.client_init_models[client.client_id]
+            if client_init is not None:
+                return client_init
+        return self.global_params
+
+    def get_train_kwargs(self, client, idx: int) -> Dict:
+        """Paper Eq.14: Pass per-client regularization info."""
+        init_params = self.get_init_params(client)
+        kwargs = {"global_params": init_params}
+        if self.client_reg_info and client.client_id in self.client_reg_info:
+            kwargs.update(self.client_reg_info[client.client_id])
+        return kwargs
 
 
 def train_cgofed_clients_on_gpu(
@@ -39,60 +76,11 @@ def train_cgofed_clients_on_gpu(
         results_dict: Shared dict to store results
         trainer: CGoFedTrainer instance
         use_cpu: If True, use CPU instead of GPU
+        client_reg_info: Per-client regularization info (Eq.14)
+        client_init_models: Per-client personalized init models (Eq.12)
     """
-    if use_cpu:
-        device = "cpu"
-        device_name = "CPU"
-    else:
-        device = f"cuda:{gpu_id}"
-        device_name = f"GPU {gpu_id}"
-
-    gpu_start = time.time()
-
-    # Create model for this device
-    model = CNN_GRU_Model(config["input_shape"], config["num_classes"]).to(device)
-
-    print(f"      [{device_name}] Starting {len(clients)} CGoFed clients...")
-
-    for idx, client in enumerate(clients):
-        # Eq.12: initialize from per-client personalized model when available
-        init_params = global_params
-        if client_init_models and client.client_id in client_init_models:
-            client_init = client_init_models[client.client_id]
-            if client_init is not None:
-                init_params = client_init
-
-        model.load_state_dict({k: v.to(device) for k, v in init_params.items()})
-
-        # Setup client for this GPU
-        client.setup_for_gpu(model, device)
-
-        # Train using CGoFed strategy (includes representation computation)
-        # Paper Eq.14: Pass per-client regularization info
-        train_kwargs = {"global_params": init_params}
-        if client_reg_info and client.client_id in client_reg_info:
-            train_kwargs.update(client_reg_info[client.client_id])
-
-        result = client.train(
-            trainer=trainer,
-            epochs=config["local_epochs"],
-            batch_size=config["batch_size"],
-            lr=config["learning_rate"],
-            **train_kwargs,
-        )
-
-        # Log progress
-        if (idx + 1) % 50 == 0 or idx == len(clients) - 1:
-            print(
-                f"      [{device_name}] Progress: {idx + 1}/{len(clients)} clients done"
-            )
-
-        results_dict[client.client_id] = result
-
-    gpu_time = time.time() - gpu_start
-    print(f"      [{device_name}] ✓ All {len(clients)} clients done in {gpu_time:.2f}s")
-
-    # Clear GPU memory
-    del model
-    if not use_cpu:
-        torch.cuda.empty_cache()
+    worker = CGoFedWorker(
+        gpu_id, clients, global_params, config, results_dict,
+        trainer, use_cpu, client_reg_info, client_init_models,
+    )
+    worker.run()

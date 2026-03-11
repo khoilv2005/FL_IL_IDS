@@ -4,9 +4,13 @@ NICE Worker - Multi-GPU training worker for NICE clients.
 Handles parallel training of NICE clients on GPU.
 Follows der_worker.py pattern: create model, load params, transfer
 neuron ages/masks, setup client, train, collect results.
+
+Inherits from BaseGPUWorker, overriding:
+- create_model(): uses NICEModel
+- prepare_client(): transfers neuron ages, masks, freeze masks
+- get_train_kwargs(): passes is_last_task flag
 """
 
-import time
 from collections import OrderedDict
 from typing import Dict, List
 
@@ -14,6 +18,95 @@ import numpy as np
 import torch
 
 from ..models.nice_model import NICEModel
+from .base_worker import BaseGPUWorker
+
+
+class NICEWorker(BaseGPUWorker):
+    """Worker for NICE algorithm with NICEModel and neuron age/mask transfer."""
+
+    def __init__(
+        self,
+        gpu_id: int,
+        clients: list,
+        global_params: OrderedDict,
+        config: Dict,
+        results_dict: Dict,
+        trainer,
+        use_cpu: bool = False,
+    ):
+        super().__init__(gpu_id, clients, global_params, config, results_dict, trainer, use_cpu)
+        # Extract neuron ages and masks from config
+        self.neuron_ages = config.get("neuron_ages", None)
+        self.masks_state = config.get("masks", None)
+        self.freeze_masks_raw = config.get("freeze_masks", {})
+        self.is_last_task = config.get("is_last_task", False)
+
+    def create_model(self):
+        """Create NICEModel instead of CNN_GRU_Model."""
+        return NICEModel(
+            self.config["input_shape"], self.config["num_classes"]
+        ).to(self.device)
+
+    def prepare_client(self, client, model, idx: int):
+        """Transfer neuron ages, weight/bias masks, and freeze masks."""
+        # Transfer neuron ages from server
+        if self.neuron_ages is not None:
+            model.set_neuron_ages_state(self.neuron_ages)
+
+        # Transfer weight/bias masks from server
+        if self.masks_state is not None:
+            model.set_masks_state(self.masks_state)
+
+        # Transfer freeze masks
+        model.freeze_masks = {}
+        for k, v in self.freeze_masks_raw.items():
+            if isinstance(v, list):
+                model.freeze_masks[k] = np.array(v, dtype=bool)
+            elif isinstance(v, np.ndarray):
+                model.freeze_masks[k] = v.copy()
+
+        # Move masks to device
+        model._move_masks_to_device(self.device)
+
+    def get_train_kwargs(self, client, idx: int) -> Dict:
+        return {
+            "global_params": self.global_params,
+            "is_last_task": self.is_last_task,
+        }
+
+    def run(self):
+        """Override run for NICE-specific logging."""
+        import time
+        gpu_start = time.time()
+
+        model = self.create_model()
+        self.prepare_model(model)
+
+        for idx, client in enumerate(self.clients):
+            init_params = self.get_init_params(client)
+            self.load_params(model, init_params)
+
+            client.setup_for_gpu(model, self.device)
+            self.prepare_client(client, model, idx)
+
+            train_kwargs = self.get_train_kwargs(client, idx)
+            result = client.train(
+                trainer=self.trainer,
+                epochs=self.epochs,
+                batch_size=self.batch_size,
+                lr=self.lr,
+                **train_kwargs,
+            )
+
+            self.results_dict[client.client_id] = result
+
+        gpu_time = time.time() - gpu_start
+        print(f"      [{self.device_name}] NICE: "
+              f"{len(self.clients)} clients done in {gpu_time:.1f}s")
+
+        del model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 
 def train_nice_clients_on_gpu(
@@ -28,8 +121,6 @@ def train_nice_clients_on_gpu(
     """
     Train NICE clients on a specific GPU.
 
-    This function runs in a separate thread for multi-GPU parallelism.
-
     Args:
         gpu_id: GPU ID (0, 1, 2, ...)
         clients: List of NICEClient instances
@@ -39,74 +130,7 @@ def train_nice_clients_on_gpu(
         trainer: NICETrainer instance
         use_cpu: Whether to use CPU instead of GPU
     """
-    if use_cpu:
-        device = "cpu"
-        device_name = "CPU"
-    else:
-        device = f"cuda:{gpu_id}"
-        device_name = f"GPU {gpu_id}"
-
-    gpu_start = time.time()
-
-    # Create NICEModel for this device
-    model = NICEModel(config["input_shape"], config["num_classes"]).to(device)
-
-    # Training hyperparameters
-    epochs = config.get("local_epochs", 3)
-    batch_size = config.get("batch_size", 128)
-    lr = config.get("learning_rate", 0.001)
-
-    # Extract neuron ages and masks from config
-    neuron_ages = config.get("neuron_ages", None)
-    masks_state = config.get("masks", None)
-    freeze_masks_raw = config.get("freeze_masks", {})
-
-    for idx, client in enumerate(clients):
-        # Load global params into model
-        model.load_state_dict(
-            {k: v.to(device) for k, v in global_params.items()},
-            strict=True,
-        )
-
-        # Transfer neuron ages from server
-        if neuron_ages is not None:
-            model.set_neuron_ages_state(neuron_ages)
-
-        # Transfer weight/bias masks from server
-        if masks_state is not None:
-            model.set_masks_state(masks_state)
-
-        # Transfer freeze masks
-        model.freeze_masks = {}
-        for k, v in freeze_masks_raw.items():
-            if isinstance(v, list):
-                model.freeze_masks[k] = np.array(v, dtype=bool)
-            elif isinstance(v, np.ndarray):
-                model.freeze_masks[k] = v.copy()
-
-        # Move masks to device
-        model._move_masks_to_device(device)
-
-        # Setup client for this GPU
-        client.setup_for_gpu(model, device)
-
-        # Train
-        result = client.train(
-            trainer=trainer,
-            epochs=epochs,
-            batch_size=batch_size,
-            lr=lr,
-            global_params=global_params,
-            is_last_task=config.get("is_last_task", False),
-        )
-
-        results_dict[client.client_id] = result
-
-    gpu_time = time.time() - gpu_start
-    print(f"      [{device_name}] NICE: "
-          f"{len(clients)} clients done in {gpu_time:.1f}s")
-
-    # Cleanup
-    del model
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    worker = NICEWorker(
+        gpu_id, clients, global_params, config, results_dict, trainer, use_cpu,
+    )
+    worker.run()

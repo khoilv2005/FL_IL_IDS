@@ -1,19 +1,55 @@
-# Data files - QUAN TRỌNG
+# ===========================================
+# Data files
+# ===========================================
 /prepare_data/data/
 *.npz
 *.pth
 *.pt
 .claude/
-# Results
+# ===========================================
+# Results & Checkpoints
+# ===========================================
 /results/
+/results_incremental*/
 /checkpoints/
 
+# ===========================================
+# Temporary training storage
+# ===========================================
+temp_svd_storage/
+temp_ewc_storage/
+temp_fedlwf_storage/
+temp_test_data/
+
+# ===========================================
 # Python
+# ===========================================
 /venv/
 __pycache__/
 *.pyc
 *.pyo
-prepare_data/data.rar
+*.egg-info/
+dist/
+build/
+
+# ===========================================
+# IDE & Tools
+# ===========================================
+.claude/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.vscode/settings.json
+
+# ===========================================
+# Archives & Documents
+# ===========================================
 *.rar
 *.zip
 *.pdf
+
+# ===========================================
+# OS
+# ===========================================
+.DS_Store
+Thumbs.db
