@@ -115,7 +115,7 @@ try:
     # Re-Fed Client and Server
     from fed_learning.clients.refed_client import ReFedClient
 
-    # Updated imports for Servers
+    # Servers
     from fed_learning.servers import (
         IncrementalServer,
         FedCBDRServer,
@@ -134,7 +134,6 @@ try:
     print("✓ Imports ready!")
 except ImportError as e:
     print(f"❌ Import failed (some optional modules might be missing): {e}")
-
 
 
 # =============================================================================
@@ -329,6 +328,8 @@ def get_algorithm_specific_components(config, clients, test_data, task_config):
     elif algo == "cgofed":
         # CGoFed uses specialized server with proper Eq.14 and Eq.12 implementation
         return CGoFedServer(clients, test_data, task_config)
+    elif algo == "fedweit":
+        return FedWeITServer(clients, test_data, task_config)
     elif algo == "nice":
         return NICEServer(clients, test_data, task_config)
     elif algo == "glfc":
@@ -529,6 +530,10 @@ def main():
                         max_phases=CONFIG.get("nice_max_phases", 5),
                         phase_epochs=CONFIG.get("nice_phase_epochs", 5),
                         tau=CONFIG.get("tau", 0.95),
+                    )
+                elif CONFIG["algorithm"] == "fedweit":
+                    persistent_clients[cid] = FedWeITClient(
+                        cid, data["X_train"], data["y_train"]
                     )
                 elif "lwf" in CONFIG["algorithm"]:
                     persistent_clients[cid] = FedLwFClient(
