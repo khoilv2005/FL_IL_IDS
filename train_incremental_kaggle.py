@@ -122,7 +122,6 @@ try:
         FedLwFServer,
         CGoFedServer,
         DERServer,
-        FedWeITServer,
         NICEServer,
         GLFCServer,
         ReFedServer,
@@ -131,11 +130,11 @@ try:
     from fed_learning.strategies.incremental.fedlwf import FedLwFTrainer
     from fed_learning.strategies.incremental.ewc import EWCMixin
     from fed_learning.strategies.incremental.glfc import GLFCTrainer
-    from fed_learning.clients.fedweit_client import FedWeITClient
 
     print("✓ Imports ready!")
 except ImportError as e:
     print(f"❌ Import failed (some optional modules might be missing): {e}")
+
 
 
 # =============================================================================
@@ -147,8 +146,8 @@ CONFIG = {
     # Reproducibility
     "random_seed": 42,  # Set to None for random behavior
     # Algorithm Selection
-    # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf", "fedcbdr", "der", "fedweit", "glfc", "refed"
-    "algorithm": "der",
+    # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed"
+    "algorithm": "nice",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 5 Tasks Distribution
@@ -199,7 +198,7 @@ CONFIG = {
     "tau_new": 1.1,
     "omega_old": 1.1,
     "omega_new": 0.9,
-    "buffer_size": 500,
+    "buffer_size": 1000,
     "replay_ratio": 0.5,
     "seed": 42,
     # DER (Dynamically Expandable Representation)
@@ -210,10 +209,6 @@ CONFIG = {
     "der_temperature": 2.0,  # Temperature scaling for Stage 2 classifier
     "der_stage1_rounds": 5,  # Federated rounds for Stage 1 (representation)
     "der_stage2_rounds": 3,  # Federated rounds for Stage 2 (classifier)
-    # FedWeIT (Federated Weighted Inter-client Transfer)
-    "lambda_l1": 1e-3,  # L1 sparsity penalty on mask + aw (Eq.2 term 2)
-    "lambda_l2": 100.0,  # Approximation loss weight (Eq.2 term 3, prevent forgetting)
-    "l1_threshold": 1e-3,  # Hard thresholding cho adaptive weights sau training
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,  # Neuron selection threshold (Eq.1-2)
     "nice_max_phases": 5,  # Number of phases per episode
@@ -334,8 +329,6 @@ def get_algorithm_specific_components(config, clients, test_data, task_config):
     elif algo == "cgofed":
         # CGoFed uses specialized server with proper Eq.14 and Eq.12 implementation
         return CGoFedServer(clients, test_data, task_config)
-    elif algo == "fedweit":
-        return FedWeITServer(clients, test_data, task_config)
     elif algo == "nice":
         return NICEServer(clients, test_data, task_config)
     elif algo == "glfc":
@@ -403,12 +396,7 @@ def post_task_processing(
         print(f"\n📸 DER: Updating exemplar buffers...")
         server.coordinate_exemplar_update(participating_clients, verbose=True)
 
-    # 6. FedWeIT: Update Knowledge Base with adaptive params
-    if algo == "fedweit" and hasattr(server, "finalize_task"):
-        print(f"\n  FedWeIT: Updating Knowledge Base...")
-        server.finalize_task()
-
-    # 7. NICE: End-task processing (age transition, freeze masks, context detector)
+    # 6. NICE: End-task processing (age transition, freeze masks, context detector)
     if algo == "nice" and hasattr(server, "end_task"):
         server.end_task()
 
@@ -477,9 +465,6 @@ def main():
     # Persistent Clients (needed for FedCBDR/LwF state)
     persistent_clients: Dict[int, object] = {}
 
-    # FedWeIT: Persistent Knowledge Base across tasks
-    fedweit_kb: Dict = {}
-
     # --- Task Loop ---
     for task_id in range(data_loader.get_num_tasks()):
         print(
@@ -544,10 +529,6 @@ def main():
                         max_phases=CONFIG.get("nice_max_phases", 5),
                         phase_epochs=CONFIG.get("nice_phase_epochs", 5),
                         tau=CONFIG.get("tau", 0.95),
-                    )
-                elif CONFIG["algorithm"] == "fedweit":
-                    persistent_clients[cid] = FedWeITClient(
-                        cid, data["X_train"], data["y_train"]
                     )
                 elif "lwf" in CONFIG["algorithm"]:
                     persistent_clients[cid] = FedLwFClient(
@@ -615,10 +596,6 @@ def main():
             CONFIG, participating_clients, test_data, task_config
         )
 
-        # FedWeIT: Restore persistent knowledge base
-        if CONFIG["algorithm"] == "fedweit" and fedweit_kb:
-            server.knowledge_base = fedweit_kb
-
         if global_model is not None:
             server.set_global_params(global_model)
 
@@ -638,7 +615,7 @@ def main():
         print(f"\n🎯 Training on {len(new_classes)} new classes...")
         if CONFIG["algorithm"] == "nice":
             # NICE: Simple federated training (phase-based inside client)
-            nice_rounds = CONFIG.get("rounds_per_task", 5)
+            nice_rounds = 1  # NICE uses internal phases (max_phases x phase_epochs), only 1 federated round needed
             # Official: last episode uses tau=100% (keep all neurons)
             is_last_task = (task_id == data_loader.get_num_tasks() - 1)
             task_config["is_last_task"] = is_last_task
@@ -758,11 +735,7 @@ def main():
             trainer, server, client_data_map, CONFIG, participating_clients
         )
 
-        # 6b. FedWeIT: Persist KB across tasks
-        if CONFIG["algorithm"] == "fedweit" and hasattr(server, "knowledge_base"):
-            fedweit_kb = server.knowledge_base
-
-        # 7. Update Global Model
+        # 6b. Update Global Model
         global_model = server.get_global_params()
 
         # 8. Evaluate & Metrics

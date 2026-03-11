@@ -495,18 +495,70 @@ class NICEServer(IncrementalServer):
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:
-        """Evaluate using standard forward (context detection is optional).
+        """Evaluate with output masking for unseen classes.
 
-        For simplicity and compatibility with the evaluation framework,
-        we use standard forward pass. Context detection would be used
-        at actual inference time but is not needed for accuracy metrics
-        since we evaluate on known class sets.
+        NICE uses LetLearner during training which blocks gradient flow to
+        unseen output neurons, leaving them with random weights. During eval,
+        we must mask those logits to -inf so argmax only picks from seen classes.
         """
-        return super().evaluate_global(
-            batch_size=batch_size,
-            compute_auc=compute_auc,
-            seen_classes_only=seen_classes_only,
-        )
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+        self.global_model.eval()
+        criterion = nn.CrossEntropyLoss()
+
+        X_test = self.test_data["X_test"]
+        y_test = self.test_data["y_test"]
+
+        # Filter test data to seen classes
+        if seen_classes_only and self.seen_classes:
+            seen_set = set(self.seen_classes)
+            mask = torch.tensor([y.item() in seen_set for y in y_test])
+            X_test = X_test[mask]
+            y_test = y_test[mask]
+
+        n_test = len(y_test)
+        if n_test == 0:
+            return {"loss": 0.0, "accuracy": 0.0, "f1_macro": 0.0, "f1_weighted": 0.0}
+
+        # Build unseen class mask for output masking
+        seen_set = set(self.seen_classes) if self.seen_classes else set(range(self.global_model.num_classes))
+        unseen_mask = torch.ones(self.global_model.num_classes, dtype=torch.bool)
+        for c in seen_set:
+            unseen_mask[c] = False
+        unseen_mask = unseen_mask.to(self.primary_device)
+
+        all_preds = []
+        all_targets = []
+        total_loss = 0.0
+
+        with torch.no_grad():
+            for i in range(0, n_test, batch_size):
+                X_batch = X_test[i:i + batch_size].to(self.primary_device)
+                y_batch = y_test[i:i + batch_size].to(self.primary_device)
+
+                out = self.global_model(X_batch)
+                # Mask unseen class logits to -inf so they can't be argmax winners
+                out[:, unseen_mask] = float("-inf")
+
+                loss = criterion(out, y_batch)
+                total_loss += loss.item() * len(y_batch)
+
+                preds = out.argmax(dim=1)
+                all_preds.extend(preds.cpu().numpy())
+                all_targets.extend(y_batch.cpu().numpy())
+
+        y_true = np.array(all_targets)
+        y_pred = np.array(all_preds)
+
+        return {
+            "loss": total_loss / n_test,
+            "accuracy": accuracy_score(y_true, y_pred),
+            "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
+            "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
+            "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
+            "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
+            "auc_macro_ovr": None,
+        }
 
     def compute_average_forgetting(self) -> float:
         """Compute Average Forgetting."""
@@ -519,7 +571,7 @@ class NICEServer(IncrementalServer):
         return 0.0
 
     def evaluate_per_task(self, batch_size: int = 1024) -> Dict[int, float]:
-        """Evaluate accuracy per task."""
+        """Evaluate accuracy per task with output masking for unseen classes."""
         from sklearn.metrics import accuracy_score
 
         self.global_model.eval()
@@ -527,6 +579,13 @@ class NICEServer(IncrementalServer):
 
         X_test = self.test_data["X_test"]
         y_test = self.test_data["y_test"]
+
+        # Mask unseen class logits
+        seen_set = set(self.seen_classes) if self.seen_classes else set(range(self.global_model.num_classes))
+        unseen_mask = torch.ones(self.global_model.num_classes, dtype=torch.bool)
+        for c in seen_set:
+            unseen_mask[c] = False
+        unseen_mask = unseen_mask.to(self.primary_device)
 
         for task_id, task_classes in self.task_classes.items():
             if not task_classes:
@@ -551,6 +610,7 @@ class NICEServer(IncrementalServer):
                     y_batch = y_task[i:i + batch_size]
 
                     out = self.global_model(X_batch)
+                    out[:, unseen_mask] = float("-inf")
                     preds = out.argmax(dim=1)
                     all_preds.extend(preds.cpu().numpy())
                     all_targets.extend(y_batch.numpy())
