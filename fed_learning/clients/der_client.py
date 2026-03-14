@@ -27,7 +27,7 @@ except ImportError:
 
 from .client import FederatedClient
 from ..core import BaseTrainer
-from ..strategies.incremental.fedcbdr import ReplayBuffer
+from ..strategies.fed_incremental.fedcbdr import ReplayBuffer
 
 
 class DERClient(FederatedClient):

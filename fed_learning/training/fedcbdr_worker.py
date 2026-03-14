@@ -11,7 +11,7 @@ from collections import OrderedDict
 from typing import Dict, List
 
 from ..clients.fedcbdr_client import FedCBDRClient
-from ..strategies.incremental.fedcbdr import FedCBDRTrainer
+from ..strategies.fed_incremental.fedcbdr import FedCBDRTrainer
 from .base_worker import BaseGPUWorker
 
 

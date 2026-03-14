@@ -28,7 +28,7 @@ from .federated import (
 )
 
 # Import incremental learning strategies
-from .incremental import (
+from .fed_incremental import (
     CGoFedTrainer,
     CGoFedAggregator,
     FedCBDRTrainer,
@@ -42,12 +42,12 @@ from .incremental import (
     ReFedTrainer,
     ReFedAggregator,
 )
-from .incremental.ewc import (
+from .fed_incremental.ewc import (
     EWCMixin,
     FedAvgEWCTrainer,
     FedProxEWCTrainer,
 )
-from .incremental.fedlwf import (
+from .fed_incremental.fedlwf import (
     FedLwFTrainer,
     FedLwFAggregator,
     FedLwFWithProximalTrainer,

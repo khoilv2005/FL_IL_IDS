@@ -49,7 +49,7 @@ class GLFCServer:
 
     def __init__(self, clients, test_data: Dict, config: Dict):
         from ..models.cnn_gru import CNN_GRU_Model
-        from ..strategies.incremental.glfc import GLFCTrainer, GLFCAggregator
+        from ..strategies.fed_incremental.glfc import GLFCTrainer, GLFCAggregator
 
         self.clients = clients
         self.test_data = test_data

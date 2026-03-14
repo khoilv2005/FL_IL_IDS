@@ -53,7 +53,7 @@ class ReFedServer:
 
     def __init__(self, clients, test_data: Dict, config: Dict):
         from ..models.cnn_gru import CNN_GRU_Model
-        from ..strategies.incremental.refed import ReFedTrainer, ReFedAggregator
+        from ..strategies.fed_incremental.refed import ReFedTrainer, ReFedAggregator
 
         self.clients = clients
         self.test_data = test_data

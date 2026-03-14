@@ -5,7 +5,7 @@ Maps algorithm names to their corresponding client classes,
 handling both initial creation and persistent client management.
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 import numpy as np
 
@@ -23,30 +23,52 @@ from fed_learning.clients.fedlwf_client import FedLwFClient
 # Registry: algorithm name -> (ClientClass, extra_config_keys)
 # extra_config_keys maps config key -> client constructor kwarg
 _CLIENT_REGISTRY = {
-    "fedcbdr": (FedCBDRClient, {
-        "buffer_size": ("buffer_size", 500),
-        "leverage_rank": ("leverage_rank", 50),
-    }),
-    "der": (DERClient, {
-        "buffer_size": ("buffer_size", 500),
-    }),
-    "nice": (NICEClient, {
-        "max_phases": ("nice_max_phases", 5),
-        "phase_epochs": ("nice_phase_epochs", 5),
-        "tau": ("tau", 0.95),
-    }),
-    "glfc": (GLFCClient, {
-        "memory_size": ("glfc_memory_size", 2000),
-    }),
-    "refed": (ReFedClient, {
-        "memory_size": ("refed_memory_size", 2000),
-        "lambda_pim": ("refed_lambda_pim", 0.5),
-        "pim_iterations": ("refed_pim_iterations", 5),
-    }),
+    "fedcbdr": (
+        FedCBDRClient,
+        {
+            "buffer_size": ("buffer_size", 500),
+            "leverage_rank": ("leverage_rank", 50),
+        },
+    ),
+    "cbdr": (
+        FedCBDRClient,
+        {
+            "buffer_size": ("buffer_size", 500),
+            "leverage_rank": ("leverage_rank", 50),
+        },
+    ),
+    "der": (
+        DERClient,
+        {
+            "buffer_size": ("buffer_size", 500),
+        },
+    ),
+    "nice": (
+        NICEClient,
+        {
+            "max_phases": ("nice_max_phases", 5),
+            "phase_epochs": ("nice_phase_epochs", 5),
+            "tau": ("tau", 0.95),
+        },
+    ),
+    "glfc": (
+        GLFCClient,
+        {
+            "memory_size": ("glfc_memory_size", 2000),
+        },
+    ),
+    "refed": (
+        ReFedClient,
+        {
+            "memory_size": ("refed_memory_size", 2000),
+            "lambda_pim": ("refed_lambda_pim", 0.5),
+            "pim_iterations": ("refed_pim_iterations", 5),
+        },
+    ),
 }
 
 # These algorithms use FedLwFClient
-_LWF_ALGORITHMS = {"fedavg_lwf", "fedprox_lwf"}
+_LWF_ALGORITHMS = {"fedavg_lwf", "fedprox_lwf", "lwf"}
 
 
 def _resolve_client_class(algo: str):
@@ -65,7 +87,9 @@ def _resolve_client_class(algo: str):
     return (CGoFedClient, {})
 
 
-def _build_extra_kwargs(config: Dict[str, Any], spec: Dict[str, tuple]) -> Dict[str, Any]:
+def _build_extra_kwargs(
+    config: Dict[str, Any], spec: Dict[str, tuple]
+) -> Dict[str, Any]:
     """Extract constructor kwargs from config using the spec mapping."""
     kwargs = {}
     for kwarg_name, (config_key, default) in spec.items():
@@ -101,7 +125,7 @@ def create_clients(
     client_data: Dict[int, Dict],
     config: Dict[str, Any],
     task_id: int = 0,
-    new_classes: List[int] = None,
+    new_classes: Optional[List[int]] = None,
 ) -> list:
     """
     Factory to create clients based on algorithm.
@@ -181,9 +205,7 @@ def update_client_data(
         new_classes: List of new class indices for this task
     """
     if hasattr(client, "set_task_data"):
-        client.set_task_data(
-            data["X_train"], data["y_train"], task_id, new_classes
-        )
+        client.set_task_data(data["X_train"], data["y_train"], task_id, new_classes)
     else:
         # Stateless clients: replace data directly
         client.X_train = data["X_train"]

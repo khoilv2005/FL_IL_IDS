@@ -62,7 +62,7 @@ except ImportError:
 def _train_nice(server, participating_clients, config, data_loader, task_id):
     """NICE: Phase-based training with single federated round."""
     nice_rounds = 1  # NICE uses internal phases, only 1 federated round needed
-    is_last_task = (task_id == data_loader.get_num_tasks() - 1)
+    is_last_task = task_id == data_loader.get_num_tasks() - 1
 
     print(
         f"\n  === NICE Training ({nice_rounds} rounds) ==="
@@ -77,8 +77,8 @@ def _train_nice(server, participating_clients, config, data_loader, task_id):
         if (r + 1) % config.get("eval_every", 1) == 0:
             eval_metrics = server.evaluate_global()
             print(
-                f"    Round {r+1}/{nice_rounds} -> "
-                f"Acc: {eval_metrics['accuracy']*100:.2f}%"
+                f"    Round {r + 1}/{nice_rounds} -> "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
             )
 
 
@@ -101,8 +101,8 @@ def _train_der(server, participating_clients, config, trainer):
         if (r + 1) % config.get("eval_every", 1) == 0:
             eval_metrics = server.evaluate_global()
             print(
-                f"    Round {r+1}/{stage1_rounds} → "
-                f"Acc: {eval_metrics['accuracy']*100:.2f}%"
+                f"    Round {r + 1}/{stage1_rounds} → "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
             )
 
     # Stage 2: Classifier learning
@@ -124,8 +124,8 @@ def _train_der(server, participating_clients, config, trainer):
         if (r + 1) % config.get("eval_every", 1) == 0:
             eval_metrics = server.evaluate_global()
             print(
-                f"    Round {r+1}/{stage2_rounds} → "
-                f"Acc: {eval_metrics['accuracy']*100:.2f}%"
+                f"    Round {r + 1}/{stage2_rounds} → "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
             )
 
     return stage1_rounds  # Return for weight alignment check
@@ -144,8 +144,8 @@ def _train_glfc(server, participating_clients, config):
         if (r + 1) % config.get("eval_every", 1) == 0:
             eval_metrics = server.evaluate_global()
             print(
-                f"    Round {r+1}/{glfc_rounds} -> "
-                f"Acc: {eval_metrics['accuracy']*100:.2f}%"
+                f"    Round {r + 1}/{glfc_rounds} -> "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
             )
 
     # After all rounds: coordinate exemplar update
@@ -174,8 +174,8 @@ def _train_refed(server, participating_clients, config, task_id):
         if (r + 1) % config.get("eval_every", 1) == 0:
             eval_metrics = server.evaluate_global()
             print(
-                f"    Round {r+1}/{refed_rounds} -> "
-                f"Acc: {eval_metrics['accuracy']*100:.2f}%"
+                f"    Round {r + 1}/{refed_rounds} -> "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
             )
 
 
@@ -184,9 +184,7 @@ def _train_refed(server, participating_clients, config, task_id):
 # =============================================================================
 
 
-def _evaluate_and_visualize(
-    server, task_id, output_dir, config
-):
+def _evaluate_and_visualize(server, task_id, output_dir, config):
     """Run evaluation, generate confusion matrix, and debug diagnostics."""
     print(f"\n🎨 Visualization & Debugging:")
     try:
@@ -256,9 +254,7 @@ def _evaluate_and_visualize(
         print(f"  ⚠️ Visualization/Debug failed: {e}")
 
 
-def _compute_forgetting(
-    server, task_id, all_test_data, best_acc_per_task, trainer
-):
+def _compute_forgetting(server, task_id, all_test_data, best_acc_per_task, trainer):
     """
     Compute per-task accuracy and average forgetting (AF).
 
@@ -348,9 +344,7 @@ def _generate_fcil_report(all_history, config, output_dir):
             "final_aia": aia[-1] if aia else 0,
             "aia_per_task": aia,
             "forgetting_per_task": forgetting,
-            "avg_forgetting": sum(forgetting) / len(forgetting)
-            if forgetting
-            else 0,
+            "avg_forgetting": sum(forgetting) / len(forgetting) if forgetting else 0,
         }
         with open(os.path.join(fcil_output_dir, "fcil_metrics.json"), "w") as f:
             json.dump(fcil_metrics, f, indent=2)
@@ -385,6 +379,14 @@ def run_incremental_training(config: Dict[str, Any]):
             - "rounds_per_task", "local_epochs", "learning_rate", "batch_size"
             - Algorithm-specific parameters (see CONFIG in training script)
     """
+    mode = config.get("mode", "fed_il").lower()
+    if mode == "il":
+        from fed_learning.training.local_task_loop import run_local_incremental_training
+
+        return run_local_incremental_training(config)
+    if mode != "fed_il":
+        raise ValueError("Unsupported mode. Use 'fed_il' or 'il'.")
+
     # 1. Setup
     set_seed(config.get("random_seed", 42))
 
@@ -488,7 +490,7 @@ def run_incremental_training(config: Dict[str, Any]):
 
         # NICE: pass is_last_task flag
         if config["algorithm"].lower() == "nice":
-            is_last_task = (task_id == data_loader.get_num_tasks() - 1)
+            is_last_task = task_id == data_loader.get_num_tasks() - 1
             task_config["is_last_task"] = is_last_task
 
         server = create_server(config, participating_clients, test_data, task_config)

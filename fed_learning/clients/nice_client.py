@@ -29,7 +29,7 @@ except ImportError:
 from .client import FederatedClient
 from ..core import BaseTrainer
 from ..models.nice_model import NICEModel
-from ..strategies.incremental.nice import (
+from ..strategies.fed_incremental.nice import (
     select_learner_units,
     drop_young_to_learner,
     grow_all_to_young,

@@ -8,7 +8,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from fed_learning.strategies.incremental.cgofed import CGoFedTrainer, CGoFedAggregator
+from fed_learning.strategies.fed_incremental.cgofed import CGoFedTrainer, CGoFedAggregator
 from fed_learning.clients.cgofed_client import CGoFedClient
 from fed_learning.servers.cgofed_server import CGoFedServer
 from helpers import make_simple_model, make_client_results

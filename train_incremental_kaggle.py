@@ -4,15 +4,14 @@ Federated Class Incremental Learning - Training Entry Point
 CONFIG-only entry point. All training logic lives in fed_learning.training.task_loop.
 
 Usage:
-    Switch algorithm in CONFIG["algorithm"]:
-    - "cgofed": Constrained Gradient Optimization
-    - "fedavg_ewc" / "fedprox_ewc": Elastic Weight Consolidation
-    - "fedavg_lwf" / "fedprox_lwf": Learning without Forgetting
-    - "fedcbdr": Class-Balancing Data Replay
-    - "der": Dynamically Expandable Representation
-    - "nice": Neurogenesis Inspired Contextual Encoding
-    - "glfc": Global-Local Forgetting Compensation
-    - "refed": Retrieval-Enhanced Federated Incremental Learning
+    Chọn mode trong CONFIG["mode"]:
+    - "fed_il": federated incremental learning
+    - "il": local incremental learning
+
+    Sau đó chọn thuật toán qua CONFIG["algorithm"]:
+    - fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
+              "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed"
+    - il: "ewc", "lwf", "cbdr", "der", "nice", "glfc", "refed", "cgofed"
 
     Upload fed_learning folder to Kaggle dataset, then run this script.
 """
@@ -73,9 +72,15 @@ CONFIG = {
     "data_dir": "/kaggle/input/data-10clients",
     # Reproducibility
     "random_seed": 42,  # Set to None for random behavior
+    # Training Mode
+    # Options:
+    #   - "fed_il": federated incremental learning
+    #   - "il": local incremental learning
+    "mode": "il",
     # Algorithm Selection
-    # Options: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf", "fedprox_lwf",
-    #          "fedcbdr", "der", "nice", "glfc", "refed"
+    # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
+    #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed"
+    # il:     "ewc", "lwf", "cbdr", "der", "nice", "glfc", "refed", "cgofed"
     "algorithm": "nice",
     # Output
     "output_dir": "./results_incremental",

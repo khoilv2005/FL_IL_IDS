@@ -29,7 +29,7 @@ except ImportError:
 
 from .client import FederatedClient
 from ..core import BaseTrainer
-from ..strategies.incremental.glfc import GLFCTrainer, get_one_hot
+from ..strategies.fed_incremental.glfc import GLFCTrainer, get_one_hot
 
 
 class GLFCClient(FederatedClient):

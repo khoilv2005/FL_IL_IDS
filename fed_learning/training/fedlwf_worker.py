@@ -11,7 +11,7 @@ from collections import OrderedDict
 from typing import Dict, List
 
 from ..clients.fedlwf_client import FedLwFClient
-from ..strategies.incremental.fedlwf import FedLwFTrainer
+from ..strategies.fed_incremental.fedlwf import FedLwFTrainer
 from .base_worker import BaseGPUWorker
 
 

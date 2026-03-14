@@ -15,7 +15,7 @@ from collections import OrderedDict
 from typing import Dict, List
 
 from ..clients.glfc_client import GLFCClient
-from ..strategies.incremental.glfc import GLFCTrainer
+from ..strategies.fed_incremental.glfc import GLFCTrainer
 from .base_worker import BaseGPUWorker
 
 

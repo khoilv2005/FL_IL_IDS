@@ -8,7 +8,7 @@ import torch
 import numpy as np
 
 from fed_learning.strategies import STRATEGIES, get_strategy
-from fed_learning.strategies.incremental.nice import NICETrainer, NICEAggregator
+from fed_learning.strategies.fed_incremental.nice import NICETrainer, NICEAggregator
 from fed_learning.models.nice_model import NICEModel
 from fed_learning.clients.nice_client import NICEClient
 

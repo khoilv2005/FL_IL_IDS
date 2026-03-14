@@ -219,7 +219,7 @@ BaseGPUWorker                       # Template method: run() with hooks
 
 ### Adding a New Algorithm
 
-1. **Strategy**: Create `strategies/incremental/your_algo.py` with `YourTrainer(BaseTrainer)` and `YourAggregator(BaseAggregator)`
+1. **Strategy**: Create `strategies/fed_incremental/your_algo.py` with `YourTrainer(BaseTrainer)` and `YourAggregator(BaseAggregator)`
 2. **Register**: Add to `STRATEGIES` dict in `strategies/__init__.py`
 3. **Client**: If needed, create `clients/your_client.py` extending `FederatedClient`
 4. **Server**: If needed, create `servers/your_server.py` extending `IncrementalServer`

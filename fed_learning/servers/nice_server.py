@@ -26,7 +26,7 @@ from sklearn.linear_model import LogisticRegression
 
 from .incremental_server import IncrementalServer
 from ..models.nice_model import NICEModel
-from ..strategies.incremental.nice import (
+from ..strategies.fed_incremental.nice import (
     NICEAggregator,
     increase_unit_ranks,
     update_freeze_masks,

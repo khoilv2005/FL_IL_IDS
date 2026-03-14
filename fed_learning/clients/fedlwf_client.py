@@ -24,7 +24,7 @@ except ImportError:
 
 from .client import FederatedClient
 from ..core import BaseTrainer
-from ..strategies.incremental.fedlwf import FedLwFTrainer
+from ..strategies.fed_incremental.fedlwf import FedLwFTrainer
 
 
 class FedLwFClient(FederatedClient):

@@ -27,7 +27,7 @@ class FedCBDRServer:
 
     def __init__(self, clients, test_data: Dict, config: Dict):
         from ..models.cnn_gru import CNN_GRU_Model
-        from ..strategies.incremental.fedcbdr import (
+        from ..strategies.fed_incremental.fedcbdr import (
             FedCBDRTrainer,
             FedCBDRAggregator,
             LeverageScoreCalculator,

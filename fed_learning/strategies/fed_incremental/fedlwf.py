@@ -38,6 +38,12 @@ class FedLwFTrainer(BaseTrainer):
     """
     FedLwF Trainer - Federated Learning without Forgetting.
 
+    Ý tưởng chính:
+    - Sau mỗi task, lưu snapshot model cũ làm teacher.
+    - Ở task mới, model hiện tại vừa học nhãn mới bằng CE,
+      vừa bắt chước logit mềm của model cũ bằng distillation.
+    - Nhờ đó giảm quên mà không cần replay dữ liệu cũ.
+
     Implements Knowledge Distillation to prevent catastrophic forgetting:
     1. Save model snapshot after each task (teacher)
     2. Train new model (student) to match teacher's soft outputs
@@ -88,9 +94,12 @@ class FedLwFTrainer(BaseTrainer):
 
     def set_task(self, task_id: int, new_classes: List[int]):
         """
-        Called at the beginning of each new task.
+        Được gọi khi bắt đầu task mới.
 
-        Updates class tracking and prepares for distillation.
+        Hàm này cập nhật:
+        - danh sách class cũ và class mới
+        - task hiện tại
+        - cache teacher model để task mới load lại đúng snapshot
         """
         # Store old classes before updating
         self.old_classes = list(self.seen_classes)
@@ -109,9 +118,10 @@ class FedLwFTrainer(BaseTrainer):
 
     def save_model_snapshot(self, model: nn.Module):
         """
-        Save model snapshot after completing a task.
+        Lưu snapshot model sau khi hoàn thành một task.
 
-        This snapshot serves as the "teacher" for future tasks.
+        Snapshot này sẽ đóng vai trò teacher cho các task sau,
+        phục vụ tính distillation loss.
         """
         # Save state dict to CPU (memory efficient)
         state_dict = OrderedDict(
@@ -129,10 +139,10 @@ class FedLwFTrainer(BaseTrainer):
         self, model_template: nn.Module, device: str
     ) -> Optional[nn.Module]:
         """
-        Load the old model for knowledge distillation.
+        Load model cũ để làm teacher cho knowledge distillation.
 
-        Uses the model from the previous task as teacher.
-        Returns None if no old model exists (first task).
+        Ưu tiên dùng cache trong RAM; nếu chưa có thì đọc snapshot của
+        task trước từ bộ nhớ hoặc từ disk. Task đầu tiên sẽ trả về None.
         """
         if self.current_task == 0:
             return None
@@ -182,11 +192,11 @@ class FedLwFTrainer(BaseTrainer):
         old_class_indices: Optional[List[int]] = None,
     ) -> torch.Tensor:
         """
-        Compute Knowledge Distillation loss.
+        Tính knowledge distillation loss.
 
         L_KD = T² * KL(σ(z_old/T) || σ(z_new/T))
 
-        If old_class_indices provided, only distill on those classes.
+        Nếu truyền `old_class_indices`, chỉ distill trên các logit của lớp cũ.
         """
         T = self.temperature
 
@@ -220,18 +230,12 @@ class FedLwFTrainer(BaseTrainer):
         **kwargs,
     ) -> torch.Tensor:
         """
-        Compute FedLwF loss = CE + α * KD.
+        Tính loss của FedLwF = CE + α * KD.
 
-        Args:
-            model: Current model being trained
-            output: Model predictions (logits)
-            target: Ground truth labels
-            global_params: Not used for FedLwF
-            inputs: Input features (needed for old model forward)
-            old_model: Pre-loaded old model (optional, for efficiency)
-
-        Returns:
-            Combined loss tensor
+        Luồng xử lý:
+        - Task đầu: chỉ dùng cross-entropy.
+        - Từ task sau: lấy old model, sinh old logits, tính KD loss,
+          rồi cộng với CE loss theo hệ số `lwf_alpha`.
         """
         # Cross-entropy loss on new task data
         ce_loss = F.cross_entropy(output, target)
@@ -267,7 +271,7 @@ class FedLwFTrainer(BaseTrainer):
         return ce_loss + self.lwf_alpha * kd_loss
 
     def update_forgetting(self, task_accuracies: Dict[int, float]):
-        """Update accuracy tracking for forgetting metrics."""
+        """Cập nhật thống kê accuracy để tính Average Forgetting."""
         self.current_acc_per_task = task_accuracies.copy()
 
         for task_id, acc in task_accuracies.items():
@@ -297,7 +301,7 @@ class FedLwFTrainer(BaseTrainer):
             self.last_af = forgetting_sum / max(1, count)
 
     def cleanup(self):
-        """Clean up cached models and temporary files."""
+        """Dọn cache model cũ và xóa thư mục tạm của FedLwF."""
         self._cached_old_model = None
         self.old_model_states.clear()
 
@@ -312,25 +316,25 @@ class FedLwFAggregator(BaseAggregator):
     """
     FedLwF Aggregation - Standard FedAvg weighted average.
 
-    FedLwF uses standard FedAvg for aggregation.
-    The regularization (knowledge distillation) happens at the local training level.
+    FedLwF không đổi cách aggregate phía server.
+    Điểm khác biệt chỉ nằm ở local loss của client.
     """
 
     def aggregate(
         self, results: List[Dict], global_params: Optional[OrderedDict] = None, **kwargs
     ) -> OrderedDict:
-        """Standard FedAvg aggregation."""
+        """Aggregate theo weighted average giống FedAvg."""
         return self._weighted_average(results)
 
 
 class FedLwFWithProximalTrainer(FedLwFTrainer):
     """
-    FedLwF + Proximal regularization (combines LwF with FedProx).
+    FedLwF + Proximal regularization.
 
-    Loss = CE + α * KD + (μ/2) * ||w - w_global||²
-
-    This variant adds FedProx's proximal term for better handling of
-    heterogeneous data distributions.
+    Đây là biến thể kết hợp:
+    - distillation của LwF
+    - proximal term của FedProx
+    để vừa chống quên vừa giảm lệch client trên dữ liệu non-IID.
     """
 
     def __init__(
@@ -353,7 +357,7 @@ class FedLwFWithProximalTrainer(FedLwFTrainer):
         old_model: Optional[nn.Module] = None,
         **kwargs,
     ) -> torch.Tensor:
-        """Compute FedLwF + Proximal loss."""
+        """Tính loss của FedLwF + Proximal = LwF loss + proximal term."""
         # Get FedLwF loss (CE + KD)
         lwf_loss = super().compute_loss(
             model, output, target, global_params, inputs, old_model, **kwargs

@@ -8,13 +8,13 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from fed_learning.strategies.incremental.ewc import (
+from fed_learning.strategies.fed_incremental.ewc import (
     EWCMixin,
     FedAvgEWCTrainer,
     FedProxEWCTrainer,
 )
-from fed_learning.strategies.incremental.fedlwf import FedLwFTrainer, FedLwFAggregator
-from fed_learning.strategies.incremental.fedcbdr import (
+from fed_learning.strategies.fed_incremental.fedlwf import FedLwFTrainer, FedLwFAggregator
+from fed_learning.strategies.fed_incremental.fedcbdr import (
     FedCBDRTrainer,
     FedCBDRAggregator,
 )

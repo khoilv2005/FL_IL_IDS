@@ -5,7 +5,7 @@ Tests for the strategy factory (get_strategy) and strategy registration.
 import pytest
 
 from fed_learning.strategies import get_strategy, STRATEGIES, list_strategies
-from fed_learning.strategies.incremental.cgofed import CGoFedTrainer
+from fed_learning.strategies.fed_incremental.cgofed import CGoFedTrainer
 from fed_learning.core.trainer import BaseTrainer
 from fed_learning.core.aggregator import BaseAggregator
 

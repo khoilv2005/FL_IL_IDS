@@ -17,7 +17,7 @@ import torch.nn.functional as F
 from .incremental_server import IncrementalServer
 from ..training.cgofed_worker import train_cgofed_clients_on_gpu
 from ..clients.cgofed_client import CGoFedClient
-from ..strategies.incremental.cgofed import CGoFedAggregator
+from ..strategies.fed_incremental.cgofed import CGoFedAggregator
 
 
 class CGoFedServer(IncrementalServer):

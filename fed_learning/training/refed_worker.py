@@ -13,7 +13,7 @@ from collections import OrderedDict
 from typing import Dict, List
 
 from ..clients.refed_client import ReFedClient
-from ..strategies.incremental.refed import ReFedTrainer
+from ..strategies.fed_incremental.refed import ReFedTrainer
 from .base_worker import BaseGPUWorker
 
 

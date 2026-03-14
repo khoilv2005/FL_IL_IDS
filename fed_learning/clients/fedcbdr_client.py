@@ -27,7 +27,7 @@ except ImportError:
 
 from .client import FederatedClient
 from ..core import BaseTrainer
-from ..strategies.incremental.fedcbdr import ReplayBuffer, LeverageScoreCalculator
+from ..strategies.fed_incremental.fedcbdr import ReplayBuffer, LeverageScoreCalculator
 
 
 class FedCBDRClient(FederatedClient):

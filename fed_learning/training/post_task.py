@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Optional
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
-from fed_learning.strategies.incremental.fedlwf import FedLwFTrainer
+from fed_learning.strategies.fed_incremental.fedlwf import FedLwFTrainer
 
 
 def post_task_processing(
