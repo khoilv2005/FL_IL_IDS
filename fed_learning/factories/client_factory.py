@@ -30,13 +30,6 @@ _CLIENT_REGISTRY = {
             "leverage_rank": ("leverage_rank", 50),
         },
     ),
-    "cbdr": (
-        FedCBDRClient,
-        {
-            "buffer_size": ("buffer_size", 500),
-            "leverage_rank": ("leverage_rank", 50),
-        },
-    ),
     "der": (
         DERClient,
         {

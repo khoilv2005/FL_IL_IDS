@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.factories.client_factory import create_client, update_client_data
 from fed_learning.strategies.incremental import get_incremental_strategy
-from fed_learning.strategies.fed_incremental.nice import (
+from fed_learning.strategies.incremental.nice import (
     increase_unit_ranks,
     update_freeze_masks,
 )
@@ -102,14 +102,19 @@ def _evaluate_model(
 
     y_true = np.concatenate(targets)
     y_pred = np.concatenate(preds)
+    zero_division: Any = 0
     return {
         "loss": total_loss / max(1, len(y_test)),
         "accuracy": accuracy_score(y_true, y_pred),
         "precision_macro": precision_score(
-            y_true, y_pred, average="macro", zero_division=0
+            y_true, y_pred, average="macro", zero_division=zero_division
         ),
-        "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
-        "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
+        "recall_macro": recall_score(
+            y_true, y_pred, average="macro", zero_division=zero_division
+        ),
+        "f1_macro": f1_score(
+            y_true, y_pred, average="macro", zero_division=zero_division
+        ),
     }
 
 
@@ -185,14 +190,26 @@ def _run_local_der(model, client, trainer, config, device, new_classes):
 def _run_local_nice(
     model, client, trainer, config, device, task_id, num_tasks, new_classes
 ):
+    trainer.max_phases = config.get(
+        "rounds_per_task", getattr(trainer, "max_phases", 1)
+    )
+    trainer.phase_epochs = config.get(
+        "local_epochs", getattr(trainer, "phase_epochs", 1)
+    )
+
     for cls_id in new_classes:
         if cls_id < model.num_classes:
             model.unit_ranks["fc2"][cls_id] = 1
 
+    print(
+        f"  NICE local schedule: {trainer.max_phases} phases x "
+        f"{trainer.phase_epochs} epochs"
+    )
+
     client.setup_for_gpu(model, device)
     client.train(
         trainer=trainer,
-        epochs=config["local_epochs"],
+        epochs=trainer.phase_epochs,
         batch_size=config["batch_size"],
         lr=config["learning_rate"],
         global_params=None,
@@ -211,18 +228,6 @@ def _run_local_generic(model, client, trainer, config, device, task_id, algorith
     )
     client.setup_for_gpu(model, device)
 
-    if algorithm == "glfc" and hasattr(client, "update_exemplar_set"):
-        client.update_exemplar_set(model, device)
-    if (
-        algorithm == "refed"
-        and task_id > 0
-        and hasattr(client, "update_cache_with_pim")
-    ):
-        params = OrderedDict(
-            (k, v.detach().cpu().clone()) for k, v in model.state_dict().items()
-        )
-        client.update_cache_with_pim(model, params, device)
-
     client.train(
         trainer=trainer,
         epochs=effective_epochs,
@@ -235,14 +240,7 @@ def _run_local_generic(model, client, trainer, config, device, task_id, algorith
 def _post_task_local(algorithm, trainer, model, client, combined_data, config, device):
     algo = algorithm.lower()
 
-    if algo == "cgofed" and hasattr(trainer, "build_space_from_client_data"):
-        trainer.build_space_from_client_data(
-            model=model,
-            client_data={0: combined_data},
-            config=config,
-            device=device,
-        )
-    elif algo == "ewc" and hasattr(trainer, "consolidate"):
+    if algo == "ewc" and hasattr(trainer, "consolidate"):
         X, y = combined_data["X_train"], combined_data["y_train"]
         if len(y) > config.get("fisher_samples", 200):
             idx = torch.randperm(len(y))[: config.get("fisher_samples", 200)]
@@ -252,21 +250,6 @@ def _post_task_local(algorithm, trainer, model, client, combined_data, config, d
         trainer.consolidate(model, loader, device)
     elif algo == "lwf" and hasattr(trainer, "save_model_snapshot"):
         trainer.save_model_snapshot(model)
-
-    if algo == "cbdr" and hasattr(client, "update_replay_buffer"):
-        try:
-            client.update_replay_buffer(model)
-        except Exception:
-            if hasattr(client, "update_replay_buffer_simple"):
-                client.update_replay_buffer_simple()
-
-    if algo == "glfc":
-        if hasattr(trainer, "save_model_snapshot"):
-            trainer.save_model_snapshot(model)
-        if hasattr(client, "save_model_snapshot"):
-            client.save_model_snapshot(model)
-        if hasattr(client, "update_exemplar_set"):
-            client.update_exemplar_set(model, device)
 
 
 def run_local_incremental_training(config: Dict[str, Any]):
@@ -291,8 +274,12 @@ def run_local_incremental_training(config: Dict[str, Any]):
     config["input_shape"] = data_loader.input_shape
     config["num_classes"] = config["total_classes"]
 
-    trainer = get_incremental_strategy(config["algorithm"], **config)
+    trainer = get_incremental_strategy(
+        config["algorithm"],
+        **{k: v for k, v in config.items() if k != "algorithm"},
+    )
     print(f"✓ Trainer: {trainer.__class__.__name__}")
+    print("✓ Local IL algorithms supported: ewc, lwf, der, nice")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _create_local_model(config["algorithm"], config, device)
@@ -315,7 +302,6 @@ def run_local_incremental_training(config: Dict[str, Any]):
             algo_alias = {
                 "ewc": "cgofed",
                 "lwf": "fedavg_lwf",
-                "cbdr": "fedcbdr",
             }
             local_config["algorithm"] = algo_alias.get(
                 config["algorithm"].lower(), config["algorithm"].lower()

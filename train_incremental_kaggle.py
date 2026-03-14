@@ -11,7 +11,7 @@ Usage:
     Sau đó chọn thuật toán qua CONFIG["algorithm"]:
     - fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
               "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed"
-    - il: "ewc", "lwf", "cbdr", "der", "nice", "glfc", "refed", "cgofed"
+    - il: "ewc", "lwf", "der", "nice"
 
     Upload fed_learning folder to Kaggle dataset, then run this script.
 """
@@ -80,7 +80,7 @@ CONFIG = {
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed"
-    # il:     "ewc", "lwf", "cbdr", "der", "nice", "glfc", "refed", "cgofed"
+    # il:     "ewc", "lwf", "der", "nice"
     "algorithm": "nice",
     # Output
     "output_dir": "./results_incremental",

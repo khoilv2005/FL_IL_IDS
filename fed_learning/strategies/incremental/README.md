@@ -1,30 +1,35 @@
-# Standalone Incremental Strategies
+# Incremental Strategies
 
-Thư mục này chứa các phiên bản incremental learning dùng cho chế độ local,
-không mang ý nghĩa federated trong API import.
+Thư mục này là phần cốt lõi của các thuật toán incremental learning.
+
+- `incremental/` là source of truth cho các thuật toán IL thuần local.
+- `fed_incremental/` chỉ giữ phần mở rộng cho bối cảnh federated:
+  wrapper, aggregator, hoặc ghép với `FedAvg` / `FedProx`.
 
 ## Khác gì với `fed_incremental/`
 
-- `fed_incremental/`
-  - dành cho bối cảnh federated learning
-  - có trainer + aggregator
-  - được dùng cùng client/server/worker của FL pipeline
-
 - `incremental/`
-  - dành cho incremental learning thuần local
-  - chỉ export trainer và helper cần cho local training
-  - không export aggregator
+  - chứa implementation gốc của trainer và helper IL
+  - dùng được cho local incremental learning
+
+- `fed_incremental/`
+  - dùng lại logic từ `incremental/`
+  - thêm aggregator hoặc wrapper dành cho federated pipeline
 
 ## Mapping giữa 2 folder
 
-- `incremental/ewc.py` -> local `EWCTrainer`
-- `incremental/lwf.py` -> local `LwFTrainer`
-- `incremental/der.py` -> re-export `DERTrainer`
-- `incremental/nice.py` -> re-export `NICETrainer` và các helper neuron
-- `incremental/glfc.py` -> re-export `GLFCTrainer`
-- `incremental/refed.py` -> re-export `ReFedTrainer`
-- `incremental/cgofed.py` -> re-export `CGoFedTrainer`
-- `incremental/fedcbdr.py` -> local `CBDRTrainer`
+- `incremental/ewc.py` -> logic EWC gốc + `EWCTrainer`
+- `incremental/lwf.py` -> logic LwF gốc + `LwFTrainer`
+- `incremental/der.py` -> logic DER gốc
+- `incremental/nice.py` -> logic NICE gốc + helper neuron
+- `fed_incremental/ewc.py` -> wrapper `FedAvgEWCTrainer`, `FedProxEWCTrainer`
+- `fed_incremental/fedlwf.py` -> wrapper `FedLwFTrainer` + aggregator
+- `fed_incremental/fedcbdr.py` -> implementation FedCBDR đầy đủ cho FL-IL
+- `fed_incremental/der.py` -> aggregator DER
+- `fed_incremental/nice.py` -> aggregator NICE
+- `fed_incremental/glfc.py` -> thuật toán GLFC đầy đủ cho FL-IL
+- `fed_incremental/refed.py` -> thuật toán Re-Fed đầy đủ cho FL-IL
+- `fed_incremental/cgofed.py` -> thuật toán CGoFed đầy đủ cho FL-IL
 
 ## Cách import
 
@@ -43,5 +48,8 @@ from fed_learning.strategies.incremental.lwf import LwFTrainer
 
 ## Lưu ý
 
-- Các class trong thư mục này vẫn tái sử dụng logic từ `fed_incremental/` khi phù hợp.
-- Mục tiêu là tách API import và ý nghĩa sử dụng, không phải viết lại toàn bộ thuật toán từ đầu.
+- Nếu bạn đọc thuật toán để hiểu IL, hãy đọc `incremental/` trước.
+- Local `mode="il"` chỉ hỗ trợ: `ewc`, `lwf`, `der`, `nice`.
+- Riêng `FedCBDR` chỉ tồn tại ở nhánh `fed_incremental/`, không có bản IL local riêng.
+- `GLFC`, `ReFed`, `CGoFed` cũng là FL-IL-only, không có bản IL local riêng.
+- Nếu bạn đọc để hiểu cách ghép vào FL pipeline, hãy xem thêm `fed_incremental/`.
