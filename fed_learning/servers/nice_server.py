@@ -50,6 +50,7 @@ class ContextDetector:
     """
 
     def __init__(self, memo_per_class: int = 50):
+        """Khởi tạo bộ nhớ activation và các bộ phân loại context theo episode."""
         self.memo_per_class = memo_per_class
         self.activation_memory: Dict[int, np.ndarray] = {}
         self.binarize_thresholds: Optional[Dict[str, float]] = None
@@ -64,6 +65,9 @@ class ContextDetector:
 
         Returns:
             np.ndarray of shape [n_samples, total_features]
+
+        Hàm này biến activation liên tục thành vector nhị phân để context detector
+        có thể học episode/task một cách gọn nhẹ hơn.
         """
         model.eval()
         binary_all = []
@@ -94,13 +98,16 @@ class ContextDetector:
             "conv1": act_conv1.abs().mean(dim=2).cpu().numpy(),  # [batch, 64]
             "conv2": act_conv2.abs().mean(dim=2).cpu().numpy(),  # [batch, 128]
             "conv3": act_conv3.abs().mean(dim=2).cpu().numpy(),  # [batch, 256]
-            "gru": act_gru.abs().cpu().numpy(),                  # [batch, 100]
+            "gru": act_gru.abs().cpu().numpy(),  # [batch, 100]
         }
 
         parts = []
         for name in ["conv1", "conv2", "conv3", "gru"]:
             act = layer_acts[name]
-            if self.binarize_thresholds is not None and name in self.binarize_thresholds:
+            if (
+                self.binarize_thresholds is not None
+                and name in self.binarize_thresholds
+            ):
                 binary = (act > self.binarize_thresholds[name]).astype(np.float32)
             else:
                 binary = (act > 0).astype(np.float32)
@@ -118,6 +125,8 @@ class ContextDetector:
             model: NICEModel to extract activations from
             data: Input data samples [n_samples, ...]
             episode: Episode/task index
+
+        Với episode đầu tiên, hàm còn thiết lập ngưỡng nhị phân hóa ban đầu.
         """
         model.eval()
 
@@ -143,6 +152,8 @@ class ContextDetector:
 
         Args:
             current_episode: Most recent episode index
+
+        Sau bước này, context detector đã có chuỗi classifier để dự đoán episode.
         """
         self.context_learners = []
 
@@ -176,10 +187,12 @@ class ContextDetector:
 
             # Build training data
             X = np.concatenate([pos, neg], axis=0)
-            y = np.concatenate([
-                np.ones(len(pos)),
-                np.zeros(len(neg)),
-            ])
+            y = np.concatenate(
+                [
+                    np.ones(len(pos)),
+                    np.zeros(len(neg)),
+                ]
+            )
 
             # Fit logistic regression
             try:
@@ -202,6 +215,9 @@ class ContextDetector:
 
         Returns:
             Predicted episode index
+
+        Hàm chạy theo kiểu chained decision: nếu không classifier nào nhận mẫu,
+        nó sẽ gán về episode mới nhất.
         """
         if not self.context_learners:
             return max(self.episode_classes.keys()) if self.episode_classes else 0
@@ -235,8 +251,10 @@ class ContextDetector:
         if binary_activations.ndim == 1:
             return np.array([self.predict_episode(binary_activations)])
 
-        results = np.full(len(binary_activations),
-                         max(self.episode_classes.keys()) if self.episode_classes else 0)
+        results = np.full(
+            len(binary_activations),
+            max(self.episode_classes.keys()) if self.episode_classes else 0,
+        )
 
         if not self.context_learners:
             return results
@@ -263,7 +281,7 @@ class ContextDetector:
 
 class NICEServer(IncrementalServer):
     """
-    Server for NICE algorithm with neuron age management and context detection.
+    Server chuyên cho NICE với quản lý tuổi neuron và context detector.
 
     Inherits from IncrementalServer:
         - evaluate_global(), set_task(), get_global_params(), set_global_params()
@@ -277,14 +295,14 @@ class NICEServer(IncrementalServer):
     """
 
     def __init__(self, clients, test_data: Dict, config: Dict):
-        """Initialize NICE Server with NICEModel."""
+        """Khởi tạo NICE server và thay global model mặc định bằng `NICEModel`."""
         super().__init__(clients, test_data, config)
 
         # Replace global_model with NICEModel
         del self.global_model
-        self.global_model = NICEModel(
-            config["input_shape"], config["num_classes"]
-        ).to(self.primary_device)
+        self.global_model = NICEModel(config["input_shape"], config["num_classes"]).to(
+            self.primary_device
+        )
 
         # Context detector
         memo_per_class = config.get("memo_per_class", 50)
@@ -299,10 +317,8 @@ class NICEServer(IncrementalServer):
     def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """Set up for a new task - set output neuron ages for new classes.
 
-        Args:
-            task_id: Task identifier
-            task_classes: New class IDs in this task
-            seen_classes: Full cumulative seen classes list
+        Ngoài tracking task, hàm này còn đặt output neuron của lớp mới sang
+        trạng thái learner và cập nhật freeze information cho aggregator.
         """
         super().set_task(task_id, task_classes, seen_classes)
 
@@ -322,13 +338,15 @@ class NICEServer(IncrementalServer):
             self.aggregator.set_freeze_masks(self.global_model.freeze_masks)
 
         print(f"  NICE: Task {task_id} | new classes: {task_classes}")
-        print(f"  NICE: Output neuron ages (fc2): "
-              f"learner={np.sum(self.global_model.unit_ranks['fc2'] == 1)}, "
-              f"mature={np.sum(self.global_model.unit_ranks['fc2'] >= 2)}, "
-              f"young={np.sum(self.global_model.unit_ranks['fc2'] == 0)}")
+        print(
+            f"  NICE: Output neuron ages (fc2): "
+            f"learner={np.sum(self.global_model.unit_ranks['fc2'] == 1)}, "
+            f"mature={np.sum(self.global_model.unit_ranks['fc2'] >= 2)}, "
+            f"young={np.sum(self.global_model.unit_ranks['fc2'] == 0)}"
+        )
 
     def _get_frozen_param_keys(self) -> List[str]:
-        """Get parameter keys that should be frozen (mature neurons)."""
+        """Tìm các tham số có thể freeze hoàn toàn vì layer tương ứng đã mature."""
         frozen_keys = []
         for name, param in self.global_model.named_parameters():
             layer_name = name.split(".")[0]
@@ -349,8 +367,8 @@ class NICEServer(IncrementalServer):
             participating_clients: Clients to train (default: all)
             verbose: Whether to print progress
 
-        Returns:
-            Dict with train_loss and round_time
+        Worker NICE sẽ nhận thêm neuron ages, masks và freeze masks để client
+        train đồng bộ với trạng thái của server.
         """
         from ..training.nice_worker import train_nice_clients_on_gpu
 
@@ -425,9 +443,11 @@ class NICEServer(IncrementalServer):
             # Print neuron age summary
             for name in ["conv1", "fc1", "fc2"]:
                 ranks = self.global_model.unit_ranks[name]
-                print(f"    {name}: young={np.sum(ranks == 0)}, "
-                      f"learner={np.sum(ranks == 1)}, "
-                      f"mature={np.sum(ranks >= 2)}")
+                print(
+                    f"    {name}: young={np.sum(ranks == 0)}, "
+                    f"learner={np.sum(ranks == 1)}, "
+                    f"mature={np.sum(ranks >= 2)}"
+                )
 
         return {"train_loss": avg_loss, "round_time": round_time}
 
@@ -441,6 +461,8 @@ class NICEServer(IncrementalServer):
         3. Freeze BN for mature layers
         4. Push activations to context detector
         5. Train context detector models
+
+        Đây là bước update trí nhớ dài hạn quan trọng nhất của NICE sau mỗi task.
         """
         print(f"\n  NICE end_task({self.current_task}):")
 
@@ -450,9 +472,11 @@ class NICEServer(IncrementalServer):
         # Print age stats
         for name in self.global_model.LAYER_NAMES:
             ranks = self.global_model.unit_ranks[name]
-            print(f"    {name}: young={np.sum(ranks == 0)}, "
-                  f"learner={np.sum(ranks == 1)}, "
-                  f"mature={np.sum(ranks >= 2)}")
+            print(
+                f"    {name}: young={np.sum(ranks == 0)}, "
+                f"learner={np.sum(ranks == 1)}, "
+                f"mature={np.sum(ranks >= 2)}"
+            )
 
         # 2. Update freeze masks for gradient protection
         update_freeze_masks(self.global_model)
@@ -480,7 +504,9 @@ class NICEServer(IncrementalServer):
 
         # 5. Train context detector
         self.context_detector.train_models(self.current_task)
-        print(f"    Context detector: {len(self.context_detector.context_learners)} models trained")
+        print(
+            f"    Context detector: {len(self.context_detector.context_learners)} models trained"
+        )
 
         # Update aggregator frozen keys AND per-neuron freeze masks
         if hasattr(self.aggregator, "set_frozen_keys"):
@@ -500,8 +526,15 @@ class NICEServer(IncrementalServer):
         NICE uses LetLearner during training which blocks gradient flow to
         unseen output neurons, leaving them with random weights. During eval,
         we must mask those logits to -inf so argmax only picks from seen classes.
+
+        Nếu bỏ bước này, lớp chưa học có thể thắng argmax chỉ vì trọng số ngẫu nhiên.
         """
-        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+        from sklearn.metrics import (
+            accuracy_score,
+            precision_score,
+            recall_score,
+            f1_score,
+        )
 
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()
@@ -521,7 +554,11 @@ class NICEServer(IncrementalServer):
             return {"loss": 0.0, "accuracy": 0.0, "f1_macro": 0.0, "f1_weighted": 0.0}
 
         # Build unseen class mask for output masking
-        seen_set = set(self.seen_classes) if self.seen_classes else set(range(self.global_model.num_classes))
+        seen_set = (
+            set(self.seen_classes)
+            if self.seen_classes
+            else set(range(self.global_model.num_classes))
+        )
         unseen_mask = torch.ones(self.global_model.num_classes, dtype=torch.bool)
         for c in seen_set:
             unseen_mask[c] = False
@@ -533,8 +570,8 @@ class NICEServer(IncrementalServer):
 
         with torch.no_grad():
             for i in range(0, n_test, batch_size):
-                X_batch = X_test[i:i + batch_size].to(self.primary_device)
-                y_batch = y_test[i:i + batch_size].to(self.primary_device)
+                X_batch = X_test[i : i + batch_size].to(self.primary_device)
+                y_batch = y_test[i : i + batch_size].to(self.primary_device)
 
                 out = self.global_model(X_batch)
                 # Mask unseen class logits to -inf so they can't be argmax winners
@@ -553,15 +590,21 @@ class NICEServer(IncrementalServer):
         return {
             "loss": total_loss / n_test,
             "accuracy": accuracy_score(y_true, y_pred),
-            "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
-            "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
+            "precision_macro": precision_score(
+                y_true, y_pred, average="macro", zero_division=0
+            ),
+            "recall_macro": recall_score(
+                y_true, y_pred, average="macro", zero_division=0
+            ),
             "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
-            "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
+            "f1_weighted": f1_score(
+                y_true, y_pred, average="weighted", zero_division=0
+            ),
             "auc_macro_ovr": None,
         }
 
     def compute_average_forgetting(self) -> float:
-        """Compute Average Forgetting."""
+        """Tính Average Forgetting của NICE dựa trên accuracy từng task."""
         if self.current_task == 0:
             return 0.0
         current_accs = self.evaluate_per_task()
@@ -571,7 +614,7 @@ class NICEServer(IncrementalServer):
         return 0.0
 
     def evaluate_per_task(self, batch_size: int = 1024) -> Dict[int, float]:
-        """Evaluate accuracy per task with output masking for unseen classes."""
+        """Đánh giá accuracy riêng cho từng task, vẫn áp output masking của NICE."""
         from sklearn.metrics import accuracy_score
 
         self.global_model.eval()
@@ -581,7 +624,11 @@ class NICEServer(IncrementalServer):
         y_test = self.test_data["y_test"]
 
         # Mask unseen class logits
-        seen_set = set(self.seen_classes) if self.seen_classes else set(range(self.global_model.num_classes))
+        seen_set = (
+            set(self.seen_classes)
+            if self.seen_classes
+            else set(range(self.global_model.num_classes))
+        )
         unseen_mask = torch.ones(self.global_model.num_classes, dtype=torch.bool)
         for c in seen_set:
             unseen_mask[c] = False
@@ -606,8 +653,8 @@ class NICEServer(IncrementalServer):
 
             with torch.no_grad():
                 for i in range(0, len(y_task), batch_size):
-                    X_batch = X_task[i:i + batch_size].to(self.primary_device)
-                    y_batch = y_task[i:i + batch_size]
+                    X_batch = X_task[i : i + batch_size].to(self.primary_device)
+                    y_batch = y_task[i : i + batch_size]
 
                     out = self.global_model(X_batch)
                     out[:, unseen_mask] = float("-inf")

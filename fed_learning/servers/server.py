@@ -4,7 +4,7 @@ Federated Server with Multi-GPU Support and Strategy Pattern.
 
 import time
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Any, Dict, List, cast
 
 import numpy as np
 import torch
@@ -29,10 +29,18 @@ from ..core import BaseTrainer, BaseAggregator
 
 class FederatedServer:
     """
-    Server for Federated Learning with Multi-GPU support and Strategy Pattern.
+    Server FL cơ bản của project.
+
+    Vai trò của class này:
+    - giữ global model trên server
+    - phát tham số global xuống các client ở đầu mỗi round
+    - gọi worker để train client song song trên nhiều GPU
+    - aggregate kết quả client thành global model mới
+    - đánh giá global model trên test set
     """
 
     def __init__(self, clients: List[FederatedClient], test_data: Dict, config: Dict):
+        """Khởi tạo server, model toàn cục, trainer và aggregator theo config."""
         self.clients = clients
         self.test_data = test_data
         self.config = config
@@ -83,20 +91,27 @@ class FederatedServer:
         self._local_reg_info: Dict = {}
 
     def get_global_params(self) -> OrderedDict:
-        """Get global model params (CPU)."""
+        """Lấy snapshot tham số của global model và đưa về CPU để phát cho client."""
         return OrderedDict(
             (k, v.cpu().clone()) for k, v in self.global_model.state_dict().items()
         )
 
     def set_global_params(self, params: OrderedDict):
-        """Set global model params."""
+        """Nạp bộ tham số mới vào global model sau khi aggregate xong."""
         self.global_model.load_state_dict(
             {k: v.to(self.primary_device) for k, v in params.items()}
         )
 
     def train_round(self, verbose: bool = True) -> Dict:
         """
-        Train one round with Multi-GPU support.
+        Chạy một federated round hoàn chỉnh.
+
+        Luồng chính:
+        - lấy `global_params`
+        - chia client theo GPU
+        - gọi worker để train local song song
+        - thu kết quả từ client
+        - aggregate thành global model mới
         """
         round_start = time.time()
 
@@ -154,7 +169,9 @@ class FederatedServer:
 
         # Paper Eq. 14: Get local regularization info for CGoFed to pass to clients
         if hasattr(self.aggregator, "get_local_regularization_info"):
-            self._local_reg_info = self.aggregator.get_local_regularization_info()
+            self._local_reg_info = cast(
+                Any, self.aggregator
+            ).get_local_regularization_info()
 
         avg_loss = float(np.mean([r["loss"] for r in results]))
         round_time = time.time() - round_start
@@ -166,7 +183,7 @@ class FederatedServer:
         return {"train_loss": avg_loss, "round_time": round_time}
 
     def evaluate_global(self, batch_size: int = 1024) -> Dict:
-        """Evaluate global model on test set."""
+        """Đánh giá global model trên toàn bộ test set và trả về các metric chính."""
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()
 
@@ -198,26 +215,29 @@ class FederatedServer:
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)
         y_proba = np.vstack(all_proba)
+        zero_division: Any = 0
 
         metrics = {
             "loss": total_loss / n_test,
             "accuracy": accuracy_score(y_true, y_pred),
             "precision_macro": precision_score(
-                y_true, y_pred, average="macro", zero_division=0
+                y_true, y_pred, average="macro", zero_division=zero_division
             ),
             "recall_macro": recall_score(
-                y_true, y_pred, average="macro", zero_division=0
+                y_true, y_pred, average="macro", zero_division=zero_division
             ),
-            "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
+            "f1_macro": f1_score(
+                y_true, y_pred, average="macro", zero_division=zero_division
+            ),
             "f1_weighted": f1_score(
-                y_true, y_pred, average="weighted", zero_division=0
+                y_true, y_pred, average="weighted", zero_division=zero_division
             ),
         }
 
         # AUC
         try:
             y_true_bin = label_binarize(y_true, classes=list(range(self.num_classes)))
-            if y_true_bin.shape[1] == 1:
+            if y_true_bin is not None and y_true_bin.shape[1] == 1:
                 y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
             metrics["auc_macro_ovr"] = roc_auc_score(
                 y_true_bin, y_proba, average="macro", multi_class="ovr"

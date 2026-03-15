@@ -22,10 +22,14 @@ from sklearn.preprocessing import label_binarize
 
 class FedCBDRServer:
     """
-    Server for FedCBDR algorithm with Global-perspective Data Replay.
+    Server cho FedCBDR với Global-perspective Data Replay (GDR).
+
+    Ngoài round train FL bình thường, server này còn điều phối bước GDR
+    để cập nhật replay buffer trên từng client sau mỗi task.
     """
 
     def __init__(self, clients, test_data: Dict, config: Dict):
+        """Khởi tạo model, trainer TTS, aggregator và các thành phần GDR."""
         from ..models.cnn_gru import CNN_GRU_Model
         from ..strategies.fed_incremental.fedcbdr import (
             FedCBDRTrainer,
@@ -94,26 +98,20 @@ class FedCBDRServer:
         print(f"   ω_old={self.trainer.omega_old}, ω_new={self.trainer.omega_new}")
 
     def get_global_params(self) -> OrderedDict:
-        """Get global model parameters (CPU)."""
+        """Lấy snapshot tham số global model để phát cho client."""
         return OrderedDict(
             (k, v.cpu().clone()) for k, v in self.global_model.state_dict().items()
         )
 
     def set_global_params(self, params: OrderedDict):
-        """Set global model parameters."""
+        """Nạp tham số global mới sau khi aggregate xong."""
         self.global_model.load_state_dict(
             {k: v.to(self.primary_device) for k, v in params.items()}
         )
 
     def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """
-        Set up for a new task.
-
-        Args:
-            task_id: Task identifier
-            task_classes: List of class IDs in this task (new classes)
-            seen_classes: Optional full list of all seen classes up to now.
-                         If provided, replaces self.seen_classes entirely.
+        Cập nhật task hiện tại và danh sách class đã thấy cho FedCBDR.
         """
         self.current_task = task_id
         self.task_classes[task_id] = task_classes
@@ -129,7 +127,7 @@ class FedCBDRServer:
         print(f"   Total seen classes: {len(self.seen_classes)}")
 
     def train_round(self, participating_clients=None, verbose: bool = True) -> Dict:
-        """Train one federated round."""
+        """Chạy một round train FedCBDR rồi aggregate bằng weighted average kiểu FedAvg."""
         import time
         from ..training.fedcbdr_worker import train_fedcbdr_clients_on_gpu
 
@@ -194,7 +192,7 @@ class FedCBDRServer:
         return {"train_loss": avg_loss, "round_time": round_time}
 
     def coordinate_gdr(self, participating_clients=None, verbose: bool = True):
-        """Coordinate Global-perspective Data Replay (GDR)."""
+        """Điều phối bước GDR: trích đặc trưng, tính leverage score và cập nhật replay buffer."""
         import gc
 
         clients = participating_clients or self.clients
@@ -254,7 +252,7 @@ class FedCBDRServer:
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:
-        """Evaluate global model."""
+        """Đánh giá global model của FedCBDR trên test set hiện tại."""
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()
 

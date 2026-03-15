@@ -22,7 +22,7 @@ from ..strategies.fed_incremental.cgofed import CGoFedAggregator
 
 class CGoFedServer(IncrementalServer):
     """
-    Server for CGoFed algorithm with proper Eq.14 and Eq.12 implementation.
+    Server chuyên cho CGoFed với regularization theo lịch sử task và personalized models.
 
     Key differences from base server:
     1. Uses CGoFedWorker instead of generic worker
@@ -33,6 +33,7 @@ class CGoFedServer(IncrementalServer):
     """
 
     def __init__(self, clients: List[CGoFedClient], test_data: Dict, config: Dict):
+        """Khởi tạo server và các cache lịch sử cần cho Eq.12 / Eq.14 của CGoFed."""
         super().__init__(clients, test_data, config)
 
         # Ensure we have CGoFed strategy
@@ -59,10 +60,10 @@ class CGoFedServer(IncrementalServer):
 
     def _sync_history_from_aggregator(self) -> None:
         """
-        Sync historical task data from persistent aggregator instance.
+        Đồng bộ lịch sử task từ aggregator về server hiện tại.
 
-        train_incremental_kaggle.py creates a new server each task, but trainer/aggregator
-        are persistent objects. This method restores server-side history on each task.
+        Việc này cần thiết vì aggregator của CGoFed giữ state xuyên task,
+        còn server có thể được tạo lại ở mỗi task.
         """
         if not isinstance(self.aggregator, CGoFedAggregator):
             return
@@ -102,16 +103,16 @@ class CGoFedServer(IncrementalServer):
                     )
 
     def set_task(
-        self, task_id: int, task_classes: List[int], seen_classes: Optional[List[int]] = None
+        self,
+        task_id: int,
+        task_classes: List[int],
+        seen_classes: Optional[List[int]] = None,
     ):
         """
-        Set current task with historical data loading.
+        Chuẩn bị task mới cho CGoFed.
 
-        Paper Eq.14: At start of task t+1:
-        1. Load historical models from tasks 0...t
-        2. Compute similarity between current and historical tasks
-        3. Create per-client similarity weights
-        4. Prepare local regularization info
+        Đây là bước server nạp history cũ, tính similarity và tạo thông tin
+        regularization riêng cho từng client trước khi round train bắt đầu.
         """
         super().set_task(task_id, task_classes, seen_classes)
         self._sync_history_from_aggregator()
@@ -125,7 +126,9 @@ class CGoFedServer(IncrementalServer):
             return
 
         # Tasks > 0: Compute per-client cross-task similarities using client training data
-        print(f"📊 CGoFed: Computing per-client cross-task similarities for task {task_id}...")
+        print(
+            f"📊 CGoFed: Computing per-client cross-task similarities for task {task_id}..."
+        )
         self._client_reg_info = {}
         top_k = getattr(self.aggregator, "top_k", 2)
 
@@ -144,7 +147,9 @@ class CGoFedServer(IncrementalServer):
             if not selected:
                 continue
 
-            sim_scores = torch.tensor([s["similarity"] for s in selected], dtype=torch.float32)
+            sim_scores = torch.tensor(
+                [s["similarity"] for s in selected], dtype=torch.float32
+            )
             sim_scores = sim_scores - sim_scores.max()
             sim_scores = torch.clamp(sim_scores, min=-20.0, max=0.0)
             weights = F.softmax(sim_scores, dim=0)
@@ -165,11 +170,13 @@ class CGoFedServer(IncrementalServer):
         if num_configured == 0:
             print("  ⚠️ No valid per-client historical matches found")
         else:
-            print(f"  ✓ Prepared Eq.14 regularization info for {num_configured}/{len(self.clients)} clients")
+            print(
+                f"  ✓ Prepared Eq.14 regularization info for {num_configured}/{len(self.clients)} clients"
+            )
 
     def train_round(self, verbose: bool = True) -> Dict:
         """
-        Train round with CGoFed-specific worker and per-client regularization.
+        Chạy một round của CGoFed với worker riêng và regularization riêng theo client.
         """
         round_start = time.time()
 
@@ -251,9 +258,9 @@ class CGoFedServer(IncrementalServer):
 
     def _compute_task_representation(self) -> torch.Tensor:
         """
-        Compute an aggregate representation for current task from client TRAIN data.
+        Tính representation tổng hợp của task hiện tại từ train data của client.
 
-        Kept as a utility for debugging/fallback paths.
+        Chủ yếu dùng cho debug hoặc fallback path.
         """
         all_reps = []
         for client in self.clients:
@@ -268,9 +275,9 @@ class CGoFedServer(IncrementalServer):
         self, client: CGoFedClient, num_samples: int = 100
     ) -> Optional[torch.Tensor]:
         """
-        Compute current-task representation for a specific client from its local TRAIN data.
+        Tính representation của một client ở task hiện tại từ train data local.
 
-        This avoids using global test data for training-related regularization setup.
+        Đây là đầu vào để server so sánh similarity với history cũ.
         """
         try:
             rep = client.compute_activation_representation(
@@ -322,11 +329,9 @@ class CGoFedServer(IncrementalServer):
         top_k: int,
     ) -> List[Dict]:
         """
-        Build candidate historical models for one client using Eq.10-style similarity.
+        Chọn các historical models phù hợp nhất cho một client dựa trên similarity.
 
-        Priority:
-        1) Historical task models from OTHER clients (paper-consistent)
-        2) Fallback to task-global historical models (robustness)
+        Ưu tiên dùng history từ client khác, sau đó mới fallback sang task-global history.
         """
         candidates: List[Dict] = []
 
@@ -435,19 +440,23 @@ class CGoFedServer(IncrementalServer):
         for name, own_tensor in own_params.items():
             if own_tensor.dtype.is_floating_point and name in others_params:
                 other_tensor = others_params[name].to(dtype=torch.float32)
-                mixed = self_weight * own_tensor.float() + (1.0 - self_weight) * other_tensor
+                mixed = (
+                    self_weight * own_tensor.float()
+                    + (1.0 - self_weight) * other_tensor
+                )
                 blend[name] = mixed.to(dtype=own_tensor.dtype)
             else:
                 blend[name] = own_tensor.clone()
         return blend
 
-    def _compute_personalized_models(self, results: List[Dict]) -> Dict[int, OrderedDict]:
+    def _compute_personalized_models(
+        self, results: List[Dict]
+    ) -> Dict[int, OrderedDict]:
         """
-        Paper Eq. 12: personalized aggregation for each client k.
+        Tạo personalized model cho từng client theo Eq.12.
 
-        Θ_k^{t,g} = β * Θ_k^t + (1 - β) * Σ_{i != k}(w_{k,i} * Θ_i^t),
-        where w_{k,i} is derived from Eq.10 similarities on current-task representations
-        and β = eq12_self_weight controls the contribution of others.
+        Mục tiêu là round tiếp theo mỗi client không chỉ nhận global model thuần,
+        mà nhận model đã pha trộn với thông tin lịch sử phù hợp hơn với chính nó.
         """
         if len(results) < 2:
             return {}

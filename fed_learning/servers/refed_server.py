@@ -37,7 +37,7 @@ from .server import FederatedServer
 
 class ReFedServer:
     """
-    Server for Re-Fed (Retrieval-Enhanced Federated Incremental Learning).
+    Server chuyên cho Re-Fed.
 
     Re-Fed's server is remarkably simple (paper's key advantage):
     - Standard FedAvg aggregation
@@ -52,6 +52,7 @@ class ReFedServer:
     """
 
     def __init__(self, clients, test_data: Dict, config: Dict):
+        """Khởi tạo Re-Fed server, global model và các tham số điều phối PIM caching."""
         from ..models.cnn_gru import CNN_GRU_Model
         from ..strategies.fed_incremental.refed import ReFedTrainer, ReFedAggregator
 
@@ -106,25 +107,20 @@ class ReFedServer:
         print(f"  Strategy: Re-Fed (FedAvg + PIM-based Sample Caching)")
 
     def get_global_params(self) -> OrderedDict:
-        """Get global model parameters (CPU)."""
+        """Lấy snapshot tham số global model để gửi xuống client."""
         return OrderedDict(
             (k, v.cpu().clone()) for k, v in self.global_model.state_dict().items()
         )
 
     def set_global_params(self, params: OrderedDict):
-        """Set global model parameters."""
+        """Nạp tham số global mới sau bước aggregate."""
         self.global_model.load_state_dict(
             {k: v.to(self.primary_device) for k, v in params.items()}
         )
 
     def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """
-        Set up for a new task.
-
-        Args:
-            task_id: Task identifier
-            task_classes: New class IDs in this task
-            seen_classes: Full list of all seen classes up to now
+        Đồng bộ server khi bắt đầu task mới và cập nhật các lớp đã thấy.
         """
         self.current_task = task_id
         self.task_classes[task_id] = task_classes
@@ -137,18 +133,12 @@ class ReFedServer:
         print(f"\n  Task {task_id}: classes {task_classes}")
         print(f"   Total seen classes: {len(self.seen_classes)}")
 
-    def coordinate_pim_caching(
-        self, participating_clients=None, verbose: bool = True
-    ):
+    def coordinate_pim_caching(self, participating_clients=None, verbose: bool = True):
         """
-        Coordinate PIM-based sample caching across all clients.
+        Điều phối bước PIM caching cho toàn bộ client trước khi train task mới.
 
-        Paper Algorithm 1, Steps 5-9:
-        When a new task arrives, each client uses PIM to score and
-        cache important previous samples before training begins.
-
-        This should be called BEFORE training rounds, at the start
-        of each new task (except the first task).
+        Đây là phần quan trọng nhất của Re-Fed ở phía server: yêu cầu từng client
+        dùng global model hiện tại để chấm điểm và cache các mẫu replay quan trọng.
         """
         from ..models.cnn_gru import CNN_GRU_Model
 
@@ -168,9 +158,7 @@ class ReFedServer:
             model = CNN_GRU_Model(
                 self.config["input_shape"], self.config["num_classes"]
             ).to(device)
-            model.load_state_dict(
-                {k: v.to(device) for k, v in global_params.items()}
-            )
+            model.load_state_dict({k: v.to(device) for k, v in global_params.items()})
 
             client.update_cache_with_pim(model, global_params, device)
 
@@ -188,19 +176,12 @@ class ReFedServer:
             avg_cached = total_cached / max(1, len(clients))
             print(f"    PIM caching complete. Avg cached per client: {avg_cached:.0f}")
 
-    def train_round(
-        self, participating_clients=None, verbose: bool = True
-    ) -> Dict:
+    def train_round(self, participating_clients=None, verbose: bool = True) -> Dict:
         """
-        Train one federated round with Re-Fed.
+        Chạy một federated round của Re-Fed.
 
-        Paper Algorithm 1, Steps 10-13:
-        1. Distribute global model to clients
-        2. Each client trains on cached + new data
-        3. Aggregate models (FedAvg)
-
-        Note: PIM caching should be done before training rounds
-        via coordinate_pim_caching().
+        Lưu ý: bước PIM caching không nằm trong hàm này mà cần gọi trước đó
+        bằng `coordinate_pim_caching()` ở đầu task.
         """
         from ..training.refed_worker import train_refed_clients_on_gpu
 
@@ -265,7 +246,7 @@ class ReFedServer:
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:
-        """Evaluate global model on test set."""
+        """Đánh giá global model của Re-Fed trên test set hiện tại."""
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()
 

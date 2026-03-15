@@ -32,7 +32,7 @@ from .incremental_server import IncrementalServer
 
 class DERServer(IncrementalServer):
     """
-    Server for DER algorithm with expandable model and two-stage training.
+    Server chuyên cho DER với model mở rộng theo task và train hai giai đoạn.
 
     Inherits from IncrementalServer → FederatedServer:
         - evaluate_global(): Uses self.global_model(X_batch) which works
@@ -50,10 +50,10 @@ class DERServer(IncrementalServer):
 
     def __init__(self, clients, test_data: Dict, config: Dict):
         """
-        Initialize DER Server.
+        Khởi tạo DER server.
 
-        Calls parent __init__ (creates CNN_GRU_Model), then replaces
-        global_model with DERModel.
+        Bước quan trọng nhất ở đây là thay global model mặc định bằng `DERModel`
+        để server có thể quản lý các extractor được thêm mới theo task.
         """
         # Parent handles: clients, test_data, config, num_classes,
         # GPU detection, history, seen_classes, task_classes
@@ -63,9 +63,9 @@ class DERServer(IncrementalServer):
         from ..models.der_model import DERModel
 
         del self.global_model
-        self.global_model = DERModel(
-            config["input_shape"], config["num_classes"]
-        ).to(self.primary_device)
+        self.global_model = DERModel(config["input_shape"], config["num_classes"]).to(
+            self.primary_device
+        )
 
         # Task classes history (needed by der_worker for model reconstruction)
         self._task_classes_history: Dict[int, List[int]] = {}
@@ -74,13 +74,10 @@ class DERServer(IncrementalServer):
 
     def set_global_params(self, params: OrderedDict):
         """
-        Override to reconstruct DERModel structure before loading state dict.
+        Nạp state dict vào DERModel theo cách an toàn.
 
-        In train_incremental_kaggle.py, set_global_params() is called BEFORE
-        set_task() (which calls add_task()). A fresh DERModel has no extractors,
-        so load_state_dict() would fail with unexpected keys.
-
-        This override reconstructs the correct number of extractors first.
+        Nếu số extractor hiện tại chưa khớp với state dict nhận được,
+        server sẽ dựng lại đúng cấu trúc model rồi mới load tham số.
         """
         # Count how many extractors are in params
         extractor_indices = {
@@ -109,15 +106,12 @@ class DERServer(IncrementalServer):
 
     def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """
-        Set up for a new task — expand model + update aggregator.
+        Chuẩn bị DER cho task mới.
 
-        NOTE: Does NOT call trainer.set_task() — that is called separately
-        by train_incremental_kaggle.py (avoids double set_task bug).
-
-        Args:
-            task_id: Task identifier
-            task_classes: List of new class IDs in this task
-            seen_classes: Full cumulative seen classes list
+        Ngoài phần tracking task/class của server cha, hàm này còn:
+        - lưu lịch sử class để worker reconstruct model đúng cấu trúc
+        - gọi `add_task()` để mở rộng DERModel
+        - cập nhật trainable keys cho aggregator
         """
         # Parent handles: task tracking, seen_classes, task_classes dict, print
         super().set_task(task_id, task_classes, seen_classes)
@@ -130,10 +124,9 @@ class DERServer(IncrementalServer):
         self.global_model.add_task(task_classes, s_max=s_max)
 
         # Update aggregator with current trainable param keys
-        if hasattr(self.aggregator, 'set_trainable_keys'):
+        if hasattr(self.aggregator, "set_trainable_keys"):
             trainable_keys = [
-                k for k, p in self.global_model.named_parameters()
-                if p.requires_grad
+                k for k, p in self.global_model.named_parameters() if p.requires_grad
             ]
             self.aggregator.set_trainable_keys(trainable_keys)
 
@@ -144,15 +137,11 @@ class DERServer(IncrementalServer):
         verbose: bool = True,
     ) -> Dict:
         """
-        Train one federated round with stage support.
+        Chạy một federated round của DER.
 
-        Args:
-            participating_clients: Clients to train (default: all)
-            stage: 1=representation learning, 2=classifier finetuning
-            verbose: Whether to print progress
-
-        Returns:
-            Dict with train_loss and round_time
+        DER cần biết đang ở stage nào để worker và client train đúng nhánh:
+        - stage 1: học representation mới
+        - stage 2: fine-tune classifier
         """
         from ..training.der_worker import train_der_clients_on_gpu
 
@@ -163,8 +152,10 @@ class DERServer(IncrementalServer):
         if verbose:
             stage_name = "Representation" if stage == 1 else "Classifier"
             device_info = "CPU" if self.use_cpu else f"{self.num_gpus} GPU(s)"
-            print(f"\n→ DER Stage {stage} ({stage_name}): "
-                  f"Training {len(clients)} clients on {device_info}")
+            print(
+                f"\n→ DER Stage {stage} ({stage_name}): "
+                f"Training {len(clients)} clients on {device_info}"
+            )
 
         global_params = self.get_global_params()
 
@@ -220,7 +211,7 @@ class DERServer(IncrementalServer):
                 print(f"  → Replay samples: {total_replay}")
 
             # Print mask stats for Stage 1
-            if stage == 1 and hasattr(self.global_model, 'get_mask_stats'):
+            if stage == 1 and hasattr(self.global_model, "get_mask_stats"):
                 stats = self.global_model.get_mask_stats()
                 for k, v in stats.items():
                     print(f"  → {k}: {v:.2%}")
@@ -233,13 +224,9 @@ class DERServer(IncrementalServer):
         verbose: bool = True,
     ):
         """
-        Update exemplar buffers for all clients after task completion.
+        Cập nhật exemplar buffer cho các client sau khi task kết thúc.
 
-        Uses herding selection in feature space of current extractor.
-
-        Args:
-            participating_clients: Clients to update (default: all)
-            verbose: Whether to print progress
+        Đây là bước DER dùng để chuẩn bị replay memory cho task tiếp theo.
         """
         clients = participating_clients or self.clients
 
@@ -247,7 +234,7 @@ class DERServer(IncrementalServer):
             print(f"\n📸 DER: Updating exemplar buffers for {len(clients)} clients")
 
         for idx, client in enumerate(clients):
-            if not hasattr(client, 'update_exemplars'):
+            if not hasattr(client, "update_exemplars"):
                 continue
             if client.num_samples == 0:
                 continue
@@ -258,31 +245,25 @@ class DERServer(IncrementalServer):
             total_buffer = sum(
                 c.replay_buffer.total_samples
                 for c in clients
-                if hasattr(c, 'replay_buffer')
+                if hasattr(c, "replay_buffer")
             )
             print(f"   Exemplar update complete. Total buffer: {total_buffer}")
 
     def compute_average_forgetting(self) -> float:
-        """Compute Average Forgetting."""
+        """Tính Average Forgetting của DER dựa trên accuracy từng task."""
         if self.current_task == 0:
             return 0.0
         current_accs = self.evaluate_per_task()
-        if hasattr(self.trainer, 'update_forgetting'):
+        if hasattr(self.trainer, "update_forgetting"):
             self.trainer.update_forgetting(current_accs)
             return self.trainer.last_af
         return 0.0
 
     def evaluate_per_task(self, batch_size: int = 1024) -> Dict[int, float]:
         """
-        Evaluate accuracy per task.
+        Đánh giá accuracy riêng cho từng task đã học.
 
-        Reuses same logic as FedCBDRServer.evaluate_per_task.
-
-        Args:
-            batch_size: Evaluation batch size
-
-        Returns:
-            Dict {task_id: accuracy}
+        Hàm này hữu ích khi cần tính forgetting hoặc phân tích task-wise performance.
         """
         from sklearn.metrics import accuracy_score
 
@@ -311,8 +292,8 @@ class DERServer(IncrementalServer):
 
             with torch.no_grad():
                 for i in range(0, len(y_task), batch_size):
-                    X_batch = X_task[i:i + batch_size].to(self.primary_device)
-                    y_batch = y_task[i:i + batch_size]
+                    X_batch = X_task[i : i + batch_size].to(self.primary_device)
+                    y_batch = y_task[i : i + batch_size]
 
                     out = self.global_model(X_batch)
                     preds = out.argmax(dim=1)

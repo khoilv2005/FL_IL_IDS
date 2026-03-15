@@ -24,10 +24,14 @@ from .server import FederatedServer
 
 class FedLwFServer:
     """
-    Server for FedLwF (Federated Learning without Forgetting).
+    Server chuyên cho FedLwF.
+
+    Server này vẫn aggregate như FedAvg, nhưng có thêm trách nhiệm
+    lưu snapshot global model sau mỗi task để các client dùng làm teacher.
     """
 
     def __init__(self, clients, test_data: Dict, config: Dict):
+        """Khởi tạo global model, trainer LwF, aggregator và state theo task."""
         from ..models.cnn_gru import CNN_GRU_Model
         from ..strategies.fed_incremental.fedlwf import FedLwFTrainer, FedLwFAggregator
 
@@ -86,26 +90,20 @@ class FedLwFServer:
         print(f"   α={self.trainer.lwf_alpha}, T={self.trainer.temperature}")
 
     def get_global_params(self) -> OrderedDict:
-        """Get global model parameters (CPU)."""
+        """Lấy tham số global hiện tại để phát xuống client ở đầu round."""
         return OrderedDict(
             (k, v.cpu().clone()) for k, v in self.global_model.state_dict().items()
         )
 
     def set_global_params(self, params: OrderedDict):
-        """Set global model parameters."""
+        """Cập nhật global model từ kết quả aggregate của round hiện tại."""
         self.global_model.load_state_dict(
             {k: v.to(self.primary_device) for k, v in params.items()}
         )
 
     def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """
-        Set up for a new task.
-
-        Args:
-            task_id: Task identifier
-            task_classes: List of class IDs in this task (new classes)
-            seen_classes: Optional full list of all seen classes up to now.
-                         If provided, replaces self.seen_classes entirely.
+        Đồng bộ task hiện tại và danh sách class đã thấy.
         """
         self.current_task = task_id
         self.task_classes[task_id] = task_classes
@@ -121,7 +119,7 @@ class FedLwFServer:
         print(f"   Total seen classes: {len(self.seen_classes)}")
 
     def save_global_snapshot(self):
-        """Save global model snapshot after task completion."""
+        """Lưu snapshot global model sau task để client dùng làm teacher ở task sau."""
         # Save in trainer (will be distributed via config)
         self.trainer.save_model_snapshot(self.global_model)
 
@@ -134,7 +132,7 @@ class FedLwFServer:
             client.old_model = None  # Clear cache, will reload
 
     def train_round(self, participating_clients=None, verbose: bool = True) -> Dict:
-        """Train one federated round with FedAvg."""
+        """Chạy một round FedLwF: train local có distillation rồi aggregate như FedAvg."""
         import time
         from ..training.fedlwf_worker import train_fedlwf_clients_on_gpu
 
@@ -199,7 +197,7 @@ class FedLwFServer:
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:
-        """Evaluate global model."""
+        """Đánh giá global model, có thể lọc theo `seen_classes` cho setting incremental."""
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()
 

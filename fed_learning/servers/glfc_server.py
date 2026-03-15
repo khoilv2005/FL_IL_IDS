@@ -37,7 +37,7 @@ from .server import FederatedServer
 
 class GLFCServer:
     """
-    Server for GLFC (Global-Local Forgetting Compensation).
+    Server chuyên cho GLFC.
 
     Implements the Proxy Server from paper Section 3.4:
     - Collects prototype gradients from clients
@@ -48,6 +48,7 @@ class GLFCServer:
     """
 
     def __init__(self, clients, test_data: Dict, config: Dict):
+        """Khởi tạo GLFC server, proxy-state và các tham số reconstruction/monitoring."""
         from ..models.cnn_gru import CNN_GRU_Model
         from ..strategies.fed_incremental.glfc import GLFCTrainer, GLFCAggregator
 
@@ -115,25 +116,20 @@ class GLFCServer:
         print(f"  Strategy: GLFC (FedAvg + Local/Global Forgetting Compensation)")
 
     def get_global_params(self) -> OrderedDict:
-        """Get global model parameters (CPU)."""
+        """Lấy tham số global model để phát cho client hoặc lưu làm best model."""
         return OrderedDict(
             (k, v.cpu().clone()) for k, v in self.global_model.state_dict().items()
         )
 
     def set_global_params(self, params: OrderedDict):
-        """Set global model parameters."""
+        """Nạp tham số global mới sau khi aggregate xong round hiện tại."""
         self.global_model.load_state_dict(
             {k: v.to(self.primary_device) for k, v in params.items()}
         )
 
     def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """
-        Set up for a new task.
-
-        Args:
-            task_id: Task identifier
-            task_classes: New class IDs in this task
-            seen_classes: Full list of all seen classes up to now
+        Cập nhật task hiện tại và danh sách class đã thấy cho GLFC.
         """
         self.current_task = task_id
         self.task_classes[task_id] = task_classes
@@ -148,18 +144,13 @@ class GLFCServer:
 
     def model_back(self):
         """
-        Return best models to clients for distillation.
-
-        Paper Section 3.4: Proxy server returns [best_model_1, best_model_2].
+        Trả về hai mốc best model mà proxy server đang giữ để client distill.
         """
         return self.best_model_1, self.best_model_2
 
     def _gradient_to_label(self, pool_grad: List) -> List[int]:
         """
-        Infer label from gradient direction.
-
-        Paper Section 3.4: Label can be inferred from the gradient
-        of the output layer (argmin of summed gradient).
+        Suy ra nhãn gần đúng từ hướng gradient của output layer.
         """
         pool_label = []
         for grad_single in pool_grad:
@@ -183,18 +174,12 @@ class GLFCServer:
 
     def process_prototype_gradients(self, pool_grad: List):
         """
-        Process collected prototype gradients.
+        Xử lý prototype gradients do client gửi lên.
 
-        Paper Section 3.4:
-        1. Infer labels from gradients
-        2. Reconstruct pseudo data via gradient inversion
-        3. Monitor accuracy on reconstructed data
-        4. Update best model tracking
-
-        Simplified for network IDS data:
-        Instead of full pixel-space gradient inversion (designed for images),
-        we use the gradient information to monitor model quality and
-        track best historical models.
+        Trong implementation hiện tại, gradient được dùng như tín hiệu để:
+        - suy nhãn gần đúng
+        - đánh giá chất lượng model hiện tại
+        - cập nhật best historical models của proxy server
         """
         if not pool_grad:
             return
@@ -233,7 +218,7 @@ class GLFCServer:
             self.best_model_2 = self.get_global_params()
 
     def _evaluate_on_test_subset(self) -> float:
-        """Evaluate global model on test data subset for proxy monitoring."""
+        """Đánh giá nhanh trên tập con test để proxy server theo dõi chất lượng model."""
         self.global_model.eval()
 
         X_test = self.test_data.get("X_test")
@@ -278,11 +263,10 @@ class GLFCServer:
         self, participating_clients=None, verbose: bool = True
     ):
         """
-        Coordinate exemplar set update across all clients.
+        Điều phối cập nhật exemplar set cho toàn bộ client.
 
-        Paper Section 3.3:
-        After each round, every participant updates their exemplar set
-        and old model based on the global model.
+        Sau khi global model đổi, server phát state mới để client đồng bộ memory
+        và old model cho các round/task tiếp theo.
         """
         clients = participating_clients or self.clients
 
@@ -304,9 +288,7 @@ class GLFCServer:
             # Update exemplar set
             if hasattr(client, "update_exemplar_set"):
                 try:
-                    device = (
-                        client.device if client.device else self.primary_device
-                    )
+                    device = client.device if client.device else self.primary_device
                     client.update_exemplar_set(client.model, device)
                 except Exception as e:
                     if verbose:
@@ -317,11 +299,9 @@ class GLFCServer:
         if verbose:
             print("    Exemplar update complete.")
 
-    def train_round(
-        self, participating_clients=None, verbose: bool = True
-    ) -> Dict:
+    def train_round(self, participating_clients=None, verbose: bool = True) -> Dict:
         """
-        Train one federated round with GLFC.
+        Chạy một round GLFC đầy đủ ở phía server.
 
         Sequence (following author's fl_main.py):
         1. Distribute global model and old models to clients
@@ -329,6 +309,8 @@ class GLFCServer:
         3. Collect prototype gradients
         4. Aggregate models (FedAvg)
         5. Process prototype gradients at proxy server
+
+        Đây là vòng lặp chính của GLFC ở phía server.
         """
         from ..training.glfc_worker import train_glfc_clients_on_gpu
 
@@ -382,7 +364,9 @@ class GLFCServer:
         # Aggregate (FedAvg)
         new_params = self.aggregator.aggregate(results, global_params)
         if new_params is None:
-            print("    ⚠️ Aggregation returned None (all clients may have failed). Keeping current params.")
+            print(
+                "    ⚠️ Aggregation returned None (all clients may have failed). Keeping current params."
+            )
         else:
             self.set_global_params(new_params)
 
@@ -417,7 +401,7 @@ class GLFCServer:
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:
-        """Evaluate global model on test set."""
+        """Đánh giá global model của GLFC trên test set hiện tại."""
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()
 
