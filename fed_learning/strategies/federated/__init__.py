@@ -12,10 +12,12 @@ from .fedavg import FedAvgTrainer, FedAvgAggregator
 from .fedavgm import FedAvgMTrainer, FedAvgMAggregator
 from .fedprox import FedProxTrainer, FedProxAggregator
 from .fedplus import FedPlusTrainer, FedPlusAggregator
+from .plexus import PlexusTrainer, PlexusAggregator
 
 __all__ = [
     "FedAvgTrainer", "FedAvgAggregator",
     "FedAvgMTrainer", "FedAvgMAggregator",
     "FedProxTrainer", "FedProxAggregator",
     "FedPlusTrainer", "FedPlusAggregator",
+    "PlexusTrainer", "PlexusAggregator",
 ]

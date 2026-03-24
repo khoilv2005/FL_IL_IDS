@@ -179,6 +179,24 @@ def _train_refed(server, participating_clients, config, task_id):
             )
 
 
+def _train_plexus(server, participating_clients, config):
+    """Plexus: Decentralized FL with rotating aggregator and hash-based sampling."""
+    plexus_rounds = config.get("rounds_per_task", 5)
+    print(f"\n  === Plexus Decentralized Training ({plexus_rounds} rounds) ===")
+
+    for r in range(plexus_rounds):
+        server.train_round(
+            participating_clients=participating_clients,
+            verbose=True,
+        )
+        if (r + 1) % config.get("eval_every", 1) == 0:
+            eval_metrics = server.evaluate_global()
+            print(
+                f"    Round {r + 1}/{plexus_rounds} -> "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
+            )
+
+
 # =============================================================================
 # EVALUATION & VISUALIZATION
 # =============================================================================
@@ -523,6 +541,8 @@ def run_incremental_training(config: Dict[str, Any]):
             _train_glfc(server, participating_clients, config)
         elif algo == "refed":
             _train_refed(server, participating_clients, config, task_id)
+        elif algo == "plexus":
+            _train_plexus(server, participating_clients, config)
         else:
             train_federated_multigpu(server, task_config)
 

@@ -6,5 +6,6 @@ from .der_client import DERClient
 from .nice_client import NICEClient
 from .glfc_client import GLFCClient
 from .refed_client import ReFedClient
+from .plexus_client import PlexusClient
 
-__all__ = ["FederatedClient", "CGoFedClient", "DERClient", "NICEClient", "GLFCClient", "ReFedClient"]
+__all__ = ["FederatedClient", "CGoFedClient", "DERClient", "NICEClient", "GLFCClient", "ReFedClient", "PlexusClient"]
