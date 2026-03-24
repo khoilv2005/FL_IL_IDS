@@ -77,13 +77,13 @@ CONFIG = {
     # Options:
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
-    "mode": "il",
+    "mode": "fed_il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "nice",
+    "algorithm": "refed",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 5 Tasks Distribution
