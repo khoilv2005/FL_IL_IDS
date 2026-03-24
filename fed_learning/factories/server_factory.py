@@ -15,6 +15,7 @@ from fed_learning.servers import (
     NICEServer,
     GLFCServer,
     ReFedServer,
+    PlexusServer,
 )
 
 
@@ -26,6 +27,7 @@ _SERVER_REGISTRY = {
     "nice": NICEServer,
     "glfc": GLFCServer,
     "refed": ReFedServer,
+    "plexus": PlexusServer,
 }
 
 # These algorithms use FedLwFServer

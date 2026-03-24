@@ -9,6 +9,7 @@ from .der_server import DERServer
 from .nice_server import NICEServer
 from .glfc_server import GLFCServer
 from .refed_server import ReFedServer
+from .plexus_server import PlexusServer
 
 __all__ = [
     "FederatedServer",
@@ -20,4 +21,5 @@ __all__ = [
     "NICEServer",
     "GLFCServer",
     "ReFedServer",
+    "PlexusServer",
 ]

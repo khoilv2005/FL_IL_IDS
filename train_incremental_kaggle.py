@@ -10,7 +10,8 @@ Usage:
 
     Sau đó chọn thuật toán qua CONFIG["algorithm"]:
     - fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
-              "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed"
+              "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
+              "plexus"
     - il: "ewc", "lwf", "der", "nice"
 
     Upload fed_learning folder to Kaggle dataset, then run this script.
@@ -79,7 +80,8 @@ CONFIG = {
     "mode": "il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
-    #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed"
+    #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
+    #         "plexus"
     # il:     "ewc", "lwf", "der", "nice"
     "algorithm": "nice",
     # Output
@@ -148,6 +150,11 @@ CONFIG = {
     "refed_memory_size": 2000,
     "refed_lambda_pim": 0.5,
     "refed_pim_iterations": 5,
+    # Plexus (Decentralized FL without a Server - EuroMLSys 2025)
+    "plexus_sample_size": 13,        # Number of training participants per round
+    "plexus_num_aggregators": 1,     # Number of aggregators per round
+    "plexus_success_fraction": 0.8,  # Fraction of sample needed before aggregation
+    "plexus_inactivity_threshold": 50,  # Rounds before peer considered offline
 }
 
 
