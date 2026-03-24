@@ -81,7 +81,7 @@ CONFIG = {
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "refed",
+    "algorithm": "der",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 5 Tasks Distribution
