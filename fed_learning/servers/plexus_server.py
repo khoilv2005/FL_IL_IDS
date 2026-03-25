@@ -218,7 +218,8 @@ class PlexusServer(IncrementalServer):
         results = list(results_dict.values())
 
         # --- 4. Success-fraction filtering ---
-        n_required = max(3, floor(len(results) * self.success_fraction))
+        # success_fraction - 80%: chỉ cần 80% số node trong sample gửi local model về là aggregator có thể  bắt đầu quá trình aggregation, không cần đợi tất cả mẫu gửi về (giảm latency, tăng tốc độ vòng) 
+        n_required = max(3, floor(len(results) * self.success_fraction)) # len(re): số node đã gửi local model về cho aggre, 3 là ít nhất phải có 3 node gửi local model về  
         if len(results) > n_required:
             used_results = results[:n_required]
         else:

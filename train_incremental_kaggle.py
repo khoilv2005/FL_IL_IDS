@@ -151,7 +151,7 @@ CONFIG = {
     "refed_lambda_pim": 0.5,
     "refed_pim_iterations": 5,
     # Plexus (Decentralized FL without a Server - EuroMLSys 2025)
-    "plexus_sample_size": 13,        # Number of training participants per round
+    "plexus_sample_size": 4,        # Number of training participants per round
     "plexus_num_aggregators": 1,     # Number of aggregators per round
     "plexus_success_fraction": 0.8,  # Fraction of sample needed before aggregation
     "plexus_inactivity_threshold": 50,  # Rounds before peer considered offline
