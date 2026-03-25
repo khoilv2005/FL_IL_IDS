@@ -58,13 +58,22 @@ from ...core import BaseTrainer, BaseAggregator
 
 class SampleManager:
     """
-    Deterministic hash-based sample ordering (paper Section 3.1).
+    Deterministic hash-based sample ordering + bandwidth-based aggregator
+    selection (paper Section 3.1 & ``determine_available_peers_for_sample``).
 
-    Given a round number and the set of active peer IDs, produces a deterministic
-    ordering by hashing ``MD5(peer_id || round)``.  The first entries in this
-    ordering become aggregators; subsequent entries form the training sample.
+    Workflow per round:
+    1. Hash ordering ``MD5(peer_id || round)`` → deterministic sample.
+    2. Take the first ``sample_size`` entries as the round's participants.
+    3. Among those participants, sort by **bandwidth descending** → the
+       top ``num_aggregators`` nodes become aggregators.
 
-    This is a direct port of ``dlsim/plexus/sample_manager.py``.
+    This mirrors ``dlsim/plexus/community.py``:
+    ```
+    candidate_peers = self.sample_manager.get_ordered_sample_list(...)
+    if getting_aggregators and self.other_nodes_bws:
+        candidate_peers = sorted(candidate_peers[:sample_size],
+            key=lambda pk: self.other_nodes_bws[pk], reverse=True)
+    ```
     """
 
     def __init__(self, sample_size: int = 13, num_aggregators: int = 1):
@@ -93,20 +102,70 @@ class SampleManager:
         return [t[0] for t in hashes]
 
     def get_aggregators(
-        self, round_num: int, peer_ids: List[int]
+        self,
+        round_num: int,
+        peer_ids: List[int],
+        bandwidths: Optional[Dict[int, float]] = None,
     ) -> List[int]:
-        """Return the aggregator(s) for this round."""
+        """
+        Return the aggregator(s) for this round.
+
+        Paper protocol (``community.py:determine_available_peers_for_sample``):
+        1. Get the hash-ordered sample (first ``sample_size`` peers).
+        2. Sort that sample by bandwidth **descending**.
+        3. Pick the top ``num_aggregators`` — highest-bandwidth nodes aggregate.
+
+        If no bandwidth info is available, falls back to pure hash ordering
+        (equivalent to all peers having equal bandwidth).
+
+        Args:
+            round_num: Current round number.
+            peer_ids: Active peer IDs.
+            bandwidths: Optional mapping client_id → bandwidth capacity.
+
+        Returns:
+            List of aggregator client IDs.
+        """
         ordered = self.get_ordered_sample_list(round_num, peer_ids)
-        return ordered[: self.num_aggregators]
+        sample = ordered[: self.sample_size]
+
+        if bandwidths:
+            # Sort sample by bandwidth descending → highest-BW nodes first
+            sample = sorted(
+                sample,
+                key=lambda pid: bandwidths.get(pid, 0.0),
+                reverse=True,
+            )
+
+        return sample[: self.num_aggregators]
 
     def get_sample(
-        self, round_num: int, peer_ids: List[int]
+        self,
+        round_num: int,
+        peer_ids: List[int],
+        bandwidths: Optional[Dict[int, float]] = None,
     ) -> List[int]:
-        """Return the training sample for this round (excluding aggregators)."""
+        """
+        Return the training sample for this round (excluding aggregators).
+
+        Uses same hash ordering; aggregators (selected by bandwidth)
+        are removed from the sample.
+
+        Args:
+            round_num: Current round number.
+            peer_ids: Active peer IDs.
+            bandwidths: Optional mapping for aggregator selection.
+
+        Returns:
+            List of training participant client IDs.
+        """
         ordered = self.get_ordered_sample_list(round_num, peer_ids)
-        start = self.num_aggregators
-        end = start + self.sample_size
-        return ordered[start:end]
+        aggregator_set = set(
+            self.get_aggregators(round_num, peer_ids, bandwidths)
+        )
+        # Participants = hash-ordered list minus aggregators, capped at sample_size
+        participants = [pid for pid in ordered if pid not in aggregator_set]
+        return participants[: self.sample_size]
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +260,7 @@ class PlexusAggregator(BaseAggregator):
         num_aggregators: int = 1,
         success_fraction: float = 0.8,
         inactivity_threshold: int = 50,
+        client_bandwidths: Optional[Dict[int, float]] = None,
     ):
         self.sample_size = sample_size
         self.num_aggregators = num_aggregators
@@ -210,6 +270,10 @@ class PlexusAggregator(BaseAggregator):
         # Internal components
         self.sample_manager = SampleManager(sample_size, num_aggregators)
         self.population_view = PopulationView()
+
+        # Bandwidth info: client_id -> bandwidth capacity.
+        # Used to select aggregators (highest-bandwidth node aggregates).
+        self.client_bandwidths: Dict[int, float] = client_bandwidths or {}
 
         # Round counter (managed externally by server)
         self.current_round: int = 0
@@ -249,12 +313,14 @@ class PlexusAggregator(BaseAggregator):
     # ------------------------------------------------------------------
 
     def get_round_aggregators(self, round_num: int, all_client_ids: List[int]) -> List[int]:
-        """Determine aggregator(s) for a given round."""
+        """Determine aggregator(s) for a given round (bandwidth-based)."""
         active = self.population_view.get_active_peers(
             round_num, self.inactivity_threshold
         )
         candidates = active if active else all_client_ids
-        return self.sample_manager.get_aggregators(round_num, candidates)
+        return self.sample_manager.get_aggregators(
+            round_num, candidates, self.client_bandwidths
+        )
 
     def get_round_sample(self, round_num: int, all_client_ids: List[int]) -> List[int]:
         """Determine training sample for a given round."""
@@ -262,7 +328,9 @@ class PlexusAggregator(BaseAggregator):
             round_num, self.inactivity_threshold
         )
         candidates = active if active else all_client_ids
-        sample = self.sample_manager.get_sample(round_num, candidates)
+        sample = self.sample_manager.get_sample(
+            round_num, candidates, self.client_bandwidths
+        )
         # Fallback: if sample is too small, use all active peers
         if len(sample) < 3:
             return candidates

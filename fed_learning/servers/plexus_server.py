@@ -8,8 +8,8 @@ Reference:
 This server simulates the fully decentralized Plexus system within the
 existing centralized FL infrastructure.  In each round it:
 
-1. Rotates the aggregator role to a hash-selected client (Section 3).
-2. Selects a deterministic sub-sample of clients via SampleManager (Section 3.1).
+1. Selects a deterministic sub-sample of clients via hash ordering (Section 3.1).
+2. Within that sample, picks the aggregator as the highest-bandwidth node.
 3. Trains only the sampled clients (simulating peer availability).
 4. Aggregates with success-fraction filtering (Section 3.2).
 5. Distributes the aggregated model + population view to sampled clients.
@@ -19,6 +19,7 @@ model, this class wraps the decentralized logic while exposing the same
 ``train_round()`` / ``evaluate_global()`` interface as ``IncrementalServer``.
 """
 
+import random
 import time
 from collections import OrderedDict
 from math import floor
@@ -81,11 +82,24 @@ class PlexusServer(IncrementalServer):
         self.inactivity_threshold = config.get("plexus_inactivity_threshold", 50)
 
         self.trainer = PlexusTrainer()
+
+        # Simulate client bandwidths for aggregator selection.
+        # In real Plexus, each node measures neighbours' upload bandwidth.
+        # Here we assign each client a random bandwidth drawn from a
+        # log-normal distribution (seeded for reproducibility).
+        all_ids = sorted(c.client_id for c in self.clients)
+        rng = random.Random(config.get("seed", 42))
+        self.client_bandwidths: Dict[int, float] = {
+            cid: round(rng.lognormvariate(mu=3.0, sigma=0.8), 2)
+            for cid in all_ids
+        }
+
         self.aggregator = PlexusAggregator(
             sample_size=self.sample_size,
             num_aggregators=self.num_aggregators,
             success_fraction=self.success_fraction,
             inactivity_threshold=self.inactivity_threshold,
+            client_bandwidths=self.client_bandwidths,
         )
 
         self.sample_manager = SampleManager(self.sample_size, self.num_aggregators)
@@ -138,11 +152,15 @@ class PlexusServer(IncrementalServer):
         all_ids = [c.client_id for c in self.clients]
         client_map = {c.client_id: c for c in self.clients}
 
-        # --- 1. Determine aggregator(s) ---
-        aggregator_ids = self.sample_manager.get_aggregators(self._round, all_ids)
+        # --- 1. Determine aggregator(s) (highest bandwidth in sample) ---
+        aggregator_ids = self.sample_manager.get_aggregators(
+            self._round, all_ids, self.client_bandwidths
+        )
 
         # --- 2. Determine training sample ---
-        sample_ids = self.sample_manager.get_sample(self._round, all_ids)
+        sample_ids = self.sample_manager.get_sample(
+            self._round, all_ids, self.client_bandwidths
+        )
         # Ensure we have at least 3 peers (liveness)
         if len(sample_ids) < 3:
             sample_ids = all_ids
@@ -159,9 +177,10 @@ class PlexusServer(IncrementalServer):
 
         if verbose:
             device_info = "CPU" if self.use_cpu else f"{self.num_gpus} GPU(s)"
+            agg_bw = {a: self.client_bandwidths.get(a, 0) for a in aggregator_ids}
             print(
                 f"\n→ Plexus Round {self._round}: "
-                f"aggregator={aggregator_ids}, "
+                f"aggregator={aggregator_ids} (bw={agg_bw}), "
                 f"sample={len(sampled_clients)}/{len(all_ids)} clients, "
                 f"device={device_info}"
             )
