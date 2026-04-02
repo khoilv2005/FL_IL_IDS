@@ -83,7 +83,7 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "der",
+    "algorithm": "plexus_nice",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 5 Tasks Distribution
