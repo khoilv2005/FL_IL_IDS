@@ -53,6 +53,21 @@ class BaseAggregator(ABC):
         """
         pass
     
+    def weighted_average(self, results: List[Dict]) -> OrderedDict:
+        """
+        Compute weighted average of model parameters.
+
+        Weight is proportional to number of samples per client.
+        This is the core computation used by FedAvg and related algorithms.
+
+        Args:
+            results: List of client results with 'params' and 'num_samples'
+
+        Returns:
+            Weighted average of parameters
+        """
+        return self._weighted_average(results)
+
     def _weighted_average(self, results: List[Dict]) -> OrderedDict:
         """
         Compute weighted average of model parameters.

@@ -29,6 +29,7 @@ from fed_learning.factories.client_factory import (
 )
 from fed_learning.factories.server_factory import create_server
 from fed_learning.training.post_task import post_task_processing
+from fed_learning.decentralized.runner import run_decentralized_incremental_training
 
 # Visualization imports (optional)
 try:
@@ -402,8 +403,11 @@ def run_incremental_training(config: Dict[str, Any]):
         from fed_learning.training.local_task_loop import run_local_incremental_training
 
         return run_local_incremental_training(config)
+    elif mode == "decentralized":
+        # Plexus decentralized FL (no central server)
+        return run_decentralized_incremental_training(config)
     if mode != "fed_il":
-        raise ValueError("Unsupported mode. Use 'fed_il' or 'il'.")
+        raise ValueError("Unsupported mode. Use 'fed_il', 'il', or 'decentralized'.")
 
     # 1. Setup
     set_seed(config.get("random_seed", 42))

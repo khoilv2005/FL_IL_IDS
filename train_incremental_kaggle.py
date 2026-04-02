@@ -7,11 +7,13 @@ Usage:
     Chọn mode trong CONFIG["mode"]:
     - "fed_il": federated incremental learning
     - "il": local incremental learning
+    - "decentralized": decentralized Plexus FL (no server)
 
     Sau đó chọn thuật toán qua CONFIG["algorithm"]:
     - fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
               "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
               "plexus"
+    - decentralized: "plexus" (uses PlexusTrainer/Aggregator)
     - il: "ewc", "lwf", "der", "nice"
 
     Upload fed_learning folder to Kaggle dataset, then run this script.
@@ -19,6 +21,105 @@ Usage:
 
 import os
 import sys
+import shutil
+
+# =============================================================================
+# GITHUB UPDATE
+# =============================================================================
+GITHUB_REPO_URL = "https://github.com/khoilv2005/FL_IL_IDS.git"
+GITHUB_BRANCH = "main"
+
+
+def update_from_github(github_url: str = GITHUB_REPO_URL, branch: str = GITHUB_BRANCH, force: bool = False):
+    """
+    Clone or pull the latest version of the project from GitHub.
+
+    This function will:
+    1. Check if the project directory exists
+    2. If exists and force=True, remove and re-clone
+    3. If exists and force=False, pull latest changes
+    4. If not exists, clone the repository
+
+    Args:
+        github_url: GitHub repository URL
+        branch: Branch to clone/pull
+        force: If True, remove existing directory and re-clone
+
+    Returns:
+        bool: True if update was successful, False otherwise
+    """
+    import subprocess
+
+    project_dir = "/kaggle/working/FL_IL_IDS"
+    fed_learning_src = os.path.join(project_dir, "fed_learning")
+    fed_learning_dest = "/kaggle/working/fed_learning"
+
+    def run_cmd(cmd, cwd=None):
+        """Run shell command and return success status."""
+        try:
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            if result.returncode != 0:
+                print(f"⚠️ Command failed: {cmd}")
+                print(f"   stdout: {result.stdout[:500] if result.stdout else ''}")
+                print(f"   stderr: {result.stderr[:500] if result.stderr else ''}")
+                return False
+            return True
+        except Exception as e:
+            print(f"⚠️ Exception running command: {e}")
+            return False
+
+    print("\n" + "=" * 60)
+    print("🔄 GITHUB UPDATE CHECK")
+    print("=" * 60)
+
+    # Check git availability
+    if not run_cmd("which git"):
+        print("⚠️ Git not available, skipping update")
+        return False
+
+    if os.path.exists(project_dir):
+        if force:
+            print(f"🗑️ Removing existing project directory (force=True)...")
+            shutil.rmtree(project_dir)
+            print(f"📥 Cloning {github_url} (branch: {branch})...")
+            if run_cmd(f"git clone -b {branch} {github_url} {project_dir}"):
+                print(f"✅ Successfully cloned {github_url}")
+                return _copy_fed_learning(fed_learning_src, fed_learning_dest)
+        else:
+            print(f"📦 Project exists, pulling latest changes...")
+            if run_cmd("git fetch origin", cwd=project_dir):
+                if run_cmd(f"git reset --hard origin/{branch}", cwd=project_dir):
+                    print(f"✅ Successfully pulled latest changes")
+                    return _copy_fed_learning(fed_learning_src, fed_learning_dest)
+    else:
+        print(f"📥 Cloning {github_url} (branch: {branch})...")
+        if run_cmd(f"git clone -b {branch} {github_url} {project_dir}"):
+            print(f"✅ Successfully cloned {github_url}")
+            return _copy_fed_learning(fed_learning_src, fed_learning_dest)
+
+    return False
+
+
+def _copy_fed_learning(src: str, dest: str) -> bool:
+    """Copy fed_learning from source to destination."""
+    try:
+        if os.path.exists(src):
+            if os.path.exists(dest):
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest)
+            print(f"📁 Copied {src} -> {dest}")
+            return True
+    except Exception as e:
+        print(f"⚠️ Failed to copy fed_learning: {e}")
+    return False
+
 
 # =============================================================================
 # KAGGLE SETUP
@@ -62,13 +163,15 @@ def setup_imports():
             print(f"⚠️ Failed to create symlink: {e}")
 
 
-setup_imports()
-
-
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 CONFIG = {
+    # GitHub Update
+    "update_from_github": False,  # Set True to pull latest code from GitHub
+    "github_force_clone": False,  # If True, remove existing and re-clone
+    "github_url": "https://github.com/khoilv2005/FL_IL_IDS.git",
+    "github_branch": "main",
     # Data
     "data_dir": "/kaggle/input/data-10clients",
     # Reproducibility
@@ -77,11 +180,13 @@ CONFIG = {
     # Options:
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
+    #   - "decentralized": Plexus decentralized FL (no server)
     "mode": "fed_il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus"
+    # decentralized: "plexus"
     # il:     "ewc", "lwf", "der", "nice"
     "algorithm": "der",
     # Output
@@ -162,6 +267,36 @@ CONFIG = {
 # MAIN
 # =============================================================================
 if __name__ == "__main__":
+    # GitHub Update (optional)
+    if CONFIG.get("update_from_github", False):
+        github_url = CONFIG.get("github_url", GITHUB_REPO_URL)
+        github_branch = CONFIG.get("github_branch", GITHUB_BRANCH)
+        force_clone = CONFIG.get("github_force_clone", False)
+
+        print(f"\n🔍 Checking for GitHub updates...")
+        print(f"   URL: {github_url}")
+        print(f"   Branch: {github_branch}")
+        print(f"   Force clone: {force_clone}")
+
+        updated = update_from_github(
+            github_url=github_url,
+            branch=github_branch,
+            force=force_clone
+        )
+
+        if updated:
+            print("✅ GitHub update completed successfully")
+            # Re-setup imports after update
+            setup_imports()
+        else:
+            print("⚠️ GitHub update failed or skipped, using existing modules")
+
     from fed_learning.training.task_loop import run_incremental_training
+
+    print("\n" + "=" * 60)
+    print(f"🚀 STARTING TRAINING")
+    print(f"   Mode: {CONFIG['mode']}")
+    print(f"   Algorithm: {CONFIG['algorithm']}")
+    print("=" * 60 + "\n")
 
     run_incremental_training(CONFIG)
