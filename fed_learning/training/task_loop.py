@@ -29,7 +29,7 @@ from fed_learning.factories.client_factory import (
 )
 from fed_learning.factories.server_factory import create_server
 from fed_learning.training.post_task import post_task_processing
-from fed_learning.decentralized.runner import run_decentralized_incremental_training
+from fed_learning.plexus import run_plexus_training
 
 # Visualization imports (optional)
 try:
@@ -452,6 +452,129 @@ def _generate_fcil_report(all_history, config, output_dir):
 # =============================================================================
 
 
+def _run_plexus_training(config: Dict[str, Any]) -> Dict:
+    """
+    Run pure Plexus decentralized training (Algorithm 1 & 2, no server, no incremental).
+
+    This is the entry point when mode="decentralized".
+    Plexus paper: Dhasade et al., EuroMLSys 2025
+
+    Args:
+        config: Training configuration dict. Required keys:
+            - "data_dir": Path to data
+            - "output_dir": Output directory
+            - "total_classes": Total number of classes
+            - "input_shape": Input shape for model
+            - "num_rounds": Number of Plexus rounds
+            - "plexus_sample_size": K (default 13)
+            - "plexus_success_fraction": s_f (default 0.8)
+            - "local_epochs", "learning_rate", "batch_size"
+
+    Returns:
+        Dict with task_accuracies (Plexus has 1 "task", no incremental)
+    """
+    # 1. Setup
+    set_seed(config.get("random_seed", 42))
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = f"{config['output_dir']}_plexus_{ts}"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save Config
+    with open(f"{output_dir}/config.json", "w") as f:
+        json.dump(config, f, indent=2, default=str)
+
+    print("\n" + "=" * 80)
+    print("🚀 PURE PLEXUS — Decentralized FL (No Server, No Incremental)")
+    print("=" * 80)
+
+    # 2. Load Data
+    data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
+    print(f"\n{data_loader}")
+
+    config["input_shape"] = data_loader.input_shape
+    config["num_classes"] = config["total_classes"]
+
+    # 3. Create model template
+    from fed_learning.models.cnn_gru import CNN_GRU_Model
+    model_template = CNN_GRU_Model(
+        input_shape=config["input_shape"],
+        num_classes=config["total_classes"],
+    )
+
+    # 4. Prepare node data (all clients, all data)
+    node_data = {}
+    for cid in data_loader.get_all_client_ids():
+        X, y = data_loader.get_client_data(cid, task_id=0)  # Single task, no incremental
+        if len(y) > 0:
+            node_data[cid] = (X, y)
+
+    print(f"  Nodes: {len(node_data)}")
+
+    # 5. Prepare test data (all classes)
+    test_X, test_y = data_loader.get_test_data(task_id=0, cumulative=True)
+    test_data = {"X_test": test_X, "y_test": test_y}
+
+    # 6. Run Plexus
+    result = run_plexus_training(
+        node_ids=list(node_data.keys()),
+        node_data=node_data,
+        model_template=model_template,
+        config=config,
+        test_data=test_data,
+        verbose=True,
+    )
+
+    # 7. Format return (compatible with run_incremental_training format)
+    history = result["history"]
+    global_params = result["global_params"]
+
+    # Compute metrics on test data
+    model = CNN_GRU_Model(
+        input_shape=config["input_shape"],
+        num_classes=config["total_classes"],
+    )
+    model.load_state_dict({k: v.cpu() for k, v in global_params.items()})
+    model.eval()
+
+    X_test = test_data["X_test"]
+    y_test = test_data["y_test"]
+
+    all_preds = []
+    all_targets = []
+    with torch.no_grad():
+        batch_size = config.get("batch_size", 32)
+        for i in range(0, len(X_test), batch_size):
+            batch_X = X_test[i:i+batch_size]
+            batch_y = y_test[i:i+batch_size]
+            output = model(batch_X)
+            preds = output.argmax(dim=1)
+            all_preds.extend(preds.cpu().numpy())
+            all_targets.extend(batch_y.cpu().numpy())
+
+    from sklearn.metrics import accuracy_score, f1_score
+    acc = accuracy_score(all_targets, all_preds)
+    f1 = f1_score(all_targets, all_preds, average="macro", zero_division=0)
+
+    print("\n" + "=" * 80)
+    print("🏁 PURE PLEXUS COMPLETE")
+    print(f"Final Accuracy: {acc*100:.2f}%")
+    print(f"Final F1: {f1*100:.2f}%")
+    print("=" * 80)
+
+    # Save results
+    with open(f"{output_dir}/results.json", "w") as f:
+        json.dump({
+            "task_accuracies": [{"accuracy": acc, "f1_macro": f1, "avg_forgetting": 0.0}],
+            "plexus_history": {k: v for k, v in history.items() if k != "sample"},
+        }, f, indent=2, default=str)
+
+    return {
+        "task_accuracies": [{"accuracy": acc, "f1_macro": f1, "avg_forgetting": 0.0}],
+        "task_forgetting": [0.0],
+    }
+
+
 def run_incremental_training(config: Dict[str, Any]):
     """
     Run the complete Federated Class Incremental Learning pipeline.
@@ -474,8 +597,9 @@ def run_incremental_training(config: Dict[str, Any]):
 
         return run_local_incremental_training(config)
     elif mode == "decentralized":
-        # Plexus decentralized FL (no central server)
-        return run_decentralized_incremental_training(config)
+        # Plexus decentralized FL — no server, no incremental learning
+        # Runs Algorithm 1 (DERIVE_SAMPLE) + Algorithm 2 (Push-Based Protocol)
+        return _run_plexus_training(config)
     if mode != "fed_il":
         raise ValueError("Unsupported mode. Use 'fed_il', 'il', or 'decentralized'.")
 
