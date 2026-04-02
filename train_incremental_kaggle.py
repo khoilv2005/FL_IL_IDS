@@ -195,7 +195,7 @@ def setup_imports(use_github_fresh: bool = False):
 # =============================================================================
 CONFIG = {
     # GitHub Update
-    "update_from_github": False,  # Set True to pull latest code from GitHub
+    "update_from_github": True,  # Set True to pull latest code from GitHub
     "github_force_clone": False,  # If True, remove existing and re-clone
     "github_url": "https://github.com/khoilv2005/FL_IL_IDS.git",
     "github_branch": "main",
@@ -208,14 +208,14 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "fed_il",
+    "mode": "decentralized",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus"
     # decentralized: "plexus"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "der",
+    "algorithm": "plexus",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 5 Tasks Distribution
