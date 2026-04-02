@@ -129,7 +129,7 @@ def _copy_fed_learning(src: str, dest: str) -> bool:
 # 2. /kaggle/input/ai4fids-fedlearning-modules/fed_learning (Kaggle dataset)
 # 3. /kaggle/input/ai4fids-fedlearning-modules (flattened structure)
 MODULE_PATHS = [
-    "/kaggle/working/fed_learning",  # GitHub clone (priority)
+    "/kaggle/working/FL_IL_IDS/fed_learning",  # GitHub clone (priority)
     "/kaggle/input/ai4fids-fedlearning-modules",  # Kaggle dataset
 ]
 
