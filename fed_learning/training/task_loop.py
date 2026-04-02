@@ -198,6 +198,76 @@ def _train_plexus(server, participating_clients, config):
             )
 
 
+def _train_plexus_der(server, participating_clients, config, trainer):
+    """PlexusDER: Decentralized DER with two-stage training."""
+    stage1_rounds = config.get("der_stage1_rounds", config["rounds_per_task"])
+    stage2_rounds = config.get("der_stage2_rounds", 3)
+
+    # Stage 1: Representation learning
+    if hasattr(trainer, "set_stage"):
+        trainer.set_stage(1)
+
+    print(f"\n  === PlexusDER Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
+    for r in range(stage1_rounds):
+        server.train_round(
+            participating_clients=participating_clients,
+            stage=1,
+            verbose=True,
+        )
+        if (r + 1) % config.get("eval_every", 1) == 0:
+            eval_metrics = server.evaluate_global()
+            print(
+                f"    Round {r + 1}/{stage1_rounds} → "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
+            )
+
+    # Stage 2: Classifier learning
+    if hasattr(trainer, "set_stage"):
+        trainer.set_stage(2)
+
+    if hasattr(server.global_model, "reset_classifier"):
+        server.global_model.reset_classifier()
+        print("  → Classifier H_t re-initialized (paper Section 3.2)")
+
+    print(f"\n  === PlexusDER Stage 2: Classifier Learning ({stage2_rounds} rounds) ===")
+    for r in range(stage2_rounds):
+        server.train_round(
+            participating_clients=participating_clients,
+            stage=2,
+            verbose=True,
+        )
+        if (r + 1) % config.get("eval_every", 1) == 0:
+            eval_metrics = server.evaluate_global()
+            print(
+                f"    Round {r + 1}/{stage2_rounds} → "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
+            )
+
+
+def _train_plexus_nice(server, participating_clients, config, data_loader, task_id):
+    """PlexusNICE: Decentralized NICE with phase-based training."""
+    nice_rounds = 1  # NICE uses internal phases, only 1 federated round needed
+    is_last_task = task_id == data_loader.get_num_tasks() - 1
+
+    print(
+        f"\n  === PlexusNICE Training ({nice_rounds} rounds) ==="
+        f"{' [LAST EPISODE: tau=100%]' if is_last_task else ''}"
+    )
+
+    for r in range(nice_rounds):
+        server.train_round(
+            participating_clients=participating_clients,
+            is_last_task=is_last_task,
+            verbose=True,
+        )
+        if (r + 1) % config.get("eval_every", 1) == 0:
+            eval_metrics = server.evaluate_global()
+            print(
+                f"    Round {r + 1}/{nice_rounds} -> "
+                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
+            )
+
+
 # =============================================================================
 # EVALUATION & VISUALIZATION
 # =============================================================================
@@ -515,13 +585,19 @@ def run_incremental_training(config: Dict[str, Any]):
             is_last_task = task_id == data_loader.get_num_tasks() - 1
             task_config["is_last_task"] = is_last_task
 
+        # PlexusNICE: pass is_last_task flag
+        if config["algorithm"].lower() == "plexus_nice":
+            is_last_task = task_id == data_loader.get_num_tasks() - 1
+            task_config["is_last_task"] = is_last_task
+
         server = create_server(config, participating_clients, test_data, task_config)
 
         if global_model is not None:
             server.set_global_params(global_model)
 
-        server.trainer = trainer
-        server.aggregator = aggregator
+        # Use server's trainer/aggregator (already configured with proper state like bandwidths)
+        trainer = server.trainer
+        aggregator = server.aggregator
 
         if hasattr(server, "set_task"):
             server.set_task(task_id, new_classes, seen_classes)
@@ -547,6 +623,13 @@ def run_incremental_training(config: Dict[str, Any]):
             _train_refed(server, participating_clients, config, task_id)
         elif algo == "plexus":
             _train_plexus(server, participating_clients, config)
+        elif algo == "plexus_der":
+            _train_plexus_der(server, participating_clients, config, trainer)
+            # Weight Alignment after Stage 2
+            if task_id > 0 and hasattr(server.global_model, "weight_align"):
+                server.global_model.weight_align(len(new_classes))
+        elif algo == "plexus_nice":
+            _train_plexus_nice(server, participating_clients, config, data_loader, task_id)
         else:
             train_federated_multigpu(server, task_config)
 

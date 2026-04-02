@@ -87,7 +87,7 @@ CONFIG = {
     #         "plexus"
     # decentralized: "plexus"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "der",
+    "algorithm": "plexus_nice",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 5 Tasks Distribution

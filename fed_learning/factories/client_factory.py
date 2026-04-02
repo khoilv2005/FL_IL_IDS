@@ -16,6 +16,8 @@ from fed_learning.clients import (
     GLFCClient,
     ReFedClient,
     PlexusClient,
+    PlexusDERClient,
+    PlexusNICEClient,
 )
 from fed_learning.clients.fedcbdr_client import FedCBDRClient
 from fed_learning.clients.fedlwf_client import FedLwFClient
@@ -62,6 +64,20 @@ _CLIENT_REGISTRY = {
     "plexus": (
         PlexusClient,
         {},
+    ),
+    "plexus_der": (
+        PlexusDERClient,
+        {
+            "buffer_size": ("buffer_size", 500),
+        },
+    ),
+    "plexus_nice": (
+        PlexusNICEClient,
+        {
+            "max_phases": ("nice_max_phases", 5),
+            "phase_epochs": ("nice_phase_epochs", 5),
+            "tau": ("tau", 0.95),
+        },
     ),
 }
 

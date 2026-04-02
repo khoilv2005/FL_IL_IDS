@@ -106,3 +106,12 @@ def post_task_processing(
 
     # 8. Re-Fed: No special post-task processing needed
     # PIM caching is done at the START of each new task (before training)
+
+    # 9. PlexusDER: Exemplar Buffer Update (herding selection)
+    if algo == "plexus_der" and hasattr(server, "coordinate_exemplar_update"):
+        print(f"\n📸 PlexusDER: Updating exemplar buffers...")
+        server.coordinate_exemplar_update(participating_clients, verbose=True)
+
+    # 10. PlexusNICE: End-task processing (age transition, freeze masks)
+    if algo == "plexus_nice" and hasattr(server, "end_task"):
+        server.end_task()
