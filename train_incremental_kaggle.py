@@ -80,7 +80,7 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "fed_il",
+    "mode": "decentralized",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
