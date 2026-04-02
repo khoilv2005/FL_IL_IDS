@@ -35,7 +35,7 @@ class PlexusSampler:
     def __init__(
         self,
         node_ids: List[int],
-        sample_size: int = 13,
+        sample_size: int = 4,
         hash_algorithm: str = "md5",
     ):
         """

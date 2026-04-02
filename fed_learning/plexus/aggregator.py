@@ -32,7 +32,7 @@ class PlexusAggregator:
 
     def __init__(
         self,
-        sample_size: int = 13,
+        sample_size: int = 4,
         success_fraction: float = 0.8,
     ):
         """

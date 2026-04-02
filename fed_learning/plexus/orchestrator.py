@@ -60,7 +60,7 @@ class PlexusOrchestrator:
         node_data: Dict[int, tuple],  # node_id -> (X_train, y_train)
         bandwidths: Dict[int, float],
         model_template: nn.Module,
-        sample_size: int = 13,
+        sample_size: int = 4,
         success_fraction: float = 0.8,
         local_epochs: int = 1,
         learning_rate: float = 0.001,

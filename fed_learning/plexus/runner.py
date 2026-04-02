@@ -21,7 +21,7 @@ Usage:
         model_template=CNN_GRU_Model(input_shape, num_classes),
         config={
             "num_rounds": 10,
-            "plexus_sample_size": 5,
+            "plexus_sample_size": 4,
             "plexus_success_fraction": 0.8,
             "local_epochs": 1,
             "learning_rate": 0.001,
@@ -72,7 +72,7 @@ def run_plexus_training(
         model_template: Model architecture to clone for each node
         config: Training config with keys:
             - num_rounds: Number of training rounds
-            - plexus_sample_size: K (default 13)
+            - plexus_sample_size: K (default 4)
             - plexus_success_fraction: s_f (default 0.8)
             - local_epochs: Local epochs per round (default 1)
             - learning_rate: Learning rate (default 0.001)
@@ -84,7 +84,7 @@ def run_plexus_training(
         Dict with training history and final global_params
     """
     # Plexus parameters
-    sample_size = config.get("plexus_sample_size", 13)
+    sample_size = config.get("plexus_sample_size", 4)
     success_fraction = config.get("plexus_success_fraction", 0.8)
     num_rounds = config.get("num_rounds", 10)
     local_epochs = config.get("local_epochs", 1)
