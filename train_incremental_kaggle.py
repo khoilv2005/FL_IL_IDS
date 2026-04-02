@@ -124,43 +124,70 @@ def _copy_fed_learning(src: str, dest: str) -> bool:
 # =============================================================================
 # KAGGLE SETUP
 # =============================================================================
-MODULE_PATH = "/kaggle/input/ai4fids-fedlearning-modules"
+# Priority order for module paths:
+# 1. /kaggle/working/fed_learning (from GitHub clone - freshest code)
+# 2. /kaggle/input/ai4fids-fedlearning-modules/fed_learning (Kaggle dataset)
+# 3. /kaggle/input/ai4fids-fedlearning-modules (flattened structure)
+MODULE_PATHS = [
+    "/kaggle/working/fed_learning",  # GitHub clone (priority)
+    "/kaggle/input/ai4fids-fedlearning-modules",  # Kaggle dataset
+]
 
 
-def setup_imports():
-    """Setup imports for both nested and flattened dataset structures."""
-    if not os.path.exists(MODULE_PATH):
-        print(f"⚠️ Warning: Module path {MODULE_PATH} not found!")
+def setup_imports(use_github_fresh: bool = False):
+    """
+    Setup imports for Kaggle environment.
+
+    Args:
+        use_github_fresh: If True, force use of /kaggle/working/fed_learning
+                         (from GitHub clone) regardless of other paths.
+    """
+    # If GitHub fresh code is requested, use it directly
+    github_path = "/kaggle/working/fed_learning"
+    if use_github_fresh and os.path.exists(github_path):
+        print(f"📦 Using fresh code from GitHub: {github_path}")
+        if github_path not in sys.path:
+            sys.path.insert(0, github_path)
         return
 
-    # Case 1: Standard structure
-    pkg_path = os.path.join(MODULE_PATH, "fed_learning")
-    if os.path.exists(pkg_path):
-        print(f"📦 Found standard package structure at {pkg_path}")
-        if MODULE_PATH not in sys.path:
-            sys.path.insert(0, MODULE_PATH)
-        return
+    # Try each module path in priority order
+    for base_path in MODULE_PATHS:
+        if not os.path.exists(base_path):
+            continue
 
-    # Case 2: Flattened structure - create symlink
-    init_path = os.path.join(MODULE_PATH, "__init__.py")
-    if os.path.exists(init_path):
-        print(f"📦 Found flattened package structure at {MODULE_PATH}")
-        try:
-            tmp_dir = "/tmp/fed_pkg_fix"
-            os.makedirs(tmp_dir, exist_ok=True)
-            symlink_path = os.path.join(tmp_dir, "fed_learning")
+        # Case 1: Standard structure (nested fed_learning folder)
+        pkg_path = os.path.join(base_path, "fed_learning")
+        if os.path.exists(pkg_path) and os.path.exists(os.path.join(pkg_path, "__init__.py")):
+            print(f"📦 Found standard package structure at {pkg_path}")
+            if pkg_path not in sys.path:
+                sys.path.insert(0, pkg_path)
+            return
 
-            if os.path.exists(symlink_path):
-                os.remove(symlink_path)
+        # Case 2: Flattened structure (fed_learning/__init__.py at base_path)
+        init_path = os.path.join(base_path, "__init__.py")
+        if os.path.exists(init_path):
+            print(f"📦 Found flattened package structure at {base_path}")
+            try:
+                tmp_dir = "/tmp/fed_pkg_fix"
+                os.makedirs(tmp_dir, exist_ok=True)
+                symlink_path = os.path.join(tmp_dir, "fed_learning")
 
-            os.symlink(MODULE_PATH, symlink_path)
+                if os.path.exists(symlink_path):
+                    os.remove(symlink_path)
 
-            if tmp_dir not in sys.path:
-                sys.path.insert(0, tmp_dir)
+                os.symlink(base_path, symlink_path)
 
-            print(f"🔗 Created symlink {symlink_path} -> {MODULE_PATH}")
-        except Exception as e:
-            print(f"⚠️ Failed to create symlink: {e}")
+                if tmp_dir not in sys.path:
+                    sys.path.insert(0, tmp_dir)
+
+                print(f"🔗 Created symlink {symlink_path} -> {base_path}")
+                return
+            except Exception as e:
+                print(f"⚠️ Failed to create symlink: {e}")
+                continue
+
+    print(f"⚠️ Warning: No fed_learning module found in any path!")
+    print(f"   Searched paths: {MODULE_PATHS}")
 
 
 # =============================================================================
@@ -286,10 +313,11 @@ if __name__ == "__main__":
 
         if updated:
             print("✅ GitHub update completed successfully")
-            # Re-setup imports after update
-            setup_imports()
+            # Re-setup imports after update - use fresh GitHub code
+            setup_imports(use_github_fresh=True)
         else:
             print("⚠️ GitHub update failed or skipped, using existing modules")
+            setup_imports()  # Fallback to Kaggle dataset modules
 
     from fed_learning.training.task_loop import run_incremental_training
 
