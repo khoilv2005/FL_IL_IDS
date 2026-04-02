@@ -16,7 +16,7 @@ Package Structure:
     factories/      - Client and server creation factories
     visualization/  - Plotting and metrics (IEEE style)
     utils/          - Common utilities (seed, cleanup)
-    decentralized/  - Plexus decentralized FL (no server)
+    plexus/          - Plexus decentralized FL (no server)
 
 Note: To avoid circular imports, some modules must be imported directly:
     from fed_learning.training.task_loop import run_incremental_training
@@ -32,12 +32,12 @@ from .training.worker import train_clients_on_gpu
 from .strategies import get_strategy, get_trainer, get_aggregator, list_strategies
 from .core import BaseTrainer, BaseAggregator
 from .utils import set_seed, cleanup_temp_folders
-from .decentralized import (
+from .plexus import (
     PlexusSampler,
     PlexusNode,
     PlexusOrchestrator,
-    PlexusIncrementalRunner,
-    PlexusMetrics,
+    PlexusAggregator,
+    run_plexus_training,
 )
 
 __all__ = [
@@ -66,6 +66,6 @@ __all__ = [
     "PlexusSampler",
     "PlexusNode",
     "PlexusOrchestrator",
-    "PlexusIncrementalRunner",
-    "PlexusMetrics",
+    "PlexusAggregator",
+    "run_plexus_training",
 ]
