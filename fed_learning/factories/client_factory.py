@@ -15,7 +15,6 @@ from fed_learning.clients import (
     NICEClient,
     GLFCClient,
     ReFedClient,
-    PlexusClient,
     PlexusDERClient,
     PlexusNICEClient,
 )
@@ -60,10 +59,6 @@ _CLIENT_REGISTRY = {
             "lambda_pim": ("refed_lambda_pim", 0.5),
             "pim_iterations": ("refed_pim_iterations", 5),
         },
-    ),
-    "plexus": (
-        PlexusClient,
-        {},
     ),
     "plexus_der": (
         PlexusDERClient,

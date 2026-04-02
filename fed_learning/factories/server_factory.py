@@ -15,7 +15,6 @@ from fed_learning.servers import (
     NICEServer,
     GLFCServer,
     ReFedServer,
-    PlexusServer,
     PlexusDERServer,
     PlexusNICEServer,
 )
@@ -29,7 +28,6 @@ _SERVER_REGISTRY = {
     "nice": NICEServer,
     "glfc": GLFCServer,
     "refed": ReFedServer,
-    "plexus": PlexusServer,
     "plexus_der": PlexusDERServer,
     "plexus_nice": PlexusNICEServer,
 }
