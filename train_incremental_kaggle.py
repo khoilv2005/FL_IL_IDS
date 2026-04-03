@@ -74,13 +74,13 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "fed_il",
+    "mode": "il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "cgofed",
+    "algorithm": "ewc",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 6 Tasks Distribution
@@ -96,7 +96,7 @@ CONFIG = {
     "rounds_per_task": 5,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
     "local_epochs": 2,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
-    "learning_rate": 0.001,  # Giảm từ 0.002: scale theo batch_size nhỏ hơn
+    "learning_rate": 0.0005,  # Giảm từ 0.001: stable gradient với EWC regularization
     "batch_size": 512,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
     "eval_every": 1,
     # --- Algorithm Specific Params ---
@@ -110,7 +110,7 @@ CONFIG = {
     "num_samples_rep": 2000,
     "top_k": 2,
     # EWC
-    "ewc_lambda": 1000.0,
+    "ewc_lambda": 5000.0,  # Tăng từ 1000 để mạnh hơn, giảm forgetting
     "fisher_samples": 200,
     "online_ewc": False,
     # LwF (FedLwF)
