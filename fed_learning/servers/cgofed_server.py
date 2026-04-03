@@ -102,6 +102,12 @@ class CGoFedServer(IncrementalServer):
                         (k, v.cpu().clone()) for k, v in params.items()
                     )
 
+        # DEBUG: Print sync status
+        print(f"  DEBUG[Sync]: task_global_models keys={list(self._task_global_models.keys())}")
+        print(f"  DEBUG[Sync]: task_representation_matrices keys={list(self._task_representation_matrices.keys())}")
+        print(f"  DEBUG[Sync]: client_representations keys={list(self._client_task_representations.keys())}")
+        print(f"  DEBUG[Sync]: client_historical_models keys={list(self._client_task_models.keys())}")
+
     def set_task(
         self,
         task_id: int,
@@ -335,7 +341,13 @@ class CGoFedServer(IncrementalServer):
         """
         candidates: List[Dict] = []
 
+        # DEBUG: Print available historical data
+        print(f"  DEBUG[S1]: client_id={client_id}, current_task={current_task}")
+        print(f"  DEBUG[S1]: _client_task_representations keys: {list(self._client_task_representations.keys())}")
+        print(f"  DEBUG[S1]: _client_task_models keys: {list(self._client_task_models.keys())}")
+
         # Paper Section 5.2: compare with tasks from other clients.
+        per_client_candidates = 0
         for hist_client_id, task_rep_map in self._client_task_representations.items():
             if hist_client_id == client_id:
                 continue
@@ -358,6 +370,9 @@ class CGoFedServer(IncrementalServer):
                         "params": hist_params,
                     }
                 )
+                per_client_candidates += 1
+
+        print(f"  DEBUG[S2]: client_id={client_id}, per_client_candidates={per_client_candidates}, candidates={len(candidates)}")
 
         # Fallback if no per-client history exists yet
         if not candidates:
