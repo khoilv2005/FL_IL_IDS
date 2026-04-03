@@ -23,45 +23,38 @@ import os
 import sys
 
 # =============================================================================
-# KAGGLE SETUP
+# KAGGLE SETUP - Clone from GitHub
 # =============================================================================
-MODULE_PATH = "/kaggle/input/ai4fids-fedlearning-modules"
+REPO_PATH = "/tmp/FL_IL_IDS"
 
 
 def setup_imports():
-    """Setup imports for both nested and flattened dataset structures."""
-    if not os.path.exists(MODULE_PATH):
-        print(f"Warning: Module path {MODULE_PATH} not found!")
-        return
+    """Clone repo from GitHub to get proper nested structure."""
+    if not os.path.exists(REPO_PATH):
+        print(f"Cloning from GitHub...")
+        os.system(f"git clone https://github.com/khoilv2005/FL_IL_IDS.git {REPO_PATH}")
+    else:
+        print(f"Using existing clone at {REPO_PATH}, pulling latest...")
+        os.system(f"cd {REPO_PATH} && git pull origin main")
+        # Remove stale pycache
+        os.system(f"find {REPO_PATH} -type d -name '__pycache__' -exec rm -rf {{}} + 2>/dev/null; true")
 
-    # Case 1: Standard structure
-    pkg_path = os.path.join(MODULE_PATH, "fed_learning")
-    if os.path.exists(pkg_path):
-        print(f"Found standard package structure at {pkg_path}")
-        if MODULE_PATH not in sys.path:
-            sys.path.insert(0, MODULE_PATH)
-        return
+    # Remove any Kaggle dataset paths that might override our import
+    kaggle_prefix = "/kaggle/input"
+    new_sys_path = []
+    for p in sys.path:
+        if not p.startswith(kaggle_prefix):
+            new_sys_path.append(p)
 
-    # Case 2: Flattened structure - create symlink
-    init_path = os.path.join(MODULE_PATH, "__init__.py")
-    if os.path.exists(init_path):
-        print(f"Found flattened package structure at {MODULE_PATH}")
-        try:
-            tmp_dir = "/tmp/fed_pkg_fix"
-            os.makedirs(tmp_dir, exist_ok=True)
-            symlink_path = os.path.join(tmp_dir, "fed_learning")
+    # Put REPO_PATH at the front
+    sys.path = [REPO_PATH] + new_sys_path
 
-            if os.path.exists(symlink_path):
-                os.remove(symlink_path)
+    # Clear any cached fed_learning modules
+    to_remove = [k for k in sys.modules.keys() if 'fed_learning' in k]
+    for k in to_remove:
+        del sys.modules[k]
 
-            os.symlink(MODULE_PATH, symlink_path)
-
-            if tmp_dir not in sys.path:
-                sys.path.insert(0, tmp_dir)
-
-            print(f"Created symlink {symlink_path} -> {MODULE_PATH}")
-        except Exception as e:
-            print(f"Failed to create symlink: {e}")
+    print(f"sys.path[0]: {sys.path[0]}")
 
 
 setup_imports()
@@ -80,7 +73,7 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "decentralized",
+    "mode": "fed_il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
