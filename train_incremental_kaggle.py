@@ -103,9 +103,9 @@ CONFIG = {
     # CGoFed - RE-TUNED dựa trên training log analysis
     "mu_cgofed": 1.0,
     "lambda_decay": 0.8,
-    "theta_threshold": 0.20,
-    "cross_task_weight": 0.08,
-    "lambda_cross_task": 0.08,
+    "theta_threshold": 0.35,  # Tăng từ 0.20: ổn định hơn, ít reset
+    "cross_task_weight": 0.3,  # Tăng từ 0.08: regularization mạnh hơn
+    "lambda_cross_task": 0.3,  # Tăng từ 0.08: penalty mạnh hơn
     "energy_threshold": 0.99,
     "num_samples_rep": 2000,
     "top_k": 2,
