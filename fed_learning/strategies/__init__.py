@@ -25,8 +25,6 @@ from .federated import (
     FedProxAggregator,
     FedPlusTrainer,
     FedPlusAggregator,
-    PlexusTrainer,
-    PlexusAggregator,
     PlexusDERTrainer,
     PlexusDERAggregator,
     PlexusNICETrainer,
@@ -124,11 +122,6 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
         "trainer": ReFedTrainer,
         "aggregator": ReFedAggregator,
     },
-    # Plexus (Decentralized FL without a Server) - EuroMLSys 2025
-    "plexus": {
-        "trainer": PlexusTrainer,
-        "aggregator": PlexusAggregator,
-    },
     # PlexusDER (Decentralized DER) - DER + Plexus
     "plexus_der": {
         "trainer": PlexusDERTrainer,
@@ -161,7 +154,6 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             - "nice": NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)
             - "glfc": GLFC - Global-Local Forgetting Compensation (CVPR 2022)
             - "refed": Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)
-            - "plexus": Plexus - Decentralized FL without a Server (EuroMLSys 2025)
         **config: Algorithm-specific configuration
 
     Returns:
@@ -243,8 +235,6 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             lambda_pim=config.get("refed_lambda_pim", 0.5),
             pim_iterations=config.get("refed_pim_iterations", 5),
         )
-    elif algo_lower == "plexus":
-        trainer = strategy["trainer"]()
     elif algo_lower == "plexus_der":
         trainer = strategy["trainer"](
             lambda_aux=config.get("lambda_aux", 1.0),
@@ -279,13 +269,6 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             cross_task_weight=config.get("cross_task_weight", 0.3),
             top_k=config.get("top_k", 2),
             rounds_per_task=config.get("rounds_per_task", 5),
-        )
-    elif algo_lower == "plexus":
-        aggregator = strategy["aggregator"](
-            sample_size=config.get("plexus_sample_size", 13),
-            num_aggregators=config.get("plexus_num_aggregators", 1),
-            success_fraction=config.get("plexus_success_fraction", 0.8),
-            inactivity_threshold=config.get("plexus_inactivity_threshold", 50),
         )
     elif algo_lower in ("plexus_der", "plexus_nice"):
         aggregator = strategy["aggregator"](
@@ -329,7 +312,6 @@ def list_strategies() -> Dict[str, str]:
         "nice": "NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)",
         "glfc": "GLFC - Global-Local Forgetting Compensation (CVPR 2022)",
         "refed": "Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)",
-        "plexus": "Plexus - Practical Federated Learning without a Server (EuroMLSys 2025)",
         "plexus_der": "PlexusDER - Decentralized DER with Plexus peer sampling",
         "plexus_nice": "PlexusNICE - Decentralized NICE with Plexus peer sampling",
     }
