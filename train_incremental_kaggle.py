@@ -30,14 +30,15 @@ REPO_PATH = "/tmp/FL_IL_IDS"
 
 def setup_imports():
     """Clone repo from GitHub to get proper nested structure."""
-    if not os.path.exists(REPO_PATH):
-        print(f"Cloning from GitHub...")
-        os.system(f"git clone https://github.com/khoilv2005/FL_IL_IDS.git {REPO_PATH}")
-    else:
-        print(f"Using existing clone at {REPO_PATH}, pulling latest...")
-        os.system(f"cd {REPO_PATH} && git pull origin main")
-        # Remove stale pycache
-        os.system(f"find {REPO_PATH} -type d -name '__pycache__' -exec rm -rf {{}} + 2>/dev/null; true")
+    import shutil
+
+    # Force fresh clone to avoid any stale bytecode issues
+    if os.path.exists(REPO_PATH):
+        print(f"Removing stale clone at {REPO_PATH}...")
+        shutil.rmtree(REPO_PATH)
+
+    print(f"Cloning from GitHub...")
+    os.system(f"git clone https://github.com/khoilv2005/FL_IL_IDS.git {REPO_PATH}")
 
     # Remove any Kaggle dataset paths that might override our import
     kaggle_prefix = "/kaggle/input"
