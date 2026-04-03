@@ -24,15 +24,16 @@ from .style import (
 )
 
 
-def plot_confusion_matrix(y_true: np.ndarray, 
+def plot_confusion_matrix(y_true: np.ndarray,
                           y_pred: np.ndarray,
                           class_names: Optional[List[str]] = None,
                           normalize: bool = True,
                           figsize: tuple = None,
-                          save_path: Optional[str] = None) -> plt.Figure:
+                          save_path: Optional[str] = None,
+                          title: Optional[str] = None) -> plt.Figure:
     """
     Plot confusion matrix heatmap (IEEE style).
-    
+
     Args:
         y_true: Ground truth labels
         y_pred: Predicted labels
@@ -40,7 +41,8 @@ def plot_confusion_matrix(y_true: np.ndarray,
         normalize: If True, normalize by row (true labels)
         figsize: Figure size
         save_path: Optional path to save the figure
-    
+        title: Optional title for the plot
+
     Returns:
         matplotlib Figure object
     """
@@ -92,7 +94,7 @@ def plot_confusion_matrix(y_true: np.ndarray,
                         color="white" if cm[i, j] > thresh else "black",
                         fontsize=6)
     
-    title = "Confusion Matrix (Normalized)" if normalize else "Confusion Matrix"
+    title = title or ("Confusion Matrix (Normalized)" if normalize else "Confusion Matrix")
     ax.set_title(title)
     
     plt.tight_layout()
