@@ -39,8 +39,8 @@ logger = logging.getLogger(__name__)
 class Config:
     """Configuration for federated splitting."""
     # Paths
-    chunks_dir: str = './data/raw_chunks'
-    output_dir: str = './data/federated_splits/100-clients'
+    chunks_dir: str = '../data/raw_chunks'
+    output_dir: str = '../data/federated_splits/100-clients'
     
     # Client settings
     num_clients: int = 100
@@ -77,39 +77,39 @@ class Config:
 class TaskStructure:
     """
     Định nghĩa cấu trúc task cho Class Incremental Learning.
-    
-    Task 0: base_classes (ví dụ: 10 classes đầu)
-    Task 1+: classes_per_task mỗi task
+
+    Fixed structure: 5 tasks × 6 classes + 1 task × 4 classes = 34 classes
+    Task 0-4: 6 classes each
+    Task 5: 4 classes
     """
-    
+
     def __init__(self, total_classes: int, base_classes: int, classes_per_task: int):
         self.total_classes = total_classes
-        self.base_classes = base_classes
-        self.classes_per_task = classes_per_task
-        
-        # Calculate number of tasks
-        remaining = total_classes - base_classes
-        self.num_tasks = 1 + max(0, (remaining + classes_per_task - 1) // classes_per_task)
-        
+        self.base_classes = base_classes  # = 6
+        self.classes_per_task = classes_per_task  # = 6
+
+        # Fixed: 5 tasks with 6 classes + 1 task with 4 classes
+        # For 34 classes: 6*5 + 4 = 34 ✓
+        self.num_tasks = 6
+
         # Generate task -> classes mapping
         self._task_classes = self._generate_task_classes()
-        
+
         logger.info(f"TaskStructure: {self.num_tasks} tasks for {total_classes} classes")
-    
+
     def _generate_task_classes(self) -> Dict[int, List[int]]:
         """Generate mapping: task_id -> list of class indices."""
         task_classes = {}
-        
-        # Task 0: base classes
-        task_classes[0] = list(range(self.base_classes))
-        
-        # Subsequent tasks
-        current_class = self.base_classes
-        for task_id in range(1, self.num_tasks):
-            end_class = min(current_class + self.classes_per_task, self.total_classes)
-            task_classes[task_id] = list(range(current_class, end_class))
-            current_class = end_class
-        
+
+        # Tasks 0-4: 6 classes each
+        for task_id in range(5):
+            start = task_id * self.classes_per_task
+            end = start + self.classes_per_task
+            task_classes[task_id] = list(range(start, end))
+
+        # Task 5: remaining classes (4 classes for 34 total)
+        task_classes[5] = list(range(30, self.total_classes))
+
         return task_classes
     
     def get_task_classes(self, task_id: int) -> List[int]:
@@ -144,16 +144,21 @@ class TaskStructure:
 class ClientAllocator:
     """
     Xác định client nào tham gia task nào.
-    
-    Logic:
-    - Chia đều clients cho các tasks
-    - Clients mới join ở mỗi task
-    - Clients cũ có thể nhận data mới với xác suất old_client_data_prob
+
+    Participation pattern:
+    - Task 0: 50% clients
+    - Task 1: 60% clients
+    - Task 2: 70% clients
+    - Task 3: 80% clients
+    - Task 4: 90% clients
+    - Task 5: 100% clients
+
+    Mỗi task tăng 10% participation.
     """
-    
+
     def __init__(
-        self, 
-        num_clients: int, 
+        self,
+        num_clients: int,
         num_tasks: int,
         old_client_data_prob: float = 1.0,
         random_seed: int = 42
@@ -162,68 +167,41 @@ class ClientAllocator:
         self.num_tasks = num_tasks
         self.old_client_data_prob = old_client_data_prob
         self.rng = np.random.default_rng(random_seed)
-        
+
         # Allocate
-        self._client_join_task: Dict[int, int] = {}  # client_id -> task joined
         self._task_active_clients: Dict[int, List[int]] = {}  # task_id -> active clients
-        self._task_new_clients: Dict[int, List[int]] = {}  # task_id -> new clients
-        
+
         self._allocate()
-    
+
     def _allocate(self):
-        """Perform allocation."""
-        clients_per_task = self.num_clients // self.num_tasks
-        available = list(range(self.num_clients))
-        self.rng.shuffle(available)
-        
+        """Perform allocation based on participation percentage per task."""
+        all_clients = list(range(self.num_clients))
+        self.rng.shuffle(all_clients)
+
         for task_id in range(self.num_tasks):
-            # Get new clients for this task
-            num_new = min(clients_per_task, len(available))
-            if task_id == self.num_tasks - 1:
-                # Last task gets all remaining
-                num_new = len(available)
-            
-            new_clients = available[:num_new]
-            available = available[num_new:]
-            
-            # Record join time
-            for cid in new_clients:
-                self._client_join_task[cid] = task_id
-            
-            self._task_new_clients[task_id] = list(new_clients)
-            
-            # Determine active clients (new + old with probability)
-            active_clients = list(new_clients)
-            if task_id > 0:
-                for cid in range(self.num_clients):
-                    if cid in self._client_join_task and self._client_join_task[cid] < task_id:
-                        if self.rng.random() < self.old_client_data_prob:
-                            active_clients.append(cid)
-            
-            self._task_active_clients[task_id] = active_clients
-            
-            logger.info(f"  Task {task_id}: {len(new_clients)} new, {len(active_clients)} active")
-    
-    def get_new_clients(self, task_id: int) -> List[int]:
-        """Get clients that joined at this task."""
-        return self._task_new_clients.get(task_id, [])
-    
+            # Participation rate: 50% + task_id * 10%
+            participation_rate = 0.5 + task_id * 0.1
+            target_count = max(1, int(np.ceil(self.num_clients * participation_rate)))
+
+            # Select clients for this task
+            selected = self.rng.choice(all_clients, size=min(target_count, self.num_clients), replace=False)
+
+            # Sort for consistent ordering
+            selected = sorted(selected.tolist())
+
+            self._task_active_clients[task_id] = selected
+
+            logger.info(f"  Task {task_id}: {len(selected)} clients ({participation_rate*100:.0f}%)")
+
     def get_active_clients(self, task_id: int) -> List[int]:
         """Get all active clients for this task."""
         return self._task_active_clients.get(task_id, [])
-    
-    def get_client_join_task(self, client_id: int) -> int:
-        """Get the task when client joined."""
-        return self._client_join_task.get(client_id, -1)
-    
+
     def to_dict(self) -> dict:
         """Export as dictionary for saving."""
         return {
             "num_clients": self.num_clients,
             "num_tasks": self.num_tasks,
-            "old_client_data_prob": self.old_client_data_prob,
-            "client_join_task": self._client_join_task,
-            "task_new_clients": {str(k): v for k, v in self._task_new_clients.items()},
             "task_active_clients": {str(k): v for k, v in self._task_active_clients.items()}
         }
 
@@ -422,44 +400,66 @@ def load_raw_data(chunks_dir: str, max_samples_per_class: int = 0, random_seed: 
 
 
 def fit_and_scale(
-    X_train: np.ndarray, 
-    X_test: np.ndarray, 
-    output_dir: str
+    X_train: np.ndarray,
+    X_test: np.ndarray,
+    output_dir: str,
+    chunk_size: int = 1000000
 ) -> Tuple[np.ndarray, np.ndarray, StandardScaler]:
-    """Fit scaler on train only, transform both."""
+    """Fit scaler on train only using partial_fit (memory efficient), transform both."""
     logger.info("=" * 60)
     logger.info("Fitting scaler on TRAIN only (no data leak)")
     logger.info("=" * 60)
-    
+
     # Reshape if needed
     if X_train.ndim == 3 and X_train.shape[2] == 1:
         X_train = X_train.reshape(X_train.shape[0], X_train.shape[1])
         X_test = X_test.reshape(X_test.shape[0], X_test.shape[1])
-    
-    # Compute bounds from train
+
+    # Compute bounds from train (percentile) - iterate in chunks to save memory
+    logger.info("Computing percentile bounds...")
     lower = np.percentile(X_train, 0.1)
     upper = np.percentile(X_train, 99.9)
+    logger.info(f"  Bounds: [{lower:.4f}, {upper:.4f}]")
+
     X_train = np.clip(X_train, lower, upper)
     X_test = np.clip(X_test, lower, upper)
-    
-    # Fit scaler
+
+    # Fit scaler using partial_fit (memory efficient)
+    logger.info("Fitting scaler (partial_fit)...")
     scaler = StandardScaler()
-    scaler.fit(X_train)
-    
-    X_train_scaled = scaler.transform(X_train).astype(np.float16)
-    X_test_scaled = scaler.transform(X_test).astype(np.float16)
-    
+
+    n_samples = X_train.shape[0]
+    n_chunks = (n_samples + chunk_size - 1) // chunk_size
+
+    for i in range(n_chunks):
+        start = i * chunk_size
+        end = min((i + 1) * chunk_size, n_samples)
+        scaler.partial_fit(X_train[start:end])
+        logger.info(f"  Partial fit chunk {i+1}/{n_chunks} ({end:,}/{n_samples:,})")
+
+    # Transform train data (still need full array, but use float32 to save memory)
+    logger.info("Transforming train data...")
+    X_train_scaled = scaler.transform(X_train).astype(np.float32)
+
+    # Transform test data
+    logger.info("Transforming test data...")
+    X_test_scaled = scaler.transform(X_test).astype(np.float32)
+
+    # Free original arrays
+    del X_train, X_test
+    gc.collect()
+
     # Add channel dimension
     X_train_scaled = X_train_scaled.reshape(-1, X_train_scaled.shape[1], 1)
     X_test_scaled = X_test_scaled.reshape(-1, X_test_scaled.shape[1], 1)
-    
+
     # Save scaler
     os.makedirs(output_dir, exist_ok=True)
     scaler_path = os.path.join(output_dir, 'scaler.pkl')
     with open(scaler_path, 'wb') as f:
         pickle.dump(scaler, f)
     logger.info(f"Saved scaler to {scaler_path}")
-    
+
     return X_train_scaled, X_test_scaled, scaler
 
 
@@ -677,11 +677,11 @@ class FederatedSplitter:
 
 def main():
     config = Config(
-        chunks_dir='./data/raw_chunks',
-        output_dir='./data/federated_splits/5-clients',
-        num_clients=5,
-        base_classes=10,
-        classes_per_task=6,
+        chunks_dir='../data/raw_chunks',
+        output_dir='../data/federated_splits/500-clients',
+        num_clients=500,
+        base_classes=6,       # 6 classes per task (first 5 tasks)
+        classes_per_task=6,   # 6 classes per task
         distribution_strategy="dirichlet",
         dirichlet_alpha=5.0,
         class_sparsity=0.7,

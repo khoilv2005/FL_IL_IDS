@@ -72,7 +72,7 @@ setup_imports()
 # =============================================================================
 CONFIG = {
     # Data
-    "data_dir": "/kaggle/input/data-10clients",
+    "data_dir": "/kaggle/input/datasets/khoilv2005/100-clients/100-clients",
     # Reproducibility
     "random_seed": 42,  # Set to None for random behavior
     # Training Mode
@@ -84,16 +84,16 @@ CONFIG = {
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
-    #         "plexus"
-    # decentralized: "plexus"
+    #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "plexus_nice",
+    "algorithm": "cgofed",
     # Output
     "output_dir": "./results_incremental",
-    # Incremental Learning - 5 Tasks Distribution
-    "num_clients": 10,
+    # Incremental Learning - 6 Tasks Distribution
+    # Task 0-4: 6 classes each, Task 5: 4 classes (total 34)
+    "num_clients": 100,
     "total_classes": 34,
-    "base_classes": 10,
+    "base_classes": 6,       # 6 classes per task (first 5 tasks)
     "classes_per_task": 6,
     # Common Parameters
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)

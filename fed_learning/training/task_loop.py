@@ -636,6 +636,7 @@ def run_incremental_training(config: Dict[str, Any]):
 
     # 4. State Variables
     global_model = None
+    global_neuron_ages = None  # NICE/PlexusNICE: preserve neuron ages across tasks
     all_history = {"task_accuracies": [], "task_forgetting": []}
     all_test_data = {}
     best_acc_per_task = {}
@@ -718,6 +719,11 @@ def run_incremental_training(config: Dict[str, Any]):
 
         if global_model is not None:
             server.set_global_params(global_model)
+            # Restore neuron ages for NICE-based algorithms (unit_ranks NOT in state_dict)
+            algo = config["algorithm"].lower()
+            if global_neuron_ages is not None and algo in ("nice", "plexus_nice"):
+                server.global_model.set_neuron_ages_state(global_neuron_ages)
+                print(f"  Restored neuron ages from previous task")
 
         # Use server's trainer/aggregator (already configured with proper state like bandwidths)
         trainer = server.trainer
@@ -764,6 +770,10 @@ def run_incremental_training(config: Dict[str, Any]):
 
         # 5g. Update Global Model
         global_model = server.get_global_params()
+        # Save neuron ages for NICE-based algorithms (unit_ranks NOT in state_dict)
+        algo = config["algorithm"].lower()
+        if algo in ("nice", "plexus_nice"):
+            global_neuron_ages = server.global_model.get_neuron_ages_state()
 
         # 5h. Evaluate
         print(f"\n📊 Evaluation:")

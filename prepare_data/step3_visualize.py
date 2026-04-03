@@ -262,10 +262,10 @@ def bubble_and_heatmap(
 
     # --- Chuẩn bị màu sắc cho bong bóng dựa trên Task IL ---
     bubble_colors = []
-    
-    # Task 0: Đỏ, 1: Vàng, 2: Xanh biển, 3: Xanh lục, 4: Hồng
+
+    # Task 0: Đỏ, 1: Vàng, 2: Xanh biển, 3: Xanh lục, 4: Hồng, 5: Cam
     # Dùng màu đậm hơn cho bong bóng
-    task_palette = ['tab:red', 'gold', 'tab:blue', 'tab:green', 'deeppink']
+    task_palette = ['tab:red', 'gold', 'tab:blue', 'tab:green', 'deeppink', 'darkorange']
     
     # Danh sách màu cho từng điểm dữ liệu (tương ứng với xs, ys)
     if base_classes > 0 and classes_per_task > 0:
@@ -310,20 +310,24 @@ def bubble_and_heatmap(
     if base_classes > 0 and classes_per_task > 0:
         import matplotlib.lines as mlines
         legend_handles = []
-        
+
         # Tạo legend items thủ công
         # Tính số lượng task tối đa dựa trên num_classes
         max_task = 1 + (num_classes - base_classes - 1) // classes_per_task
         if max_task < 0: max_task = 0
-        
+
         for t_id in range(max_task + 1):
             if t_id == 0:
                 label = f"Task 0 (0-{base_classes-1})"
             else:
                 start = base_classes + (t_id - 1) * classes_per_task
-                end = start + classes_per_task - 1
+                if t_id == max_task:
+                    # Task cuối có thể có ít hơn classes_per_task
+                    end = num_classes - 1
+                else:
+                    end = start + classes_per_task - 1
                 label = f"Task {t_id} ({start}-{end})"
-            
+
             c = task_palette[t_id % len(task_palette)]
             
             # Dùng marker giống scatter để làm legend
