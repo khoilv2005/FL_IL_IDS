@@ -207,7 +207,26 @@ class IncrementalDataLoader:
 
     def get_all_client_ids(self) -> List[int]:
         """Get list of all client IDs from metadata."""
+        # Try old format: client_join_task
         if "client_allocation" in self.metadata and "client_join_task" in self.metadata["client_allocation"]:
-             # Keys are string integers
              return [int(k) for k in self.metadata["client_allocation"]["client_join_task"].keys()]
-        return []
+
+        # Try new format: task_active_clients - collect all unique client IDs
+        if "client_allocation" in self.metadata and "task_active_clients" in self.metadata["client_allocation"]:
+            all_clients = set()
+            for task_clients in self.metadata["client_allocation"]["task_active_clients"].values():
+                all_clients.update(task_clients)
+            return sorted(list(all_clients))
+
+        # Fallback: scan directory for client files
+        client_ids = []
+        for f in self.data_dir.glob("client_*_train.npz"):
+            try:
+                # Extract client ID from filename like "client_0_train.npz"
+                parts = f.stem.split("_")
+                if len(parts) >= 2:
+                    cid = int(parts[1])
+                    client_ids.append(cid)
+            except (ValueError, IndexError):
+                continue
+        return sorted(client_ids)
