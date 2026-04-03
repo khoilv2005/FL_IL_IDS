@@ -76,7 +76,7 @@ class SampleManager:
     ```
     """
 
-    def __init__(self, sample_size: int = 13, num_aggregators: int = 1):
+    def __init__(self, sample_size: int = 4, num_aggregators: int = 1):
         self.sample_size = sample_size
         self.num_aggregators = num_aggregators
 
@@ -256,7 +256,7 @@ class PlexusAggregator(BaseAggregator):
 
     def __init__(
         self,
-        sample_size: int = 13,
+        sample_size: int = 4,
         num_aggregators: int = 1,
         success_fraction: float = 0.8,
         inactivity_threshold: int = 50,
