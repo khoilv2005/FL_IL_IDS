@@ -653,6 +653,12 @@ class CGoFedTrainer(BaseTrainer):
                 # Scale by lambda_cross_task
                 lambda_reg = getattr(self, "lambda_cross_task", 0.1)
                 total_loss = ce_loss + (lambda_reg / 2) * reg_term
+                # DEBUG[Loss]: Log cross-task regularization contribution
+                if not hasattr(self, '_loss_log_count'):
+                    self._loss_log_count = 0
+                self._loss_log_count += 1
+                if self._loss_log_count <= 3:
+                    print(f"    DEBUG[Loss]: CE={ce_loss.item():.4f}, reg={reg_term.item():.4f}, lambda={lambda_reg}, total={total_loss.item():.4f}")
                 return total_loss
 
         return ce_loss
@@ -810,9 +816,11 @@ class CGoFedTrainer(BaseTrainer):
 
             # DEBUG[9]: Log per-layer gradient reduction (first pre_step call only)
             if not self._pre_step_logged_this_task and per_layer_reduction:
+                mu_t = self.mu_projection * self.mu_coefficient
                 print(
                     f"  DEBUG[9]: Per-layer gradient reduction (first batch, task {self.current_task}):"
                 )
+                print(f"    mu_projection={self.mu_projection}, mu_coefficient={self.mu_coefficient:.4f}, mu_t={mu_t:.4f}")
                 for ln, info in per_layer_reduction.items():
                     print(
                         f"    {ln}: reduction={info['reduction_pct']:.1f}% | "

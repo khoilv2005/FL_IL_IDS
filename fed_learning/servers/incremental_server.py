@@ -124,6 +124,29 @@ class IncrementalServer(FederatedServer):
         y_pred = np.array(all_preds)
         zero_division: Any = 0
 
+        # DEBUG: Per-class accuracy and prediction distribution
+        print(f"  DEBUG[Eval]: n_test={n_test}, seen_classes={self.seen_classes}")
+        print(f"  DEBUG[Eval]: Predicted classes: {np.unique(y_pred)}")
+        print(f"  DEBUG[Eval]: True classes: {np.unique(y_true)}")
+
+        # Per-class accuracy breakdown
+        unique_classes = np.unique(np.concatenate([y_true, y_pred]))
+        per_class_accs = {}
+        for c in unique_classes:
+            mask = y_true == c
+            if mask.sum() > 0:
+                acc = (y_pred[mask] == c).mean()
+                per_class_accs[int(c)] = acc
+                print(f"  DEBUG[Eval]: Class {int(c):2d}: acc={acc:.3f} (n={mask.sum()})")
+
+        # Prediction bias: how many predictions per true class
+        print(f"  DEBUG[Eval]: Prediction distribution per true class:")
+        for c in sorted(unique_classes)[:6]:  # Show first 6 classes
+            mask = y_true == c
+            if mask.sum() > 0:
+                pred_counts = np.bincount(y_pred[mask], minlength=34)[:12]  # First 12 classes
+                print(f"    Class {int(c):2d} true → predictions: {pred_counts}")
+
         metrics = {
             "loss": total_loss / n_test,
             "accuracy": accuracy_score(y_true, y_pred),
