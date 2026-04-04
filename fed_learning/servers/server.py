@@ -90,6 +90,10 @@ class FederatedServer:
         # Paper Eq. 14: Local regularization info for CGoFed (passed to clients)
         self._local_reg_info: Dict = {}
 
+    def update_clients(self, clients: List) -> None:
+        """Update the client list for a new task. Preserves server state."""
+        self.clients = clients
+
     def get_global_params(self) -> OrderedDict:
         """Lấy snapshot tham số của global model và đưa về CPU để phát cho client."""
         return OrderedDict(

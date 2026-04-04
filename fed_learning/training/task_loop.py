@@ -643,6 +643,10 @@ def run_incremental_training(config: Dict[str, Any]):
     persistent_clients: Dict[int, object] = {}
 
     # 5. Task Loop
+    # Create server ONCE and reuse for all tasks (fixes CGoFed aggregator state persistence)
+    server = None
+    persistent_clients = {}
+
     for task_id in range(data_loader.get_num_tasks()):
         print(
             f"\n{'=' * 80}\n📚 TASK {task_id}/{data_loader.get_num_tasks()}\n{'=' * 80}"
@@ -674,9 +678,6 @@ def run_incremental_training(config: Dict[str, Any]):
         all_test_data[task_id] = test_data_path
 
         # 5c. Manage Persistent Clients
-        if task_id == 0:
-            persistent_clients = {}
-
         participating_clients = []
         for cid, data in client_data_map.items():
             client = get_or_create_persistent_client(
@@ -685,7 +686,7 @@ def run_incremental_training(config: Dict[str, Any]):
             update_client_data(client, data, task_id, new_classes)
             participating_clients.append(client)
 
-        # 5d. Prepare Server
+        # 5d. Prepare Server (create only for task 0, reuse for subsequent tasks)
         task_config = {
             **config,
             "num_classes": config["total_classes"],
@@ -715,7 +716,12 @@ def run_incremental_training(config: Dict[str, Any]):
             is_last_task = task_id == data_loader.get_num_tasks() - 1
             task_config["is_last_task"] = is_last_task
 
-        server = create_server(config, participating_clients, test_data, task_config)
+        # Create server only for task 0, reuse for subsequent tasks
+        if task_id == 0:
+            server = create_server(config, participating_clients, test_data, task_config)
+        else:
+            # Update server with new clients for new task
+            server.update_clients(participating_clients)
 
         if global_model is not None:
             server.set_global_params(global_model)
