@@ -1067,6 +1067,15 @@ class CGoFedAggregator(BaseAggregator):
             # task_reps contains matrices [n_samples_client, hidden_dim] from each client
             # Stack them to get full representation matrix [total_samples, hidden_dim]
             all_reps = torch.cat(task_reps, dim=0)
+
+            # OOM fix: Subsample representations to max 1000 samples per task
+            # This prevents memory growth while maintaining representation diversity
+            MAX_REP_SAMPLES = 1000
+            if all_reps.shape[0] > MAX_REP_SAMPLES:
+                indices = torch.randperm(all_reps.shape[0])[:MAX_REP_SAMPLES]
+                all_reps = all_reps[indices]
+                print(f"  → Subsampled {MAX_REP_SAMPLES}/{all_reps.shape[0]+MAX_REP_SAMPLES} representations for task {self.current_task}")
+
             # Store full representation matrix (not just mean) for proper similarity computation
             # Paper Eq. 10: similarity should be computed on representation matrices
             if not hasattr(self, "task_representation_matrices"):
