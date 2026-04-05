@@ -136,9 +136,6 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
 
 
 def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]:
-    # DEBUG: Print mu_cgofed config value
-    print(f"  DEBUG[Config]: mu_cgofed = {config.get('mu_cgofed', 'NOT_FOUND')}")
-    print(f"  DEBUG[Config]: all config keys with 'mu' = {[k for k in config.keys() if 'mu' in k.lower()]}")
     """
     Factory function to get trainer and aggregator for an algorithm.
 
@@ -166,6 +163,11 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
         ValueError: If algorithm is not recognized
     """
     algo_lower = algorithm.lower()
+
+    # DEBUG: Print config values to verify they're passed correctly
+    print(f"  DEBUG[Config]: algorithm={algorithm}, mu_cgofed={config.get('mu_cgofed', 'NOT_FOUND')}")
+    print(f"  DEBUG[Config]: lambda_cross_task={config.get('lambda_cross_task', 'NOT_FOUND')}")
+    print(f"  DEBUG[Config]: all config keys = {list(config.keys())}")
 
     if algo_lower not in STRATEGIES:
         available = ", ".join(STRATEGIES.keys())
