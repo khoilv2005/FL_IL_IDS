@@ -101,7 +101,7 @@ CONFIG = {
     "eval_every": 1,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
-    "mu_cgofed": 0.12,  # Giảm từ 1.0: 80%→~10% gradient reduction
+    "mu_cgofed": 1.0,  # Paper Eq. 9: full gradient projection
     "lambda_decay": 0.8,
     "theta_threshold": 0.35,  # Tăng từ 0.20: ổn định hơn, ít reset
     "cross_task_weight": 0.3,  # Tăng từ 0.08: regularization mạnh hơn
