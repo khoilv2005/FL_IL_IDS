@@ -67,7 +67,7 @@ class FederatedServer:
         # Get strategy (trainer + aggregator)
         # Pass full config to ensure algorithm-specific params are passed
         self.trainer, self.aggregator = get_strategy(
-            config["algorithm"],
+            algorithm=config["algorithm"],
             **config,  # Pass full config including algorithm-specific params like mu_cgofed
         )
         print(
