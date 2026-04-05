@@ -65,11 +65,10 @@ class FederatedServer:
         ).to(self.primary_device)
 
         # Get strategy (trainer + aggregator)
+        # Pass full config to ensure algorithm-specific params are passed
         self.trainer, self.aggregator = get_strategy(
             config["algorithm"],
-            mu=config.get("mu", 0.01),
-            server_momentum=config.get("server_momentum", 0.9),
-            server_lr=config.get("server_lr", 1.0),
+            **config,  # Pass full config including algorithm-specific params like mu_cgofed
         )
         print(
             f"📊 Strategy: {self.trainer.name} trainer + {self.aggregator.name} aggregator"
