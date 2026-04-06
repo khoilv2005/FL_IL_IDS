@@ -232,25 +232,17 @@ class CGoFedTrainer(BaseTrainer):
         """
         Lấy các module phù hợp để áp dụng gradient projection.
 
-        Quy tắc quan trọng:
-        - không chiếu gradient ở output layer để model còn học lớp mới
-        - ưu tiên các layer mà kích thước activation khớp với không gian cần chiếu
+        Áp dụng cho TẤT CẢ các layer có weights (Linear, Conv1d, Conv2d).
+        Bao gồm cả output layer (fc2) vì forgetting xảy ra chủ yếu ở
+        classification layer - nếu không projection, weights cho old classes
+        sẽ bị overwrite hoàn toàn.
         """
-        # Find the last Linear layer (= output/classifier layer) to exclude it
-        last_linear_name = None
-        for name, module in model.named_modules():
-            if isinstance(module, nn.Linear):
-                last_linear_name = name
-
         target_modules = []
         for name, module in model.named_modules():
-            # Include Conv1d, Conv2d, and Linear
+            # Include Conv1d, Conv2d, and Linear (ALL layers with weights)
             if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d)):
                 # Skip batch norm if any slipped through
                 if "bn" in name.lower():
-                    continue
-                # Skip output/classifier layer (last Linear)
-                if name == last_linear_name:
                     continue
                 target_modules.append((name, module))
         return target_modules
@@ -528,7 +520,7 @@ class CGoFedTrainer(BaseTrainer):
         # We only build representation space for layers that will actually be projected
         weight_modules = self._get_projection_target_modules(model)
         print(
-            f"  → Found {len(weight_modules)} layers for projection (Linear only, excluding output)"
+            f"  → Found {len(weight_modules)} layers for projection (Linear/Conv)"
         )
 
         task_key = f"task_{self.current_task}"
@@ -844,13 +836,26 @@ class CGoFedTrainer(BaseTrainer):
         The re-orthogonalized projector captures the union of all old task
         subspaces with eigenvalues bounded in [0, 1].
 
-        FIXED: Cache per-device to avoid race conditions in multi-GPU training.
-        Each GPU thread loads its own copy of projection matrices.
+        MEMORY FIX: Only consider the last K old tasks to prevent OOM.
+        Older tasks' bases are discarded to bound memory usage.
         """
-        # Step 1: Collect importance-weighted basis vectors per layer across tasks
+        # MEMORY FIX: Only consider last K tasks to prevent OOM
+        MAX_OLD_TASKS = 3  # Only use 3 most recent tasks for projection
+        task_keys = sorted(
+            [k for k in self.layer_bases.keys() if k.startswith("task_")],
+            key=lambda x: int(x.split("_")[1])
+        )
+        # Keep only last MAX_OLD_TASKS (excluding current task which is already built)
+        old_task_keys = [k for k in task_keys if int(k.split("_")[1]) < self.current_task][-MAX_OLD_TASKS:]
+
+        if len(task_keys) > MAX_OLD_TASKS + 1:
+            print(f"  📦 [MEMORY] Using last {MAX_OLD_TASKS} tasks for projection (discarding older bases)")
+
+        # Step 1: Collect importance-weighted basis vectors per layer across recent tasks
         layer_all_weighted_bases: Dict[str, List[torch.Tensor]] = {}
 
-        for task_key, layer_dict in self.layer_bases.items():
+        for task_key in old_task_keys:
+            layer_dict = self.layer_bases.get(task_key, {})
             for layer_name, info in layer_dict.items():
                 try:
                     # Load basis and importance directly to the target device
