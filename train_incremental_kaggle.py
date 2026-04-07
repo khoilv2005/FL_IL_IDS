@@ -94,18 +94,18 @@ CONFIG = {
     # CGoFed Paper Eq. 14: NO proximal term! Only cross-task regularization A(Θ)
     "mu_fedprox": 0.0,  # 0.0 for CGoFed (paper doesn't have proximal term)
     "rounds_per_task": 5,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
-    "local_epochs": 2,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
+    "local_epochs": 3,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.0005,  # Giảm từ 0.001: stable gradient với EWC regularization
-    "batch_size": 512,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
+    "batch_size": 256,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
     "eval_every": 1,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
-    "mu_cgofed": 1.0,
+    "mu_cgofed": 1.0,  # Paper Eq. 9: full gradient projection
     "lambda_decay": 0.8,
     "theta_threshold": 0.35,  # Tăng từ 0.20: ổn định hơn, ít reset
     "cross_task_weight": 0.3,  # Tăng từ 0.08: regularization mạnh hơn
-    "lambda_cross_task": 0.3,  # Tăng từ 0.08: penalty mạnh hơn
+    "lambda_cross_task": 0.3,  # Paper Eq. 14: cross-task regularization
     "energy_threshold": 0.99,
     "num_samples_rep": 2000,
     "top_k": 2,

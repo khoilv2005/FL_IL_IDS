@@ -45,6 +45,73 @@ import torch.nn.functional as F
 from ...core import BaseTrainer, BaseAggregator
 
 
+def coerce_representation_matrix(rep: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+    """Normalize a representation into a stable 2D float tensor on CPU."""
+    if rep is None or not isinstance(rep, torch.Tensor):
+        return None
+    if torch.isnan(rep).any() or torch.isinf(rep).any():
+        return None
+    if rep.dim() == 1:
+        return rep.detach().cpu().float().unsqueeze(0)
+    if rep.dim() == 2:
+        return rep.detach().cpu().float()
+    if rep.dim() > 2:
+        return rep.detach().cpu().float().view(rep.shape[0], -1)
+    return None
+
+
+def representation_signature(
+    rep: Optional[torch.Tensor], spectral_rank: int = 8
+) -> Optional[torch.Tensor]:
+    """
+    Build a permutation-invariant representation signature.
+
+    The paper compares representation matrices with an L2-style distance.
+    In practice, row order is arbitrary because samples are randomly drawn and
+    shuffled, so we compare a stable summary instead:
+    - feature mean
+    - leading singular values of the centered representation matrix
+    """
+    matrix = coerce_representation_matrix(rep)
+    if matrix is None:
+        return None
+
+    mean = matrix.mean(dim=0)
+    centered = matrix - mean
+
+    if centered.numel() == 0:
+        spectral = torch.zeros(spectral_rank, dtype=mean.dtype)
+    else:
+        sv = torch.linalg.svdvals(centered)
+        spectral = torch.zeros(spectral_rank, dtype=mean.dtype)
+        take = min(spectral_rank, sv.shape[0])
+        if take > 0:
+            scale = max(float(matrix.shape[0]) ** 0.5, 1.0)
+            spectral[:take] = sv[:take] / scale
+
+    row_norms = torch.norm(matrix, dim=1, p=2)
+    row_stats = torch.tensor(
+        [
+            row_norms.mean().item(),
+            row_norms.std(unbiased=False).item(),
+        ],
+        dtype=mean.dtype,
+    )
+
+    return torch.cat([mean, spectral, row_stats], dim=0)
+
+
+def compute_representation_similarity(
+    rep_a: Optional[torch.Tensor], rep_b: Optional[torch.Tensor]
+) -> float:
+    """Return a higher-is-better similarity score for two representations."""
+    sig_a = representation_signature(rep_a)
+    sig_b = representation_signature(rep_b)
+    if sig_a is None or sig_b is None or sig_a.shape != sig_b.shape:
+        return -1e6
+    return -torch.norm(sig_a - sig_b, p=2).item()
+
+
 class CGoFedTrainer(BaseTrainer):
     """
     CGoFed local training with ACTIVATION-based SVD gradient constraint.
@@ -88,6 +155,7 @@ class CGoFedTrainer(BaseTrainer):
         num_samples_rep: int = 100,
         temp_dir: str = "./temp_svd_storage",
         lambda_cross_task: float = 0.1,  # Paper Eq. 14: cross-task regularization weight
+        max_old_tasks: Optional[int] = None,
     ):
         self.mu = mu  # No proximal term (Paper Eq. 14 doesn't have it)
         self.mu_projection = (
@@ -99,6 +167,7 @@ class CGoFedTrainer(BaseTrainer):
         self.beta = beta
         self.num_samples_rep = num_samples_rep
         self.lambda_cross_task = lambda_cross_task  # Paper Eq. 14
+        self.max_old_tasks = max_old_tasks
 
         # Historical models for cross-task regularization (Paper Eq. 11, 14)
         # {task_id: {param_name: param_tensor}}
@@ -232,25 +301,17 @@ class CGoFedTrainer(BaseTrainer):
         """
         Lấy các module phù hợp để áp dụng gradient projection.
 
-        Quy tắc quan trọng:
-        - không chiếu gradient ở output layer để model còn học lớp mới
-        - ưu tiên các layer mà kích thước activation khớp với không gian cần chiếu
+        Áp dụng cho TẤT CẢ các layer có weights (Linear, Conv1d, Conv2d).
+        Bao gồm cả output layer (fc2) vì forgetting xảy ra chủ yếu ở
+        classification layer - nếu không projection, weights cho old classes
+        sẽ bị overwrite hoàn toàn.
         """
-        # Find the last Linear layer (= output/classifier layer) to exclude it
-        last_linear_name = None
-        for name, module in model.named_modules():
-            if isinstance(module, nn.Linear):
-                last_linear_name = name
-
         target_modules = []
         for name, module in model.named_modules():
-            # Include Conv1d, Conv2d, and Linear
+            # Include Conv1d, Conv2d, and Linear (ALL layers with weights)
             if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d)):
                 # Skip batch norm if any slipped through
                 if "bn" in name.lower():
-                    continue
-                # Skip output/classifier layer (last Linear)
-                if name == last_linear_name:
                     continue
                 target_modules.append((name, module))
         return target_modules
@@ -385,6 +446,9 @@ class CGoFedTrainer(BaseTrainer):
             handle = module.register_forward_hook(make_hook(name))
             handles.append(handle)
 
+        # MEMORY FIX: Limit total activations per layer to prevent OOM during SVD
+        MAX_TOTAL_ACTIVATIONS = 5000  # Per layer, not per batch
+
         # Collect activations via forward pass
         model.eval()
         sample_count = 0
@@ -406,6 +470,14 @@ class CGoFedTrainer(BaseTrainer):
                         # Append each sample's activation
                         layer_activations[name].append(captured[name])
 
+                        # MEMORY FIX: Subsample if accumulated too many
+                        total_so_far = sum(a.shape[0] for a in layer_activations[name])
+                        if total_so_far > MAX_TOTAL_ACTIVATIONS:
+                            # Randomly subsample to MAX_TOTAL_ACTIVATIONS
+                            all_act = torch.cat(layer_activations[name], dim=0)
+                            indices = torch.randperm(all_act.shape[0])[:MAX_TOTAL_ACTIVATIONS]
+                            layer_activations[name] = [all_act[indices]]
+
                 sample_count += batch_size
                 captured.clear()
 
@@ -415,41 +487,91 @@ class CGoFedTrainer(BaseTrainer):
 
         return layer_activations
 
+    def build_space_from_clients(
+        self, model: nn.Module, clients: List, config: Dict, device: str = "cuda"
+    ):
+        """
+        Build the task representation space from client-local samples.
+
+        Instead of centralizing all raw client tensors on the server, we ask
+        each client for a small local sample loader and aggregate activation
+        summaries only after they are computed on-device.
+        """
+        print(
+            "\n🔐 Building activation-based representation space from client-local samples..."
+        )
+
+        active_clients = [client for client in clients if getattr(client, "num_samples", 0) > 0]
+        if not active_clients:
+            print("⚠️ No client data available for representation space")
+            return
+
+        num_samples = config.get("num_samples_rep", self.num_samples_rep)
+        samples_per_client = max(10, num_samples // len(active_clients) + 1)
+        merged_layer_activations: Dict[str, List[torch.Tensor]] = {}
+
+        for client in active_clients:
+            if not hasattr(client, "build_representation_loader"):
+                continue
+
+            rep_loader = client.build_representation_loader(
+                num_samples=samples_per_client,
+                batch_size=32,
+            )
+            if rep_loader is None:
+                continue
+
+            client_activations = self._collect_activations(
+                model=model,
+                data_loader=rep_loader,
+                device=device,
+                num_samples=samples_per_client,
+            )
+            for layer_name, activation_chunks in client_activations.items():
+                if not activation_chunks:
+                    continue
+                merged_layer_activations.setdefault(layer_name, []).extend(activation_chunks)
+
+        if not merged_layer_activations:
+            print("⚠️ No client activations collected for representation space")
+            return
+
+        self._build_representation_space_from_activations(
+            model=model,
+            layer_activations=merged_layer_activations,
+        )
+
     def build_space_from_client_data(
         self, model: nn.Module, client_data: Dict, config: Dict, device: str = "cuda"
     ):
         """
-        Encapsulated method to build representation space from client data.
+        Backward-compatible fallback for legacy callers.
 
-        This method handles the sampling logic internally, keeping the runner
-        file clean and algorithm-agnostic.
-
-        Paper CGoFed Section 5.1:
-        - Sample uniformly from available clients for robust gradient space
-        - Uses gradient vectors from samples (not activations)
-        - SVD decomposition to find principal gradient directions
-
-        Args:
-            model: Global model to compute gradients on
-            client_data: Dict of {client_id: {"X_train": tensor, "y_train": tensor}}
-            config: Configuration dict with "num_samples_rep"
-            device: Device to run computation on
+        The paper-faithful path uses `build_space_from_clients(...)`, but this
+        fallback is kept to avoid breaking older scripts that still pass a
+        centralized client-data dictionary.
         """
         print(
-            "\n🔐 Building gradient-based representation space (paper Section 5.1)..."
+            "\n⚠️ Legacy CGoFed path: building representation space from centralized client_data."
+        )
+        self.build_representation_space_from_legacy_client_data(
+            model=model,
+            client_data=client_data,
+            config=config,
+            device=device,
         )
 
-        # Find clients with data
+    def build_representation_space_from_legacy_client_data(
+        self, model: nn.Module, client_data: Dict, config: Dict, device: str = "cuda"
+    ):
+        """Compatibility wrapper for older centralized simulations."""
         active_cids = [
             cid for cid, data in client_data.items() if len(data.get("y_train", [])) > 0
         ]
-
         if len(active_cids) == 0:
             print("⚠️ No client data available for representation space")
             return
 
-        # Sample uniformly from available clients for robust gradient space
-        # This ensures diversity in the representation
         all_X, all_y = [], []
         num_samples = config.get("num_samples_rep", self.num_samples_rep)
         samples_per_client = max(10, num_samples // len(active_cids) + 1)
@@ -457,8 +579,6 @@ class CGoFedTrainer(BaseTrainer):
         for cid in active_cids:
             X = client_data[cid]["X_train"]
             y = client_data[cid]["y_train"]
-
-            # Random sample from this client
             if len(y) > samples_per_client:
                 indices = torch.randperm(len(y))[:samples_per_client]
                 X, y = X[indices], y[indices]
@@ -466,30 +586,22 @@ class CGoFedTrainer(BaseTrainer):
             all_X.append(X)
             all_y.append(y)
 
-        # Concatenate all samples
         rep_X = torch.cat(all_X, dim=0)
         rep_y = torch.cat(all_y, dim=0)
-
-        # Limit to num_samples_rep
         if len(rep_y) > num_samples:
             indices = torch.randperm(len(rep_y))[:num_samples]
             rep_X, rep_y = rep_X[indices], rep_y[indices]
 
-        print(f"   Using {len(rep_y)} samples from {len(active_cids)} clients for SVD.")
+        print(f"   Using {len(rep_y)} centralized samples from {len(active_cids)} clients for SVD.")
 
-        # Create DataLoader
         from torch.utils.data import TensorDataset, DataLoader
 
         rep_loader = DataLoader(
             TensorDataset(rep_X, rep_y),
-            batch_size=32,  # Small batch for per-sample gradient computation
+            batch_size=32,
             shuffle=False,
         )
-
-        # Delegate to the core build method
-        self.build_representation_space(
-            model=model, data_loader=rep_loader, device=device
-        )
+        self.build_representation_space(model=model, data_loader=rep_loader, device=device)
 
     def build_representation_space(
         self, model: nn.Module, data_loader, device: str = "cuda"
@@ -515,7 +627,6 @@ class CGoFedTrainer(BaseTrainer):
 
         print(f"  → Building ACTIVATION-based representation space (Paper Eq. 2-5)...")
 
-        # Collect per-layer activations via forward hooks
         layer_activations = self._collect_activations(
             model, data_loader, device, self.num_samples_rep
         )
@@ -524,50 +635,51 @@ class CGoFedTrainer(BaseTrainer):
             print("⚠️ No activations collected")
             return
 
-        # Get target modules for projection (only Linear layers that will be projected)
-        # We only build representation space for layers that will actually be projected
+        self._build_representation_space_from_activations(model, layer_activations)
+
+        del layer_activations
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+        if was_training:
+            model.train()
+
+    def _build_representation_space_from_activations(
+        self, model: nn.Module, layer_activations: Dict[str, List[torch.Tensor]]
+    ) -> None:
+        """Run SVD and persist per-layer bases from collected activations."""
         weight_modules = self._get_projection_target_modules(model)
         print(
-            f"  → Found {len(weight_modules)} layers for projection (Linear only, excluding output)"
+            f"  → Found {len(weight_modules)} layers for projection (Linear/Conv)"
         )
 
         task_key = f"task_{self.current_task}"
         self.layer_bases[task_key] = {}
 
-        # Process each layer with SVD
-        for layer_name, module in weight_modules:
+        for layer_name, _module in weight_modules:
             if layer_name not in layer_activations or not layer_activations[layer_name]:
                 continue
 
             try:
-                # Stack activations: list of [batch, d] -> [N, d]
-                R = torch.cat(layer_activations[layer_name], dim=0)  # [N, d]
+                R = torch.cat(layer_activations[layer_name], dim=0)
                 n_samples = R.shape[0]
                 d = R.shape[1]
 
-                # Paper Eq. 3: SVD of R^T (or R, depending on convention)
-                # We use R^T so U columns span the feature space
-                A = R.T  # [d, N]
-                U, S, Vh = torch.linalg.svd(A, full_matrices=False)
+                A = R.T
+                U, S, _Vh = torch.linalg.svd(A, full_matrices=False)
 
-                # Energy-based rank selection (Paper Eq. 4)
                 energy = S**2
                 cum_energy = torch.cumsum(energy, dim=0)
                 total_energy = cum_energy[-1] + 1e-10
                 ratio = cum_energy / total_energy
 
                 k = (ratio < self.energy_threshold).sum().item() + 1
-                k = min(
-                    k, len(S)
-                )  # Paper Eq. 4: rank κ determined solely by energy threshold
+                k = min(k, len(S))
 
-                # Paper: M^t = [u_1, ..., u_κ] - left singular vectors
-                basis = U[:, :k]  # [d, k]
-
-                # Paper Eq. 5: Λ = sigmoid(Σ)
+                basis = U[:, :k]
                 importance = torch.sigmoid(self.beta * S[:k])
 
-                # Save per-layer basis
                 basis_path = os.path.join(
                     self.temp_dir, f"{task_key}_{layer_name}_basis.pt"
                 )
@@ -590,22 +702,11 @@ class CGoFedTrainer(BaseTrainer):
                 print(f"  ⚠️ SVD failed for layer {layer_name}: {e}")
                 continue
 
-        # Print summary
         total_bases = sum(1 for task in self.layer_bases.values() for _ in task)
         print(
             f"  → Built {len(self.layer_bases[task_key])} layer bases for task {self.current_task}"
         )
         print(f"  → Total bases across all tasks: {total_bases}")
-
-        # Cleanup
-        del layer_activations
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-        if was_training:
-            model.train()
-
         print(
             f"✓ Built activation-based representation space for task {self.current_task}"
         )
@@ -653,6 +754,12 @@ class CGoFedTrainer(BaseTrainer):
                 # Scale by lambda_cross_task
                 lambda_reg = getattr(self, "lambda_cross_task", 0.1)
                 total_loss = ce_loss + (lambda_reg / 2) * reg_term
+                # DEBUG[Loss]: Log cross-task regularization contribution
+                if not hasattr(self, '_loss_log_count'):
+                    self._loss_log_count = 0
+                self._loss_log_count += 1
+                if self._loss_log_count <= 3:
+                    print(f"    DEBUG[Loss]: CE={ce_loss.item():.4f}, reg={reg_term.item():.4f}, lambda={lambda_reg}, total={total_loss.item():.4f}")
                 return total_loss
 
         return ce_loss
@@ -810,9 +917,11 @@ class CGoFedTrainer(BaseTrainer):
 
             # DEBUG[9]: Log per-layer gradient reduction (first pre_step call only)
             if not self._pre_step_logged_this_task and per_layer_reduction:
+                mu_t = self.mu_projection * self.mu_coefficient
                 print(
                     f"  DEBUG[9]: Per-layer gradient reduction (first batch, task {self.current_task}):"
                 )
+                print(f"    mu_projection={self.mu_projection}, mu_coefficient={self.mu_coefficient:.4f}, mu_t={mu_t:.4f}")
                 for ln, info in per_layer_reduction.items():
                     print(
                         f"    {ln}: reduction={info['reduction_pct']:.1f}% | "
@@ -836,13 +945,28 @@ class CGoFedTrainer(BaseTrainer):
         The re-orthogonalized projector captures the union of all old task
         subspaces with eigenvalues bounded in [0, 1].
 
-        FIXED: Cache per-device to avoid race conditions in multi-GPU training.
-        Each GPU thread loads its own copy of projection matrices.
+        If `max_old_tasks` is set, only the most recent tasks are retained in
+        the projection union. The paper-faithful default is `None`, meaning all
+        historical tasks contribute to the projector.
         """
-        # Step 1: Collect importance-weighted basis vectors per layer across tasks
+        task_keys = sorted(
+            [k for k in self.layer_bases.keys() if k.startswith("task_")],
+            key=lambda x: int(x.split("_")[1])
+        )
+        old_task_keys = [k for k in task_keys if int(k.split("_")[1]) < self.current_task]
+        if self.max_old_tasks is not None:
+            old_task_keys = old_task_keys[-self.max_old_tasks:]
+            if len(task_keys) > self.max_old_tasks + 1:
+                print(
+                    f"  📦 [MEMORY] Using last {self.max_old_tasks} tasks for projection "
+                    "(discarding older bases)"
+                )
+
+        # Step 1: Collect importance-weighted basis vectors per layer across recent tasks
         layer_all_weighted_bases: Dict[str, List[torch.Tensor]] = {}
 
-        for task_key, layer_dict in self.layer_bases.items():
+        for task_key in old_task_keys:
+            layer_dict = self.layer_bases.get(task_key, {})
             for layer_name, info in layer_dict.items():
                 try:
                     # Load basis and importance directly to the target device
@@ -1039,10 +1163,8 @@ class CGoFedAggregator(BaseAggregator):
         for r in results:
             if "representation" in r and r["representation"] is not None:
                 client_id = r["client_id"]
-                rep = r["representation"]
-
-                # Skip NaN/Inf representations
-                if torch.isnan(rep).any() or torch.isinf(rep).any():
+                rep = coerce_representation_matrix(r["representation"])
+                if rep is None:
                     print(f"  ⚠️ Skipping NaN representation from client {client_id}")
                     continue
 
@@ -1059,6 +1181,16 @@ class CGoFedAggregator(BaseAggregator):
             # task_reps contains matrices [n_samples_client, hidden_dim] from each client
             # Stack them to get full representation matrix [total_samples, hidden_dim]
             all_reps = torch.cat(task_reps, dim=0)
+
+            # Memory limit: if too many samples, keep a subset for similarity computation
+            # Paper Eq. 2 requires ALL samples for full representation, but we limit
+            # storage to prevent OOM while maintaining diversity
+            MAX_TOTAL_SAMPLES = 50000  # ~50k samples per task is reasonable limit
+            if all_reps.shape[0] > MAX_TOTAL_SAMPLES:
+                indices = torch.randperm(all_reps.shape[0])[:MAX_TOTAL_SAMPLES]
+                all_reps = all_reps[indices]
+                print(f"  → [MEMORY] Limited to {MAX_TOTAL_SAMPLES} samples for task {self.current_task}")
+
             # Store full representation matrix (not just mean) for proper similarity computation
             # Paper Eq. 10: similarity should be computed on representation matrices
             if not hasattr(self, "task_representation_matrices"):
@@ -1083,25 +1215,7 @@ class CGoFedAggregator(BaseAggregator):
 
         Note: Using activation-based representation matrices (not gradient-based).
         """
-        # Check for NaN/Inf
-        if torch.isnan(R1).any() or torch.isinf(R1).any():
-            return -1e6
-        if torch.isnan(R2).any() or torch.isinf(R2).any():
-            return -1e6
-
-        # Handle different matrix shapes (different number of samples)
-        # Paper Eq. 10: compute distance on representation matrices
-        if R1.shape != R2.shape:
-            # If shapes differ, compare mean vectors (prototypes)
-            # This avoids crash while still maintaining semantic meaning
-            r1_mean = R1.mean(dim=0)
-            r2_mean = R2.mean(dim=0)
-            l2_dist = torch.norm(r1_mean - r2_mean, p=2).item()
-        else:
-            # Same shape: use full matrix Frobenius norm
-            l2_dist = torch.norm(R1 - R2, p="fro").item()
-
-        return -l2_dist
+        return compute_representation_similarity(R1, R2)
 
     def _select_top_k_similar(self) -> List[Dict]:
         """

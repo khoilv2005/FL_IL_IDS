@@ -134,8 +134,8 @@ class TestCGoFedServer:
         }
         return CGoFedServer(clients, test_data, config)
 
-    def test_set_task_eq14_per_client_reg_info(self, monkeypatch):
-        """Eq.14 should prepare different historical selections per client."""
+    def test_set_task_resets_eq14_state_for_first_round(self):
+        """Eq.14 state should be empty at task start and filled after a round."""
         clients = [
             CGoFedClient(0, torch.randn(8, 32), torch.randint(0, 2, (8,))),
             CGoFedClient(1, torch.randn(8, 32), torch.randint(0, 2, (8,))),
@@ -143,54 +143,95 @@ class TestCGoFedServer:
         server = self._make_server(clients)
         agg = CGoFedAggregator(top_k=1, rounds_per_task=1)
         server.aggregator = agg
-
-        base = server.get_global_params()
-        model_a = OrderedDict(
-            (k, (v + 0.1) if v.dtype.is_floating_point else v.clone())
-            for k, v in base.items()
-        )
-        model_b = OrderedDict(
-            (k, (v + 0.2) if v.dtype.is_floating_point else v.clone())
-            for k, v in base.items()
-        )
-
-        agg.client_historical_models = {
-            10: {0: model_a},
-            11: {0: model_b},
-        }
-        agg.client_representations = {
-            10: {0: torch.tensor([[1.0, 0.0], [0.0, 1.0]])},
-            11: {0: torch.tensor([[0.0, 1.0], [1.0, 0.0]])},
-        }
-
-        def fake_rep(client, num_samples=100):
-            if client.client_id == 0:
-                return torch.tensor([[1.0, 0.0], [0.0, 1.0]])
-            return torch.tensor([[0.0, 1.0], [1.0, 0.0]])
-
-        monkeypatch.setattr(server, "_compute_client_task_representation", fake_rep)
         server.set_task(1, [2, 3], [0, 1, 2, 3])
-
-        assert 0 in server._client_reg_info
-        assert 1 in server._client_reg_info
-
-        keys_client0 = list(server._client_reg_info[0]["historical_models"].keys())
-        keys_client1 = list(server._client_reg_info[1]["historical_models"].keys())
-        assert len(keys_client0) == 1
-        assert len(keys_client1) == 1
-        assert keys_client0[0] != keys_client1[0]
+        assert server._client_reg_info == {}
+        assert server._personalized_round_models == {}
 
     def test_set_task_does_not_depend_on_test_data_for_eq14(self):
-        """Eq.14 setup should rely on client train data, not test_data."""
+        """Task setup should not depend on test_data for Eq.14 state."""
         clients = [CGoFedClient(0, torch.randn(8, 32), torch.randint(0, 2, (8,)))]
         server = self._make_server(clients, test_data={"y_test": torch.tensor([0, 1])})
         server.aggregator = CGoFedAggregator(top_k=1, rounds_per_task=1)
 
         server.set_task(1, [2, 3], [0, 1, 2, 3])
-        assert isinstance(server._client_reg_info, dict)
+        assert server._client_reg_info == {}
+
+    def test_prepare_next_round_reg_info_uses_selected_peer_client_history(self):
+        """Eq.14 should use current-round peer selection, then all history of that peer."""
+        clients = [
+            CGoFedClient(0, torch.randn(8, 32), torch.randint(0, 2, (8,))),
+            CGoFedClient(1, torch.randn(8, 32), torch.randint(0, 2, (8,))),
+            CGoFedClient(2, torch.randn(8, 32), torch.randint(0, 2, (8,))),
+        ]
+        server = self._make_server(clients)
+        server.aggregator = CGoFedAggregator(top_k=1, rounds_per_task=2)
+        server.set_task(2, [4, 5], [0, 1, 2, 3, 4, 5])
+
+        base = server.get_global_params()
+        model_a0 = OrderedDict(
+            (k, (v + 0.1) if v.dtype.is_floating_point else v.clone())
+            for k, v in base.items()
+        )
+        model_a1 = OrderedDict(
+            (k, (v + 0.2) if v.dtype.is_floating_point else v.clone())
+            for k, v in base.items()
+        )
+        model_b0 = OrderedDict(
+            (k, (v + 0.3) if v.dtype.is_floating_point else v.clone())
+            for k, v in base.items()
+        )
+
+        server._client_task_models = {
+            1: {0: model_a0, 1: model_a1},
+            2: {0: model_b0},
+        }
+        server._client_task_representations = {
+            1: {
+                0: torch.tensor([[1.0, 0.0], [0.0, 1.0]]),
+                1: torch.tensor([[1.0, 0.2], [0.2, 1.0]]),
+            },
+            2: {
+                0: torch.tensor([[0.0, 1.0], [1.0, 0.0]]),
+            },
+        }
+
+        results = [
+            {
+                "client_id": 0,
+                "params": OrderedDict({"w": torch.tensor([0.0])}),
+                "representation": torch.tensor([[1.0, 0.0], [0.0, 1.0]]),
+            },
+            {
+                "client_id": 1,
+                "params": OrderedDict({"w": torch.tensor([2.0])}),
+                "representation": torch.tensor([[1.0, 0.0], [0.0, 1.0]]),
+            },
+            {
+                "client_id": 2,
+                "params": OrderedDict({"w": torch.tensor([10.0])}),
+                "representation": torch.tensor([[1.0, 1.0], [0.0, 0.0]]),
+            },
+        ]
+
+        reg_info = server._prepare_next_round_reg_info(results)
+
+        assert 0 in reg_info
+        keys_client0 = sorted(reg_info[0]["historical_models"].keys())
+        assert keys_client0 == ["c1_t0", "c1_t1"]
+
+    def test_similarity_is_order_invariant(self):
+        """Similarity should not change when sample rows are permuted."""
+        clients = [CGoFedClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
+        server = self._make_server(clients)
+
+        rep = torch.tensor([[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]])
+        permuted = rep[torch.tensor([2, 0, 1])]
+
+        sim = server._compute_similarity(rep, permuted)
+        assert abs(sim) < 1e-6
 
     def test_eq12_personalization_uses_matrix_similarity(self):
-        """Eq.12 personalization should be driven by matrix distance."""
+        """Eq.12 personalization should respect permutation-invariant similarity."""
         clients = [CGoFedClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
         server = self._make_server(clients)
         server.eq12_self_weight = 0.0
@@ -213,4 +254,4 @@ class TestCGoFedServer:
             },
         ]
         personalized = server._compute_personalized_models(results)
-        assert personalized[0]["w"].item() < 6.0
+        assert personalized[0]["w"].item() > 6.0

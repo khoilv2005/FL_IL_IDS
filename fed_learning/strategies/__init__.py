@@ -164,6 +164,11 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
     """
     algo_lower = algorithm.lower()
 
+    # DEBUG: Print config values to verify they're passed correctly
+    print(f"  DEBUG[Config]: algorithm={algorithm}, mu_cgofed={config.get('mu_cgofed', 'NOT_FOUND')}")
+    print(f"  DEBUG[Config]: lambda_cross_task={config.get('lambda_cross_task', 'NOT_FOUND')}")
+    print(f"  DEBUG[Config]: all config keys = {list(config.keys())}")
+
     if algo_lower not in STRATEGIES:
         available = ", ".join(STRATEGIES.keys())
         raise ValueError(f"Unknown algorithm: '{algorithm}'. Available: {available}")
@@ -186,6 +191,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             lambda_cross_task=config.get(
                 "lambda_cross_task", config.get("cross_task_weight", 0.08)
             ),
+            max_old_tasks=config.get("max_old_tasks"),
         )
     elif algo_lower in ("fedavg_ewc", "fedprox_ewc"):
         trainer = strategy["trainer"](
