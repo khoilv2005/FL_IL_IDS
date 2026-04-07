@@ -118,6 +118,10 @@ class FedLwFServer:
         print(f"\n📌 Task {task_id}: classes {task_classes}")
         print(f"   Total seen classes: {len(self.seen_classes)}")
 
+    def update_clients(self, clients) -> None:
+        """Update the client list for a new task. Preserves server state."""
+        self.clients = clients
+
     def save_global_snapshot(self):
         """Lưu snapshot global model sau task để client dùng làm teacher ở task sau."""
         # Save in trainer (will be distributed via config)
