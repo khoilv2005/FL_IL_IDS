@@ -377,6 +377,9 @@ class CGoFedTrainer(BaseTrainer):
             handle = module.register_forward_hook(make_hook(name))
             handles.append(handle)
 
+        # MEMORY FIX: Limit total activations per layer to prevent OOM during SVD
+        MAX_TOTAL_ACTIVATIONS = 5000  # Per layer, not per batch
+
         # Collect activations via forward pass
         model.eval()
         sample_count = 0
@@ -397,6 +400,14 @@ class CGoFedTrainer(BaseTrainer):
                     if name in captured:
                         # Append each sample's activation
                         layer_activations[name].append(captured[name])
+
+                        # MEMORY FIX: Subsample if accumulated too many
+                        total_so_far = sum(a.shape[0] for a in layer_activations[name])
+                        if total_so_far > MAX_TOTAL_ACTIVATIONS:
+                            # Randomly subsample to MAX_TOTAL_ACTIVATIONS
+                            all_act = torch.cat(layer_activations[name], dim=0)
+                            indices = torch.randperm(all_act.shape[0])[:MAX_TOTAL_ACTIVATIONS]
+                            layer_activations[name] = [all_act[indices]]
 
                 sample_count += batch_size
                 captured.clear()
