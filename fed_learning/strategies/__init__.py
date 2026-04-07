@@ -191,6 +191,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             lambda_cross_task=config.get(
                 "lambda_cross_task", config.get("cross_task_weight", 0.08)
             ),
+            max_old_tasks=config.get("max_old_tasks"),
         )
     elif algo_lower in ("fedavg_ewc", "fedprox_ewc"):
         trainer = strategy["trainer"](

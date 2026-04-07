@@ -35,11 +35,20 @@ def post_task_processing(
         participating_clients: List of client instances that participated in this task
     """
     algo = config["algorithm"].lower()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = getattr(server, "primary_device", None) or (
+        "cuda" if torch.cuda.is_available() else "cpu"
+    )
 
     # 1. CGoFed: Build Representation Space via SVD
     if algo == "cgofed":
-        if hasattr(trainer, "build_space_from_client_data"):
+        if hasattr(trainer, "build_space_from_clients") and participating_clients:
+            trainer.build_space_from_clients(
+                model=server.global_model,
+                clients=participating_clients,
+                config=config,
+                device=device,
+            )
+        elif hasattr(trainer, "build_space_from_client_data"):
             trainer.build_space_from_client_data(
                 model=server.global_model,
                 client_data=client_data,

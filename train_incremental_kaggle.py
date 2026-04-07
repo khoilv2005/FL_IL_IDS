@@ -105,7 +105,7 @@ CONFIG = {
     "lambda_decay": 0.8,
     "theta_threshold": 0.35,  # Tăng từ 0.20: ổn định hơn, ít reset
     "cross_task_weight": 0.3,  # Tăng từ 0.08: regularization mạnh hơn
-    "lambda_cross_task": 8.0,  # Tăng mạnh: CE~4.4 nên cần regularization ~5-10 để cân bằng
+    "lambda_cross_task": 0.3,  # Paper Eq. 14: cross-task regularization
     "energy_threshold": 0.99,
     "num_samples_rep": 2000,
     "top_k": 2,

@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 from collections import OrderedDict
 from typing import Optional, Dict, Any, List
+from torch.utils.data import DataLoader, TensorDataset
 
 from .client import FederatedClient
 from ..core import BaseTrainer
@@ -56,6 +57,26 @@ class CGoFedClient(FederatedClient):
             )
 
         return result
+
+    def build_representation_loader(
+        self, num_samples: int, batch_size: int = 32
+    ) -> Optional[DataLoader]:
+        """
+        Build a small local loader for representation-space construction.
+
+        This keeps post-task basis construction client-local instead of
+        centralizing raw tensors into a server-side aggregate dataset.
+        """
+        if self.num_samples <= 0:
+            return None
+
+        n_available = min(num_samples, self.num_samples)
+        if n_available <= 0:
+            return None
+
+        indices = torch.randperm(self.num_samples)[:n_available]
+        dataset = TensorDataset(self.X_train[indices], self.y_train[indices])
+        return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     def compute_activation_representation(
         self, model: Optional[nn.Module], num_samples: int = 100

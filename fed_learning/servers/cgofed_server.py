@@ -17,7 +17,11 @@ import torch.nn.functional as F
 from .incremental_server import IncrementalServer
 from ..training.cgofed_worker import train_cgofed_clients_on_gpu
 from ..clients.cgofed_client import CGoFedClient
-from ..strategies.fed_incremental.cgofed import CGoFedAggregator
+from ..strategies.fed_incremental.cgofed import (
+    CGoFedAggregator,
+    coerce_representation_matrix,
+    compute_representation_similarity,
+)
 
 
 class CGoFedServer(IncrementalServer):
@@ -26,7 +30,7 @@ class CGoFedServer(IncrementalServer):
 
     Key differences from base server:
     1. Uses CGoFedWorker instead of generic worker
-    2. Computes similarity at START of task (not after aggregate)
+    2. Computes next-round similarity state from the PREVIOUS round
     3. Persists historical data across tasks
     4. Creates per-client similarity weights
     5. Passes local regularization info to clients BEFORE training
@@ -115,68 +119,15 @@ class CGoFedServer(IncrementalServer):
         """
         Chuẩn bị task mới cho CGoFed.
 
-        Đây là bước server nạp history cũ, tính similarity và tạo thông tin
-        regularization riêng cho từng client trước khi round train bắt đầu.
+        Đây là bước server nạp history cũ và reset state cho task mới.
+        Theo paper, Eq.12 / Eq.14 dùng similarity từ previous training round,
+        nên task mới luôn bắt đầu với global init chuẩn và chưa có reg info.
         """
         super().set_task(task_id, task_classes, seen_classes)
         self._sync_history_from_aggregator()
 
-        # Reset per-round personalized models for new task
         self._personalized_round_models = {}
-
-        if task_id == 0:
-            # First task: no historical data
-            self._client_reg_info = {}
-            return
-
-        # Tasks > 0: Compute per-client cross-task similarities using client training data
-        print(
-            f"📊 CGoFed: Computing per-client cross-task similarities for task {task_id}..."
-        )
         self._client_reg_info = {}
-        top_k = getattr(self.aggregator, "top_k", 2)
-
-        num_configured = 0
-        for client in self.clients:
-            current_rep = self._compute_client_task_representation(client)
-            if current_rep is None:
-                continue
-
-            selected = self._select_historical_models_for_client(
-                client_id=client.client_id,
-                current_rep=current_rep,
-                current_task=task_id,
-                top_k=top_k,
-            )
-            if not selected:
-                continue
-
-            sim_scores = torch.tensor(
-                [s["similarity"] for s in selected], dtype=torch.float32
-            )
-            sim_scores = sim_scores - sim_scores.max()
-            sim_scores = torch.clamp(sim_scores, min=-20.0, max=0.0)
-            weights = F.softmax(sim_scores, dim=0)
-
-            historical_models = {
-                s["key"]: self._clone_params(s["params"]) for s in selected
-            }
-            similarity_weights = {
-                s["key"]: float(weights[i]) for i, s in enumerate(selected)
-            }
-
-            self._client_reg_info[client.client_id] = {
-                "historical_models": historical_models,
-                "similarity_weights": similarity_weights,
-            }
-            num_configured += 1
-
-        if num_configured == 0:
-            print("  ⚠️ No valid per-client historical matches found")
-        else:
-            print(
-                f"  ✓ Prepared Eq.14 regularization info for {num_configured}/{len(self.clients)} clients"
-            )
 
     def train_round(self, verbose: bool = True) -> Dict:
         """
@@ -245,11 +196,19 @@ class CGoFedServer(IncrementalServer):
         new_params = self.aggregator.aggregate(results, global_params)
         self.set_global_params(new_params)
 
-        # Paper Eq. 12: Build per-client personalized models for next round
-        self._personalized_round_models = self._compute_personalized_models(results)
-
         # Keep server cache synchronized with aggregator history
         self._sync_history_from_aggregator()
+
+        is_last_round = (
+            getattr(self.aggregator, "_round_in_task", 0)
+            >= getattr(self.aggregator, "rounds_per_task", 1)
+        )
+        if not is_last_round:
+            self._personalized_round_models = self._compute_personalized_models(results)
+            self._client_reg_info = self._prepare_next_round_reg_info(results)
+        else:
+            self._personalized_round_models = {}
+            self._client_reg_info = {}
 
         avg_loss = float(np.mean([r["loss"] for r in results]))
         round_time = time.time() - round_start
@@ -291,103 +250,123 @@ class CGoFedServer(IncrementalServer):
         except Exception:
             return None
 
-        if rep is None or not isinstance(rep, torch.Tensor):
-            return None
-        if torch.isnan(rep).any() or torch.isinf(rep).any():
-            return None
-        return rep.cpu()
+        return coerce_representation_matrix(rep)
 
     @staticmethod
     def _compute_similarity(R1: torch.Tensor, R2: torch.Tensor) -> float:
-        """Compute negative Frobenius norm distance between representations."""
-        if torch.isnan(R1).any() or torch.isinf(R1).any():
-            return -1e6
-        if torch.isnan(R2).any() or torch.isinf(R2).any():
-            return -1e6
+        """Compute a higher-is-better similarity score between representations."""
+        return compute_representation_similarity(R1, R2)
 
-        # Use full-matrix distance whenever feature dimension matches.
-        # If row count differs, align by shared sample count.
-        if R1.dim() == 2 and R2.dim() == 2 and R1.shape[1] == R2.shape[1]:
-            n = min(R1.shape[0], R2.shape[0])
-            if n > 0:
-                l2_dist = torch.norm(R1[:n] - R2[:n], p="fro").item()
-            else:
-                l2_dist = 1e6
-        elif R1.shape == R2.shape:
-            l2_dist = torch.norm(R1 - R2, p="fro").item()
-        else:
-            # Last resort for incompatible shapes: prototype distance.
-            r1_mean = R1.view(R1.shape[0], -1).mean(dim=0) if R1.dim() > 1 else R1
-            r2_mean = R2.view(R2.shape[0], -1).mean(dim=0) if R2.dim() > 1 else R2
-            if r1_mean.shape != r2_mean.shape:
-                return -1e6
-            l2_dist = torch.norm(r1_mean - r2_mean, p=2).item()
-
-        return -l2_dist
-
-    def _select_historical_models_for_client(
+    def _select_peer_clients_for_current_round(
         self,
         client_id: int,
         current_rep: torch.Tensor,
-        current_task: int,
+        current_round_reps: Dict[int, torch.Tensor],
         top_k: int,
-    ) -> List[Dict]:
+    ) -> List[int]:
         """
-        Chọn các historical models phù hợp nhất cho một client dựa trên similarity.
-
-        Ưu tiên dùng history từ client khác, sau đó mới fallback sang task-global history.
+        Select the most similar peer clients using current-task representations
+        from the previous training round (paper Eq.12 note).
         """
-        candidates: List[Dict] = []
+        peer_scores = []
+        for other_id, other_rep in current_round_reps.items():
+            if other_id == client_id:
+                continue
+            sim = self._compute_similarity(current_rep, other_rep)
+            if np.isfinite(sim):
+                peer_scores.append((other_id, sim))
 
-        # Paper Section 5.2: compare with tasks from other clients.
-        per_client_candidates = 0
-        for hist_client_id, task_rep_map in self._client_task_representations.items():
-            if hist_client_id == client_id:
+        peer_scores.sort(key=lambda x: x[1], reverse=True)
+        return [other_id for other_id, _score in peer_scores[:top_k]]
+
+    def _prepare_next_round_reg_info(self, results: List[Dict]) -> Dict[int, Dict]:
+        """
+        Prepare Eq.14 regularization info for the NEXT round of the current task.
+
+        Paper-faithful behavior:
+        - choose the most similar peer clients using current-task representations
+          from the previous round
+        - regularize against the FULL historical task set of those selected clients
+        """
+        if self.current_task == 0:
+            return {}
+
+        current_round_reps: Dict[int, torch.Tensor] = {}
+        for result in results:
+            client_id = result.get("client_id")
+            rep = self._to_rep_matrix(result.get("representation"))
+            if client_id is None or rep is None:
+                continue
+            current_round_reps[client_id] = rep
+
+        if len(current_round_reps) < 2:
+            return {}
+
+        top_k = getattr(self.aggregator, "top_k", 2)
+        next_round_reg_info: Dict[int, Dict] = {}
+
+        for client_id, current_rep in current_round_reps.items():
+            selected_peer_ids = self._select_peer_clients_for_current_round(
+                client_id=client_id,
+                current_rep=current_rep,
+                current_round_reps=current_round_reps,
+                top_k=top_k,
+            )
+            if not selected_peer_ids:
                 continue
 
-            task_model_map = self._client_task_models.get(hist_client_id, {})
-            for hist_task_id, hist_rep in task_rep_map.items():
-                if hist_task_id >= current_task:
-                    continue
-                hist_params = task_model_map.get(hist_task_id)
-                if hist_params is None:
-                    continue
-                sim = self._compute_similarity(current_rep, hist_rep)
-                if not np.isfinite(sim):
-                    continue
-                key = f"c{hist_client_id}_t{hist_task_id}"
-                candidates.append(
-                    {
-                        "key": key,
-                        "similarity": sim,
-                        "params": hist_params,
-                    }
-                )
-                per_client_candidates += 1
+            historical_entries: List[Dict] = []
+            for hist_client_id in selected_peer_ids:
+                task_rep_map = self._client_task_representations.get(hist_client_id, {})
+                task_model_map = self._client_task_models.get(hist_client_id, {})
+                for hist_task_id, hist_rep in task_rep_map.items():
+                    if hist_task_id >= self.current_task:
+                        continue
+                    hist_params = task_model_map.get(hist_task_id)
+                    if hist_params is None:
+                        continue
+                    sim = self._compute_similarity(current_rep, hist_rep)
+                    if not np.isfinite(sim):
+                        continue
+                    historical_entries.append(
+                        {
+                            "key": f"c{hist_client_id}_t{hist_task_id}",
+                            "similarity": sim,
+                            "params": hist_params,
+                        }
+                    )
 
-        # Fallback if no per-client history exists yet
-        if not candidates:
-            for hist_task_id in range(current_task):
-                hist_rep = self._task_representation_matrices.get(
-                    hist_task_id, self._task_representations.get(hist_task_id)
-                )
-                hist_params = self._task_global_models.get(hist_task_id)
-                if hist_rep is None or hist_params is None:
-                    continue
-                sim = self._compute_similarity(current_rep, hist_rep)
-                if not np.isfinite(sim):
-                    continue
-                key = f"g_t{hist_task_id}"
-                candidates.append(
-                    {
-                        "key": key,
-                        "similarity": sim,
-                        "params": hist_params,
-                    }
-                )
+            if not historical_entries:
+                continue
 
-        candidates.sort(key=lambda x: x["similarity"], reverse=True)
-        return candidates[:top_k]
+            sim_scores = torch.tensor(
+                [entry["similarity"] for entry in historical_entries],
+                dtype=torch.float32,
+            )
+            sim_scores = sim_scores - sim_scores.max()
+            sim_scores = torch.clamp(sim_scores, min=-20.0, max=0.0)
+            weights = F.softmax(sim_scores, dim=0)
+
+            next_round_reg_info[client_id] = {
+                "historical_models": {
+                    entry["key"]: self._clone_params(entry["params"])
+                    for entry in historical_entries
+                },
+                "similarity_weights": {
+                    entry["key"]: float(weights[i])
+                    for i, entry in enumerate(historical_entries)
+                },
+            }
+
+        if next_round_reg_info:
+            print(
+                f"  ✓ Prepared Eq.14 next-round regularization for "
+                f"{len(next_round_reg_info)}/{len(current_round_reps)} clients"
+            )
+        else:
+            print("  ⚠️ No valid next-round Eq.14 matches found")
+
+        return next_round_reg_info
 
     @staticmethod
     def _clone_params(params: OrderedDict) -> OrderedDict:
@@ -397,19 +376,7 @@ class CGoFedServer(IncrementalServer):
     @staticmethod
     def _to_rep_matrix(rep: torch.Tensor) -> Optional[torch.Tensor]:
         """Normalize representation into a stable 2D matrix."""
-        if rep is None:
-            return None
-        if not isinstance(rep, torch.Tensor):
-            return None
-        if torch.isnan(rep).any() or torch.isinf(rep).any():
-            return None
-        if rep.dim() == 1:
-            return rep.detach().cpu().float().unsqueeze(0)
-        if rep.dim() == 2:
-            return rep.detach().cpu().float()
-        if rep.dim() > 2:
-            return rep.detach().cpu().float().view(rep.shape[0], -1)
-        return None
+        return coerce_representation_matrix(rep)
 
     @staticmethod
     def _weighted_average_models(
