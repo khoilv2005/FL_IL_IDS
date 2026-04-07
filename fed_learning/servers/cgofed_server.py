@@ -19,6 +19,7 @@ from ..training.cgofed_worker import train_cgofed_clients_on_gpu
 from ..clients.cgofed_client import CGoFedClient
 from ..strategies.fed_incremental.cgofed import (
     CGoFedAggregator,
+    clone_representation_state,
     coerce_representation_matrix,
     compute_representation_similarity,
 )
@@ -80,7 +81,7 @@ class CGoFedServer(IncrementalServer):
 
         if hasattr(self.aggregator, "task_representation_matrices"):
             self._task_representation_matrices = {
-                tid: rep.cpu().clone()
+                tid: clone_representation_state(rep)
                 for tid, rep in self.aggregator.task_representation_matrices.items()
             }
 
@@ -95,7 +96,7 @@ class CGoFedServer(IncrementalServer):
             for cid, task_map in self.aggregator.client_representations.items():
                 self._client_task_representations[cid] = {}
                 for tid, rep in task_map.items():
-                    self._client_task_representations[cid][tid] = rep.cpu().clone()
+                    self._client_task_representations[cid][tid] = clone_representation_state(rep)
 
         if hasattr(self.aggregator, "client_historical_models"):
             self._client_task_models = {}
@@ -225,9 +226,14 @@ class CGoFedServer(IncrementalServer):
 
         Chủ yếu dùng cho debug hoặc fallback path.
         """
+        num_samples = self.config.get("num_samples_rep")
+        if num_samples is not None:
+            num_samples = int(num_samples)
+            if num_samples <= 0:
+                num_samples = None
         all_reps = []
         for client in self.clients:
-            rep = self._compute_client_task_representation(client, num_samples=64)
+            rep = self._compute_client_task_representation(client, num_samples=num_samples)
             if rep is not None:
                 all_reps.append(rep)
         if all_reps:
@@ -235,13 +241,19 @@ class CGoFedServer(IncrementalServer):
         return None
 
     def _compute_client_task_representation(
-        self, client: CGoFedClient, num_samples: int = 100
+        self, client: CGoFedClient, num_samples: Optional[int] = None
     ) -> Optional[torch.Tensor]:
         """
         Tính representation của một client ở task hiện tại từ train data local.
 
         Đây là đầu vào để server so sánh similarity với history cũ.
         """
+        if num_samples is None:
+            num_samples = self.config.get("num_samples_rep")
+            if num_samples is not None:
+                num_samples = int(num_samples)
+                if num_samples <= 0:
+                    num_samples = None
         try:
             rep = client.compute_activation_representation(
                 model=self.global_model,
@@ -344,7 +356,6 @@ class CGoFedServer(IncrementalServer):
                 dtype=torch.float32,
             )
             sim_scores = sim_scores - sim_scores.max()
-            sim_scores = torch.clamp(sim_scores, min=-20.0, max=0.0)
             weights = F.softmax(sim_scores, dim=0)
 
             next_round_reg_info[client_id] = {
@@ -486,7 +497,6 @@ class CGoFedServer(IncrementalServer):
 
             sim_scores = torch.tensor(neg_distances, dtype=torch.float32)
             sim_scores = sim_scores - sim_scores.max()
-            sim_scores = torch.clamp(sim_scores, min=-20.0, max=0.0)
             weights = F.softmax(sim_scores, dim=0)
 
             other_models = [client_params[oid] for oid in valid_other_ids]

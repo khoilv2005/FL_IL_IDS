@@ -10,6 +10,7 @@ import torch.nn as nn
 
 from fed_learning.strategies.fed_incremental.cgofed import CGoFedTrainer, CGoFedAggregator
 from fed_learning.clients.cgofed_client import CGoFedClient
+from fed_learning.clients.client import FederatedClient
 from fed_learning.servers.cgofed_server import CGoFedServer
 from helpers import make_simple_model, make_client_results
 
@@ -112,6 +113,46 @@ class TestCGoFed:
         results = make_client_results(3)
         agg = aggregator.aggregate(results)
         assert isinstance(agg, OrderedDict)
+
+    def test_client_train_uses_num_samples_rep(self, monkeypatch):
+        """Client-side representation should use the trainer's n_s setting."""
+        client = CGoFedClient(0, torch.randn(16, 32), torch.randint(0, 2, (16,)))
+        client.model = nn.Linear(32, 4)
+
+        def fake_train(self, trainer, epochs, batch_size, lr, global_params=None, **kwargs):
+            return {"loss": 0.0}
+
+        observed = {}
+
+        def fake_representation(model, num_samples=None):
+            observed["num_samples"] = num_samples
+            return torch.zeros(3, 2)
+
+        monkeypatch.setattr(FederatedClient, "train", fake_train)
+        monkeypatch.setattr(client, "compute_activation_representation", fake_representation)
+
+        trainer = type("DummyTrainer", (), {"num_samples_rep": 13})()
+        result = client.train(trainer, epochs=1, batch_size=4, lr=0.01)
+
+        assert observed["num_samples"] == 13
+        assert result["representation"].shape == (3, 2)
+
+    def test_store_client_representations_keeps_all_samples(self):
+        """Aggregator should retain full sample metadata without a 50k cap."""
+        aggregator = CGoFedAggregator(cross_task_weight=0.1, top_k=2)
+        aggregator.set_task(0)
+
+        rep_a = torch.randn(30000, 2)
+        rep_b = torch.randn(30000, 2)
+        aggregator._store_client_representations(
+            [
+                {"client_id": 0, "representation": rep_a},
+                {"client_id": 1, "representation": rep_b},
+            ]
+        )
+
+        stored = aggregator.task_representation_matrices[0]
+        assert stored["shape"] == (60000, 2)
 
 
 class TestCGoFedServer:

@@ -33,10 +33,12 @@ Paper Algorithm Summary:
 """
 
 from collections import OrderedDict
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 import copy
 import os
 import gc
+import shutil
+import uuid
 
 import torch
 import torch.nn as nn
@@ -45,7 +47,15 @@ import torch.nn.functional as F
 from ...core import BaseTrainer, BaseAggregator
 
 
-def coerce_representation_matrix(rep: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+REPRESENTATION_ARTIFACT_TYPE = "cgofed_representation_artifact"
+
+
+def is_representation_artifact(rep: Any) -> bool:
+    """Return True when `rep` is a lightweight persisted representation artifact."""
+    return isinstance(rep, dict) and rep.get("_artifact_type") == REPRESENTATION_ARTIFACT_TYPE
+
+
+def coerce_representation_matrix(rep: Any) -> Optional[torch.Tensor]:
     """Normalize a representation into a stable 2D float tensor on CPU."""
     if rep is None or not isinstance(rep, torch.Tensor):
         return None
@@ -61,7 +71,7 @@ def coerce_representation_matrix(rep: Optional[torch.Tensor]) -> Optional[torch.
 
 
 def representation_signature(
-    rep: Optional[torch.Tensor], spectral_rank: int = 8
+    rep: Any, spectral_rank: int = 8
 ) -> Optional[torch.Tensor]:
     """
     Build a permutation-invariant representation signature.
@@ -72,6 +82,12 @@ def representation_signature(
     - feature mean
     - leading singular values of the centered representation matrix
     """
+    if is_representation_artifact(rep):
+        signature = rep.get("signature")
+        if isinstance(signature, torch.Tensor):
+            return signature.detach().cpu().float()
+        return None
+
     matrix = coerce_representation_matrix(rep)
     if matrix is None:
         return None
@@ -102,7 +118,7 @@ def representation_signature(
 
 
 def compute_representation_similarity(
-    rep_a: Optional[torch.Tensor], rep_b: Optional[torch.Tensor]
+    rep_a: Any, rep_b: Any
 ) -> float:
     """Return a higher-is-better similarity score for two representations."""
     sig_a = representation_signature(rep_a)
@@ -110,6 +126,103 @@ def compute_representation_similarity(
     if sig_a is None or sig_b is None or sig_a.shape != sig_b.shape:
         return -1e6
     return -torch.norm(sig_a - sig_b, p=2).item()
+
+
+def build_representation_artifact(rep: Any) -> Optional[Dict[str, Any]]:
+    """Convert a representation tensor into a lightweight history artifact."""
+    matrix = coerce_representation_matrix(rep)
+    if matrix is None:
+        return None
+
+    signature = representation_signature(matrix)
+    if signature is None:
+        return None
+
+    mean_vector = matrix.mean(dim=0)
+    return {
+        "_artifact_type": REPRESENTATION_ARTIFACT_TYPE,
+        "signature": signature.detach().cpu().float(),
+        "shape": tuple(matrix.shape),
+        "mean_vector": mean_vector.detach().cpu().float(),
+        "mean_norm": torch.norm(mean_vector, p=2).item(),
+    }
+
+
+def clone_representation_state(rep: Any) -> Any:
+    """Clone either a dense representation tensor or a lightweight artifact."""
+    if is_representation_artifact(rep):
+        cloned = dict(rep)
+        if isinstance(rep.get("signature"), torch.Tensor):
+            cloned["signature"] = rep["signature"].detach().cpu().clone()
+        if isinstance(rep.get("mean_vector"), torch.Tensor):
+            cloned["mean_vector"] = rep["mean_vector"].detach().cpu().clone()
+        return cloned
+
+    matrix = coerce_representation_matrix(rep)
+    if matrix is not None:
+        return matrix.detach().cpu().clone()
+    return rep
+
+
+def representation_shape(rep: Any) -> Optional[Tuple[int, ...]]:
+    """Return a best-effort shape tuple for a tensor or representation artifact."""
+    if is_representation_artifact(rep):
+        shape = rep.get("shape")
+        if shape is not None:
+            return tuple(shape)
+        return None
+    matrix = coerce_representation_matrix(rep)
+    if matrix is None:
+        return None
+    return tuple(matrix.shape)
+
+
+def representation_mean_norm(rep: Any) -> Optional[float]:
+    """Return the norm of the mean representation vector for logging/debug."""
+    if is_representation_artifact(rep):
+        value = rep.get("mean_norm")
+        return float(value) if value is not None else None
+    matrix = coerce_representation_matrix(rep)
+    if matrix is None:
+        return None
+    return torch.norm(matrix.mean(dim=0), p=2).item()
+
+
+def aggregate_representation_artifacts(
+    reps: List[Any],
+) -> Optional[Dict[str, Any]]:
+    """Build a task-level lightweight artifact from per-client representations."""
+    artifacts = []
+    for rep in reps:
+        artifact = rep if is_representation_artifact(rep) else build_representation_artifact(rep)
+        if artifact is not None:
+            artifacts.append(artifact)
+
+    if not artifacts:
+        return None
+
+    total_samples = sum(int(artifact["shape"][0]) for artifact in artifacts)
+    if total_samples <= 0:
+        return None
+
+    weights = torch.tensor(
+        [artifact["shape"][0] / total_samples for artifact in artifacts],
+        dtype=torch.float32,
+    )
+    stacked_signatures = torch.stack([artifact["signature"] for artifact in artifacts], dim=0)
+    stacked_means = torch.stack([artifact["mean_vector"] for artifact in artifacts], dim=0)
+
+    signature = torch.sum(stacked_signatures * weights.unsqueeze(1), dim=0)
+    mean_vector = torch.sum(stacked_means * weights.unsqueeze(1), dim=0)
+
+    first_shape = artifacts[0]["shape"]
+    return {
+        "_artifact_type": REPRESENTATION_ARTIFACT_TYPE,
+        "signature": signature.detach().cpu(),
+        "shape": (total_samples, int(first_shape[1])),
+        "mean_vector": mean_vector.detach().cpu(),
+        "mean_norm": torch.norm(mean_vector, p=2).item(),
+    }
 
 
 class CGoFedTrainer(BaseTrainer):
@@ -316,9 +429,50 @@ class CGoFedTrainer(BaseTrainer):
                 target_modules.append((name, module))
         return target_modules
 
+    def _prepare_activation_chunk_root(self) -> str:
+        """Create a clean per-task directory for out-of-core activation chunks."""
+        task_key = f"task_{self.current_task}"
+        chunk_root = os.path.join(self.temp_dir, f"{task_key}_activation_chunks")
+        if os.path.isdir(chunk_root):
+            shutil.rmtree(chunk_root, ignore_errors=True)
+        os.makedirs(chunk_root, exist_ok=True)
+        return chunk_root
+
+    @staticmethod
+    def _cleanup_activation_chunk_root(chunk_root: Optional[str]) -> None:
+        """Remove temporary activation chunk files after basis construction."""
+        if chunk_root and os.path.isdir(chunk_root):
+            shutil.rmtree(chunk_root, ignore_errors=True)
+
+    def _persist_activation_chunk(
+        self,
+        chunk_root: str,
+        layer_name: str,
+        chunk_index: int,
+        features: torch.Tensor,
+        chunk_prefix: str,
+    ) -> Dict[str, Any]:
+        """Persist one activation chunk to disk and return lightweight metadata."""
+        safe_layer_name = layer_name.replace(".", "_")
+        layer_dir = os.path.join(chunk_root, safe_layer_name)
+        os.makedirs(layer_dir, exist_ok=True)
+
+        tensor = features.detach().cpu().float().contiguous()
+        path = os.path.join(layer_dir, f"{chunk_prefix}_{chunk_index:06d}.pt")
+        torch.save(tensor, path)
+        return {
+            "path": path,
+            "shape": tuple(tensor.shape),
+        }
+
     def _collect_activations(
-        self, model: nn.Module, data_loader, device: str, num_samples: int
-    ) -> Dict[str, List[torch.Tensor]]:
+        self,
+        model: nn.Module,
+        data_loader,
+        device: str,
+        num_samples: int,
+        chunk_root: str,
+    ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Collect per-layer INPUT ACTIVATIONS during forward pass.
 
@@ -336,17 +490,19 @@ class CGoFedTrainer(BaseTrainer):
             num_samples: Number of samples to use
 
         Returns:
-            Dict mapping module_name -> list of input activation tensors
+            Dict mapping module_name -> list of on-disk activation chunk refs
         """
         # Only collect for projection target modules (Linear layers)
         weight_modules = self._get_projection_target_modules(model)
-        layer_activations: Dict[str, List[torch.Tensor]] = {
+        layer_activations: Dict[str, List[Dict[str, Any]]] = {
             name: [] for name, _ in weight_modules
         }
 
         # Storage for captured activations
-        captured: Dict[str, torch.Tensor] = {}
+        captured: Dict[str, Dict[str, Any]] = {}
         handles = []
+        chunk_counts: Dict[str, int] = {name: 0 for name, _ in weight_modules}
+        chunk_prefix = uuid.uuid4().hex
 
         def make_hook(layer_name: str):
             def hook_fn(module, inp, out):
@@ -431,13 +587,14 @@ class CGoFedTrainer(BaseTrainer):
                     # Fallback
                     features = activation.detach().view(activation.size(0), -1)
 
-                # Subsample if too many patches (to save memory)
-                # Max 2000 patches per batch to prevent explosion
-                if features.size(0) > 2000:
-                    indices = torch.randperm(features.size(0))[:2000]
-                    features = features[indices]
-
-                captured[layer_name] = features.cpu()
+                captured[layer_name] = self._persist_activation_chunk(
+                    chunk_root=chunk_root,
+                    layer_name=layer_name,
+                    chunk_index=chunk_counts[layer_name],
+                    features=features,
+                    chunk_prefix=chunk_prefix,
+                )
+                chunk_counts[layer_name] += 1
 
             return hook_fn
 
@@ -446,15 +603,12 @@ class CGoFedTrainer(BaseTrainer):
             handle = module.register_forward_hook(make_hook(name))
             handles.append(handle)
 
-        # MEMORY FIX: Limit total activations per layer to prevent OOM during SVD
-        MAX_TOTAL_ACTIVATIONS = 5000  # Per layer, not per batch
-
         # Collect activations via forward pass
         model.eval()
         sample_count = 0
 
         with torch.no_grad():
-            for X, y in data_loader:
+            for X, _y in data_loader:
                 if sample_count >= num_samples:
                     break
 
@@ -469,14 +623,6 @@ class CGoFedTrainer(BaseTrainer):
                     if name in captured:
                         # Append each sample's activation
                         layer_activations[name].append(captured[name])
-
-                        # MEMORY FIX: Subsample if accumulated too many
-                        total_so_far = sum(a.shape[0] for a in layer_activations[name])
-                        if total_so_far > MAX_TOTAL_ACTIVATIONS:
-                            # Randomly subsample to MAX_TOTAL_ACTIVATIONS
-                            all_act = torch.cat(layer_activations[name], dim=0)
-                            indices = torch.randperm(all_act.shape[0])[:MAX_TOTAL_ACTIVATIONS]
-                            layer_activations[name] = [all_act[indices]]
 
                 sample_count += batch_size
                 captured.clear()
@@ -506,40 +652,48 @@ class CGoFedTrainer(BaseTrainer):
             print("⚠️ No client data available for representation space")
             return
 
-        num_samples = config.get("num_samples_rep", self.num_samples_rep)
-        samples_per_client = max(10, num_samples // len(active_clients) + 1)
-        merged_layer_activations: Dict[str, List[torch.Tensor]] = {}
-
-        for client in active_clients:
-            if not hasattr(client, "build_representation_loader"):
-                continue
-
-            rep_loader = client.build_representation_loader(
-                num_samples=samples_per_client,
-                batch_size=32,
-            )
-            if rep_loader is None:
-                continue
-
-            client_activations = self._collect_activations(
-                model=model,
-                data_loader=rep_loader,
-                device=device,
-                num_samples=samples_per_client,
-            )
-            for layer_name, activation_chunks in client_activations.items():
-                if not activation_chunks:
-                    continue
-                merged_layer_activations.setdefault(layer_name, []).extend(activation_chunks)
-
-        if not merged_layer_activations:
-            print("⚠️ No client activations collected for representation space")
+        num_samples = int(config.get("num_samples_rep", self.num_samples_rep))
+        if num_samples <= 0:
+            print("⚠️ num_samples_rep must be positive to build representation space")
             return
+        samples_per_client = (num_samples + len(active_clients) - 1) // len(active_clients)
+        merged_layer_activations: Dict[str, List[Dict[str, Any]]] = {}
+        chunk_root = self._prepare_activation_chunk_root()
 
-        self._build_representation_space_from_activations(
-            model=model,
-            layer_activations=merged_layer_activations,
-        )
+        try:
+            for client in active_clients:
+                if not hasattr(client, "build_representation_loader"):
+                    continue
+
+                rep_loader = client.build_representation_loader(
+                    num_samples=samples_per_client,
+                    batch_size=32,
+                )
+                if rep_loader is None:
+                    continue
+
+                client_activations = self._collect_activations(
+                    model=model,
+                    data_loader=rep_loader,
+                    device=device,
+                    num_samples=samples_per_client,
+                    chunk_root=chunk_root,
+                )
+                for layer_name, activation_chunks in client_activations.items():
+                    if not activation_chunks:
+                        continue
+                    merged_layer_activations.setdefault(layer_name, []).extend(activation_chunks)
+
+            if not merged_layer_activations:
+                print("⚠️ No client activations collected for representation space")
+                return
+
+            self._build_representation_space_from_activations(
+                model=model,
+                layer_activations=merged_layer_activations,
+            )
+        finally:
+            self._cleanup_activation_chunk_root(chunk_root)
 
     def build_space_from_client_data(
         self, model: nn.Module, client_data: Dict, config: Dict, device: str = "cuda"
@@ -573,8 +727,11 @@ class CGoFedTrainer(BaseTrainer):
             return
 
         all_X, all_y = [], []
-        num_samples = config.get("num_samples_rep", self.num_samples_rep)
-        samples_per_client = max(10, num_samples // len(active_cids) + 1)
+        num_samples = int(config.get("num_samples_rep", self.num_samples_rep))
+        if num_samples <= 0:
+            print("⚠️ num_samples_rep must be positive to build representation space")
+            return
+        samples_per_client = (num_samples + len(active_cids) - 1) // len(active_cids)
 
         for cid in active_cids:
             X = client_data[cid]["X_train"]
@@ -627,28 +784,36 @@ class CGoFedTrainer(BaseTrainer):
 
         print(f"  → Building ACTIVATION-based representation space (Paper Eq. 2-5)...")
 
-        layer_activations = self._collect_activations(
-            model, data_loader, device, self.num_samples_rep
-        )
+        chunk_root = self._prepare_activation_chunk_root()
+        layer_activations: Optional[Dict[str, List[Dict[str, Any]]]] = None
+        try:
+            layer_activations = self._collect_activations(
+                model,
+                data_loader,
+                device,
+                self.num_samples_rep,
+                chunk_root,
+            )
+            if not layer_activations:
+                print("⚠️ No activations collected")
+                return
 
-        if not layer_activations:
-            print("⚠️ No activations collected")
-            return
+            self._build_representation_space_from_activations(model, layer_activations)
+        finally:
+            self._cleanup_activation_chunk_root(chunk_root)
+            if layer_activations is not None:
+                del layer_activations
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
-        self._build_representation_space_from_activations(model, layer_activations)
-
-        del layer_activations
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-        if was_training:
-            model.train()
+            if was_training:
+                model.train()
 
     def _build_representation_space_from_activations(
-        self, model: nn.Module, layer_activations: Dict[str, List[torch.Tensor]]
+        self, model: nn.Module, layer_activations: Dict[str, List[Dict[str, Any]]]
     ) -> None:
-        """Run SVD and persist per-layer bases from collected activations."""
+        """Run out-of-core SVD statistics and persist per-layer bases."""
         weight_modules = self._get_projection_target_modules(model)
         print(
             f"  → Found {len(weight_modules)} layers for projection (Linear/Conv)"
@@ -662,14 +827,49 @@ class CGoFedTrainer(BaseTrainer):
                 continue
 
             try:
-                R = torch.cat(layer_activations[layer_name], dim=0)
-                n_samples = R.shape[0]
-                d = R.shape[1]
+                gram = None
+                n_samples = 0
+                d = None
 
-                A = R.T
-                U, S, _Vh = torch.linalg.svd(A, full_matrices=False)
+                for chunk_ref in layer_activations[layer_name]:
+                    chunk_path = chunk_ref.get("path")
+                    if not chunk_path or not os.path.exists(chunk_path):
+                        continue
 
-                energy = S**2
+                    chunk = torch.load(chunk_path, map_location="cpu")
+                    chunk = chunk.detach().cpu().float()
+                    if chunk.dim() != 2 or chunk.numel() == 0:
+                        continue
+
+                    if d is None:
+                        d = chunk.shape[1]
+                        gram = torch.zeros((d, d), dtype=torch.float64)
+                    if chunk.shape[1] != d:
+                        raise ValueError(
+                            f"Inconsistent activation dimension for {layer_name}: "
+                            f"expected {d}, got {chunk.shape[1]}"
+                        )
+
+                    gram += chunk.T.double().mm(chunk.double())
+                    n_samples += chunk.shape[0]
+
+                if gram is None or d is None or n_samples == 0:
+                    continue
+
+                eigvals, eigvecs = torch.linalg.eigh(gram)
+                order = torch.argsort(eigvals, descending=True)
+                eigvals = torch.clamp(eigvals[order], min=0.0)
+                eigvecs = eigvecs[:, order]
+                significant = eigvals > 1e-12
+                if not torch.any(significant):
+                    continue
+
+                eigvals = eigvals[significant]
+                eigvecs = eigvecs[:, significant]
+                S = torch.sqrt(eigvals.float())
+                U = eigvecs.float()
+
+                energy = eigvals.float()
                 cum_energy = torch.cumsum(energy, dim=0)
                 total_energy = cum_energy[-1] + 1e-10
                 ratio = cum_energy / total_energy
@@ -1158,50 +1358,41 @@ class CGoFedAggregator(BaseAggregator):
         Các representation này là đầu vào để đo độ tương đồng giữa task hiện tại
         và các task lịch sử.
         """
-        task_reps = []
+        task_reps: List[Dict[str, Any]] = []
 
         for r in results:
             if "representation" in r and r["representation"] is not None:
                 client_id = r["client_id"]
-                rep = coerce_representation_matrix(r["representation"])
-                if rep is None:
+                rep_artifact = build_representation_artifact(r["representation"])
+                if rep_artifact is None:
                     print(f"  ⚠️ Skipping NaN representation from client {client_id}")
                     continue
 
                 # Store per-client per-task
                 if client_id not in self.client_representations:
                     self.client_representations[client_id] = {}
-                self.client_representations[client_id][self.current_task] = rep
+                self.client_representations[client_id][self.current_task] = rep_artifact
 
-                task_reps.append(rep)
+                task_reps.append(rep_artifact)
 
-        # Compute aggregated representation matrix for this task
-        # Paper Eq. 2: R^t = F(Θ^t, X^t) - concatenate all client representations
+        # Build a lightweight task-level artifact from all client representations.
         if task_reps:
-            # task_reps contains matrices [n_samples_client, hidden_dim] from each client
-            # Stack them to get full representation matrix [total_samples, hidden_dim]
-            all_reps = torch.cat(task_reps, dim=0)
+            task_artifact = aggregate_representation_artifacts(task_reps)
+            if task_artifact is not None:
+                if not hasattr(self, "task_representation_matrices"):
+                    self.task_representation_matrices: Dict[int, Dict[str, Any]] = {}
+                self.task_representation_matrices[self.current_task] = task_artifact
 
-            # Memory limit: if too many samples, keep a subset for similarity computation
-            # Paper Eq. 2 requires ALL samples for full representation, but we limit
-            # storage to prevent OOM while maintaining diversity
-            MAX_TOTAL_SAMPLES = 50000  # ~50k samples per task is reasonable limit
-            if all_reps.shape[0] > MAX_TOTAL_SAMPLES:
-                indices = torch.randperm(all_reps.shape[0])[:MAX_TOTAL_SAMPLES]
-                all_reps = all_reps[indices]
-                print(f"  → [MEMORY] Limited to {MAX_TOTAL_SAMPLES} samples for task {self.current_task}")
+                mean_vector = task_artifact.get("mean_vector")
+                if isinstance(mean_vector, torch.Tensor):
+                    self.task_representations[self.current_task] = mean_vector.detach().cpu().clone()
 
-            # Store full representation matrix (not just mean) for proper similarity computation
-            # Paper Eq. 10: similarity should be computed on representation matrices
-            if not hasattr(self, "task_representation_matrices"):
-                self.task_representation_matrices: Dict[int, torch.Tensor] = {}
-            self.task_representation_matrices[self.current_task] = all_reps
-            # Also store mean for logging/debugging
-            self.task_representations[self.current_task] = all_reps.mean(dim=0)
-            print(
-                f"  → Stored {len(task_reps)} client representations for task {self.current_task}, "
-                f"total samples: {all_reps.shape[0]}, shape: {all_reps.shape}"
-            )
+                shape = task_artifact.get("shape")
+                total_samples = int(shape[0]) if shape is not None else 0
+                print(
+                    f"  → Stored {len(task_reps)} client representation artifacts for task {self.current_task}, "
+                    f"total samples: {total_samples}, shape: {shape}"
+                )
 
     def _compute_similarity(self, R1: torch.Tensor, R2: torch.Tensor) -> float:
         """
@@ -1234,8 +1425,8 @@ class CGoFedAggregator(BaseAggregator):
         if not hasattr(self, "task_representation_matrices"):
             return []
 
-        current_rep_matrix = self.task_representation_matrices.get(self.current_task)
-        if current_rep_matrix is None:
+        current_rep_state = self.task_representation_matrices.get(self.current_task)
+        if current_rep_state is None:
             return []
 
         # Compute similarity with all previous tasks using matrices
@@ -1245,9 +1436,9 @@ class CGoFedAggregator(BaseAggregator):
                 tid in self.task_representation_matrices
                 and tid in self.task_global_models
             ):
-                hist_rep_matrix = self.task_representation_matrices[tid]
+                hist_rep_state = self.task_representation_matrices[tid]
                 # Compute similarity on full matrices (Paper Eq. 10)
-                sim = self._compute_similarity(current_rep_matrix, hist_rep_matrix)
+                sim = self._compute_similarity(current_rep_state, hist_rep_state)
                 similarities.append(
                     {
                         "task_id": tid,
@@ -1258,17 +1449,21 @@ class CGoFedAggregator(BaseAggregator):
 
         # DEBUG[10]: Log raw similarity scores and representation info
         print(f"  DEBUG[10]: Cross-task similarity details (task {self.current_task}):")
-        current_mean = current_rep_matrix.mean(dim=0)
-        print(
-            f"    Current rep matrix shape: {current_rep_matrix.shape}, "
-            f"mean norm: {torch.norm(current_mean).item():.4f}"
-        )
+        current_shape = representation_shape(current_rep_state)
+        current_mean_norm = representation_mean_norm(current_rep_state)
+        if current_mean_norm is not None:
+            print(
+                f"    Current rep matrix shape: {current_shape}, "
+                f"mean norm: {current_mean_norm:.4f}"
+            )
+        else:
+            print(f"    Current rep matrix shape: {current_shape}, mean norm: n/a")
         for s in similarities:
             tid = s["task_id"]
-            hist_mean = self.task_representation_matrices[tid].mean(dim=0)
+            hist_shape = representation_shape(self.task_representation_matrices[tid])
             print(
                 f"    Task {tid}: neg_l2_dist={s['similarity']:.6f} | "
-                f"matrix shape: {self.task_representation_matrices[tid].shape}"
+                f"matrix shape: {hist_shape}"
             )
         if len(similarities) >= 2:
             sims = [s["similarity"] for s in similarities]

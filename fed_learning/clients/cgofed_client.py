@@ -52,14 +52,22 @@ class CGoFedClient(FederatedClient):
 
         # Compute activation representation for cross-task similarity (Paper Eq. 2, 10)
         if self.model is not None:
+            requested_samples = getattr(trainer, "num_samples_rep", self.num_samples)
+            try:
+                requested_samples = int(requested_samples)
+            except (TypeError, ValueError):
+                requested_samples = self.num_samples
+            if requested_samples <= 0:
+                requested_samples = self.num_samples
             result["representation"] = self.compute_activation_representation(
-                model=self.model, num_samples=100
+                model=self.model,
+                num_samples=requested_samples,
             )
 
         return result
 
     def build_representation_loader(
-        self, num_samples: int, batch_size: int = 32
+        self, num_samples: Optional[int], batch_size: int = 32
     ) -> Optional[DataLoader]:
         """
         Build a small local loader for representation-space construction.
@@ -70,7 +78,10 @@ class CGoFedClient(FederatedClient):
         if self.num_samples <= 0:
             return None
 
-        n_available = min(num_samples, self.num_samples)
+        if num_samples is None or num_samples <= 0:
+            n_available = self.num_samples
+        else:
+            n_available = min(num_samples, self.num_samples)
         if n_available <= 0:
             return None
 
@@ -79,7 +90,7 @@ class CGoFedClient(FederatedClient):
         return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     def compute_activation_representation(
-        self, model: Optional[nn.Module], num_samples: int = 100
+        self, model: Optional[nn.Module], num_samples: Optional[int] = None
     ) -> torch.Tensor:
         """
         Compute activation representation matrix from last hidden layer (Paper Eq. 2).
@@ -104,7 +115,10 @@ class CGoFedClient(FederatedClient):
         device = next(model.parameters()).device  # type: ignore
 
         # Sample indices
-        n_available = min(num_samples, self.num_samples)
+        if num_samples is None or num_samples <= 0:
+            n_available = self.num_samples
+        else:
+            n_available = min(num_samples, self.num_samples)
         indices = torch.randperm(self.num_samples)[:n_available]
 
         activations = []

@@ -1,0 +1,1332 @@
+2282 IEEE TRANSACTIONS ON KNOWLEDGE AND DATA ENGINEERING, VOL. 37, NO. 5, MAY 2025
+CGoFed: Constrained Gradient Optimization
+Strategy for Federated Class Incremental Learning
+Jiyuan Feng ,X uY a n g , Liwen Liang, Weihong Han, Binxing Fang, and Qing Liao , Member, IEEE
+Abstract —Federated Class Incremental Learning (FCIL) has
+emerged as a new paradigm due to its applicability in real-world
+scenarios. In FCIL, clients continuously generate new data with
+unseen class labels and do not share local data due to privacy
+restrictions, and each client’s class distribution evolves dynamically
+and independently. However, existing work still faces two signif-
+icant challenges. Firstly, current methods lack a better balance
+between maintaining sound anti-forgetting effects over old data
+(stability) and ensuring good adaptability for new tasks (plastic-
+ity). Secondly, some FCIL methods overlook that the incremental
+data will also have a non-identical label distribution, leading to
+poor performance. This paper proposes CGoFed, which includes
+relax-constrained gradient update and cross-task gradient regular-
+ization modules. The relax-constrained gradient update prevents
+forgetting the knowledge about old data while quickly adapting
+to the new data by constraining the gradient update direction
+to a gradient space that minimizes interference with historical
+tasks. The cross-task gradient regularization also ﬁnds applicable
+historical models from other clients and trains a personalized global
+model to address the non-identical label distribution problem. The
+results demonstrate that the CGoFed performs well in alleviating
+catastrophic forgetting and improves model performance by 8%
+-23% compared with the SOTA comparison method.
+Index Terms —Federated learning, class incremental learning,
+catastrophic forgetting.
+I. I NTRODUCTION
+FEDERATED learning (FL) has emerged as a well-known
+distribution learning paradigm that aims to collaboratively
+Received 24 June 2024; revised 7 January 2025; accepted 14 February 2025.
+Date of publication 24 February 2025; date of current version 25 March 2025.
+This work was supported by the Guangdong Major Project of Basic and Applied
+Basic Research under Grant 2019B030302002, in part by the the Major Key
+Project of PCL under Grant PCL2024A05, in part by the Shenzhen Science
+and Technology Program under grant ZDSYS20210623091809029, and in part
+by the Guangdong Provincial Key Laboratory of Novel Security Intelligence
+Technologies under Grant under Grant 2022B1212010005. Recommended for
+acceptance by Y . Tong. (Corresponding author: Qing Liao.)
+Jiyuan Feng is with the Department of Computer Science and Technology,
+Harbin Institute of Technology (Shenzhen), Shenzhen 518055, China, and
+also with Pengcheng Laboratory, Shenzhen 518055, China (e-mail: fengjy@
+stu.hit.edu.cn).
+Xu Yang, Liwen Liang, and Binxing Fang are with the Department of Com-
+puter Science and Technology, Harbin Institute of Technology (Shenzhen), Shen-
+zhen 518055, China (e-mail: xuyang97@stu.hit.edu.cn; LiwenLiang151101@
+outlook.com; fangbx@cae.cn).
+Weihong Han is with the Department of New Networks, Pengcheng Labora-
+tory, Shenzhen 518055, China (e-mail: hanwh@pcl.ac.cn).
+Qing Liao is with the Department of Computer Science and Technology,
+Harbin Institute of Technology (Shenzhen), Shenzhen 518055, China, and
+also with the Department of New Networks, Pengcheng Laboratory, Shenzhen
+518055, China (e-mail: liaoqing@hit.edu.cn).
+Digital Object Identiﬁer 10.1109/TKDE.2025.3544605train global models across multiple clients without sharing client
+data. FL provides a privacy-preserving solution to collabora-
+tive training across clients and is widely applied in various
+domains [1], including ﬁnance [2],[3], the Internet of Things
+(IoT) [4],[5],[6], and healthcare [7],[8],[9], as it only transfers
+model parameters without raw data [10],[11].
+Federated learning (FL) commonly assumes that clients main-
+tain a static label distribution of local data during the training and
+testing phases of the model [2],[12],[13]. However, in the real
+world, the label distributions of clients often change dynami-
+cally over time [14],[15], and each local client continuously
+introduces new classes to update the knowledge of the global
+model [14]. This scenario, known as federated class incremental
+learning (FCIL), also referred to as federated continuous learn-
+ing or lifelong federated learning [16], reﬂects a more natural
+and realistic setting. Given that clients in federated learning
+are typically lightweight mobile devices with limited storage
+capacity, constantly storing new data can lead to a signiﬁcant
+memory crisis. If clients only store and train the model on the
+new class, this can result in catastrophic forgetting of the old
+class, as the model may struggle to distinguish between the
+old class and the new data. Therefore, addressing catastrophic
+forgetting in FCIL requires extensive attention and exploration.
+The key to addressing the catastrophic forgetting problem
+in federated class incremental learning (FCIL) lies in training
+a model that achieves a suitable balance between stability and
+plasticity. In FCIL, regularization techniques and memory-based
+replay techniques are commonly employed. However, current
+FCIL methods, particularly those based on regularization, often
+fall short of delivering satisfactory results, especially as the
+number of tasks increases. For instance, CFeD [17] is a regular-
+ization method that utilizes distillation learning to mitigate the
+forgetting problem. It achieves this by transferring knowledge
+from a previously converged model to the current model through
+a surrogate dataset. However, distillation-based methods like
+CFeD heavily rely on pseudo-labels assigned to the surrogate
+dataset. As the number of tasks continues to increase, the gen-
+erated pseudo-labels may become increasingly biased, resulting
+in the model’s diminished ability to learn new tasks and forget
+the knowledge of previous tasks.
+In addition to addressing catastrophic forgetting, FCIL meth-
+ods also face the problem of non-identical label distribution in
+incremental data across clients. Speciﬁcally, the incremental
+data contributed by each client at each task may belong to
+entirely different class distributions, resulting in suboptimal
+performance. For example, Dong et al. [16] propose GLFC, a
+1041-4347 © 2025 IEEE. All rights reserved, including rights for text and data mining, and training of artiﬁcial intelligence and similar technologi es.
+Personal use is permitted, but republication/redistribution requires IEEE permission. See https://www.ieee.org/publications/rights/index. html for more information.
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+FENG et al.: CGOFED: CONSTRAINED GRADIENT OPTIMIZATION STRATEGY FOR FEDERATED CLASS INCREMENTAL LEARNING 2283
+rehearsal-based method that leverages a proxy server (memory
+buffer) to select the optimal model from previous tasks, thereby
+retaining prior knowledge and achieving high performance.
+However, GLFC assumes that the classes of new tasks for all
+clients are drawn from the same distribution, which is atypical in
+real-world scenarios. In a more general setting, the classes of new
+tasks for different clients originate from diverse distributions.
+This class incremental scenario presents a more demanding
+challenge for aggregating the global model, as it experiences
+signiﬁcant drift due to the non-identical label distributions of
+new tasks across clients.
+We summarize the above-mentioned issues as the trade-off
+problem between stability and plasticity and the problem of
+non-identical label distribution for incremental data in Feder-
+ated Class Incremental Learning (FCIL). Our paper proposes a
+Constrained-based Gradient optimization strategy for Federated
+Learning, called CGoFed , to address these two problems. In
+CGoFed, we introduce a relaxed constrained gradient update
+module to address catastrophic forgetting in FCIL, balancing
+stability and plasticity. This module restricts the direction of
+gradient updates based on the gradient space of the previous
+task, ensuring that the updated model parameters do not interfere
+with the historical tasks. Additionally, we propose a cross-task
+gradient regularization module to handle non-identical label
+distributions in incremental data, using a historical task selection
+mechanism to identify the most relevant tasks for the current
+task. We also design two Class Incremental Settings to evaluate
+existing FCIL methods in general federated scenarios. CGoFed
+achieves promising results, balancing stability (anti-forgetting)
+and plasticity (task adaptation) across diverse datasets. The
+contributions of our work can be summarized as follows:rWe summarize two signiﬁcant challenges in federated
+class incremental learning, including the trade-off problem
+between stability and plasticity and the problem of non-
+identical label distribution in incremental data. We propose
+the CGoFed to solve the above problems.rWe develop the relax-constrained gradient update module
+in CGoFed to ensure that the updated model parameters
+for new tasks do not interfere with historical tasks while
+effectively balancing the stability of old tasks and the
+plasticity of new tasks.rWe design a cross-task gradient regularization module of
+CGoFed to address the problem of non-identical label
+distribution in incremental data. This module leverages the
+historical models of other clients that are most relevant to
+each task, thereby enhancing the overall performance and
+adaptability of the system.rWe compare CGoFed with other FCIL methods under two
+different class incremental settings. Experimental results
+indicate that CGoFed is highly competitive in alleviating
+forgetting and enhancing the performance of the global
+model compared to existing methods.
+II. R ELATED WORK
+We categorize existing federated class-incremental learn-
+ing methods into expansion-based, regularization-based, and
+memory-based methods [18].A. Expansion-Based Methods
+These methods often improve robustness against catastrophic
+forgetting by decoupling or reconstructing the model structure
+to expand the model capacity.
+For instance, Yoon et al. [19] propose FedWeIT, which splits
+parameters into global, local base, and task-adaptive parameters.
+FedWeIT achieves knowledge transfer and addresses the catas-
+trophic forgetting problem by sharing task-speciﬁc parameters
+between clients. Hendryx et al. [20] utilize prototypical networks
+to implement fast knowledge transfer without gradient-based
+learning, mitigating catastrophic forgetting when clients indi-
+vidually learn a growing set of classes. In FCIL, a ﬁxed-capacity
+model is more practical because clients have limited resources.
+B. Regularization-Based Methods
+Regularization-based methods penalize signiﬁcant parame-
+ter changes associated with previous tasks by incorporating a
+regularization term into the classiﬁcation loss function. This
+approach effectively prevents catastrophic forgetting during the
+training of new tasks [21]. For instance, Kirkpatrick et al. [22]
+introduce Elastic Weight Consolidation (EWC), which con-
+strains parameters near the old task parameters by incorporating
+a quadratic penalty term when learning a new task. Shoham
+et al. [23] propose FedCurv, which employs EWC to penalize
+parameters that signiﬁcantly change during the new task and
+are critical in the old task using a diagonal Fisher information
+matrix. However, this method disregards or alters the change
+trajectory of the model in the parameter space, negatively im-
+pacting the model’s performance on new tasks.
+Other regularization-based methods employ knowledge dis-
+tillation techniques that rely on surrogate datasets to transfer
+knowledge from old tasks. For example, Li et al. [24] propose
+Learning without Forgetting and its extended version [24], which
+design a knowledge distillation loss to retain knowledge from
+previous tasks while optimizing accuracy on new tasks. Xu
+et al. [25] propose FedReg, which mitigates forgetting by reg-
+ularizing local model parameters using generated pseudo data
+that encode knowledge of past tasks. Lee et al. [26] design a
+distillation loss using the global model’s prediction on locally
+available data to acquire new knowledge and prevent catas-
+trophic forgetting. Ma et al. [17] propose CFeD, in which each
+client transfers the knowledge of old tasks to the new model
+through a surrogate dataset, and the server distills the knowledge
+of the previous round model into a new aggregation model to
+address catastrophic forgetting.
+Knowledge distillation typically constructs the same sample-
+label mapping relationship, enabling the trained model for the
+old task to transfer knowledge to the new task model [27],[28].
+However, as the number of tasks or the task offset increases,
+the mapping relationship for previous tasks can degrade or
+become incorrect. This degradation causes performance decline
+in prior tasks and increases noise in the learning process of
+new tasks [29], leading to a poor balance between plasticity
+and stability.
+C. Memory-Based Methods
+These methods typically retain a subset of data from previ-
+ous tasks to mitigate forgetting by preserving knowledge from
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+2284 IEEE TRANSACTIONS ON KNOWLEDGE AND DATA ENGINEERING, VOL. 37, NO. 5, MAY 2025
+Fig. 1. Illustration of FCIL. In federated class incremental learning, the client ﬁrst trains the local model on task 1 and uploads it to the server. The server
+aggregates the local model to get the global model. As the class of data increases, the client trains the local model on task 2 and uploads it to the server . Finally,
+the server aggregates the global model suitable for the new task. It’s noted that all clients train the local model independently on their task stream.
+previous tasks in the form of data, gradients, parameters, models,
+and other representations.
+For example, inspired by iCaRL [30], Zhang et al. [31]
+propose generating synthetic data from a generative model to
+capture the global data distribution and transfer knowledge of
+old tasks to current tasks, preventing catastrophic forgetting.
+Bakman et al. [32] improve the centralized continual learn-
+ing method GPM to address global catastrophic forgetting in
+federated class-incremental learning, ensuring that updates for
+new tasks are orthogonal to the activation principal subspace of
+previous tasks. Dong et al. [16] propose GLFC, which designs a
+class-aware gradient compensation loss to solve the local forget-
+ting problem caused by the continuous emergence of new classes
+in clients. GLFC constructs an exemplar memory mechanism
+using a proxy server to select a subset of previous tasks to retain
+prior knowledge. LGA [33], an extension of GLFC, relies on
+the server to reconstruct perturbed images and select the best
+old model.
+These methods achieve an acceptable effect in preventing
+catastrophic forgetting. However, they still need to address the
+more challenging incremental scenario where new task data for
+all clients come from different label distributions, a problem we
+refer to as non-identical label distribution for incremental data.
+III. D ISCUSSION ON FCIL
+We formally deﬁne federated class incremental learning and
+summarize two incremental-data settings in the client.
+A. Federated Class Incremental Learning
+We ﬁrst introduce the concept of FCIL in terms of client, task,
+server, and optimization objective, as shown in Fig. 1.
+Clients: We consider Kclients, each indexed by k. Clientk
+can only access a tasks sequence and is prohibited from access-
+ing previous tasks while training the current task t.F o rt a s k t,
+clientktrains a local model Θt
+kusing the same convolutional
+neural network model with Γlayers.Tasks: The sequence of tasks is represented as
+{D1
+k,D2
+k,...,DT
+k}, where Dt
+k={(xt
+k,i,yt
+k,i)|0<i≤nt
+k}
+denotes the private dataset of the t-th task for the client k.T h i s
+dataset comprises nt
+kinstances, each consisting of features xt
+k
+and their corresponding labels yt
+k.
+Server: The server aggregates the local models of all the
+clients to obtain a personalized global model Θt,g
+kexclusively
+for the client k. The model parameters are denoted as Θ=
+{(θl)Γ
+l=1}, whereθlrepresents the parameters of the l-th layer.
+Optimization Objective: Finally, FCIL expects to minimize
+the loss of all tasks among all samples. The optimization objec-
+tive of FCIL can be written as follows:
+min
+ΘT/summationdisplay
+t=1K/summationdisplay
+k=1nt
+k
+NtL/parenleftbig
+Dt
+k;Θ/parenrightbig
+(1)
+wherent
+kis the number of training samples of client k,Ntis
+the sum of all nt
+kat taskt.
+B. Catastrophic Forgetting
+In neural networks, catastrophic forgetting refers to the signif-
+icant memory loss for previously learned tasks or data when the
+model learns new data or tasks [34],[35].L e tΘinitrepresent a
+neural network model in its initial state. After training on a series
+of tasks, the model reaches a state Θt. When the model learns a
+new taskTnew, its state changes to Θnew. If the model’s perfor-
+mance on an old task Tolddecreases signiﬁcantly, from Pold(Θt)
+toPold(Θnew), i.e.,Pold(Θnew)/lessmuchPold(Θt), this is considered
+catastrophic forgetting. The root cause of catastrophic forgetting
+is that when the neural network model learns a new task, it
+updates weights through gradient descent, which can disrupt the
+weight distribution of the previous task. Consequently, learning
+new tasks leads to a sharp decline in the performance of old
+tasks. This phenomenon is illustrated in Fig. 2.N e wt a s k s( n e w
+classes of data) can signiﬁcantly alter the model’s parameters,
+causing the gradient update direction to move towards a space
+that is irrelevant to the old task.
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+FENG et al.: CGOFED: CONSTRAINED GRADIENT OPTIMIZATION STRATEGY FOR FEDERATED CLASS INCREMENTAL LEARNING 2285
+Fig. 2. The gradient update direction of the old task keeps in its feature
+subspace, but after the new task appears, the gradient is updated to the space
+unrelated to the old task.
+Fig. 3. Illustration of two different incremental data scenarios, where each row
+representing a task sequence for each client. Subﬁgure (a) shows the Identical
+New-Class scenario, where data for the same task (each column) across different
+clients are drawn from identical label distributions. Subﬁgure (b) shows the
+Non-Identical New-Class scenario, where data for the same task (each column)
+across different clients are drawn from non-identical label distributions.
+C. Incremental-Data Deﬁnition
+In this paper, we are the ﬁrst to propose addressing the
+non-identical label distribution problem for incremental data
+in FCIL [36]. Here, we analyze the problem we solved and
+deﬁne in detail two different types of incremental data settings
+in federated learning.
+Currently, most existing federated class incremental learn-
+ing methods usually ideally assumes all clients have identical
+task sequences. In this scenario, all client data with the same
+task ID have the same class label distribution. We refer to
+this incremental data scenario as identically incremental data
+(Identical New-Class). However, in the real world, clients collect
+or produce local data independently, leading to different clients’
+incremental data derived from non-identical label distributions.
+We refer to this incremental data scenario as non- identicalin-
+cremental data (Non-Identical New-Class). Here, we provide a
+deﬁnition of the two incremental data scenarios.
+Deﬁnition 1 (Identical New-Class): Deﬁne the t- t ht a s ko f
+clientkasDt
+k. The label of new tasks added by client kdoes
+not appear in the history tasks of any other client, i.e., Dt
+k∩/uniontextt−1
+ι=1Dι=∅.F i g . 3(a)
+shows.
+Deﬁnition 2 (Non-Identical New-Class): The label of new
+tasks added by client kmay have already appeared in a historical
+task for any other client, i.e., Dt
+k∩/uniontextt−1
+ι=1Dι/negationslash=∅.F i g . 3(b)
+shows.
+Section V-A will detail how to split the dataset to generate the
+above two incremental data scenarios.IV . O URMETHOD :C G OFED
+In this section, we introduce our CGoFed method. We ﬁrst in-
+troduce the conventional gradient-based method and notations in
+Section IV-A . Then, we discuss the relax-constrainted gradient
+update module of CGoFed to achieve a good balance between
+stability (anti-forgetting) and plasticity (adapting new tasks) in
+detail in Section IV-B . Finally, we present the cross-task gradient
+regularization module of CGoFed to alleviate the problem of
+non-identical label distribution in FCIL in Section IV-C .
+A. Strong-Constrainted Gradient Update
+Previous works propose the gradient-based method to prevent
+forgetting and realize forward knowledge transfer in continu-
+ous learning. Here, we brieﬂy introduce conventional strong-
+constrainted gradient update method in three critical steps.
+1) Constructing Representations Space: Gradient-based
+methods utilize the gradient obtained by training the model
+on a subset of samples to represent the gradient space of the
+entire task. Assume that task tis currently being trained. The
+representation matrix of the gradient space for task tis obtained
+through forward propagation of the model Fas follows:
+Rt=F(Θt,Xt), (2)
+whereRt=[ zt
+1,zt
+2,...,zt
+ns]is the representation matrix for
+taskt.Xt={xi}ns
+i=1containsnssamples randomly sampled
+from the data Dtof the current task.
+2) Solve for Orthogonal Basis: After computing the repre-
+sentation matrix for task t, gradient-based methods apply a ma-
+trix factorization algorithm to obtain basis vectors representing
+the gradient space of task t. The Singular Value Decomposition
+(SVD) algorithm is the most commonly used matrix decompo-
+sition method, and its formula is as follows:
+Rt=UtΣt(Vt)/latticetop, (3)
+whereUtandVtare orthogonal singular matrices, the left
+singular matrix Utis a canonical orthogonal basis spanning Rn.
+Multiplying the gradient of the new task by the left singular
+matrixUtand its transpose matrix (Ut)/latticetopprojects the gradient
+into the orthogonal space of the gradient of the old task. The
+matrixΣtstores the singular values along its diagonal. To obtain
+a more compact representation matrix, we use the norm-based
+criteria to compute the κ-rank approximation (Rt)κofRtas
+follows:
+/vextenddouble/vextenddouble(Rt)κ/vextenddouble/vextenddouble2
+F≥/epsilon1/vextenddouble/vextenddoubleRt/vextenddouble/vextenddouble2
+F, (4)
+where/bardbl·/bardbl2
+Fdenotes the Frobenius norm, and (Rt)κcontains
+the top-κlargest singular values along its main diagonal. The
+threshold /epsilon1controls the number of selected singular values and
+basis vectors. A larger /epsilon1results in more orthogonal basis vectors
+and a higher dimension of the orthogonal gradient space Mt.
+The representation space St=span{ut
+1,ut
+2,...,ut
+κ}for taskt
+is spanned by the ﬁrst κcolumn vectors in left singular matrix Ut.
+The basis vectors of Stare stored in memory M={(Mt)T
+t=1},
+whereMt=[ut
+1,ut
+2,...,ut
+κ]. The singular values correspond-
+ing to each basis vector from a matrix Σt=[σt
+1,σt
+2,...,σt
+κ].
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+2286 IEEE TRANSACTIONS ON KNOWLEDGE AND DATA ENGINEERING, VOL. 37, NO. 5, MAY 2025
+3) Scaling Basis Vector: In conventional gradient-based
+methods, all basis vectors have the same weight when con-
+structing the gradient space, offering stability to old tasks to
+some extent by maintaining uniform importance across tasks.
+However, recent models exhibit varying levels of forgetting
+across different old tasks, necessitating greater attention to tasks
+experiencing higher forgetting. Inspired by the non-uniform dis-
+tribution of singular values, we calculate the importance of basis
+vectors using these singular values to bolster stability for crucial
+tasks. Terming the variable basis vector approach, we modify the
+process of deriving orthogonal bases in typical gradient-based
+methods using the singular values Σt=[σt
+1,σt
+2,...,σt
+κ]ob-
+tained in (3), we transform these singular values into important
+coefﬁcient Λt=[λt
+1,λt
+2,..., λt
+κ]using the sigmoid function,
+preserving the original proportion of singular values Σt.T h e
+process is as follows:
+Λt=1
+1+e−Σt. (5)
+Before training task t+1, we employ the importance coefﬁcient
+Λas the weight for each basis vectors Mt=[ut
+1,ut
+2,...,ut
+κ]to
+adjust the gradient space. This weighted adjustment transforms
+the basis vectors into Mt=[λt
+1·ut
+1,λt
+2·ut
+2,..., λt
+κ·ut
+κ]based
+on their singular value distribution. Following this strategy, as
+tasks accumulate, previous task’s basis vectors receive higher
+relative weights, thereby enhancing the model’s performance
+on those tasks.
+However, the aforementioned gradient-based method restricts
+the gradient update direction of training new tasks to the orthog-
+onal direction of the old task space, which is not always globally
+optimal. As the number of new tasks increases, the model’s
+plasticity to new tasks diminishes within the limited gradient
+space, making it challenging to achieve a satisfactory balance
+between stability and plasticity.
+B. Relax-Constrainted Gradient Update
+In this subsection, we propose a relax-constrained gradient
+update module to improve the plasticity of the model for new
+tasks. We ﬁrst describe the normal gradient constraint process
+and then introduce our proposed relaxation strategy.
+1) Normal Gradient Constraint: After completing the train-
+ing of task t, all clients will begin training on the new task t+1.
+The new task often brings many new classes, causing the descent
+direction of the model gradient to shift rapidly to the gradient
+space of the new task. The dramatic shift in descent direction
+is the root cause of the severe performance degradation on the
+old task. Therefore, we aim for the gradient update to occur in
+the gradient space orthogonal to the old task, as expressed in the
+following formula:
+∇Θt+1Lt+1=∇Θt+1Lt+1−/parenleftbig
+∇Θt+1Lt+1/parenrightbig
+Mt(Mt)/latticetop.(6)
+At the end of the new task training, we update the memory M
+that stores the basis vectors of all tasks. As mentioned above,
+this constraining process is too strict and limits the performance
+of the model on new tasks.
+2) Variable Gradient Constraint: To enhance the model’s
+plasticity for new tasks, we propose a technique called variable
+Fig. 4. The diagram of Variable Gradient Constraint technique. When the
+update direction of the new task is not constrained, it only stays in the unrelated
+subspace of the old task, resulting in catastrophic forgetting. When the update
+direction is strictly constrained in the orthogonal direction, the adaptability of
+the new task is decreased due to the limited gradient space. When using the
+variable gradient constraint technique, the gradient update direction of the new
+task can be expanded and orthogonal to subspace of the old task.
+gradient constraint. This technique allows for ﬂexible adjust-
+ment of the model’s plasticity on new tasks. As depicted in Fig. 4,
+the strict constraint on the gradient update direction is identiﬁed
+as a signiﬁcant factor contributing to poor plasticity. To address
+this issue, we expand the update range of the gradient, enabling
+the model to adapt more effectively to new tasks. This slight
+angle deviation is introduced by incorporating an adjustable
+constraint strength coefﬁcient, denoted as μ, during the gradient
+update. We gradually reduce the constraint strength coefﬁcient
+during the training process, providing strong constraints in the
+early tasks to ensure stability, and gradually relaxing the con-
+straints as training progresses to improve plasticity on new tasks.
+Moreover, when forgetting reaches a certain threshold τin the
+later stages of training, we automatically tighten the constraints
+to prevent signiﬁcant forgetting. The relaxation process is as
+follows:
+f(α,t)=αt, (7)
+μt=/braceleftbiggμinitf(α,t) ifAF < τ,
+μinitf(α,t−tτ)ifAF≥τ,(8)
+wheref(α,t)=αtis used to model the exponential decay of
+the constraint strength with respect to the task index t. Here,μt
+represents the constraint strength coefﬁcient for task t, control-
+ling the degree of deviation from the orthogonal direction. We
+utilize a decay rate αto dynamically adjust the coefﬁcient μfor
+each task based on the average forgetting ( AF) observed during
+training.tτdenotes the most recent task number at which AF
+exceeds the threshold τ.μinitis the initial constraint strength
+coefﬁcient, typically set to μinit=1. According to (6)and(8),
+we reformulate the gradient update procedure as follows:
+∇Θt+1Lt+1=∇Θt+1Lt+1−μt(∇Θt+1Lt+1)Mt(Mt)/latticetop.(9)
+We introduce a novel relax-constrained gradient update mod-
+ule designed to improve adaptability to new tasks and ensure
+stability for existing tasks using an adjustable constraint strength
+coefﬁcient. To optimize the balance between plasticity and sta-
+bility, we dynamically adjust the decay rate of the constraint
+strength coefﬁcient and achieve a good balance between the
+stability of old tasks and plasticity for new tasks.
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+FENG et al.: CGOFED: CONSTRAINED GRADIENT OPTIMIZATION STRATEGY FOR FEDERATED CLASS INCREMENTAL LEARNING 2287
+C. Cross-Task Gradient Regularization
+In this subsection, we propose a cross-task gradient regular-
+ization module of CGoFed to solve the problem of non-identical
+label distribution for incremental data between the clients in
+federated class incremental learning.
+Each client’s task streams are independent, leading to unique
+class distributions in incremental data at each time step. This
+independence poses a challenge for server aggregation, as lo-
+cal models may interfere with each other. It is intuitive that
+the current task of client imay overlap with historical tasks
+of another client j. Therefore, leveraging valuable knowledge
+from historical models of other clients can mitigate catastrophic
+forgetting and improve the global model’s performance on the
+current task. Next, we elaborate on our novel cross-task gradient
+regularization module, which integrates historical models from
+other clients into the optimization objective.
+Firstly, the proposed cross-task gradient regularization mod-
+ule operates by computing and transmitting the representation
+matrixRtof the current task tto the server, along with the
+uploaded model parameters at the conclusion of each task.
+To derive Rt, each client randomly samples and computes it
+using (2)upon task tcompletion. This matrix shufﬂes feature
+representations across all sample batches, ensuring that previous
+task data is not directly shared and avoiding potential breaches
+of sample-level privacy. This method is computationally efﬁ-
+cient, requiring no additional communication or computational
+overhead.
+Secondly, for each client k, the server calculates the similarity
+matrixΨkbetween the current task tand all tasks of other clients
+(indexed by i). Here,ϕt
+idenotes the similarity between client
+k’s current task and client i’st-th task. The computation of Ψk
+andϕt
+iis detailed below:
+Ψk=⎡
+⎢⎢⎣ϕ1
+1···ϕt
+1
+.........
+ϕ1
+i···ϕt
+i⎤
+⎥⎥⎦,ϕt
+i=D/parenleftbig
+Rt
+i,Rt
+k/parenrightbig
+. (10)
+The similarity function Demploys the L2-norm distance, where
+Rt
+iandRt
+kdenote the representation matrices of client iand
+clientk, respectively.
+Thirdly, the server employs a task selection mechanism to
+chooseπhistorical tasks with the lowest ϕvalues for client k,
+based on its representation matrix Ψk. These selected historical
+tasks have shown signiﬁcant improvements for the global model
+on clientk’s current task through the computation of the cross-
+task cooperation loss, which is detailed as follows:
+A/parenleftbig
+Θt
+k,Θold/parenrightbig
+=t−1/summationdisplay
+j=0π/summationdisplay
+i=0ϕj
+i/summationtext
+i∈πϕj
+i/vextenddouble/vextenddouble/vextenddoubleΘt
+k−Θj
+i/vextenddouble/vextenddouble/vextenddouble2
+, (11)
+where we select two other clients ( π=2) that exhibit the lowest
+ϕvalues across historical tasks for each client k. This results in
+obtainπ∗(t−1)historical task models are expressed by Θold,
+which are used to compute the regularization loss during training
+of thet-th task.
+Lastly, the t-th column vector of the matrix signiﬁes the
+similarity between the client kand other clients ifor current taskTABLE I
+TIMECOMPLEXITY ANALYSIS
+t. To enhance the model’s performance, the server performs per-
+sonalized aggregation for client kusing the similarity between its
+model and these of other clients on the current task tas follows:
+Θt,g
+k=Θt
+k+/summationdisplay
+i∈K\kϕt
+i/summationtext
+i∈K\kϕt
+iΘt
+i. (12)
+The aggregate weights are computed based on the similarity of
+all representations from the previous training round. The ratio
+between the model of client kand the sum of the models from
+other clients can be set empirically.
+To summarize, we rewrite the optimization objective of the
+local model for each client kat tasktas follows:
+CEk(Θt
+k)=1
+nt
+knt
+k/summationdisplay
+i=1/lscript(f(xt
+k,i;Θt,g
+k),yt
+k,i), (13)
+min
+Θt,g
+k/bracketleftBigg
+1
+KK/summationdisplay
+k=1Lk/parenleftbig
+Θt
+k/parenrightbig
++A/parenleftbig
+Θt
+k,Θold/parenrightbig/bracketrightBigg
+, (14)
+where/lscript(ˆy,y)is the cross-entropy loss function. We combine
+the local loss function with the cross-task gradient regulariza-
+tion loss to obtain the complete optimization objective via the
+(14). Finally, the detailed process of CGoFed is described in
+Algorithm 1.
+D. Time Complexity
+Denote the number of clients, client samples, feature dimen-
+sions, and parameter dimensions as K,N,k, andd, respec-
+tively. The time complexity analysis of each module is shown
+in Table I. On the client side, all clients execute model train-
+ing, orthogonal gradient updates, representation construction,
+and singular value decomposition (SVD) in parallel. The time
+complexity of client training is proportional to the data size
+and model parameter dimension, resulting in a complexity of
+O(N·d). The time complexity of orthogonal gradient updates
+is determined by projection calculations, which typically have
+a complexity of O(d2). Representation construction and SVD
+involve multiple iterations and matrix-matrix operations, with
+the primary computational cost arising from eigenvalue de-
+composition or iterative processes. This yields a complexity
+ofO(d2·logk). Therefore, the total time complexity on the
+client side is O(N·d+d2+d2·logk). On the server side, the
+model parameters and representations sent by the clients are
+aggregated. The time complexity for calculating the similarity
+matrix using client representations is O(K2·d), while the com-
+plexity for model aggregation is O(K·d). Hence, the total time
+complexity on the server side is O(K2·d+K·d).
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+2288 IEEE TRANSACTIONS ON KNOWLEDGE AND DATA ENGINEERING, VOL. 37, NO. 5, MAY 2025
+Algorithm 1: Constrained Gradient Optimization Strategy
+for Federated Class Incremental Learning.
+The computational complexity of our method mainly arises
+from performing SVD. To reduce this overhead, SVD is per-
+formed only once per task, reducing its impact on model training
+time. In our experiments, we provide a detailed comparison of
+time consumption on the CIFAR-100 and Tiny-ImageNet-200
+datasets in Section VI-F . Overall, the results demonstrate that
+our approach achieves practical efﬁciency, making it suitable for
+real-world applications.
+V. E XPERIMENTS
+In this section, we evaluate the proposed CGoFed method for
+two different class incremental learning scenarios on multiple
+datasets.
+A. Datasets
+We conduct experiments on image datasets, CIFAR-100 [37]
+and Tiny-ImageNet-200 [38], as well as graph datasets, Cora-
+Full [39] and Reddit [40], to validate the effectiveness of our
+proposed CGoFed method across diverse datasets.Image Datasets: The CIFAR-100 dataset contains 60,000
+color images with 100 classes, each class has 600 images
+(32x32 pixels with 3 color channels). The Tiny-ImageNet-200
+dataset contains 100,000 color images with 200 classes, each
+class has 500 images (64x64 pixels with 3 color channels).
+These datasets are extensively used to evaluate class incremental
+learning methods [32],[41].
+Graph Datasets: The CoraFull and Reddit datasets are widely
+used benchmarks for graph-based machine learning tasks. The
+CoraFull dataset is a citation network consisting of 19,793 nodes
+and 126,842 edges, where nodes correspond to documents and
+edges represent citation relationships. Each node is associated
+with a feature vector of size 8,710, and the dataset includes 70
+classes. The Reddit dataset is a large-scale social network graph
+with 232,965 nodes and 11,606,919 edges. Nodes represent
+posts, and edges connect posts shared by the same users. Each
+node has a feature vector of size 602, and the dataset contains
+41 classes. We train node classiﬁcation models on both graph
+datasets to evaluate the performance of the methods in diverse
+scenarios of federated class-incremental learning.
+Split Incremental Data Scenario: In class incremental learn-
+ing, the training data is split into task sequences, and the
+training data belonging to different tasks have different class
+labels. Therefore, class incremental learning necessitates the
+model to have the ability to differentiate between known classes
+from previous tasks and new classes for the current task. For
+instance, the model might initially learn about “ﬁsh” and “lion”
+from task 1 and subsequently about “rose” and “peony” from
+task 2. The class incremental learning method requires distin-
+guishing between “rose” and “lion” among the different tasks.
+We partition the Identical New-Class and Non-Identical New-
+Class incremental data scenarios as deﬁned in Section III.C.
+First, we divide the entire dataset into non-overlapping task
+sequence {D1,D2,...,DT}. For example, in the CIFAR-100
+dataset, all classes are numbered from 0 to 99. Assuming
+there are 10 tasks, with each task containing 10 classes, the
+task sequences are as follows: TaskD1={0,1,...,9},Task
+D2={10,11,...,19},...,TaskD10={90,91,...,99}.For
+Identical New-Class , each client samples from task sequence
+{D1,D2,...,DT}, such as Dt
+k⊂Dtis thet-th task of client
+k, to generate its private task sequence {D1
+k,D2
+k,...,DT
+k}.T h e
+dimension of the model’s classiﬁer increases with the number of
+tasks. For Non-Identical New-Class , each client also samples
+from the task sequence to generate its private dataset. Then, each
+client independently shufﬂes its task sequence to obtain a new
+task sequence, such as {D4
+k,DT
+k,...,D1
+k}. Finally, each client
+trains its local model following the shufﬂed order. The dimension
+of the model’s classiﬁer is ﬁxed to the number of classes in the
+dataset.
+B. Baseline Methods
+We compare CGoFed with 7 baseline methods and clearly
+explain the reasons for choosing these baselines, including:rFedAvg [12] :This naive FL method uses FedAvg to ag-
+gregate local models in class incremental tasks, serving as
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+FENG et al.: CGOFED: CONSTRAINED GRADIENT OPTIMIZATION STRATEGY FOR FEDERATED CLASS INCREMENTAL LEARNING 2289
+the theoretical lower bound for forgetting in FCIL due to
+its lack of forgetting mitigation mechanisms.rFedEWC [22] :We include EWC as a regularization-
+based method that mitigates catastrophic forgetting by
+re-weighting the importance parameter of old tasks. We
+extend this widely cited method to federated learning and
+name it FedEWC.rFedLwF [24] :We include LwF as a regularization-based
+method for its strong representative in continuous learning,
+where it mitigates catastrophic forgetting by preserving
+knowledge of previous tasks through knowledge distilla-
+tion. As a widely recognized method balancing new and
+old task learning, we extend LwF to the federated learning
+setting and name it FedLwF.rCFeD [17] :We include CFeD as a regularization-based
+method because of its effectiveness in mitigating catas-
+trophic forgetting in FCIL. Using class-wise feature distil-
+lation, it preserves prior knowledge while adapting to new
+tasks; this is a strong benchmark in the federated setting.rTARGET [31] :We include TARGET as a memory-based
+method because it employs a generative model to create
+synthetic data, effectively addressing catastrophic forget-
+ting in FCIL. TARGET transfers knowledge from old
+tasks to new ones with synthetic data, making it a strong
+benchmark for ensuring stability and performance across
+sequential tasks.rGLFC [16] :We include GLFC as a memory-based method
+because it selects the best model using a proxy server to
+preserve prior knowledge while learning new tasks in a
+federated setting. Replaying a portion of historical data
+effectively balances knowledge retention and adaptation,
+serving as a strong benchmark to mitigate forgetting and
+improve performance in FCIL.rFedWeIT [19] :We include FedWeIT as a baseline for its
+role as a representative expansion-based method in FCIL.
+It mitigates catastrophic forgetting by dividing network
+weights into global and sparse task-speciﬁc parameters,
+re-weighting the latter to transfer knowledge across clients.
+Its innovative strategy for balancing model capacity growth
+and knowledge preservation makes it a strong benchmark
+for FCIL.
+C. Implementation Details
+We use the simple but efﬁcient AlexNet [42] network for
+CIFAR100 and Tiny-imagenet by following [32],[41].W es e t
+10 clients, each client with 10 tasks, and trained each task in
+sequence. Each task will train for 20 communication rounds,
+and the local epochs of each client are 5 in each communication
+round, the learning rate is 0.01, and the mini-batch size is 64.
+For node classiﬁcation tasks of graph datasets, we employ a two-
+layer Graph Convolutional Network (GCN) as the local model
+with a 256-dimensional hidden layer and an output layer whose
+size depends on the number of classes. The learning rate is set to
+0.0001 for the CoraFull dataset and 0.01 for the Reddit dataset.
+All experiments were conducted on a T4 GPU, utilizing a ﬁxedrandom seed to ensure the reproducibility and accuracy of the
+results.
+D. Evaluation Metrics
+In class incremental learning, we follow the Average Accuracy
+and Average Forgetting metrics commonly used in previous
+work [22],[43],[44],[45] to evaluate the effect of methods
+in mitigating catastrophic forgetting. To calculate the Average
+Accuracy , after training task t, we test the accuracy of the current
+model on the trained task and obtain the at,iwherei≤t.T h e
+Average Accuracy of all the Ttasks is deﬁned as follows:
+AT=1
+TT/summationdisplay
+i=1at,i, (15)
+The Average Forgetting is deﬁned as the averaged disparity
+between minimum task accuracy during training all tasks. For
+Ttasks, the Average Forgetting is computed as follows:
+AF=1
+T−1T−1/summationdisplay
+i=1max
+t∈1,...,T−1(at,i−aT,i) (16)
+Note,AF∈[−1,1],l o w e rFimplies less forgetting on pre-
+vious tasks. The forgetting metric represents the difference
+between the maximum knowledge about the previous tasks
+acquired throughout the learning process and the knowledge of
+previous tasks the model retains.
+E. Experimental Results
+We conduct experiments on two incremental data scenarios:
+Identical New-Class and Non-Identical New-Class. Table II
+shows the average accuracy and forgetting metric after learning
+all the federated class incremental learning tasks. The exper-
+iment results demonstrate that our proposed CGoFed method
+performs best on CIFAR-100 and Tiny-Inagenet-200 datasets.
+GLFC and FedWeIT are two laudable federated class incre-
+mental learning methods. The AFof FedWeIT is comparable
+to our CGoFed, under CIFAR-100 and Tiny-ImageNet-200
+datasets and two incremental data scenarios. However, the aver-
+age accuracy of CGoFed is still higher than the above two meth-
+ods, especially on the more challenging Tiny-ImageNet-200
+dataset; our advantage is more signiﬁcant, with an improvement
+of 21.35% .
+Besides, we observe that FedAvg suffers from severe catas-
+trophic forgetting, showing the highest forgetting regardless of
+which incremental data scenario. We also see that classical class
+incremental learning methods such as FedEWC and FedLwF
+perform poorly in federated learning. Due to the differences in
+the class distribution of clients in federated learning, the aggre-
+gation process of the global model will interfere with the model
+parameter distribution after each round of training, thus affecting
+the effect of these methods. In particular, FedEWC needs to
+estimate the weight parameters of previous tasks, and model
+aggregation seriously interferes with the weight distribution of
+previous tasks. Thus, FedEWC has had little improvement in
+FedAvg.
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+2290 IEEE TRANSACTIONS ON KNOWLEDGE AND DATA ENGINEERING, VOL. 37, NO. 5, MAY 2025
+TABLE II
+PERFORMANCE COMPARISONS BETWEEN CGOFED AND COMPARED METHOD WITHTWODIFFERENT DATAINCREMENTAL SCENARIOS
+ONCIFAR-100 AND TINY-IMAGE NET-200 D ATASET AT10 T ASKS
+TABLE III
+PERFORMANCE COMPARISON BETWEEN CGOFED AND BASELINE METHODS ON
+GRAPH DATASETS :CORAFULLWITH7TASKS AND REDDIT WITH10 T ASKS
+For two incremental data scenarios, in CIFAR-100, GLFC and
+TARGET have higher average accuracy in the Non-Identical
+New-Class scenario, 2.3% -4.4% more elevated than in the
+Identical New-Class scenario. The Identical New-Class scenario
+is the more challenging setting because each task brings more
+new classes, making it more difﬁcult for the model to adapt to the
+new class. Our CGoFed method has achieved far better results
+than the comparison methods, no matter what incremental data
+scenario.
+F . Result of Graph Learning
+To evaluate the effectiveness of CGoFed on diverse datasets,
+we conducted experiments using graph datasets. Notably, most
+existing FCIL methods are speciﬁcally designed for image data
+and are incompatible with graph datasets and GNN models.
+Therefore, we can only adapt two regularization-based methods,
+FedEWC and FedLwF, for use with GNN models to enable a fair
+comparison. The results of these experiments are summarized in
+Table III. The results demonstrate that CGoFed consistently out-
+performs baseline methods (FedAvg, FedEWC, and FedLwF) on
+both the CoraFull and Reddit datasets in terms of A7andAF.
+On the two datasets, CGoFed achieves the highest accuracy of
+76.38% and 69.20% , signiﬁcantly outperforming the baseline
+methods. It also demonstrates the lowest AF of 0.2095 and
+0.2831, respectively. These results highlight the adaptability of
+our method to different types of data and models. While the
+performance of the comparative methods is less satisfactory, it
+consistents with the the accepted benchmark of graph continual
+learning [46],[47].
+G. Result of Task Accuracy
+It is worth mentioning that the FedWeIT is the most ef-
+fective method for mitigating the forgetting problem amongall the compared methods in both incremental data scenarios,
+while CFeD exhibits high adaptability to new tasks (detailed in
+Section VI-B ). Therefore, we plot the accuracy change curve
+for each task of CFeD, FedWeIT, and CGoFed, starting from
+the prior task of each task. As shown in Fig. 5, our proposed
+CGoFed method quickly adapts to each task at the beginning
+and maintains or even improves task accuracy after completion,
+particularly for Task 5 and Task 8. However, after training
+per task, each task of CFeD showed a severe accuracy drop
+during the new task training phase. We analytically consider that
+the reasons for the poor effect of CFeD include the following
+two aspects. Firstly, the CFeD method is only suitable for a
+small number of tasks (T =2), as mentioned by [17]. When
+the number of tasks increases, the distillation loss term of this
+method will consider more and more historical tasks, and the
+distillation effect of a single historical task or early task will
+decline rapidly. Second, distillation-based methods usually rely
+on particular surrogate datasets. Our investigation shows that
+the surrogate dataset provided by CFeD is only suitable for the
+simple CIFAR100, but severe forgetting still occurs for the more
+challenging Tiny-Imagenet-200. Its average forgetting metric
+is higher than EWC and LwF but lower than FedAvg. The
+fundamental reason is the limited capacity of previous tasks’
+knowledge carried by the distillation loss term, and it cannot
+play a good role when the number of tasks is large.
+H. Result of Non-IID Scenario
+To further verify that our CGoFed method can still perform
+well in the non-independent identically distributed (Non-IID)
+scenario popular in federated learning, we experiment with the
+Non-IID setting, the same as the TARGET method [31].W es e t
+different Dirichlet parameters βto generate different Non-IID
+Settings, i.e., β={0.05,0.1,0.5,1}, and the Average Accuracy
+and the Average Forgetting metrics are shown in Fig. 7.T h eA v -
+erage Accuracy and Average Forgetting metric of our CGoFed
+are better than those of the comparison methods, regardless of
+which Non-IID setting. The lower the Dirichlet parameter, the
+more severe the Non-IID data distribution between clients. The
+Average Forgetting metric of CGoFed decreases as the degree
+of Non-IID exacerbates. When the data distribution is extremely
+imbalanced ( β=0.05), CGoFed has the highest anti-forgetting
+ability, and the Average Accuracy is 21.89% higher than the op-
+timal comparison method (LwF). When the Dirichlet parameter
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+FENG et al.: CGOFED: CONSTRAINED GRADIENT OPTIMIZATION STRATEGY FOR FEDERATED CLASS INCREMENTAL LEARNING 2291
+Fig. 5. Accuracy change curves of each task for FedWeIT, CFeD and CGoFed methods in the CIFAR-100 dataset, Identical New-Class scenario.
+Fig. 6. Performance comparisons between CGoFed and other methods in Identical New-Class and Non-Identical New-Class scenarios with CIFAR-100 and
+Tiny-ImageNet-200 datasets.
+is 1, the difference in Average Accuracy and Average Forgetting
+metrics is slight compared to the IID setting. The above results
+forcefully show that our method can alleviate the catastrophic
+forgetting problem when the client data is Non-IID in federated
+learning.
+The severe performance degradation of these comparison
+methods is due to these regularization methods relying on a
+loss function based on predicted labels to prevent excessive
+updates to model parameters, thus mitigating catastrophic for-
+getting. However, the predicted labels are affected by the data
+distribution, which means that the predicted labels are difﬁcult to
+align with the true labels under the extreme non-IID distribution,
+leading to severe bias in the loss function, and thus resulting
+in signiﬁcant performance degradation of the regularization
+method. In contrast, CGoFed is independent of the distribution
+of predicted labels, making it less sensitive to variations in
+data distribution. Consequently, it outperforms the comparison
+methods in extreme Non-IID scenarios.
+VI. A NALYSIS
+A. Forgetting Analysis
+We plotted the variation curve of the historical task average
+accuracy at the end of each task during training as shown in
+Fig. 6. In the training process of all tasks, our CGoFed methodalways maintains an excellent anti-forgetting effect, and even
+when training the later tasks, CGoFed can not only balance the
+accuracy of historical tasks but also improve the performance of
+the current task. In the CIFAR-100 dataset, the anti-forgetting
+effect of GLFC and FedWeIT is second only to CGoFed but
+signiﬁcantly higher than other comparison methods. The vari-
+ation curve of the average accuracy of FedWeIT is smoother,
+but the average accuracy is 10.94% lower than that of CGoFed.
+The variation curve of the average accuracy of GLFC has a
+slight downward trend. However, it can still maintain good
+performance in the training process of each task, so it has a
+high average accuracy. The variation curve of the average accu-
+racy of other comparison methods has an inevitable and severe
+decline. In the Tiny-ImageNet-200 dataset, The anti-forgetting
+effect of FedWeIT also shows a severe decrease and a sudden
+inﬂection point. The FedWeIT method preserves the knowledge
+in previous tasks by freezing the model parameters of historical
+tasks, and the model parameters with general knowledge cannot
+distinguish the new class well.
+B. Adaptability Analysis of New Tasks
+An important metric for evaluating federated class incre-
+mental learning methods is their ability to adapt to new tasks.
+Incremental learning methods often face the stability-plasticity
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+2292 IEEE TRANSACTIONS ON KNOWLEDGE AND DATA ENGINEERING, VOL. 37, NO. 5, MAY 2025
+Fig. 7. The Average Accuracy and Average Forgetting for all learned tasks on
+CIFAR100 for 10 tasks under both Non-IID and IID settings.
+dilemma [48],[49], including in federated class incremental
+learning. During the learning of new tasks, the model should
+not only have the ability to adapt to the new task quickly but
+also retain knowledge from previous tasks.
+Therefore, we plotted the accuracy variation of the current task
+during the ﬁrst ﬁve training rounds for the last task. We focus
+on the model’s ability to rapidly adapt to new tasks in the early
+rounds rather than the ﬁnal accuracy achieved on these tasks.
+The adaptability of all compared methods to new tasks is shown
+in Fig. 8. In the CIFAR-100 dataset, CGoFed demonstrates
+superior performance with minimal tuning, achieving over 50%
+accuracy after the ﬁrst round of new tasks. While FedWeIT and
+GLFC also adapt quickly to new tasks, their accuracy is lower
+than that of CGoFed. Notably, CFeD requires re-learning for
+new tasks but shows good adaptability. This result aligns with
+the stability-plasticity dilemma in incremental learning: CFeD
+exhibits high plasticity (quick adaptation to new tasks) but low
+stability (quick forgetting of old tasks). In contrast, our proposed
+CGoFed method balances stability and plasticity.
+C. Impact of Constraint Strength Coefﬁcient α
+The hyper-parameter αcontrols the constraint strength of the
+task gradient. To investigate the impact of the hyper-parameter,
+we conduct experiments on the CIFAR-100 dataset with a Non-
+Identical New-Class task distribution, focusing on the impact
+of constraint strength αon the plasticity of new tasks. Accord-
+ingly, we measure the accuracy of new tasks after each task iscompleted and illustrate the accuracy variation as the number of
+tasks increases. The results are depicted in Fig. 9. Whenα=1,
+the constraint strength of the gradient update direction remains
+unchanged, resulting in a strictly orthogonal update direction
+and the lowest accuracy for each task at the end of training. By
+gradually reducing the constraint strength, i.e., decreasing α,w e
+observe an increase in the accuracy of each task. This indicates
+enhanced plasticity for new tasks, and the enhancement is more
+pronounced as the number of tasks increases. When α=0.98,
+our method signiﬁcantly improves the plasticity of the new task
+compared to strict constraint gradient update direction ( α=1).
+However, when α<0.98, the improvement in plasticity dimin-
+ishes. Therefore, we present the accuracy on each task and the
+Average Forgetting ( AF) after training all tasks for values of
+αless than 1 and greater than 0.98in Table IV. The results
+indicate that our proposed method does not cause substantial
+forgetting. The AFis close to the optimal comparison method
+(AF=0.0292) and signiﬁcantly lower than other methods
+(AF=0.3494). Overall, we enhance the model’s plasticity on
+new tasks and ﬁnal performance with minimal negative impact.
+D. Impact of Threshold τ
+The threshold τin(7)and(8)determine when to reset the
+constraint strength coefﬁcient to prevent further forgetting. To
+examine the impact of τon ﬁnal accuracy, we conduct exper-
+iments on the CIFAR-100 dataset using a Non-Identical New-
+Class task distribution. These experiments are carried out under
+the constraint strength with decay rate α=0.98and various
+values of τ={0,0.001,0.01,0.05}, with the results presented
+in Fig. 10. According to our strategy in (7)and(8), whenever
+the Average Forgetting ( AF) exceeds the threshold, resetting the
+constraint strength helps reduce AFand avoid forgetting. When
+τ=0, the reset occurs on task 0,at τ=0.001, it happens on
+task 3; at τ=0.01, it happens on task 4; and at τ=0.05,i t
+occurs on task 6. Selecting an appropriate threshold allows the
+constraint strength to be reset at the appropriate time, such as
+withτ=0.01, where AF ﬂuctuates minimally in later tasks(The
+distance between the dashed lines is the smallest). However,
+whenτ>0.01, AF increases more, leading to a signiﬁcant drop
+in anti-forgetting performance (AF up to 0.1076). On the other
+hand, when τ<0.01, the constraint strength is reset too early
+during training, ﬁxing it at an initial value for the rest of the
+process, as a result, the constraint cannot be effectively relaxed
+and the AF ﬂuctuates greatly, making it difﬁcult to ﬁnd a good
+balance between keeping old tasks stable and adapting to new
+tasks.
+E. Ablation Studies
+Table Vpresents the results of ablation studies. ”Ours-w/o
+Regular” represents the results when our method does not
+use the cross-task gradient regularization module. The results
+demonstrate that the cross-task gradient regularization module
+can effectively improve the accuracy of the ﬁnal global model
+by 3.17% . We did not remove the relax-constrained gradient
+update module because it is essential for addressing the for-
+getting problem. Our method performs similarly to FedAvg
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+FENG et al.: CGOFED: CONSTRAINED GRADIENT OPTIMIZATION STRATEGY FOR FEDERATED CLASS INCREMENTAL LEARNING 2293
+Fig. 8. Comparison of adaptability to new tasks between CGoFed and other methods in Identical New-Class and Non-Identical New-Class scenario with
+CIFAR-100 and Tiny-ImageNet-200 datasets.
+TABLE IV
+ACCURACY (ACC) OFEACH TASK ATT H E END OF WHOLE TRAINING FOR DIFFERENT CONSTRAINT STRENGTH COEFFICIENT αONCIFAR100 D ATASET AND
+UNDER NON-IDENTICAL NEW-CLASS SCENARIO
+Fig. 9. The accuracy of new tasks with different αvalues.
+TABLE V
+ABLATION RESULT (%) ONCIFAR-100
+when the relax-constrained gradient update module is not used.
+It should be noted that the cross-task gradient regularization
+module primarily enhances the performance of the global model.
+However, as a regularization term, it has a very limited effect on
+mitigating forgetting, as veriﬁed in the ﬁeld of continual learn-
+ing. Additionally, we compared a “Strict Constraint” gradient
+update strategy [50], which performed worse than “Ours-w/o
+Regular”. This result demonstrates that our relaxed strategy
+not only improves average accuracy but also better mitigates
+forgetting, effectively achieving a balance between stability and
+plasticity.
+Fig. 10. Average Forgetting ( AF) trend under different thresholds ( τ) with
+a constraint strength decay rate of α=0.98, on the CIFAR-100 dataset with
+Non-Identical New-Class task distribution.
+F . Efﬁciency Analysis
+To validate the efﬁciency of CGoFed, we compared the train-
+ing times of CGoFed with other methods on the CIFAR-100
+and Tiny-ImageNet-200 datasets under Identical New-Class and
+Non-Identical New-Class scenarios. Fig. 11demonstrates that
+the training time of CGoFed is signiﬁcantly lower compared
+to the current state-of-the-art methods, GLFC and FedWeIT,
+across two different datasets; thus, CGoFed has a great ad-
+vantage in terms of efﬁciency. Similar trends are observed for
+Tiny-ImageNet-200, where CGoFed maintains efﬁcient training
+times even as the dataset complexity increases, signiﬁcantly
+outperforming most baselines. Although our training time is
+slightly higher than CFeD, FedLwF, and FedEWC, our per-
+formance is substantially better. Overall, CGoFed achieves
+an acceptable performance while maintaining optimal time
+efﬁciency.
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+2294 IEEE TRANSACTIONS ON KNOWLEDGE AND DATA ENGINEERING, VOL. 37, NO. 5, MAY 2025
+Fig. 11. Performance comparisons between CGoFed and other methods in
+Identical New-Class and Non-Identical New-Class scenarios with CIFAR-100
+and Tiny-ImageNet-200 datasets.
+VII. C ONCLUSION
+In conclusion, this paper presents the CGoFed method to
+address the trade-off problem between stability and plasticity
+in federated class incremental learning by focusing on gradi-
+ent updates. Our method relax-constrained the gradient update
+direction of the local model to preserve knowledge from pre-
+vious tasks without revisiting historical task data or relying on
+auxiliary datasets. Additionally, we designed a regularization
+loss to facilitate client cross-task cooperation from the server’s
+perspective. Extensive experimental results demonstrate the ef-
+fectiveness of our method compared to existing federated class
+incremental learning methods.
+REFERENCES
+[1] F. Liu, Z. Zheng, Y . Shi, Y . Tong, and Y . Zhang, “A survey on federated
+learning: A perspective from multi-party computation,” Front. Comput.
+Sci., vol. 18, no. 1, 2024, Art. no. 181336.
+[2] Q. Yang, Y . Liu, T. Chen, and Y . Tong, “Federated machine learning:
+Concept and applications,” ACM Trans. Intell. Syst. Technol. , vol. 10, no. 2,
+pp. 1–19, 2019.
+[3] C. Zhang, S. Li, J. Xia, W. Wang, F. Yan, and Y . Liu, “BatchCrypt:
+Efﬁcient homomorphic encryption for cross-silo federated learning,” in
+Proc. USENIX Annu. Tech. Conf. USENIX Assoc. , 2020, pp. 493–506.
+[4] N. Sun, W. Wang, Y . Tong, and K. Liu, “Blockchain based federated
+learning for intrusion detection for Internet of Things,” Front. Comput.
+Sci., vol. 18, no. 5, Art. no. 185328, 2024.
+[5] L. U. Khan, W. Saad, Z. Han, E. Hossain, and C. S. Hong, “Federated
+learning for Internet of Things: Recent advances, taxonomy, and open
+challenges,” IEEE Commun. Surv. Tutor. , vol. 23, no. 3, pp. 1759–1799,
+Third Quarter 2021.
+[6] D. C. Nguyen, M. Ding, P. N. Pathirana, A. Seneviratne, J. Li, and H.
+V . Poor, “Federated learning for Internet of Things: A comprehensive
+survey,” IEEE Commun. Surveys Tuts. , vol. 23, no. 3, pp. 1622–1658,
+Third Quarter 2021.
+[7] D. C. Nguyen et al., “Federated learning for smart healthcare: A survey,”
+ACM Comput. Surv. , vol. 55, no. 3, pp. 1–37, 2022.
+[8] J. Li et al., “A federated learning based privacy-preserving smart health-
+care system,” IEEE Trans. Ind. Inform. , vol. 18, no. 3, pp. 2021–2031,
+Mar. 2022.
+[9] J. Xu, B. S. Glicksberg, C. Su, P. Walker, J. Bian, and F. Wang, “Federated
+learning for healthcare informatics,” J. Healthc. Inform. Res. ,v o l .5 ,
+pp. 1–19, 2021.
+[10] P. Zhou, K. Wang, L. Guo, S. Gong, and B. Zheng, “A privacy-preserving
+distributed contextual federated online learning framework with Big Data
+support in social recommender systems,” IEEE Trans. Knowl. Data Eng. ,
+vol. 33, no. 3, pp. 824–838, Mar. 2021.[11] W. Guo, F. Zhuang, X. Zhang, Y . Tong, and J. Dong, “A comprehensive
+survey of federated transfer learning: Challenges, methods and applica-
+tions,” Front. Comput. Sci. , vol. 18, no. 6, 2024, Art. no. 186356.
+[12] B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas,
+“Communication-efﬁcient learning of deep networks from decentralized
+data,” in Proc. 20th Int. Conf. Artif. Intell. Statist. , 2017, pp. 1273–1282.
+[13] S. Guo, X. Wang, S. Long, H. Liu, L. Hai, and T. H. Sam, “A federated
+learning scheme meets dynamic differential privacy,” CAAI Trans. Intell.
+Technol. , vol. 8, no. 3, pp. 1087–1100, 2023.
+[14] Y . Shi, Y . Tong, Y . Zeng, Z. Zhou, B. Ding, and L. Chen, “Efﬁcient
+approximate range aggregation over large-scale spatial data federation,”
+IEEE Trans. Knowl. Data Eng. , vol. 35, no. 1, pp. 418–430, Jan. 2023.
+[15] X. Yang, H. Yu, X. Gao, H. Wang, J. Zhang, and T. Li, “Federated continual
+learning via knowledge fusion: A survey,” IEEE Trans. Knowl. Data Eng. ,
+vol. 36, no. 8, pp. 3832–3850, Aug. 2024.
+[16] J. Dong et al., “Federated class-incremental learning,” in Proc. IEEE Conf.
+Comput. Vis. Pattern Recognit „ 2022, pp. 10164–10173.
+[17] Y . Ma, Z. Xie, J. Wang, K. Chen, and L. Shou, “Continual federated
+learning based on knowledge distillation,” in Proc. 31st Int. Joint Conf.
+Artif. Intell. , 2022, pp. 2182–2188.
+[18] M. De Lange et al., “A continual learning survey: Defying forgetting in
+classiﬁcation tasks,” IEEE Trans. Pattern Anal. Mach. Intell. , vol. 44, no. 7,
+pp. 3366–3385, Jul. 2022.
+[19] J. Yoon, W. Jeong, G. Lee, E. Yang, and S. J. Hwang, “Federated continual
+learning with weighted inter-client transfer,” in Proc. 38th Int. Conf. Mach.
+Learn. , 2021, pp. 12073–12086.
+[20] S. M. Hendryx, D. R. Kc, B. Walls, and C. T. Morrison, “Feder-
+ated reconnaissance: Efﬁcient, distributed, class-incremental learning,”
+2021, arXiv:2109.00150 .
+[21] Y . Wang et al., “Distribution-regularized federated learning on non-IID
+data,” in Proc. Int Conf. Data. Eng. , 2023, pp. 2113–2125.
+[22] J. Kirkpatrick et al., “Overcoming catastrophic forgetting in neural net-
+works,” Proc. Nat. Acad. Sci. USA , vol. 114, no. 13, pp. 3521–3526, 2017.
+[23] N. Shoham et al., “Overcoming forgetting in federated learning on non-IID
+data,” 2019, arXiv:1910.07796 .
+[24] Z. Li and D. Hoiem, “Learning without forgetting,” IEEE Trans. Pattern
+Anal. Mach. Intell. , vol. 40, no. 12, pp. 2935–2947, Dec. 2018.
+[25] C. Xu, Z. Hong, M. Huang, and T. Jiang, “Acceleration of federated learn-
+ing with alleviated forgetting in local training,” 2022, arXiv:2203.02645 .
+[26] G. Lee, M. Jeong, Y . Shin, S. Bae, and S.-Y . Yun, “Preservation of the
+global knowledge by not-true distillation in federated learning,” in Proc.
+36th Int. Conf. Neural Inf. Process. Syst. , 2022, pp. 38461–38474.
+[27] J. Zhang, S. Guo, J. Guo, D. Zeng, J. Zhou, and A. Y . Zomaya, “Towards
+data-independent knowledge transfer in model-heterogeneous federated
+learning,” IEEE Trans. Comput. , vol. 72, no. 10, pp. 2888–2901, Oct. 2023.
+[28] Y . Chen, W. Lu, X. Qin, J. Wang, and X. Xie, “MetaFed: Federated learning
+among federations with cyclic knowledge distillation for personalized
+healthcare,” IEEE Trans. Neural Netw. Learn. Syst. , vol. 35, no. 11,
+pp. 16671–16682, Nov. 2024.
+[29] R. Aljundi, P. Chakravarty, and T. Tuytelaars, “Expert gate: Lifelong
+learning with a network of experts,” in Proc. 30th IEEE Conf. Comput.
+Vis. Pattern Recognit. , 2017, pp. 2001–2010.
+[30] S.-A. Rebufﬁ, A. Kolesnikov, G. Sperl, and C. H. Lampert, “iCaRL:
+Incremental classiﬁer and representation learning,” in Proc. 30th IEEE
+Conf. Comput. Vis. Pattern Recognit. , 2017, pp. 2001–2010.
+[31] J. Zhang, C. Chen, W. Zhuang, and L. Lyu, “TARGET: Federated class-
+continual learning via exemplar-free distillation,” in Proc. IEEE Conf.
+Comput. Vis. Pattern Recognit , 2023, pp. 4782–4793.
+[32] Y . F. Bakman, D. N. Yaldiz, Y . H. Ezzeldin, and S. Avestimehr, “Federated
+orthogonal training: Mitigating global catastrophic forgetting in continual
+federated learning,” 2023, arXiv:2309.01289 .
+[33] J. Dong, H. Li, Y . Cong, G. Sun, Y . Zhang, and L. V . Gool, “No one left
+behind: Real-world federated class-incremental learning,” IEEE Trans.
+Pattern Anal. Mach. Intell. , vol. 46, no. 4, pp. 2054–2070, Apr. 2024.
+[34] M. McCloskey and N. J. Cohen, “Catastrophic interference in connec-
+tionist networks: The sequential learning problem,” in Psychology of
+Learning and Motivation . Amsterdam, The Netherlands: Elsevier, 1989,
+pp. 109–165.
+[35] R. Ratcliff, “Connectionist models of recognition memory: Constraints
+imposed by learning and forgetting functions,” Psychol. Rev. , vol. 97, no. 2,
+Art. no. 285, 1990.
+[36] X.-C. Li et al., “Map: Model aggregation and personalization in federated
+learning with incomplete classes,” IEEE Trans. Knowl. Data Eng. , vol. 36,
+no. 1, pp. 6560–6573, Nov. 2024.
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
+FENG et al.: CGOFED: CONSTRAINED GRADIENT OPTIMIZATION STRATEGY FOR FEDERATED CLASS INCREMENTAL LEARNING 2295
+[37] A. Krizhevsky and G. Hinton, Learn. Mult. Layers Features Tiny Images ,
+vol. 1, p. 7, 2009.
+[38] S. University, “Tiny imagenet visual recognition challenge,” 2015. [On-
+line]. Available: https://tiny-imagenet.herokuapp.com/
+[39] A. K. McCallum, K. Nigam, J. Rennie, and K. Seymore, “Automating
+the construction of internet portals with machine learning,” Inf. Retrieval ,
+vol. 3, pp. 127–163, 2000.
+[40] W. Hamilton, Z. Ying, and J. Leskovec, “Inductive representation learn-
+ing on large graphs,” in Proc. Adv. Neural Inf. Process. Syst. , 2017,
+pp. 1024–1034.
+[41] G. Saha, I. Garg, and K. Roy, “Gradient projection memory for continual
+learning,” 2021, arXiv:2103.09762 .
+[42] A. Krizhevsky, I. Sutskever, and G. E. Hinton, “ImageNet classiﬁca-
+tion with deep convolutional neural networks,” Commun. ACM , vol. 25,
+pp. 84–90, 2012.
+[43] A. Chaudhry, P. K. Dokania, T. Ajanthan, and P. H. Torr, “Riemannian walk
+for incremental learning: Understanding forgetting and intransigence,” in
+Proc. 15th Eur. Conf. Comput. Vis. , 2018, pp. 532–547.
+[44] R. Kemker, M. McClure, A. Abitino, T. Hayes, and C. Kanan, “Measuring
+catastrophic forgetting in neural networks,” in Proc. 32nd AAAI Conf. Artif.
+Intell. , 2018, pp. 3390–3398.
+[45] S. I. Mirzadeh, M. Farajtabar, R. Pascanu, and H. Ghasemzadeh, “Under-
+standing the role of training regimes in continual learning,” in Proc. 34th
+Int. Conf. Neural Inf. Process. Syst. , 2020, pp. 7308–7320.
+[46] Y . Liu, R. Qiu, and Z. Huang, “CaT: Balanced continual graph learning
+with graph condensation,” in Proc. 2023 IEEE Int. Conf. Data Mining ,
+2023, pp. 1157–1162.
+[47] X. Zhang, D. Song, and D. Tao, “CGLB: Benchmark tasks for continual
+graph learning,” in Proc. 35th Int. Conf. Neural Inf. Process. Syst. , 2022,
+pp. 13006–13021.
+[48] M. Masana, X. Liu, B. Twardowski, M. Menta, A. D. Bagdanov, and
+J. V . De Weijer, “Class-incremental learning: Survey and performance
+evaluation on image classiﬁcation,” IEEE Trans. Pattern Anal. Mach.
+Intell. , vol. 45, no. 5, pp. 5513–5533, May 2023.
+[49] M. Mermillod, A. Bugaiska, and P. Bonin, “The stability-plasticity
+dilemma: Investigating the continuum from catastrophic forgetting to
+age-limited learning effects,” Front. Psychol. , vol. 4, 2013, Art. no. 504.
+[50] G. Saha and K. Roy, “Continual learning with scaled gradient projection,”
+inProc. AAAI Conf. Artif. Intell. , 2023, pp. 9677–9685.
+Jiyuan Feng received the ME degree in computer
+technology from the Department of Cyberspace Se-
+curity, Guangzhou University, Guangzhou, China, in
+2022. He is currently working toward the PhD degree
+with the Department of Computer Science and Tech-
+nology, Harbin Institute of Technology (Shenzhen),
+Shenzhen, China. His research interests include fed-
+erated learning, continual learning, and data mining.
+Xu Yang received the ME degree in computer science
+and technology from the Department of Computer
+Science and Technology, Harbin Institute of Technol-
+ogy (Weihai), Weihai, China, in 2021. He is currently
+working toward the PhD degree with the Department
+of Computer Science and Technology, Harbin In-
+stitute of Technology (Shenzhen), Shenzhen, China.
+His research interests include federated learning, data
+mining, and machine learning.
+Liwen Liang received the BS degree in computer
+science and technology from the Department of Com-
+puter Science and Technology, Harbin Institute of
+Technology (Shenzhen), Shenzhen, China, in 2023.
+He is currently working toward the ME degree with
+the Department of Computer Science and Tech-
+nology, Harbin Institute of Technology (Shenzhen),
+Shenzhen, China. His research interests include fed-
+erated learning, domain generalization, and machine
+learning.
+Weihong Han received the MS degree from the Na-
+tional University of Defense Technology, China, in
+1997, and the PhD degree from the National Univer-
+sity of Defense Technology, in 2000. She is member
+of the Cyber Security Association of China. From
+2002 to 2017, she worked with the National Univer-
+sity of Defense Technology. Now, she is a researcher
+with the Department of New Networks, Peng Cheng
+Laboratory, China. Her current research interests in-
+clude computer network and network security.
+Binxing Fang received the MS degree in computer
+science and technology from Tsinghua University,
+Beijing, in 1984, and the PhD degree in computer
+science and technology from the Harbin Institute
+of Technology, Harbin, in 1989. He is currently a
+member of the Chinese Academy of Engineering. His
+current research interests include computer networks,
+information and network security, and artiﬁcial intel-
+ligence security.
+Qing Liao (Member, IEEE) received the PhD degree
+from the Hong Kong University of Science and Tech-
+nology, in 2016. She is currently a professor with
+the School of Computer Science and Technology,
+Harbin Institute of Technology (Shenzhen), China.
+Her research interests include data mining, artiﬁcial
+intelligence and information security, etc.
+Authorized licensed use limited to: Viet Nam National University Ho Chi Minh City. Downloaded on December 30,2025 at 06:22:18 UTC from IEEE Xplore.  Restrictions apply. 
