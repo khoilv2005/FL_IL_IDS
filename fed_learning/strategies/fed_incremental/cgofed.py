@@ -136,6 +136,9 @@ def compute_representation_similarity(
 
 def build_representation_artifact(rep: Any) -> Optional[Dict[str, Any]]:
     """Convert a representation tensor into a lightweight history artifact."""
+    if is_representation_artifact(rep):
+        return clone_representation_state(rep)
+
     matrix = coerce_representation_matrix(rep)
     if matrix is None:
         return None

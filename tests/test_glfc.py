@@ -6,6 +6,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+import torch.autograd
 
 from fed_learning.clients.glfc_client import GLFCClient
 from fed_learning.servers.glfc_server import GLFCServer
@@ -49,3 +50,35 @@ class TestGLFC:
         assert grads is not None
         assert len(grads) == 2
         assert all(isinstance(g, list) for g in grads)
+
+    def test_glfc_prototype_gradients_switch_to_train_for_backward(self, monkeypatch):
+        """Prototype gradient pass must run with model.training=True for cuDNN RNNs."""
+        client = GLFCClient(
+            client_id=0,
+            X_train=torch.randn(6, 32),
+            y_train=torch.tensor([0, 0, 0, 1, 1, 1]),
+        )
+        client.signal = True
+        client.current_class = [0, 1]
+
+        model = nn.Sequential(
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 34),
+        )
+        trainer = GLFCTrainer()
+        seen_training_flags = []
+        original_grad = torch.autograd.grad
+
+        def wrapped_grad(*args, **kwargs):
+            seen_training_flags.append(model.training)
+            return original_grad(*args, **kwargs)
+
+        monkeypatch.setattr(torch.autograd, "grad", wrapped_grad)
+        model.train(False)
+        grads = client.compute_prototype_gradients(model, trainer, device="cpu")
+
+        assert grads is not None
+        assert seen_training_flags
+        assert all(seen_training_flags)
+        assert model.training is False

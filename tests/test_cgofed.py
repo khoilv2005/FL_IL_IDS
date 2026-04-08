@@ -8,7 +8,12 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from fed_learning.strategies.fed_incremental.cgofed import CGoFedTrainer, CGoFedAggregator
+from fed_learning.strategies.fed_incremental.cgofed import (
+    CGoFedTrainer,
+    CGoFedAggregator,
+    build_representation_artifact,
+    is_representation_artifact,
+)
 from fed_learning.clients.cgofed_client import CGoFedClient
 from fed_learning.clients.client import FederatedClient
 from fed_learning.servers.cgofed_server import CGoFedServer
@@ -135,7 +140,24 @@ class TestCGoFed:
         result = client.train(trainer, epochs=1, batch_size=4, lr=0.01)
 
         assert observed["num_samples"] == 13
-        assert result["representation"].shape == (3, 2)
+        assert is_representation_artifact(result["representation"])
+        assert result["representation"]["shape"] == (3, 2)
+
+    def test_build_representation_artifact_passes_through_existing_artifact(self):
+        """Artifact reuse should avoid rebuilding the heavy signature twice."""
+        artifact = {
+            "_artifact_type": "cgofed_representation_artifact",
+            "signature": torch.tensor([1.0, 2.0]),
+            "shape": (3, 2),
+            "mean_vector": torch.tensor([0.5, 0.5]),
+            "mean_norm": 0.7071,
+        }
+
+        output = build_representation_artifact(artifact)
+
+        assert output is not artifact
+        assert is_representation_artifact(output)
+        assert output["shape"] == (3, 2)
 
     def test_store_client_representations_keeps_all_samples(self):
         """Aggregator should retain full sample metadata without a 50k cap."""

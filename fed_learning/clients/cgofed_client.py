@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from .client import FederatedClient
 from ..core import BaseTrainer
+from ..strategies.fed_incremental.cgofed import build_representation_artifact
 
 
 class CGoFedClient(FederatedClient):
@@ -59,10 +60,11 @@ class CGoFedClient(FederatedClient):
                 requested_samples = self.num_samples
             if requested_samples <= 0:
                 requested_samples = self.num_samples
-            result["representation"] = self.compute_activation_representation(
+            rep = self.compute_activation_representation(
                 model=self.model,
                 num_samples=requested_samples,
             )
+            result["representation"] = build_representation_artifact(rep)
 
         return result
 
