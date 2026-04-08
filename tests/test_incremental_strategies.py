@@ -21,6 +21,7 @@ from fed_learning.strategies.fed_incremental.fedcbdr import (
     FedCBDRTrainer,
     FedCBDRAggregator,
 )
+from fed_learning.training.task_loop import _refresh_server_clients
 from helpers import make_simple_model, make_client_results
 
 
@@ -155,4 +156,28 @@ class TestReFedServer:
         )
 
         server.update_clients(clients_b)
+        assert server.clients is clients_b
+
+
+class TestTaskLoopServerRefresh:
+    """Test task-loop fallback when a custom server lacks update_clients()."""
+
+    def test_refresh_server_clients_uses_clients_attribute_fallback(self):
+        class DummyServer:
+            def __init__(self, clients):
+                self.clients = clients
+
+        clients_a = [object()]
+        clients_b = [object(), object()]
+        server = DummyServer(clients_a)
+
+        refreshed = _refresh_server_clients(
+            server=server,
+            clients=clients_b,
+            config={},
+            test_data={},
+            task_config={},
+        )
+
+        assert refreshed is server
         assert server.clients is clients_b

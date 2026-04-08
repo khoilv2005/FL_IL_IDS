@@ -18,6 +18,7 @@ from .incremental_server import IncrementalServer
 from ..training.cgofed_worker import train_cgofed_clients_on_gpu
 from ..clients.cgofed_client import CGoFedClient
 from ..strategies.fed_incremental.cgofed import (
+    build_representation_artifact,
     CGoFedAggregator,
     clone_representation_state,
     clone_model_reference,
@@ -205,7 +206,11 @@ class CGoFedServer(IncrementalServer):
             >= getattr(self.aggregator, "rounds_per_task", 1)
         )
         if not is_last_round:
+            if verbose:
+                print("  → Preparing Eq.12 personalized models for next round...")
             self._personalized_round_models = self._compute_personalized_models(results)
+            if verbose:
+                print("  → Preparing Eq.14 regularization info for next round...")
             self._client_reg_info = self._prepare_next_round_reg_info(results)
         else:
             self._personalized_round_models = {}
@@ -303,10 +308,10 @@ class CGoFedServer(IncrementalServer):
         if self.current_task == 0:
             return {}
 
-        current_round_reps: Dict[int, torch.Tensor] = {}
+        current_round_reps: Dict[int, object] = {}
         for result in results:
             client_id = result.get("client_id")
-            rep = self._to_rep_matrix(result.get("representation"))
+            rep = build_representation_artifact(result.get("representation"))
             if client_id is None or rep is None:
                 continue
             current_round_reps[client_id] = rep
@@ -446,7 +451,7 @@ class CGoFedServer(IncrementalServer):
             return {}
 
         client_params: Dict[int, OrderedDict] = {}
-        rep_matrices: Dict[int, torch.Tensor] = {}
+        rep_states: Dict[int, object] = {}
 
         for r in results:
             client_id = r.get("client_id")
@@ -455,9 +460,9 @@ class CGoFedServer(IncrementalServer):
                 continue
 
             client_params[client_id] = self._clone_params(params)
-            rep_mat = self._to_rep_matrix(r.get("representation"))
-            if rep_mat is not None:
-                rep_matrices[client_id] = rep_mat
+            rep_state = build_representation_artifact(r.get("representation"))
+            if rep_state is not None:
+                rep_states[client_id] = rep_state
 
         if len(client_params) < 2:
             return {}
@@ -465,25 +470,25 @@ class CGoFedServer(IncrementalServer):
         personalized_models: Dict[int, OrderedDict] = {}
 
         for client_id, own_params in client_params.items():
-            if client_id not in rep_matrices:
+            if client_id not in rep_states:
                 personalized_models[client_id] = self._clone_params(own_params)
                 continue
 
             other_ids = [
                 oid
                 for oid in client_params.keys()
-                if oid != client_id and oid in rep_matrices
+                if oid != client_id and oid in rep_states
             ]
             if not other_ids:
                 personalized_models[client_id] = self._clone_params(own_params)
                 continue
 
             # Eq.10 uses representation distance; convert to softmax logits via -distance.
-            own_rep = rep_matrices[client_id]
+            own_rep = rep_states[client_id]
             neg_distances = []
             valid_other_ids = []
             for oid in other_ids:
-                other_rep = rep_matrices[oid]
+                other_rep = rep_states[oid]
                 sim = self._compute_similarity(own_rep, other_rep)
                 dist = -sim
                 if not np.isfinite(dist):
