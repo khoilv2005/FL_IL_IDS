@@ -11,6 +11,8 @@ Usage:
     trainer, aggregator = get_strategy("fedprox", mu_fedprox=0.5)
 """
 
+import os
+import tempfile
 from typing import Tuple, Dict, Any
 
 from ..core import BaseTrainer, BaseAggregator
@@ -181,6 +183,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             mu=config.get("mu_fedprox", config.get("mu", 0.01))
         )
     elif algo_lower == "cgofed":
+        default_cgofed_tmp = os.path.join(tempfile.gettempdir(), "cgofed_cache")
         trainer = strategy["trainer"](
             mu=0.0,  # Paper Eq. 14: NO proximal term in CGoFed
             mu_projection=config.get("mu_cgofed", 1.0),
@@ -188,6 +191,10 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             theta_threshold=config.get("theta_threshold", 0.35),
             energy_threshold=config.get("energy_threshold", 0.99),
             num_samples_rep=config.get("num_samples_rep", 2000),
+            temp_dir=config.get(
+                "cgofed_temp_dir",
+                os.path.join(default_cgofed_tmp, "svd"),
+            ),
             lambda_cross_task=config.get(
                 "lambda_cross_task", config.get("cross_task_weight", 0.08)
             ),
@@ -271,10 +278,15 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             mu=config.get("mu_fedprox", config.get("mu", 0.01))
         )
     elif algo_lower == "cgofed":
+        default_cgofed_tmp = os.path.join(tempfile.gettempdir(), "cgofed_cache")
         aggregator = strategy["aggregator"](
             cross_task_weight=config.get("cross_task_weight", 0.3),
             top_k=config.get("top_k", 2),
             rounds_per_task=config.get("rounds_per_task", 5),
+            history_dir=config.get(
+                "cgofed_history_dir",
+                os.path.join(default_cgofed_tmp, "history"),
+            ),
         )
     elif algo_lower in ("plexus_der", "plexus_nice"):
         aggregator = strategy["aggregator"](

@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 
 from ..clients.cgofed_client import CGoFedClient
 from ..core import BaseTrainer
+from ..strategies.fed_incremental.cgofed import load_model_state
 from .base_worker import BaseGPUWorker
 
 
@@ -47,7 +48,15 @@ class CGoFedWorker(BaseGPUWorker):
         init_params = self.get_init_params(client)
         kwargs = {"global_params": init_params}
         if self.client_reg_info and client.client_id in self.client_reg_info:
-            kwargs.update(self.client_reg_info[client.client_id])
+            reg_info = self.client_reg_info[client.client_id]
+            historical_models = reg_info.get("historical_models", {})
+            if historical_models:
+                kwargs["historical_models"] = {
+                    key: load_model_state(model_ref)
+                    for key, model_ref in historical_models.items()
+                }
+            if "similarity_weights" in reg_info:
+                kwargs["similarity_weights"] = reg_info["similarity_weights"]
         return kwargs
 
 

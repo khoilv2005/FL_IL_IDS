@@ -20,8 +20,10 @@ from ..clients.cgofed_client import CGoFedClient
 from ..strategies.fed_incremental.cgofed import (
     CGoFedAggregator,
     clone_representation_state,
+    clone_model_reference,
     coerce_representation_matrix,
     compute_representation_similarity,
+    load_model_state,
 )
 
 
@@ -75,7 +77,7 @@ class CGoFedServer(IncrementalServer):
 
         if hasattr(self.aggregator, "task_global_models"):
             self._task_global_models = {
-                tid: OrderedDict((k, v.cpu().clone()) for k, v in params.items())
+                tid: clone_model_reference(params)
                 for tid, params in self.aggregator.task_global_models.items()
             }
 
@@ -103,9 +105,7 @@ class CGoFedServer(IncrementalServer):
             for cid, task_map in self.aggregator.client_historical_models.items():
                 self._client_task_models[cid] = {}
                 for tid, params in task_map.items():
-                    self._client_task_models[cid][tid] = OrderedDict(
-                        (k, v.cpu().clone()) for k, v in params.items()
-                    )
+                    self._client_task_models[cid][tid] = clone_model_reference(params)
 
         # DEBUG: Print sync status (once per task)
         print(f"  DEBUG[Sync]: task_global_models={len(self._task_global_models)}, task_reps={len(self._task_representation_matrices)}, "
@@ -360,7 +360,7 @@ class CGoFedServer(IncrementalServer):
 
             next_round_reg_info[client_id] = {
                 "historical_models": {
-                    entry["key"]: self._clone_params(entry["params"])
+                    entry["key"]: clone_model_reference(entry["params"])
                     for entry in historical_entries
                 },
                 "similarity_weights": {
@@ -380,9 +380,9 @@ class CGoFedServer(IncrementalServer):
         return next_round_reg_info
 
     @staticmethod
-    def _clone_params(params: OrderedDict) -> OrderedDict:
-        """Deep-copy model params to CPU tensors."""
-        return OrderedDict((k, v.cpu().clone()) for k, v in params.items())
+    def _clone_params(params) -> OrderedDict:
+        """Materialize model params to a fresh CPU OrderedDict."""
+        return load_model_state(params)
 
     @staticmethod
     def _to_rep_matrix(rep: torch.Tensor) -> Optional[torch.Tensor]:

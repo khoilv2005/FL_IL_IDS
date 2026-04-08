@@ -48,11 +48,17 @@ from ...core import BaseTrainer, BaseAggregator
 
 
 REPRESENTATION_ARTIFACT_TYPE = "cgofed_representation_artifact"
+MODEL_ARTIFACT_TYPE = "cgofed_model_artifact"
 
 
 def is_representation_artifact(rep: Any) -> bool:
     """Return True when `rep` is a lightweight persisted representation artifact."""
     return isinstance(rep, dict) and rep.get("_artifact_type") == REPRESENTATION_ARTIFACT_TYPE
+
+
+def is_model_artifact(obj: Any) -> bool:
+    """Return True when `obj` points to a disk-backed model snapshot."""
+    return isinstance(obj, dict) and obj.get("_artifact_type") == MODEL_ARTIFACT_TYPE
 
 
 def coerce_representation_matrix(rep: Any) -> Optional[torch.Tensor]:
@@ -162,6 +168,48 @@ def clone_representation_state(rep: Any) -> Any:
     if matrix is not None:
         return matrix.detach().cpu().clone()
     return rep
+
+
+def clone_model_reference(obj: Any) -> Any:
+    """Clone a lightweight model reference without materializing tensors."""
+    if is_model_artifact(obj):
+        return dict(obj)
+    if isinstance(obj, OrderedDict):
+        return OrderedDict((k, v.detach().cpu().clone()) for k, v in obj.items())
+    return obj
+
+
+def persist_model_artifact(
+    params: OrderedDict,
+    history_dir: str,
+    artifact_key: str,
+) -> Dict[str, Any]:
+    """Persist model parameters to disk and return a lightweight reference."""
+    os.makedirs(history_dir, exist_ok=True)
+    safe_key = artifact_key.replace(os.sep, "_").replace(":", "_")
+    path = os.path.join(history_dir, f"{safe_key}.pt")
+    state = OrderedDict((k, v.detach().cpu().clone()) for k, v in params.items())
+    torch.save(state, path)
+    return {
+        "_artifact_type": MODEL_ARTIFACT_TYPE,
+        "path": path,
+        "key": artifact_key,
+    }
+
+
+def load_model_state(obj: Any) -> OrderedDict:
+    """Materialize a model snapshot from either an artifact ref or an OrderedDict."""
+    if is_model_artifact(obj):
+        path = obj.get("path")
+        if not path or not os.path.exists(path):
+            raise FileNotFoundError(f"Missing CGoFed model artifact: {path}")
+        state = torch.load(path, map_location="cpu")
+        return OrderedDict((k, v.detach().cpu().clone()) for k, v in state.items())
+
+    if isinstance(obj, OrderedDict):
+        return OrderedDict((k, v.detach().cpu().clone()) for k, v in obj.items())
+
+    raise TypeError(f"Unsupported model state type for CGoFed: {type(obj)!r}")
 
 
 def representation_shape(rep: Any) -> Optional[Tuple[int, ...]]:
@@ -1300,22 +1348,31 @@ class CGoFedAggregator(BaseAggregator):
     """
 
     def __init__(
-        self, cross_task_weight: float = 0.3, top_k: int = 2, rounds_per_task: int = 5
+        self,
+        cross_task_weight: float = 0.3,
+        top_k: int = 2,
+        rounds_per_task: int = 5,
+        history_dir: str = "./temp_cgofed_history",
     ):
         self.cross_task_weight = cross_task_weight
         self.top_k = top_k
         self.rounds_per_task = rounds_per_task
+        self.history_dir = history_dir
+        self._client_history_dir = os.path.join(self.history_dir, "clients")
+        self._global_history_dir = os.path.join(self.history_dir, "global")
+        os.makedirs(self._client_history_dir, exist_ok=True)
+        os.makedirs(self._global_history_dir, exist_ok=True)
 
         # Store activation representations from clients (Paper Eq. 2)
         # {client_id: {task_id: activation_vector}}
         self.client_representations: Dict[int, Dict[int, torch.Tensor]] = {}
 
-        # Historical global models: {task_id: OrderedDict params}
-        self.task_global_models: Dict[int, OrderedDict] = {}
+        # Historical global models: {task_id: model_artifact}
+        self.task_global_models: Dict[int, Dict[str, Any]] = {}
 
         # Personalized historical models per client (Paper Eq. 12)
-        # {client_id: {task_id: OrderedDict params}}
-        self.client_historical_models: Dict[int, Dict[int, OrderedDict]] = {}
+        # {client_id: {task_id: model_artifact}}
+        self.client_historical_models: Dict[int, Dict[int, Dict[str, Any]]] = {}
 
         # Mean representation per task (aggregated from clients)
         self.task_representations: Dict[int, torch.Tensor] = {}
@@ -1531,15 +1588,19 @@ class CGoFedAggregator(BaseAggregator):
                 # This is the client's local model after training, before aggregation
                 if is_last_round:
                     self.client_historical_models[client_id][self.current_task] = (
-                        OrderedDict(
-                            (k, v.cpu().clone()) for k, v in result["params"].items()
+                        persist_model_artifact(
+                            result["params"],
+                            history_dir=self._client_history_dir,
+                            artifact_key=f"client_{client_id}_task_{self.current_task}",
                         )
                     )
 
         # 3b. Save global model for task (at end of task)
         if is_last_round:
-            self.task_global_models[self.current_task] = OrderedDict(
-                (k, v.cpu().clone()) for k, v in agg_params.items()
+            self.task_global_models[self.current_task] = persist_model_artifact(
+                agg_params,
+                history_dir=self._global_history_dir,
+                artifact_key=f"global_task_{self.current_task}",
             )
 
         # 4. Compute cross-task similarity at end of task (Paper Eq. 10)
