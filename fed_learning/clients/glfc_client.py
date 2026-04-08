@@ -397,7 +397,9 @@ class GLFCClient(FederatedClient):
                 p.requires_grad_(True)
 
             output = model(proto_data)
-            num_class = trainer.numclass if trainer.numclass > 0 else output.size(1)
+            # The classifier always emits the full global class space, so the
+            # prototype BCE target must match output.size(1), not just seen classes.
+            num_class = output.size(1)
             target = get_one_hot(proto_label, num_class, str(device))
             loss = F.binary_cross_entropy_with_logits(output, target)
             grads = torch.autograd.grad(loss, model.parameters(), allow_unused=True)
