@@ -8,6 +8,9 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
+from fed_learning.clients.client import FederatedClient
+from fed_learning.servers.fedcbdr_server import FedCBDRServer
+from fed_learning.servers.refed_server import ReFedServer
 from fed_learning.strategies.fed_incremental.ewc import (
     EWCMixin,
     FedAvgEWCTrainer,
@@ -18,6 +21,7 @@ from fed_learning.strategies.fed_incremental.fedcbdr import (
     FedCBDRTrainer,
     FedCBDRAggregator,
 )
+from fed_learning.training.task_loop import _refresh_server_clients
 from helpers import make_simple_model, make_client_results
 
 
@@ -123,3 +127,57 @@ class TestFedCBDR:
         results = make_client_results(3)
         agg = aggregator.aggregate(results)
         assert isinstance(agg, OrderedDict)
+
+    def test_fedcbdr_server_update_clients(self):
+        """FedCBDRServer should support task-loop client refresh across tasks."""
+        clients_a = [FederatedClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
+        clients_b = [FederatedClient(1, torch.randn(5, 32), torch.randint(0, 2, (5,)))]
+        server = FedCBDRServer(
+            clients=clients_a,
+            test_data={"X_test": torch.randn(8, 32), "y_test": torch.randint(0, 2, (8,))},
+            config={"input_shape": (32,), "num_classes": 34, "num_gpus": 0},
+        )
+
+        server.update_clients(clients_b)
+        assert server.clients is clients_b
+
+
+class TestReFedServer:
+    """Test Re-Fed server task transition helpers."""
+
+    def test_refed_server_update_clients(self):
+        """ReFedServer should support task-loop client refresh across tasks."""
+        clients_a = [FederatedClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
+        clients_b = [FederatedClient(1, torch.randn(5, 32), torch.randint(0, 2, (5,)))]
+        server = ReFedServer(
+            clients=clients_a,
+            test_data={"X_test": torch.randn(8, 32), "y_test": torch.randint(0, 2, (8,))},
+            config={"input_shape": (32,), "num_classes": 34, "num_gpus": 0},
+        )
+
+        server.update_clients(clients_b)
+        assert server.clients is clients_b
+
+
+class TestTaskLoopServerRefresh:
+    """Test task-loop fallback when a custom server lacks update_clients()."""
+
+    def test_refresh_server_clients_uses_clients_attribute_fallback(self):
+        class DummyServer:
+            def __init__(self, clients):
+                self.clients = clients
+
+        clients_a = [object()]
+        clients_b = [object(), object()]
+        server = DummyServer(clients_a)
+
+        refreshed = _refresh_server_clients(
+            server=server,
+            clients=clients_b,
+            config={},
+            test_data={},
+            task_config={},
+        )
+
+        assert refreshed is server
+        assert server.clients is clients_b

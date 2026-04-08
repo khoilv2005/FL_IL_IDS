@@ -96,8 +96,8 @@ CONFIG = {
     "rounds_per_task": 5,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
     "local_epochs": 3,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
-    "learning_rate": 0.0005,  # Giảm từ 0.001: stable gradient với EWC regularization
-    "batch_size": 256,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
+    "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
+    "batch_size": 512,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
     "eval_every": 1,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis

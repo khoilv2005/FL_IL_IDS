@@ -357,54 +357,64 @@ class GLFCClient(FederatedClient):
         if self.current_class is None:
             return None
 
-        model.eval()
+        was_training = model.training
         proto_grads = []
 
-        for cls_id in self.current_class:
-            # Find prototype (closest sample to class mean)
-            mask = self.y_train == cls_id
-            if mask.sum() == 0:
-                continue
+        try:
+            for cls_id in self.current_class:
+                # Find prototype (closest sample to class mean)
+                mask = self.y_train == cls_id
+                if mask.sum() == 0:
+                    continue
 
-            class_data = self.X_train[mask]
+                class_data = self.X_train[mask]
 
-            # Compute class mean in feature space
-            features = []
-            batch_size = 64
-            with torch.no_grad():
-                for i in range(0, len(class_data), batch_size):
-                    X_batch = class_data[i : i + batch_size].to(device)
-                    feat = self._extract_features(model, X_batch)
-                    feat = F.normalize(feat, dim=1)
-                    features.append(feat.cpu())
+                # Use eval() for stable prototype selection without dropout noise.
+                model.eval()
+                features = []
+                batch_size = 64
+                with torch.no_grad():
+                    for i in range(0, len(class_data), batch_size):
+                        X_batch = class_data[i : i + batch_size].to(device)
+                        feat = self._extract_features(model, X_batch)
+                        feat = F.normalize(feat, dim=1)
+                        features.append(feat.cpu())
 
-            if not features:
-                continue
+                if not features:
+                    continue
 
-            features = torch.cat(features, dim=0)
-            class_mean = features.mean(dim=0, keepdim=True)
+                features = torch.cat(features, dim=0)
+                class_mean = features.mean(dim=0, keepdim=True)
 
-            # Find closest sample to mean
-            distances = torch.norm(features - class_mean, dim=1)
-            proto_idx = torch.argmin(distances).item()
-            proto_data = class_data[proto_idx : proto_idx + 1].to(device)
-            proto_label = torch.tensor([cls_id], dtype=torch.long, device=device)
+                # Find closest sample to mean
+                distances = torch.norm(features - class_mean, dim=1)
+                proto_idx = torch.argmin(distances).item()
+                proto_data = class_data[proto_idx : proto_idx + 1].to(device)
+                proto_label = torch.tensor([cls_id], dtype=torch.long, device=device)
 
-            # Compute gradient of loss w.r.t. model parameters
-            model.zero_grad()
-            # Temporarily enable gradients
-            for p in model.parameters():
-                p.requires_grad_(True)
+                # cuDNN RNN backward requires training mode.
+                model.train()
+                model.zero_grad()
+                for p in model.parameters():
+                    p.requires_grad_(True)
 
-            output = model(proto_data)
-            num_class = trainer.numclass if trainer.numclass > 0 else output.size(1)
-            target = get_one_hot(proto_label, num_class, str(device))
-            loss = F.binary_cross_entropy_with_logits(output, target)
-            grads = torch.autograd.grad(loss, model.parameters(), allow_unused=True)
-            grad_list = [g.detach().cpu().clone() if g is not None else None for g in grads]
-            proto_grads.append(grad_list)
+                output = model(proto_data)
+                # The classifier always emits the full global class space, so the
+                # prototype BCE target must match output.size(1), not just seen classes.
+                num_class = output.size(1)
+                target = get_one_hot(proto_label, num_class, str(device))
+                loss = F.binary_cross_entropy_with_logits(output, target)
+                grads = torch.autograd.grad(loss, model.parameters(), allow_unused=True)
+                grad_list = [
+                    g.detach().cpu().clone() if g is not None else None for g in grads
+                ]
+                proto_grads.append(grad_list)
+        finally:
+            if was_training:
+                model.train()
+            else:
+                model.eval()
 
-        model.eval()
         return proto_grads if proto_grads else None
 
     def train(

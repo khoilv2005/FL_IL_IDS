@@ -118,6 +118,10 @@ class ReFedServer:
             {k: v.to(self.primary_device) for k, v in params.items()}
         )
 
+    def update_clients(self, clients) -> None:
+        """Update the client list for a new task while preserving server state."""
+        self.clients = clients
+
     def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """
         Đồng bộ server khi bắt đầu task mới và cập nhật các lớp đã thấy.

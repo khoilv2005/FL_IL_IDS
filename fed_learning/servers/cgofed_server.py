@@ -18,9 +18,13 @@ from .incremental_server import IncrementalServer
 from ..training.cgofed_worker import train_cgofed_clients_on_gpu
 from ..clients.cgofed_client import CGoFedClient
 from ..strategies.fed_incremental.cgofed import (
+    build_representation_artifact,
     CGoFedAggregator,
+    clone_representation_state,
+    clone_model_reference,
     coerce_representation_matrix,
     compute_representation_similarity,
+    load_model_state,
 )
 
 
@@ -74,13 +78,13 @@ class CGoFedServer(IncrementalServer):
 
         if hasattr(self.aggregator, "task_global_models"):
             self._task_global_models = {
-                tid: OrderedDict((k, v.cpu().clone()) for k, v in params.items())
+                tid: clone_model_reference(params)
                 for tid, params in self.aggregator.task_global_models.items()
             }
 
         if hasattr(self.aggregator, "task_representation_matrices"):
             self._task_representation_matrices = {
-                tid: rep.cpu().clone()
+                tid: clone_representation_state(rep)
                 for tid, rep in self.aggregator.task_representation_matrices.items()
             }
 
@@ -95,16 +99,14 @@ class CGoFedServer(IncrementalServer):
             for cid, task_map in self.aggregator.client_representations.items():
                 self._client_task_representations[cid] = {}
                 for tid, rep in task_map.items():
-                    self._client_task_representations[cid][tid] = rep.cpu().clone()
+                    self._client_task_representations[cid][tid] = clone_representation_state(rep)
 
         if hasattr(self.aggregator, "client_historical_models"):
             self._client_task_models = {}
             for cid, task_map in self.aggregator.client_historical_models.items():
                 self._client_task_models[cid] = {}
                 for tid, params in task_map.items():
-                    self._client_task_models[cid][tid] = OrderedDict(
-                        (k, v.cpu().clone()) for k, v in params.items()
-                    )
+                    self._client_task_models[cid][tid] = clone_model_reference(params)
 
         # DEBUG: Print sync status (once per task)
         print(f"  DEBUG[Sync]: task_global_models={len(self._task_global_models)}, task_reps={len(self._task_representation_matrices)}, "
@@ -204,7 +206,11 @@ class CGoFedServer(IncrementalServer):
             >= getattr(self.aggregator, "rounds_per_task", 1)
         )
         if not is_last_round:
+            if verbose:
+                print("  → Preparing Eq.12 personalized models for next round...")
             self._personalized_round_models = self._compute_personalized_models(results)
+            if verbose:
+                print("  → Preparing Eq.14 regularization info for next round...")
             self._client_reg_info = self._prepare_next_round_reg_info(results)
         else:
             self._personalized_round_models = {}
@@ -225,9 +231,14 @@ class CGoFedServer(IncrementalServer):
 
         Chủ yếu dùng cho debug hoặc fallback path.
         """
+        num_samples = self.config.get("num_samples_rep")
+        if num_samples is not None:
+            num_samples = int(num_samples)
+            if num_samples <= 0:
+                num_samples = None
         all_reps = []
         for client in self.clients:
-            rep = self._compute_client_task_representation(client, num_samples=64)
+            rep = self._compute_client_task_representation(client, num_samples=num_samples)
             if rep is not None:
                 all_reps.append(rep)
         if all_reps:
@@ -235,13 +246,19 @@ class CGoFedServer(IncrementalServer):
         return None
 
     def _compute_client_task_representation(
-        self, client: CGoFedClient, num_samples: int = 100
+        self, client: CGoFedClient, num_samples: Optional[int] = None
     ) -> Optional[torch.Tensor]:
         """
         Tính representation của một client ở task hiện tại từ train data local.
 
         Đây là đầu vào để server so sánh similarity với history cũ.
         """
+        if num_samples is None:
+            num_samples = self.config.get("num_samples_rep")
+            if num_samples is not None:
+                num_samples = int(num_samples)
+                if num_samples <= 0:
+                    num_samples = None
         try:
             rep = client.compute_activation_representation(
                 model=self.global_model,
@@ -291,10 +308,10 @@ class CGoFedServer(IncrementalServer):
         if self.current_task == 0:
             return {}
 
-        current_round_reps: Dict[int, torch.Tensor] = {}
+        current_round_reps: Dict[int, object] = {}
         for result in results:
             client_id = result.get("client_id")
-            rep = self._to_rep_matrix(result.get("representation"))
+            rep = build_representation_artifact(result.get("representation"))
             if client_id is None or rep is None:
                 continue
             current_round_reps[client_id] = rep
@@ -344,12 +361,11 @@ class CGoFedServer(IncrementalServer):
                 dtype=torch.float32,
             )
             sim_scores = sim_scores - sim_scores.max()
-            sim_scores = torch.clamp(sim_scores, min=-20.0, max=0.0)
             weights = F.softmax(sim_scores, dim=0)
 
             next_round_reg_info[client_id] = {
                 "historical_models": {
-                    entry["key"]: self._clone_params(entry["params"])
+                    entry["key"]: clone_model_reference(entry["params"])
                     for entry in historical_entries
                 },
                 "similarity_weights": {
@@ -369,9 +385,9 @@ class CGoFedServer(IncrementalServer):
         return next_round_reg_info
 
     @staticmethod
-    def _clone_params(params: OrderedDict) -> OrderedDict:
-        """Deep-copy model params to CPU tensors."""
-        return OrderedDict((k, v.cpu().clone()) for k, v in params.items())
+    def _clone_params(params) -> OrderedDict:
+        """Materialize model params to a fresh CPU OrderedDict."""
+        return load_model_state(params)
 
     @staticmethod
     def _to_rep_matrix(rep: torch.Tensor) -> Optional[torch.Tensor]:
@@ -435,7 +451,7 @@ class CGoFedServer(IncrementalServer):
             return {}
 
         client_params: Dict[int, OrderedDict] = {}
-        rep_matrices: Dict[int, torch.Tensor] = {}
+        rep_states: Dict[int, object] = {}
 
         for r in results:
             client_id = r.get("client_id")
@@ -444,9 +460,9 @@ class CGoFedServer(IncrementalServer):
                 continue
 
             client_params[client_id] = self._clone_params(params)
-            rep_mat = self._to_rep_matrix(r.get("representation"))
-            if rep_mat is not None:
-                rep_matrices[client_id] = rep_mat
+            rep_state = build_representation_artifact(r.get("representation"))
+            if rep_state is not None:
+                rep_states[client_id] = rep_state
 
         if len(client_params) < 2:
             return {}
@@ -454,25 +470,25 @@ class CGoFedServer(IncrementalServer):
         personalized_models: Dict[int, OrderedDict] = {}
 
         for client_id, own_params in client_params.items():
-            if client_id not in rep_matrices:
+            if client_id not in rep_states:
                 personalized_models[client_id] = self._clone_params(own_params)
                 continue
 
             other_ids = [
                 oid
                 for oid in client_params.keys()
-                if oid != client_id and oid in rep_matrices
+                if oid != client_id and oid in rep_states
             ]
             if not other_ids:
                 personalized_models[client_id] = self._clone_params(own_params)
                 continue
 
             # Eq.10 uses representation distance; convert to softmax logits via -distance.
-            own_rep = rep_matrices[client_id]
+            own_rep = rep_states[client_id]
             neg_distances = []
             valid_other_ids = []
             for oid in other_ids:
-                other_rep = rep_matrices[oid]
+                other_rep = rep_states[oid]
                 sim = self._compute_similarity(own_rep, other_rep)
                 dist = -sim
                 if not np.isfinite(dist):
@@ -486,7 +502,6 @@ class CGoFedServer(IncrementalServer):
 
             sim_scores = torch.tensor(neg_distances, dtype=torch.float32)
             sim_scores = sim_scores - sim_scores.max()
-            sim_scores = torch.clamp(sim_scores, min=-20.0, max=0.0)
             weights = F.softmax(sim_scores, dim=0)
 
             other_models = [client_params[oid] for oid in valid_other_ids]

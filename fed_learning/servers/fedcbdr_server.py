@@ -126,6 +126,10 @@ class FedCBDRServer:
         print(f"\n📌 Task {task_id}: classes {task_classes}")
         print(f"   Total seen classes: {len(self.seen_classes)}")
 
+    def update_clients(self, clients) -> None:
+        """Update the client list for a new task while preserving server state."""
+        self.clients = clients
+
     def train_round(self, participating_clients=None, verbose: bool = True) -> Dict:
         """Chạy một round train FedCBDR rồi aggregate bằng weighted average kiểu FedAvg."""
         import time

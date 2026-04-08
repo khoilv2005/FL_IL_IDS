@@ -142,6 +142,10 @@ class GLFCServer:
         print(f"\n  Task {task_id}: classes {task_classes}")
         print(f"   Total seen classes: {len(self.seen_classes)}")
 
+    def update_clients(self, clients) -> None:
+        """Update the participating client list for the next task."""
+        self.clients = clients
+
     def model_back(self):
         """
         Trả về hai mốc best model mà proxy server đang giữ để client distill.

@@ -55,6 +55,27 @@ except ImportError:
     FCIL_VISUALIZATION_AVAILABLE = False
 
 
+def _refresh_server_clients(server, clients, config, test_data, task_config):
+    """Refresh task participants while preserving server state when possible."""
+    if hasattr(server, "update_clients"):
+        server.update_clients(clients)
+        return server
+
+    if hasattr(server, "clients"):
+        server.clients = clients
+        print(
+            "  Warning: server missing update_clients(); "
+            "falling back to direct clients assignment."
+        )
+        return server
+
+    print(
+        "  Warning: server cannot refresh clients in-place; "
+        "recreating server for this task."
+    )
+    return create_server(config, clients, test_data, task_config)
+
+
 # =============================================================================
 # ALGORITHM-SPECIFIC TRAINING DISPATCHERS
 # =============================================================================
@@ -720,8 +741,13 @@ def run_incremental_training(config: Dict[str, Any]):
         if task_id == 0:
             server = create_server(config, participating_clients, test_data, task_config)
         else:
-            # Update server with new clients for new task
-            server.update_clients(participating_clients)
+            server = _refresh_server_clients(
+                server,
+                participating_clients,
+                config,
+                test_data,
+                task_config,
+            )
 
         if global_model is not None:
             server.set_global_params(global_model)
