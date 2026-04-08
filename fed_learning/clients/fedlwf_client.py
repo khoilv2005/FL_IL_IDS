@@ -123,8 +123,10 @@ class FedLwFClient(FederatedClient):
             return
         
         try:
-            # Create copy and load state
+            # Create copy and load state - ensure model is on correct device
             self.old_model = copy.deepcopy(model_template)
+            # Move to target device first (deepcopy keeps original device)
+            self.old_model = self.old_model.to(device)
             self.old_model.load_state_dict({
                 k: v.to(device) for k, v in self.old_model_state.items()
             })

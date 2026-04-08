@@ -80,7 +80,7 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "cgofed",
+    "algorithm": "fedavg_lwf",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 6 Tasks Distribution
@@ -131,8 +131,8 @@ CONFIG = {
     "lambda_sparsity": 0.1,
     "s_max": 15.0,
     "der_temperature": 2.0,
-    "der_stage1_rounds": 5,
-    "der_stage2_rounds": 3,
+    "der_stage1_rounds": 3,
+    "der_stage2_rounds": 2,
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,
     "nice_max_phases": 5,

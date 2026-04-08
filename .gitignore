@@ -53,3 +53,5 @@ build/
 .DS_Store
 Thumbs.db
 /data/
+
+.omc
