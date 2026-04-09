@@ -69,6 +69,7 @@ class EWCMixin:
         online_ewc: bool = False,
         gamma: float = 0.9,
         temp_dir: str = "./temp_ewc_storage",
+        debug_logging: bool = False,
     ):
         """
         Khởi tạo toàn bộ trạng thái cần thiết cho EWC.
@@ -91,6 +92,7 @@ class EWCMixin:
         self.online_ewc = online_ewc
         self.gamma = gamma
         self.temp_dir = temp_dir
+        self.debug_logging = debug_logging
         os.makedirs(temp_dir, exist_ok=True)
 
         # Disk paths for Fisher matrices and optimal params per task
@@ -396,12 +398,16 @@ class EWCMixin:
             ewc_penalty += (fisher_val * diff**2).sum()
 
         # DEBUG: Log EWC penalty every 100 batches (once per epoch roughly)
-        if not hasattr(self, '_ewc_log_count'):
-            self._ewc_log_count = 0
-        self._ewc_log_count += 1
-        if self._ewc_log_count % 100 == 0:
-            print(f"  DEBUG[EWC]: task={self.current_task}, ewc_penalty={ewc_penalty.item():.4f}, "
-                  f"base_loss={base_loss.item():.4f}, lambda={self.ewc_lambda}")
+        if self.debug_logging:
+            if not hasattr(self, "_ewc_log_count"):
+                self._ewc_log_count = 0
+            self._ewc_log_count += 1
+            if self._ewc_log_count % 100 == 0:
+                print(
+                    f"  DEBUG[EWC]: task={self.current_task}, "
+                    f"ewc_penalty={ewc_penalty.item():.4f}, "
+                    f"base_loss={base_loss.item():.4f}, lambda={self.ewc_lambda}"
+                )
 
         return base_loss + (self.ewc_lambda / 2.0) * ewc_penalty
 
@@ -437,8 +443,17 @@ class EWCMixin:
             if forgetting:
                 self.last_af = sum(forgetting) / len(forgetting)
                 # DEBUG: Summary of per-task accuracy
-                acc_str = ", ".join([f"T{tid}={acc:.1f}%" for tid, acc in sorted(task_accuracies.items())])
-                print(f"  DEBUG[EWC]: task_accuracies=[{acc_str}], AF={self.last_af:.2%}")
+                if self.debug_logging:
+                    acc_str = ", ".join(
+                        [
+                            f"T{tid}={acc:.1f}%"
+                            for tid, acc in sorted(task_accuracies.items())
+                        ]
+                    )
+                    print(
+                        f"  DEBUG[EWC]: task_accuracies=[{acc_str}], "
+                        f"AF={self.last_af:.2%}"
+                    )
 
     def get_current_af(self) -> float:
         """
@@ -464,5 +479,6 @@ class EWCTrainer(EWCMixin, BaseTrainer):
             "online_ewc": kwargs.pop("online_ewc", False),
             "gamma": kwargs.pop("gamma", 0.9),
             "temp_dir": kwargs.pop("temp_dir", "./temp_ewc_storage"),
+            "debug_logging": kwargs.pop("debug_logging", False),
         }
         EWCMixin.__init__(self, **ewc_args)

@@ -36,6 +36,7 @@ def get_incremental_strategy(algorithm: str, **config):
             ewc_lambda=config.get("ewc_lambda", 10.0),
             fisher_samples=config.get("fisher_samples", 200),
             online_ewc=config.get("online_ewc", False),
+            debug_logging=config.get("debug_logging", False),
         )
     if algo == "lwf":
         return trainer_cls(

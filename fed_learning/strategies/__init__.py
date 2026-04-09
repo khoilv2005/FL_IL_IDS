@@ -166,10 +166,17 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
     """
     algo_lower = algorithm.lower()
 
-    # DEBUG: Print config values to verify they're passed correctly
-    print(f"  DEBUG[Config]: algorithm={algorithm}, mu_cgofed={config.get('mu_cgofed', 'NOT_FOUND')}")
-    print(f"  DEBUG[Config]: lambda_cross_task={config.get('lambda_cross_task', 'NOT_FOUND')}")
-    print(f"  DEBUG[Config]: all config keys = {list(config.keys())}")
+    debug_logging = config.get("debug_logging", False)
+    if debug_logging:
+        print(
+            f"  DEBUG[Config]: algorithm={algorithm}, "
+            f"mu_cgofed={config.get('mu_cgofed', 'NOT_FOUND')}"
+        )
+        print(
+            f"  DEBUG[Config]: "
+            f"lambda_cross_task={config.get('lambda_cross_task', 'NOT_FOUND')}"
+        )
+        print(f"  DEBUG[Config]: all config keys = {list(config.keys())}")
 
     if algo_lower not in STRATEGIES:
         available = ", ".join(STRATEGIES.keys())
@@ -205,6 +212,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             ewc_lambda=config.get("ewc_lambda", 10.0),
             fisher_samples=config.get("fisher_samples", 200),
             online_ewc=config.get("online_ewc", False),
+            debug_logging=config.get("debug_logging", False),
             mu=config.get("mu_fedprox", config.get("mu", 0.01)),  # For FedProx base
         )
     elif algo_lower in ("fedavg_lwf", "fedprox_lwf"):

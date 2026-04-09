@@ -298,19 +298,11 @@ def run_local_incremental_training(config: Dict[str, Any]):
             continue
 
         if persistent_client is None:
-            local_config = {**config}
-            algo_alias = {
-                "ewc": "cgofed",
-                "lwf": "fedavg_lwf",
-            }
-            local_config["algorithm"] = algo_alias.get(
-                config["algorithm"].lower(), config["algorithm"].lower()
-            )
             persistent_client = create_client(
                 0,
                 combined_data["X_train"],
                 combined_data["y_train"],
-                local_config,
+                config,
             )
 
         update_client_data(persistent_client, combined_data, task_id, new_classes)

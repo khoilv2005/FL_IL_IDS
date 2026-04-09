@@ -74,13 +74,13 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "fed_il",
+    "mode": "il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "fedavg_lwf",
+    "algorithm": "ewc",
     # Output
     "output_dir": "./results_incremental",
     # Incremental Learning - 6 Tasks Distribution
@@ -93,8 +93,8 @@ CONFIG = {
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)
     # CGoFed Paper Eq. 14: NO proximal term! Only cross-task regularization A(Θ)
     "mu_fedprox": 0.0,  # 0.0 for CGoFed (paper doesn't have proximal term)
-    "rounds_per_task": 5,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
-    "local_epochs": 3,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
+    "rounds_per_task": 1,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
+    "local_epochs": 5,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
     "batch_size": 512,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data

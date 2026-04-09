@@ -8,7 +8,10 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
+from fed_learning.clients.cgofed_client import CGoFedClient
 from fed_learning.clients.client import FederatedClient
+from fed_learning.clients.fedlwf_client import FedLwFClient
+from fed_learning.factories.client_factory import create_client
 from fed_learning.servers.fedcbdr_server import FedCBDRServer
 from fed_learning.servers.refed_server import ReFedServer
 from fed_learning.strategies.fed_incremental.ewc import (
@@ -66,6 +69,29 @@ class TestEWC:
         assert trainer.online_ewc is True
         assert trainer.gamma == 0.8
 
+    def test_ewc_uses_plain_federated_client(self):
+        """EWC should not route through the CGoFed client implementation."""
+        client = create_client(
+            0,
+            torch.randn(8, 32),
+            torch.randint(0, 3, (8,)),
+            {"algorithm": "ewc"},
+        )
+        assert isinstance(client, FederatedClient)
+        assert not isinstance(client, CGoFedClient)
+
+    def test_federated_ewc_uses_plain_federated_client(self):
+        """FedAvg/FedProx EWC should avoid CGoFed-only representation logic."""
+        for algorithm in ("fedavg_ewc", "fedprox_ewc"):
+            client = create_client(
+                0,
+                torch.randn(8, 32),
+                torch.randint(0, 3, (8,)),
+                {"algorithm": algorithm},
+            )
+            assert isinstance(client, FederatedClient)
+            assert not isinstance(client, CGoFedClient)
+
 
 class TestFedLwF:
     """Test Federated Learning without Forgetting."""
@@ -103,6 +129,16 @@ class TestFedLwF:
         results = make_client_results(3)
         agg = aggregator.aggregate(results)
         assert isinstance(agg, OrderedDict)
+
+    def test_lwf_uses_fedlwf_client(self):
+        """Local LwF should use the dedicated distillation-aware client."""
+        client = create_client(
+            0,
+            torch.randn(8, 32),
+            torch.randint(0, 3, (8,)),
+            {"algorithm": "lwf"},
+        )
+        assert isinstance(client, FedLwFClient)
 
 
 class TestFedCBDR:

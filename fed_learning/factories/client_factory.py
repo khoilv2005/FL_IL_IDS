@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional
 import numpy as np
 
 from fed_learning.clients import (
+    FederatedClient,
     CGoFedClient,
     DERClient,
     NICEClient,
@@ -25,6 +26,18 @@ from fed_learning.clients.fedlwf_client import FedLwFClient
 # Registry: algorithm name -> (ClientClass, extra_config_keys)
 # extra_config_keys maps config key -> client constructor kwarg
 _CLIENT_REGISTRY = {
+    "ewc": (
+        FederatedClient,
+        {},
+    ),
+    "fedavg_ewc": (
+        FederatedClient,
+        {},
+    ),
+    "fedprox_ewc": (
+        FederatedClient,
+        {},
+    ),
     "fedcbdr": (
         FedCBDRClient,
         {

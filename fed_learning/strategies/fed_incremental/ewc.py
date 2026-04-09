@@ -18,6 +18,7 @@ class FedAvgEWCTrainer(EWCMixin, FedAvgTrainer):
             "online_ewc": kwargs.pop("online_ewc", False),
             "gamma": kwargs.pop("gamma", 0.9),
             "temp_dir": kwargs.pop("temp_dir", "./temp_ewc_storage"),
+            "debug_logging": kwargs.pop("debug_logging", False),
         }
         EWCMixin.__init__(self, **ewc_args)
 
@@ -32,6 +33,7 @@ class FedProxEWCTrainer(EWCMixin, FedProxTrainer):
             "online_ewc": kwargs.pop("online_ewc", False),
             "gamma": kwargs.pop("gamma", 0.9),
             "temp_dir": kwargs.pop("temp_dir", "./temp_ewc_storage"),
+            "debug_logging": kwargs.pop("debug_logging", False),
         }
         self.mu = kwargs.pop("mu", 0.01)
         EWCMixin.__init__(self, **ewc_args)
