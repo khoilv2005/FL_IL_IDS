@@ -13,7 +13,7 @@ import os
 import gc
 import json
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 import torch
 import numpy as np
@@ -400,6 +400,183 @@ def _compute_forgetting(server, task_id, all_test_data, best_acc_per_task, train
     return current_task_accuracies, af
 
 
+def _write_training_history(output_dir: str, history: Dict[str, Any]):
+    with open(os.path.join(output_dir, "results.json"), "w") as f:
+        json.dump(history, f, indent=2, default=str)
+
+    with open(os.path.join(output_dir, "round_metrics.json"), "w") as f:
+        json.dump(history.get("round_metrics", []), f, indent=2, default=str)
+
+
+def _save_fed_round_checkpoint(
+    output_dir: str,
+    task_id: int,
+    round_id: int,
+    global_params,
+    config: Dict[str, Any],
+    seen_classes: List[int],
+    train_loss: float,
+    round_time: float,
+    metrics: Dict[str, Any],
+    avg_forgetting: float,
+    per_task_acc: Dict[int, float],
+):
+    ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}_round_{round_id}.pt")
+    torch.save(
+        {
+            "task_id": task_id,
+            "round_id": round_id,
+            "model_state_dict": global_params,
+            "config": config,
+            "seen_classes": list(seen_classes),
+            "metrics": {
+                "train_loss": train_loss,
+                "round_time": round_time,
+                **metrics,
+                "avg_forgetting": avg_forgetting,
+            },
+            "per_task_acc": per_task_acc,
+        },
+        ckpt_path,
+    )
+    print(f"  💾 Round checkpoint saved: {ckpt_path}")
+
+
+def _save_fed_task_checkpoint(
+    output_dir: str,
+    task_id: int,
+    final_round_id: int,
+    global_params,
+    config: Dict[str, Any],
+    seen_classes: List[int],
+    metrics: Dict[str, Any],
+    avg_forgetting: float,
+    per_task_acc: Dict[int, float],
+):
+    ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
+    torch.save(
+        {
+            "task_id": task_id,
+            "final_round_id": final_round_id,
+            "model_state_dict": global_params,
+            "config": config,
+            "seen_classes": list(seen_classes),
+            "metrics": {**metrics, "avg_forgetting": avg_forgetting},
+            "per_task_acc": per_task_acc,
+        },
+        ckpt_path,
+    )
+    print(f"💾 Checkpoint saved: {ckpt_path}")
+
+
+def _record_fed_round(
+    server,
+    output_dir: str,
+    history: Dict[str, Any],
+    task_id: int,
+    round_id: int,
+    train_loss: float,
+    round_time: float,
+    all_test_data,
+    best_acc_per_task,
+    trainer,
+    config: Dict[str, Any],
+    seen_classes: List[int],
+    is_last_task: bool,
+):
+    metrics = server.evaluate_global(compute_auc=is_last_task)
+    current_task_accuracies, af = _compute_forgetting(
+        server, task_id, all_test_data, best_acc_per_task, trainer
+    )
+
+    round_record = {
+        "task": task_id,
+        "round": round_id,
+        "train_loss": train_loss,
+        "round_time": round_time,
+        "test_loss": metrics["loss"],
+        "accuracy": metrics["accuracy"],
+        "precision_macro": metrics["precision_macro"],
+        "recall_macro": metrics["recall_macro"],
+        "f1_macro": metrics["f1_macro"],
+        "f1_weighted": metrics.get("f1_weighted"),
+        "auc_macro_ovr": metrics.get("auc_macro_ovr"),
+        "avg_forgetting": af,
+        "per_task_acc": current_task_accuracies,
+    }
+    history["round_metrics"].append(round_record)
+    _write_training_history(output_dir, history)
+
+    print(
+        "    Metrics -> "
+        f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
+        f"accuracy={metrics['accuracy'] * 100:.2f}%, "
+        f"f1={metrics['f1_macro'] * 100:.2f}%, "
+        f"precision={metrics['precision_macro'] * 100:.2f}%, "
+        f"recall={metrics['recall_macro'] * 100:.2f}%, "
+        f"AF={af * 100:.2f}%"
+    )
+
+    _save_fed_round_checkpoint(
+        output_dir,
+        task_id,
+        round_id,
+        server.get_global_params(),
+        config,
+        seen_classes,
+        train_loss,
+        round_time,
+        metrics,
+        af,
+        current_task_accuracies,
+    )
+    return round_record
+
+
+def _run_tracked_rounds(
+    server,
+    train_round_fn,
+    total_rounds: int,
+    task_id: int,
+    output_dir: str,
+    history: Dict[str, Any],
+    all_test_data,
+    best_acc_per_task,
+    trainer,
+    config: Dict[str, Any],
+    seen_classes: List[int],
+    is_last_task: bool,
+    round_start: int = 0,
+    round_total_last: Optional[int] = None,
+    label: str = "",
+):
+    if round_total_last is None:
+        round_total_last = round_start + total_rounds - 1
+
+    last_record = None
+    for local_round in range(total_rounds):
+        round_id = round_start + local_round
+        round_suffix = f" {label}" if label else ""
+        print(f"  🔁 ROUND {round_id}/{round_total_last}{round_suffix}")
+        round_result = train_round_fn(local_round) or {}
+        last_record = _record_fed_round(
+            server,
+            output_dir,
+            history,
+            task_id,
+            round_id,
+            float(round_result.get("train_loss", 0.0)),
+            float(round_result.get("round_time", 0.0)),
+            all_test_data,
+            best_acc_per_task,
+            trainer,
+            config,
+            seen_classes,
+            is_last_task,
+        )
+    return last_record
+
+
 def _generate_fcil_report(all_history, config, output_dir):
     """Generate FCIL visualization report with heatmap and metrics."""
     if not FCIL_VISUALIZATION_AVAILABLE:
@@ -536,6 +713,53 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
     test_X, test_y = data_loader.get_test_data(task_id=0, cumulative=True)
     test_data = {"X_test": test_X, "y_test": test_y}
 
+    all_history = {
+        "task_accuracies": [],
+        "task_forgetting": [],
+        "round_metrics": [],
+        "plexus_history": {},
+    }
+
+    def _plexus_round_callback(round_id: int, global_params, round_metrics: Dict[str, Any]):
+        round_record = {
+            "task": 0,
+            "round": round_id,
+            "train_loss": round_metrics.get("train_loss", 0.0),
+            "round_time": round_metrics.get("round_time", 0.0),
+            "test_loss": round_metrics.get("loss"),
+            "accuracy": round_metrics.get("accuracy"),
+            "precision_macro": round_metrics.get("precision_macro"),
+            "recall_macro": round_metrics.get("recall_macro"),
+            "f1_macro": round_metrics.get("f1_macro"),
+            "f1_weighted": round_metrics.get("f1_weighted"),
+            "auc_macro_ovr": round_metrics.get("auc_macro_ovr"),
+            "avg_forgetting": 0.0,
+            "per_task_acc": {0: round_metrics.get("accuracy", 0.0) or 0.0},
+        }
+        all_history["round_metrics"].append(round_record)
+        _save_fed_round_checkpoint(
+            output_dir,
+            0,
+            round_id,
+            global_params,
+            config,
+            list(range(config["total_classes"])),
+            float(round_metrics.get("train_loss", 0.0) or 0.0),
+            float(round_metrics.get("round_time", 0.0) or 0.0),
+            {
+                "loss": round_metrics.get("loss", 0.0) or 0.0,
+                "accuracy": round_metrics.get("accuracy", 0.0) or 0.0,
+                "precision_macro": round_metrics.get("precision_macro", 0.0) or 0.0,
+                "recall_macro": round_metrics.get("recall_macro", 0.0) or 0.0,
+                "f1_macro": round_metrics.get("f1_macro", 0.0) or 0.0,
+                "f1_weighted": round_metrics.get("f1_weighted", 0.0) or 0.0,
+                "auc_macro_ovr": round_metrics.get("auc_macro_ovr"),
+            },
+            0.0,
+            {0: round_metrics.get("accuracy", 0.0) or 0.0},
+        )
+        _write_training_history(output_dir, all_history)
+
     # 6. Run Plexus
     result = run_plexus_training(
         node_ids=list(node_data.keys()),
@@ -544,6 +768,7 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
         config=config,
         test_data=test_data,
         verbose=True,
+        round_callback=_plexus_round_callback,
     )
 
     # 7. Format return (compatible with run_incremental_training format)
@@ -573,9 +798,11 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
             all_preds.extend(preds.cpu().numpy())
             all_targets.extend(batch_y.cpu().numpy())
 
-    from sklearn.metrics import accuracy_score, f1_score
+    from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
     acc = accuracy_score(all_targets, all_preds)
     f1 = f1_score(all_targets, all_preds, average="macro", zero_division=0)
+    precision = precision_score(all_targets, all_preds, average="macro", zero_division=0)
+    recall = recall_score(all_targets, all_preds, average="macro", zero_division=0)
 
     print("\n" + "=" * 80)
     print("🏁 PURE PLEXUS COMPLETE")
@@ -583,16 +810,51 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
     print(f"Final F1: {f1*100:.2f}%")
     print("=" * 80)
 
-    # Save results
-    with open(f"{output_dir}/results.json", "w") as f:
-        json.dump({
-            "task_accuracies": [{"accuracy": acc, "f1_macro": f1, "avg_forgetting": 0.0}],
-            "plexus_history": {k: v for k, v in history.items() if k != "sample"},
-        }, f, indent=2, default=str)
+    final_metrics = {
+        "loss": history["test_loss"][-1] if history.get("test_loss") else 0.0,
+        "accuracy": acc,
+        "precision_macro": precision,
+        "recall_macro": recall,
+        "f1_macro": f1,
+        "f1_weighted": history["test_f1_weighted"][-1] if history.get("test_f1_weighted") else None,
+        "auc_macro_ovr": history["test_auc_macro"][-1] if history.get("test_auc_macro") else None,
+    }
+    all_history["task_accuracies"] = [
+        {
+            "task": 0,
+            "final_round": history["round"][-1] if history.get("round") else 0,
+            "loss": final_metrics["loss"],
+            "accuracy": acc,
+            "precision_macro": precision,
+            "recall_macro": recall,
+            "f1_macro": f1,
+            "f1_weighted": final_metrics["f1_weighted"],
+            "auc_macro_ovr": final_metrics["auc_macro_ovr"],
+            "avg_forgetting": 0.0,
+            "per_task_acc": {0: acc},
+        }
+    ]
+    all_history["task_forgetting"] = [{"task": 0, "avg_forgetting": 0.0}]
+    all_history["plexus_history"] = {k: v for k, v in history.items() if k != "sample"}
+
+    _save_fed_task_checkpoint(
+        output_dir,
+        0,
+        history["round"][-1] if history.get("round") else 0,
+        global_params,
+        config,
+        list(range(config["total_classes"])),
+        final_metrics,
+        0.0,
+        {0: acc},
+    )
+    _write_training_history(output_dir, all_history)
 
     return {
-        "task_accuracies": [{"accuracy": acc, "f1_macro": f1, "avg_forgetting": 0.0}],
-        "task_forgetting": [0.0],
+        "task_accuracies": all_history["task_accuracies"],
+        "task_forgetting": all_history["task_forgetting"],
+        "round_metrics": all_history["round_metrics"],
+        "plexus_history": all_history["plexus_history"],
     }
 
 
@@ -658,7 +920,7 @@ def run_incremental_training(config: Dict[str, Any]):
     # 4. State Variables
     global_model = None
     global_neuron_ages = None  # NICE/PlexusNICE: preserve neuron ages across tasks
-    all_history = {"task_accuracies": [], "task_forgetting": []}
+    all_history = {"task_accuracies": [], "task_forgetting": [], "round_metrics": []}
     all_test_data = {}
     best_acc_per_task = {}
     persistent_clients: Dict[int, object] = {}
@@ -668,9 +930,10 @@ def run_incremental_training(config: Dict[str, Any]):
     server = None
     persistent_clients = {}
 
-    for task_id in range(data_loader.get_num_tasks()):
+    num_tasks = data_loader.get_num_tasks()
+    for task_id in range(num_tasks):
         print(
-            f"\n{'=' * 80}\n📚 TASK {task_id}/{data_loader.get_num_tasks()}\n{'=' * 80}"
+            f"\n{'=' * 80}\n📚 TASK {task_id}/{num_tasks - 1}\n{'=' * 80}"
         )
 
         # 5a. Prepare Data
@@ -729,12 +992,12 @@ def run_incremental_training(config: Dict[str, Any]):
 
         # NICE: pass is_last_task flag
         if config["algorithm"].lower() == "nice":
-            is_last_task = task_id == data_loader.get_num_tasks() - 1
+            is_last_task = task_id == num_tasks - 1
             task_config["is_last_task"] = is_last_task
 
         # PlexusNICE: pass is_last_task flag
         if config["algorithm"].lower() == "plexus_nice":
-            is_last_task = task_id == data_loader.get_num_tasks() - 1
+            is_last_task = task_id == num_tasks - 1
             task_config["is_last_task"] = is_last_task
 
         # Create server only for task 0, reuse for subsequent tasks
@@ -771,29 +1034,262 @@ def run_incremental_training(config: Dict[str, Any]):
         # 5e. Train (algorithm-specific dispatch)
         print(f"\n🎯 Training on {len(new_classes)} new classes...")
         algo = config["algorithm"].lower()
+        is_last_task = task_id == num_tasks - 1
+        last_round_record = None
 
         if algo == "nice":
-            _train_nice(server, participating_clients, config, data_loader, task_id)
+            nice_rounds = 1
+            if is_last_task:
+                print("\n  === NICE Training (1 rounds) [LAST EPISODE: tau=100%] ===")
+            else:
+                print("\n  === NICE Training (1 rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    verbose=True,
+                ),
+                nice_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+            )
         elif algo == "der":
-            _train_der(server, participating_clients, config, trainer)
+            stage1_rounds = config.get("der_stage1_rounds", config["rounds_per_task"])
+            stage2_rounds = config.get("der_stage2_rounds", 3)
+            total_rounds = stage1_rounds + stage2_rounds
+
+            if hasattr(trainer, "set_stage"):
+                trainer.set_stage(1)
+            print(f"\n  === DER Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
+            _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    stage=1,
+                    verbose=True,
+                ),
+                stage1_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+                round_start=0,
+                round_total_last=total_rounds - 1,
+                label="[stage=1]",
+            )
+
+            if hasattr(trainer, "set_stage"):
+                trainer.set_stage(2)
+            if hasattr(server.global_model, "reset_classifier"):
+                server.global_model.reset_classifier()
+                print("  → Classifier H_t re-initialized (paper Section 3.2)")
+
+            print(f"\n  === DER Stage 2: Classifier Learning ({stage2_rounds} rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    stage=2,
+                    verbose=True,
+                ),
+                stage2_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+                round_start=stage1_rounds,
+                round_total_last=total_rounds - 1,
+                label="[stage=2]",
+            )
             # Weight Alignment after Stage 2
             if task_id > 0 and hasattr(server.global_model, "weight_align"):
                 server.global_model.weight_align(len(new_classes))
         elif algo == "glfc":
-            _train_glfc(server, participating_clients, config)
+            glfc_rounds = config.get("rounds_per_task", 5)
+            print(f"\n  === GLFC Training ({glfc_rounds} rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    verbose=True,
+                ),
+                glfc_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+            )
+            print("  Updating exemplar sets for all participants...")
+            server.coordinate_exemplar_update(participating_clients, verbose=True)
         elif algo == "refed":
-            _train_refed(server, participating_clients, config, task_id)
+            refed_rounds = config.get("rounds_per_task", 5)
+            if task_id > 0:
+                print(f"\n  === Re-Fed: PIM Caching (Task {task_id}) ===")
+            else:
+                print("\n  === Re-Fed: Initial Caching (Task 0) ===")
+            server.coordinate_pim_caching(participating_clients, verbose=True)
+            print(f"\n  === Re-Fed Training ({refed_rounds} rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    verbose=True,
+                ),
+                refed_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+            )
         elif algo == "plexus":
-            _train_plexus(server, participating_clients, config)
+            plexus_rounds = config.get("rounds_per_task", 5)
+            print(f"\n  === Plexus Decentralized Training ({plexus_rounds} rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    verbose=True,
+                ),
+                plexus_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+            )
         elif algo == "plexus_der":
-            _train_plexus_der(server, participating_clients, config, trainer)
+            stage1_rounds = config.get("der_stage1_rounds", config["rounds_per_task"])
+            stage2_rounds = config.get("der_stage2_rounds", 3)
+            total_rounds = stage1_rounds + stage2_rounds
+
+            if hasattr(trainer, "set_stage"):
+                trainer.set_stage(1)
+            print(f"\n  === PlexusDER Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
+            _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    stage=1,
+                    verbose=True,
+                ),
+                stage1_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+                round_start=0,
+                round_total_last=total_rounds - 1,
+                label="[stage=1]",
+            )
+
+            if hasattr(trainer, "set_stage"):
+                trainer.set_stage(2)
+            if hasattr(server.global_model, "reset_classifier"):
+                server.global_model.reset_classifier()
+                print("  → Classifier H_t re-initialized (paper Section 3.2)")
+
+            print(f"\n  === PlexusDER Stage 2: Classifier Learning ({stage2_rounds} rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    stage=2,
+                    verbose=True,
+                ),
+                stage2_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+                round_start=stage1_rounds,
+                round_total_last=total_rounds - 1,
+                label="[stage=2]",
+            )
             # Weight Alignment after Stage 2
             if task_id > 0 and hasattr(server.global_model, "weight_align"):
                 server.global_model.weight_align(len(new_classes))
         elif algo == "plexus_nice":
-            _train_plexus_nice(server, participating_clients, config, data_loader, task_id)
+            if is_last_task:
+                print("\n  === PlexusNICE Training (1 rounds) [LAST EPISODE: tau=100%] ===")
+            else:
+                print("\n  === PlexusNICE Training (1 rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    is_last_task=is_last_task,
+                    verbose=True,
+                ),
+                1,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+                label="[phase]",
+            )
         else:
-            train_federated_multigpu(server, task_config)
+            total_rounds = config["rounds_per_task"]
+            print(f"\n  === Standard Federated Training ({total_rounds} rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(verbose=True),
+                total_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+            )
 
         # 5f. Post-Task Processing
         post_task_processing(
@@ -809,12 +1305,13 @@ def run_incremental_training(config: Dict[str, Any]):
 
         # 5h. Evaluate
         print(f"\n📊 Evaluation:")
-        metrics = server.evaluate_global(
-            compute_auc=(task_id == data_loader.num_tasks - 1)
-        )
+        metrics = server.evaluate_global(compute_auc=is_last_task)
         print(
-            f"  Accuracy: {metrics['accuracy'] * 100:.2f}% | "
-            f"F1: {metrics['f1_macro'] * 100:.2f}%"
+            "  ✅ Task summary -> "
+            f"accuracy={metrics['accuracy'] * 100:.2f}%, "
+            f"f1={metrics['f1_macro'] * 100:.2f}%, "
+            f"precision={metrics['precision_macro'] * 100:.2f}%, "
+            f"recall={metrics['recall_macro'] * 100:.2f}%"
         )
 
         # 5i. Visualization & Debug
@@ -832,25 +1329,33 @@ def run_incremental_training(config: Dict[str, Any]):
         all_history["task_accuracies"].append(
             {
                 "task": task_id,
+                "final_round": last_round_record["round"] if last_round_record else 0,
+                "loss": metrics["loss"],
                 "accuracy": metrics["accuracy"],
+                "precision_macro": metrics["precision_macro"],
+                "recall_macro": metrics["recall_macro"],
                 "f1_macro": metrics["f1_macro"],
+                "f1_weighted": metrics.get("f1_weighted"),
+                "auc_macro_ovr": metrics.get("auc_macro_ovr"),
                 "avg_forgetting": af,
                 "per_task_acc": current_task_accuracies,
             }
         )
+        all_history["task_forgetting"].append({"task": task_id, "avg_forgetting": af})
 
         # 5l. Checkpoint
-        ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
-        torch.save(
-            {
-                "task_id": task_id,
-                "model_state_dict": global_model,
-                "config": config,
-                "seen_classes": list(seen_classes),
-            },
-            ckpt_path,
+        _save_fed_task_checkpoint(
+            output_dir,
+            task_id,
+            last_round_record["round"] if last_round_record else 0,
+            global_model,
+            config,
+            list(seen_classes),
+            metrics,
+            af,
+            current_task_accuracies,
         )
-        print(f"💾 Checkpoint saved: {ckpt_path}")
+        _write_training_history(output_dir, all_history)
 
         # Cleanup
         gc.collect()
@@ -864,8 +1369,7 @@ def run_incremental_training(config: Dict[str, Any]):
     print(f"Final Accuracy: {final['accuracy'] * 100:.2f}%")
     print(f"Final Forgetting: {final['avg_forgetting'] * 100:.2f}%")
 
-    with open(f"{output_dir}/results.json", "w") as f:
-        json.dump(all_history, f, indent=2)
+    _write_training_history(output_dir, all_history)
 
     # 7. FCIL Report
     _generate_fcil_report(all_history, config, output_dir)

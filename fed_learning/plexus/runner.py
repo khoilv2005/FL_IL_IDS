@@ -33,11 +33,14 @@ Usage:
 import random
 import time
 from collections import OrderedDict
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional, Callable
 
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.preprocessing import label_binarize
 
 from .sampler import PlexusSampler
 from .aggregator import PlexusAggregator
@@ -51,6 +54,7 @@ def run_plexus_training(
     config: Dict[str, Any],
     test_data: Dict = None,
     verbose: bool = True,
+    round_callback: Optional[Callable[[int, OrderedDict, Dict[str, Any]], None]] = None,
 ) -> Dict:
     """
     Run pure Plexus decentralized training (Algorithm 1 & 2 from paper).
@@ -138,6 +142,13 @@ def run_plexus_training(
         "participation": [],
         "loss": [],
         "round_time": [],
+        "test_loss": [],
+        "test_accuracy": [],
+        "test_precision_macro": [],
+        "test_recall_macro": [],
+        "test_f1_macro": [],
+        "test_f1_weighted": [],
+        "test_auc_macro": [],
     }
 
     if verbose:
@@ -221,10 +232,49 @@ def run_plexus_training(
         history["loss"].append(avg_loss)
         history["round_time"].append(round_time)
 
-        # Optional eval
-        if verbose and test_data is not None and round_r % 5 == 0:
-            acc = _evaluate(global_params, nodes[sample_ids[0]].model, test_data, batch_size)
-            print(f"   Test accuracy: {acc:.4f}")
+        round_metrics = {
+            "train_loss": avg_loss,
+            "round_time": round_time,
+            "loss": None,
+            "accuracy": None,
+            "precision_macro": None,
+            "recall_macro": None,
+            "f1_macro": None,
+            "f1_weighted": None,
+            "auc_macro_ovr": None,
+        }
+        if test_data is not None:
+            eval_metrics = _evaluate_metrics(
+                global_params, nodes[sample_ids[0]].model, test_data, batch_size
+            )
+            round_metrics.update(eval_metrics)
+            history["test_loss"].append(eval_metrics["loss"])
+            history["test_accuracy"].append(eval_metrics["accuracy"])
+            history["test_precision_macro"].append(eval_metrics["precision_macro"])
+            history["test_recall_macro"].append(eval_metrics["recall_macro"])
+            history["test_f1_macro"].append(eval_metrics["f1_macro"])
+            history["test_f1_weighted"].append(eval_metrics["f1_weighted"])
+            history["test_auc_macro"].append(eval_metrics["auc_macro_ovr"])
+            if verbose:
+                print(
+                    "   Metrics -> "
+                    f"train_loss={avg_loss:.4f}, test_loss={eval_metrics['loss']:.4f}, "
+                    f"accuracy={eval_metrics['accuracy'] * 100:.2f}%, "
+                    f"f1={eval_metrics['f1_macro'] * 100:.2f}%, "
+                    f"precision={eval_metrics['precision_macro'] * 100:.2f}%, "
+                    f"recall={eval_metrics['recall_macro'] * 100:.2f}%"
+                )
+        else:
+            history["test_loss"].append(None)
+            history["test_accuracy"].append(None)
+            history["test_precision_macro"].append(None)
+            history["test_recall_macro"].append(None)
+            history["test_f1_macro"].append(None)
+            history["test_f1_weighted"].append(None)
+            history["test_auc_macro"].append(None)
+
+        if round_callback is not None:
+            round_callback(round_r, global_params, round_metrics)
 
     if verbose:
         print("\n" + "=" * 60)
@@ -240,15 +290,23 @@ def run_plexus_training(
     }
 
 
-def _evaluate(
+def _evaluate_metrics(
     global_params: OrderedDict,
     model_template: nn.Module,
     test_data: Dict,
     batch_size: int,
-) -> float:
+) -> Dict[str, Any]:
     """Evaluate global model on test data."""
     if global_params is None or test_data is None:
-        return 0.0
+        return {
+            "loss": 0.0,
+            "accuracy": 0.0,
+            "precision_macro": 0.0,
+            "recall_macro": 0.0,
+            "f1_macro": 0.0,
+            "f1_weighted": 0.0,
+            "auc_macro_ovr": None,
+        }
 
     model = model_template.__class__(model_template.input_shape, model_template.num_classes)
     model.load_state_dict({k: v.cpu() for k, v in global_params.items()})
@@ -257,8 +315,11 @@ def _evaluate(
     X_test = test_data["X_test"]
     y_test = test_data["y_test"]
 
-    correct = 0
-    total = 0
+    criterion = nn.CrossEntropyLoss()
+    total_loss = 0.0
+    all_preds = []
+    all_targets = []
+    all_proba = []
 
     with torch.no_grad():
         for i in range(0, len(X_test), batch_size):
@@ -266,9 +327,36 @@ def _evaluate(
             batch_y = y_test[i:i+batch_size]
 
             output = model(batch_X)
+            loss = criterion(output, batch_y)
             preds = output.argmax(dim=1)
+            proba = F.softmax(output, dim=1)
 
-            correct += (preds == batch_y).sum().item()
-            total += len(batch_y)
+            total_loss += loss.item() * len(batch_y)
+            all_preds.extend(preds.cpu().numpy())
+            all_targets.extend(batch_y.cpu().numpy())
+            all_proba.append(proba.cpu().numpy())
 
-    return correct / max(total, 1)
+    y_true = np.array(all_targets)
+    y_pred = np.array(all_preds)
+    y_proba = np.vstack(all_proba) if all_proba else np.empty((0, model_template.num_classes))
+    metrics = {
+        "loss": total_loss / max(len(y_test), 1),
+        "accuracy": accuracy_score(y_true, y_pred) if len(y_true) else 0.0,
+        "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0) if len(y_true) else 0.0,
+        "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0) if len(y_true) else 0.0,
+        "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0) if len(y_true) else 0.0,
+        "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0) if len(y_true) else 0.0,
+        "auc_macro_ovr": None,
+    }
+
+    try:
+        y_true_bin = label_binarize(y_true, classes=list(range(model_template.num_classes)))
+        if y_true_bin is not None and y_true_bin.shape[1] == 1:
+            y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
+        metrics["auc_macro_ovr"] = roc_auc_score(
+            y_true_bin, y_proba, average="macro", multi_class="ovr"
+        )
+    except Exception:
+        metrics["auc_macro_ovr"] = None
+
+    return metrics
