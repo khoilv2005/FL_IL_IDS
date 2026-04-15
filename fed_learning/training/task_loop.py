@@ -29,6 +29,15 @@ from fed_learning.factories.client_factory import (
 )
 from fed_learning.factories.server_factory import create_server
 from fed_learning.training.post_task import post_task_processing
+from fed_learning.training.resume_state import (
+    build_continuation_state,
+    load_continuation_state,
+    restore_aggregator_state,
+    restore_client_state,
+    restore_server_state,
+    restore_trainer_state,
+    save_continuation_state,
+)
 from fed_learning.plexus import run_plexus_training
 
 # Visualization imports (optional)
@@ -406,6 +415,62 @@ def _write_training_history(output_dir: str, history: Dict[str, Any]):
 
     with open(os.path.join(output_dir, "round_metrics.json"), "w") as f:
         json.dump(history.get("round_metrics", []), f, indent=2, default=str)
+
+
+def _resolve_output_dir(config: Dict[str, Any], mode: str, algorithm: str) -> str:
+    """Resolve output directory for fresh or resumed runs."""
+    if config.get("resume_output_dir"):
+        output_dir = config["resume_output_dir"]
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    resume_state_path = config.get("resume_state_path")
+    if resume_state_path:
+        output_dir = os.path.dirname(resume_state_path)
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if mode == "il":
+        output_dir = f"{config['output_dir']}_{algorithm}_{mode}_{ts}"
+    elif mode == "decentralized":
+        output_dir = f"{config['output_dir']}_plexus_{ts}"
+    else:
+        output_dir = f"{config['output_dir']}_{algorithm}_{ts}"
+    os.makedirs(output_dir, exist_ok=True)
+    return output_dir
+
+
+def _resolve_task_bounds(
+    config: Dict[str, Any], num_tasks: int, resume_state: Optional[Dict[str, Any]] = None
+) -> tuple[int, int]:
+    """Resolve start/end task bounds for a phase."""
+    resume_from_task = 0
+    if resume_state is not None:
+        resume_from_task = int(resume_state["meta"].get("resume_from_task", 0))
+
+    task_start = int(config.get("task_start", resume_from_task))
+    task_end = int(config.get("task_end", num_tasks - 1))
+
+    if task_start < 0 or task_start >= num_tasks:
+        raise ValueError(f"task_start out of range: {task_start}")
+    if task_end < task_start or task_end >= num_tasks:
+        raise ValueError(f"task_end out of range: {task_end}")
+    return task_start, task_end
+
+
+def _rebuild_prior_test_snapshots(
+    data_loader: IncrementalDataLoader, completed_task_ids: List[int]
+) -> Dict[int, str]:
+    """Rebuild cumulative test snapshots for previously completed tasks."""
+    rebuilt = {}
+    for prev_tid in completed_task_ids:
+        test_X, test_y = data_loader.get_test_data(prev_tid, cumulative=True)
+        test_data = {"X_test": test_X, "y_test": test_y}
+        test_data_path = os.path.join("./temp_test_data", f"test_task_{prev_tid}.pt")
+        torch.save(test_data, test_data_path)
+        rebuilt[prev_tid] = test_data_path
+    return rebuilt
 
 
 def _save_fed_round_checkpoint(
@@ -889,12 +954,19 @@ def run_incremental_training(config: Dict[str, Any]):
     # 1. Setup
     set_seed(config.get("random_seed", 42))
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = f"{config['output_dir']}_{config['algorithm']}_{ts}"
-    os.makedirs(output_dir, exist_ok=True)
+    resume_state = None
+    if config.get("resume_state_path"):
+        resume_state = load_continuation_state(config["resume_state_path"])
+        resume_algo = resume_state["meta"].get("algorithm")
+        if resume_algo != config["algorithm"]:
+            raise ValueError(
+                f"Resume state algorithm mismatch: {resume_algo} != {config['algorithm']}"
+            )
 
-    # Save Config
-    with open(f"{output_dir}/config.json", "w") as f:
+    output_dir = _resolve_output_dir(config, mode, config["algorithm"])
+
+    config_name = "config_phase_resume.json" if resume_state else "config.json"
+    with open(os.path.join(output_dir, config_name), "w") as f:
         json.dump(config, f, indent=2, default=str)
 
     print("\n" + "=" * 80)
@@ -924,14 +996,31 @@ def run_incremental_training(config: Dict[str, Any]):
     all_test_data = {}
     best_acc_per_task = {}
     persistent_clients: Dict[int, object] = {}
+    pending_client_states: Dict[int, Dict[str, Any]] = {}
+
+    if resume_state is not None:
+        global_model = resume_state.get("model_state_dict")
+        global_neuron_ages = resume_state.get("global_neuron_ages")
+        all_history = resume_state.get("all_history", all_history)
+        best_acc_per_task = resume_state.get("best_acc_per_task", {})
+        pending_client_states = {
+            int(cid): state
+            for cid, state in resume_state.get("persistent_clients_state", {}).items()
+        }
+        completed_task_ids = sorted(
+            int(entry["task"]) for entry in all_history.get("task_accuracies", [])
+        )
+        all_test_data = _rebuild_prior_test_snapshots(data_loader, completed_task_ids)
 
     # 5. Task Loop
     # Create server ONCE and reuse for all tasks (fixes CGoFed aggregator state persistence)
     server = None
-    persistent_clients = {}
 
     num_tasks = data_loader.get_num_tasks()
-    for task_id in range(num_tasks):
+    task_start, task_end = _resolve_task_bounds(config, num_tasks, resume_state)
+    print(f"Task range: {task_start} -> {task_end}")
+
+    for task_id in range(task_start, task_end + 1):
         print(
             f"\n{'=' * 80}\n📚 TASK {task_id}/{num_tasks - 1}\n{'=' * 80}"
         )
@@ -967,6 +1056,8 @@ def run_incremental_training(config: Dict[str, Any]):
             client = get_or_create_persistent_client(
                 cid, data, config, persistent_clients
             )
+            if cid in pending_client_states:
+                restore_client_state(client, pending_client_states.pop(cid))
             update_client_data(client, data, task_id, new_classes)
             participating_clients.append(client)
 
@@ -1000,9 +1091,15 @@ def run_incremental_training(config: Dict[str, Any]):
             is_last_task = task_id == num_tasks - 1
             task_config["is_last_task"] = is_last_task
 
-        # Create server only for task 0, reuse for subsequent tasks
-        if task_id == 0:
+        # Create server only once, reuse for subsequent tasks
+        if server is None:
             server = create_server(config, participating_clients, test_data, task_config)
+            if resume_state is not None:
+                restore_trainer_state(server.trainer, resume_state.get("trainer_state"))
+                restore_aggregator_state(
+                    server.aggregator, resume_state.get("aggregator_state")
+                )
+                restore_server_state(server, resume_state.get("server_state"))
         else:
             server = _refresh_server_clients(
                 server,
@@ -1356,6 +1453,28 @@ def run_incremental_training(config: Dict[str, Any]):
             current_task_accuracies,
         )
         _write_training_history(output_dir, all_history)
+
+        if config.get("save_resume_after_task") == task_id:
+            continuation_state = build_continuation_state(
+                mode=mode,
+                algorithm=config["algorithm"],
+                task_id=task_id,
+                config=config,
+                output_dir=output_dir,
+                model_state_dict=global_model,
+                global_neuron_ages=global_neuron_ages,
+                trainer=server.trainer,
+                server=server,
+                aggregator=server.aggregator,
+                persistent_clients=persistent_clients,
+                all_history=all_history,
+                best_acc_per_task=best_acc_per_task,
+                seen_classes=seen_classes,
+            )
+            continuation_path = save_continuation_state(
+                output_dir, task_id, continuation_state
+            )
+            print(f"💾 Continuation state saved: {continuation_path}")
 
         # Cleanup
         gc.collect()

@@ -20,6 +20,13 @@ from fed_learning.strategies.incremental.nice import (
     increase_unit_ranks,
     update_freeze_masks,
 )
+from fed_learning.training.resume_state import (
+    build_continuation_state,
+    load_continuation_state,
+    restore_client_state,
+    restore_trainer_state,
+    save_continuation_state,
+)
 from fed_learning.utils.cleanup import cleanup_temp_folders
 from fed_learning.utils.seed import set_seed
 
@@ -252,17 +259,61 @@ def _post_task_local(algorithm, trainer, model, client, combined_data, config, d
         trainer.save_model_snapshot(model)
 
 
+def _resolve_local_output_dir(config: Dict[str, Any], algorithm: str, mode: str) -> str:
+    if config.get("resume_output_dir"):
+        output_dir = config["resume_output_dir"]
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    resume_state_path = config.get("resume_state_path")
+    if resume_state_path:
+        output_dir = os.path.dirname(resume_state_path)
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = f"{config['output_dir']}_{algorithm}_{mode}_{ts}"
+    os.makedirs(output_dir, exist_ok=True)
+    return output_dir
+
+
+def _resolve_local_task_bounds(
+    config: Dict[str, Any],
+    num_tasks: int,
+    resume_state: Dict[str, Any] | None = None,
+) -> Tuple[int, int]:
+    resume_from_task = 0
+    if resume_state is not None:
+        resume_from_task = int(resume_state["meta"].get("resume_from_task", 0))
+
+    task_start = int(config.get("task_start", resume_from_task))
+    task_end = int(config.get("task_end", num_tasks - 1))
+
+    if task_start < 0 or task_start >= num_tasks:
+        raise ValueError(f"task_start out of range: {task_start}")
+    if task_end < task_start or task_end >= num_tasks:
+        raise ValueError(f"task_end out of range: {task_end}")
+    return task_start, task_end
+
+
 def run_local_incremental_training(config: Dict[str, Any]):
     """Run standalone incremental learning without federated aggregation."""
     set_seed(config.get("random_seed", 42))
+    resume_state = None
+    if config.get("resume_state_path"):
+        resume_state = load_continuation_state(config["resume_state_path"])
+        resume_algo = resume_state["meta"].get("algorithm")
+        if resume_algo != config["algorithm"]:
+            raise ValueError(
+                f"Resume state algorithm mismatch: {resume_algo} != {config['algorithm']}"
+            )
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = (
-        f"{config['output_dir']}_{config['algorithm']}_{config.get('mode', 'il')}_{ts}"
+    output_dir = _resolve_local_output_dir(
+        config, config["algorithm"], config.get("mode", "il")
     )
-    os.makedirs(output_dir, exist_ok=True)
 
-    with open(f"{output_dir}/config.json", "w") as f:
+    config_name = "config_phase_resume.json" if resume_state else "config.json"
+    with open(os.path.join(output_dir, config_name), "w") as f:
         json.dump(config, f, indent=2, default=str)
 
     print("\n" + "=" * 80)
@@ -286,10 +337,47 @@ def run_local_incremental_training(config: Dict[str, Any]):
     all_history = {"task_accuracies": [], "task_forgetting": []}
     best_acc_per_task: Dict[int, float] = {}
     persistent_client = None
+    pending_client_state = None
 
-    for task_id in range(data_loader.get_num_tasks()):
+    if resume_state is not None:
+        all_history = resume_state.get("all_history", all_history)
+        best_acc_per_task = resume_state.get("best_acc_per_task", {})
+        restore_trainer_state(trainer, resume_state.get("trainer_state"))
+        pending_clients = resume_state.get("persistent_clients_state", {})
+        pending_client_state = pending_clients.get(0) or pending_clients.get("0")
+
+        completed_task_ids = sorted(
+            int(entry["task"]) for entry in all_history.get("task_accuracies", [])
+        )
+        if config["algorithm"].lower() == "der":
+            for prev_tid in completed_task_ids:
+                model.add_task(
+                    data_loader.get_task_classes(prev_tid),
+                    s_max=config.get("s_max", 15.0),
+                )
+
+        saved_model_state = resume_state.get("model_state_dict", {})
+        if saved_model_state:
+            model.load_state_dict(
+                OrderedDict((k, v.to(device)) for k, v in saved_model_state.items())
+            )
+
+        local_model_state = resume_state.get("global_neuron_ages")
+        if local_model_state is not None and hasattr(model, "set_neuron_ages_state"):
+            model.set_neuron_ages_state(local_model_state)
+            if config["algorithm"].lower() == "nice":
+                update_freeze_masks(model)
+                if hasattr(model, "freeze_bn_for_mature"):
+                    model.freeze_bn_for_mature()
+
+    task_start, task_end = _resolve_local_task_bounds(
+        config, data_loader.get_num_tasks(), resume_state
+    )
+    print(f"Task range: {task_start} -> {task_end}")
+
+    for task_id in range(task_start, task_end + 1):
         print(
-            f"\n{'=' * 80}\n📚 TASK {task_id}/{data_loader.get_num_tasks()}\n{'=' * 80}"
+            f"\n{'=' * 80}\nTASK {task_id}/{data_loader.get_num_tasks() - 1}\n{'=' * 80}"
         )
         new_classes = data_loader.get_task_classes(task_id)
         _, combined_data = _build_single_client_dataset(data_loader, task_id)
@@ -304,6 +392,9 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 combined_data["y_train"],
                 config,
             )
+            if pending_client_state is not None:
+                restore_client_state(persistent_client, pending_client_state)
+                pending_client_state = None
 
         update_client_data(persistent_client, combined_data, task_id, new_classes)
         if hasattr(trainer, "set_task"):
@@ -376,6 +467,38 @@ def run_local_incremental_training(config: Dict[str, Any]):
             ckpt_path,
         )
         print(f"💾 Checkpoint saved: {ckpt_path}")
+
+        if config.get("save_resume_after_task") == task_id:
+            local_model_state = None
+            if hasattr(model, "get_neuron_ages_state"):
+                local_model_state = model.get_neuron_ages_state()
+
+            continuation_state = build_continuation_state(
+                mode=config.get("mode", "il"),
+                algorithm=config["algorithm"],
+                task_id=task_id,
+                config=config,
+                output_dir=output_dir,
+                model_state_dict=OrderedDict(
+                    (k, v.detach().cpu().clone()) for k, v in model.state_dict().items()
+                ),
+                global_neuron_ages=local_model_state,
+                trainer=trainer,
+                persistent_clients={0: persistent_client} if persistent_client else {},
+                all_history=all_history,
+                best_acc_per_task=best_acc_per_task,
+                seen_classes=sorted(
+                    {
+                        c
+                        for t in range(task_id + 1)
+                        for c in data_loader.get_task_classes(t)
+                    }
+                ),
+            )
+            continuation_path = save_continuation_state(
+                output_dir, task_id, continuation_state
+            )
+            print(f"Continuation state saved: {continuation_path}")
 
         gc.collect()
         if torch.cuda.is_available():

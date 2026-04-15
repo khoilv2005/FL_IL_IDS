@@ -23,7 +23,7 @@ Usage:
 """
 
 from collections import OrderedDict
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 import os
 
 import torch
@@ -463,6 +463,86 @@ class EWCMixin:
         không cần truy cập trực tiếp vào biến nội bộ.
         """
         return self.last_af
+
+    def get_resume_state(self) -> Dict[str, Any]:
+        """Return a self-contained continuation payload for split training."""
+        latest_task = max(self.ewc_data.keys()) if self.ewc_data else self.current_task
+        fisher_payload = None
+        params_payload = None
+
+        if self._cached_fisher_acc is not None:
+            fisher_payload = {
+                name: tensor.detach().cpu().clone()
+                for name, tensor in self._cached_fisher_acc.items()
+            }
+        elif latest_task in self.ewc_data:
+            fisher_payload = torch.load(
+                self.ewc_data[latest_task]["fisher"], map_location="cpu"
+            )
+
+        if self._cached_optimal_params is not None:
+            params_payload = {
+                name: tensor.detach().cpu().clone()
+                for name, tensor in self._cached_optimal_params.items()
+            }
+        elif latest_task in self.ewc_data:
+            params_payload = torch.load(
+                self.ewc_data[latest_task]["params"], map_location="cpu"
+            )
+
+        return {
+            "ewc_lambda": self.ewc_lambda,
+            "fisher_samples": self.fisher_samples,
+            "online_ewc": self.online_ewc,
+            "gamma": self.gamma,
+            "temp_dir": self.temp_dir,
+            "debug_logging": self.debug_logging,
+            "current_task": self.current_task,
+            "seen_classes": set(self.seen_classes),
+            "mu_coefficient": self.mu_coefficient,
+            "best_acc_per_task": self.best_acc_per_task.copy(),
+            "current_acc_per_task": self.current_acc_per_task.copy(),
+            "last_af": self.last_af,
+            "latest_task": latest_task,
+            "latest_fisher_acc": fisher_payload,
+            "latest_optimal_params": params_payload,
+        }
+
+    def load_resume_state(self, state: Dict[str, Any]) -> None:
+        """Restore continuation payload and materialize latest Fisher on disk."""
+        self.ewc_lambda = state.get("ewc_lambda", self.ewc_lambda)
+        self.fisher_samples = state.get("fisher_samples", self.fisher_samples)
+        self.online_ewc = state.get("online_ewc", self.online_ewc)
+        self.gamma = state.get("gamma", self.gamma)
+        self.temp_dir = state.get("temp_dir", self.temp_dir)
+        self.debug_logging = state.get("debug_logging", self.debug_logging)
+        os.makedirs(self.temp_dir, exist_ok=True)
+
+        self.current_task = state.get("current_task", self.current_task)
+        self.seen_classes = set(state.get("seen_classes", set()))
+        self.mu_coefficient = state.get("mu_coefficient", self.mu_coefficient)
+        self.best_acc_per_task = state.get("best_acc_per_task", {}).copy()
+        self.current_acc_per_task = state.get("current_acc_per_task", {}).copy()
+        self.last_af = state.get("last_af", self.last_af)
+
+        latest_task = int(state.get("latest_task", self.current_task))
+        fisher_payload = state.get("latest_fisher_acc")
+        params_payload = state.get("latest_optimal_params")
+
+        self.ewc_data = {}
+        self._cached_fisher_acc = None
+        self._cached_optimal_params = None
+        self._cache_device = None
+
+        if fisher_payload is not None and params_payload is not None:
+            fisher_path = os.path.join(self.temp_dir, f"task_{latest_task}_fisher_acc.pt")
+            params_path = os.path.join(self.temp_dir, f"task_{latest_task}_params.pt")
+            torch.save(fisher_payload, fisher_path)
+            torch.save(params_payload, params_path)
+            self.ewc_data[latest_task] = {
+                "fisher": fisher_path,
+                "params": params_path,
+            }
 
 
 # Pre-built combined trainers for convenience
