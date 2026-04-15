@@ -85,13 +85,14 @@ CONFIG = {
     "output_dir": "./results_incremental",
     # Split-run / continuation state
     # Phase 1 example:
-    #   "task_start": 0,
-    #   "task_end": 2,
-    #   "save_resume_after_task": 2,
+    #"task_start": 0,
+    #"task_end": 2,
+    #"save_resume_after_task": 2,
+    "resume_state_path": None,
     # Phase 2 example:
-    #   "task_start": 3,
-    #   "task_end": 5,
-    #   "resume_state_path": "./results_incremental_.../continuation_state_task_2.pt",
+    "task_start": 3,
+    "task_end": 5,
+    "resume_state_path": "/tmp/FL_IL_IDS/continue/cgofed_phase2.pt",
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
     # "task_start": 0,
