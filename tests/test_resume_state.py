@@ -2,10 +2,18 @@ from collections import OrderedDict
 
 import torch
 
+from fed_learning.strategies.fed_incremental.cgofed import (
+    CGoFedAggregator,
+    CGoFedTrainer,
+)
 from fed_learning.strategies.incremental.ewc import EWCTrainer
 from fed_learning.training.resume_state import (
     restore_client_state,
+    restore_aggregator_state,
+    restore_trainer_state,
+    snapshot_aggregator_state,
     snapshot_client_state,
+    snapshot_trainer_state,
 )
 
 
@@ -83,3 +91,73 @@ def test_ewc_resume_state_rebuilds_latest_fisher(tmp_path):
     assert 2 in restored.ewc_data
     assert restored.last_af == 0.05
     assert 3 in restored.seen_classes
+
+
+def test_cgofed_trainer_resume_rebuilds_basis_files(tmp_path):
+    phase1 = tmp_path / "cgofed_phase1"
+    phase2 = tmp_path / "cgofed_phase2"
+    phase1.mkdir()
+
+    basis_path = phase1 / "task_0_fc1_basis.pt"
+    importance_path = phase1 / "task_0_fc1_importance.pt"
+    torch.save(torch.randn(8, 3), basis_path)
+    torch.save(torch.tensor([0.5, 0.6, 0.7]), importance_path)
+
+    trainer = CGoFedTrainer(temp_dir=str(phase1))
+    trainer.current_task = 2
+    trainer.seen_classes = {0, 1, 2}
+    trainer.layer_bases = {
+        "task_0": {
+            "fc1": {
+                "basis": str(basis_path),
+                "importance": str(importance_path),
+                "shape": (8, 3),
+            }
+        }
+    }
+
+    state = snapshot_trainer_state(trainer)
+
+    restored = CGoFedTrainer(temp_dir=str(phase2))
+    restore_trainer_state(restored, state)
+
+    restored_info = restored.layer_bases["task_0"]["fc1"]
+    assert restored_info["basis"].startswith(str(phase2))
+    assert restored_info["importance"].startswith(str(phase2))
+    assert torch.equal(
+        torch.load(restored_info["basis"], map_location="cpu"),
+        torch.load(basis_path, map_location="cpu"),
+    )
+    assert torch.equal(
+        torch.load(restored_info["importance"], map_location="cpu"),
+        torch.load(importance_path, map_location="cpu"),
+    )
+
+
+def test_cgofed_aggregator_resume_materializes_historical_models():
+    model_state = OrderedDict(weight=torch.tensor([1.0, 2.0]))
+    aggregator = CGoFedAggregator(rounds_per_task=20)
+    aggregator.current_task = 2
+    aggregator.task_global_models = {0: model_state}
+    aggregator.client_historical_models = {7: {0: model_state}}
+    aggregator._current_historical_models = {0: model_state}
+    aggregator.task_representations = {0: torch.tensor([0.1, 0.2])}
+    aggregator.task_representation_matrices = {
+        0: {
+            "_artifact_type": "cgofed_representation_artifact",
+            "signature": torch.tensor([1.0, 2.0]),
+            "shape": (4, 2),
+            "mean_vector": torch.tensor([0.5, 0.5]),
+            "mean_norm": 0.7071,
+        }
+    }
+
+    state = snapshot_aggregator_state(aggregator)
+
+    restored = CGoFedAggregator(rounds_per_task=20)
+    restore_aggregator_state(restored, state)
+
+    assert isinstance(restored.task_global_models[0], OrderedDict)
+    assert isinstance(restored.client_historical_models[7][0], OrderedDict)
+    assert isinstance(restored._current_historical_models[0], OrderedDict)
+    assert torch.equal(restored.task_global_models[0]["weight"], model_state["weight"])

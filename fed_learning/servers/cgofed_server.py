@@ -131,6 +131,39 @@ class CGoFedServer(IncrementalServer):
         self._personalized_round_models = {}
         self._client_reg_info = {}
 
+    def get_resume_state(self) -> Dict:
+        """
+        Export only lightweight server state.
+
+        Aggregator is the source of truth for CGoFed cross-task history, so the
+        server continuation state should avoid duplicating temp artifact paths.
+        """
+        return {
+            "current_task": self.current_task,
+            "seen_classes": list(self.seen_classes),
+            "task_classes": {int(k): list(v) for k, v in self.task_classes.items()},
+            "eq12_self_weight": self.eq12_self_weight,
+        }
+
+    def load_resume_state(self, state: Dict) -> None:
+        """Restore lightweight server metadata; history will be synced from aggregator."""
+        self.current_task = int(state.get("current_task", self.current_task))
+        self.seen_classes = list(state.get("seen_classes", self.seen_classes))
+        self.task_classes = {
+            int(task_id): list(classes)
+            for task_id, classes in state.get("task_classes", {}).items()
+        }
+        self.eq12_self_weight = float(
+            state.get("eq12_self_weight", self.eq12_self_weight)
+        )
+        self._task_global_models = {}
+        self._task_representation_matrices = {}
+        self._task_representations = {}
+        self._client_task_representations = {}
+        self._client_task_models = {}
+        self._client_reg_info = {}
+        self._personalized_round_models = {}
+
     def train_round(self, verbose: bool = True) -> Dict:
         """
         Chạy một round của CGoFed với worker riêng và regularization riêng theo client.

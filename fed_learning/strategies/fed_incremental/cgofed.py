@@ -215,6 +215,29 @@ def load_model_state(obj: Any) -> OrderedDict:
     raise TypeError(f"Unsupported model state type for CGoFed: {type(obj)!r}")
 
 
+def clone_model_state_dict(params: OrderedDict) -> OrderedDict:
+    """Clone a materialized model state dict onto CPU."""
+    return OrderedDict((k, v.detach().cpu().clone()) for k, v in params.items())
+
+
+def serialize_model_reference(obj: Any) -> OrderedDict:
+    """
+    Convert any supported model reference into an in-memory state dict.
+
+    Continuation files must not depend on temp artifact paths from a previous
+    Kaggle session, so we always materialize to tensors here.
+    """
+    return clone_model_state_dict(load_model_state(obj))
+
+
+def serialize_model_reference_map(model_map: Dict[Any, Any]) -> Dict[Any, OrderedDict]:
+    """Materialize a flat map of model refs into CPU state dicts."""
+    return {
+        key: serialize_model_reference(value)
+        for key, value in model_map.items()
+    }
+
+
 def representation_shape(rep: Any) -> Optional[Tuple[int, ...]]:
     """Return a best-effort shape tuple for a tensor or representation artifact."""
     if is_representation_artifact(rep):
@@ -1340,6 +1363,131 @@ class CGoFedTrainer(BaseTrainer):
         else:
             print(f"  📊 CGoFed Projection Stats: No projections attempted")
 
+    def get_resume_state(self) -> Dict[str, Any]:
+        """
+        Export all CGoFed trainer state needed for split-run continuation.
+
+        The critical part is materializing basis/importance tensors into the
+        continuation file, so resume no longer depends on the previous session's
+        temp directory.
+        """
+        serialized_layer_bases: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for task_key, layer_dict in self.layer_bases.items():
+            serialized_layer_bases[task_key] = {}
+            for layer_name, info in layer_dict.items():
+                basis_path = info.get("basis")
+                importance_path = info.get("importance")
+                if not basis_path or not importance_path:
+                    continue
+                if not os.path.exists(basis_path) or not os.path.exists(importance_path):
+                    continue
+                serialized_layer_bases[task_key][layer_name] = {
+                    "basis_tensor": torch.load(basis_path, map_location="cpu"),
+                    "importance_tensor": torch.load(importance_path, map_location="cpu"),
+                    "shape": tuple(info.get("shape", ())),
+                }
+
+        return {
+            "mu": self.mu,
+            "mu_projection": self.mu_projection,
+            "lambda_decay": self.lambda_decay,
+            "theta_threshold": self.theta_threshold,
+            "energy_threshold": self.energy_threshold,
+            "beta": self.beta,
+            "num_samples_rep": self.num_samples_rep,
+            "lambda_cross_task": self.lambda_cross_task,
+            "max_old_tasks": self.max_old_tasks,
+            "historical_models": serialize_model_reference_map(self.historical_models),
+            "_projection_stats": dict(self._projection_stats),
+            "current_task": self.current_task,
+            "seen_classes": sorted(self.seen_classes),
+            "gradient_dim": self.gradient_dim,
+            "mu_coefficient": self.mu_coefficient,
+            "t_reset": self.t_reset,
+            "best_acc_per_task": dict(self.best_acc_per_task),
+            "current_acc_per_task": dict(self.current_acc_per_task),
+            "last_af": self.last_af,
+            "_loss_log_count": getattr(self, "_loss_log_count", 0),
+            "layer_bases_state": serialized_layer_bases,
+        }
+
+    def load_resume_state(self, state: Dict[str, Any]) -> None:
+        """Restore trainer state and re-materialize basis tensors to temp_dir."""
+        self.mu = float(state.get("mu", self.mu))
+        self.mu_projection = float(state.get("mu_projection", self.mu_projection))
+        self.lambda_decay = float(state.get("lambda_decay", self.lambda_decay))
+        self.theta_threshold = float(state.get("theta_threshold", self.theta_threshold))
+        self.energy_threshold = float(state.get("energy_threshold", self.energy_threshold))
+        self.beta = float(state.get("beta", self.beta))
+        self.num_samples_rep = int(state.get("num_samples_rep", self.num_samples_rep))
+        self.lambda_cross_task = float(
+            state.get("lambda_cross_task", self.lambda_cross_task)
+        )
+        self.max_old_tasks = state.get("max_old_tasks", self.max_old_tasks)
+
+        historical_models = state.get("historical_models", {})
+        self.historical_models = {
+            int(task_id): clone_model_state_dict(params)
+            for task_id, params in historical_models.items()
+        }
+
+        self._projection_stats = dict(
+            state.get(
+                "_projection_stats",
+                {"projected": 0, "skipped": 0, "total_reduction": 0.0},
+            )
+        )
+        self.current_task = int(state.get("current_task", self.current_task))
+        self.seen_classes = set(state.get("seen_classes", []))
+        self.gradient_dim = state.get("gradient_dim", self.gradient_dim)
+        self.mu_coefficient = float(
+            state.get("mu_coefficient", self.mu_coefficient)
+        )
+        self.t_reset = int(state.get("t_reset", self.t_reset))
+        self.best_acc_per_task = {
+            int(task_id): float(acc)
+            for task_id, acc in state.get("best_acc_per_task", {}).items()
+        }
+        self.current_acc_per_task = {
+            int(task_id): float(acc)
+            for task_id, acc in state.get("current_acc_per_task", {}).items()
+        }
+        self.last_af = float(state.get("last_af", self.last_af))
+        self._loss_log_count = int(state.get("_loss_log_count", 0))
+
+        os.makedirs(self.temp_dir, exist_ok=True)
+        self.layer_bases = {}
+        for task_key, layer_dict in state.get("layer_bases_state", {}).items():
+            self.layer_bases[task_key] = {}
+            for layer_name, info in layer_dict.items():
+                basis_tensor = info.get("basis_tensor")
+                importance_tensor = info.get("importance_tensor")
+                if not isinstance(basis_tensor, torch.Tensor):
+                    continue
+                if not isinstance(importance_tensor, torch.Tensor):
+                    continue
+                basis_path = os.path.join(
+                    self.temp_dir, f"{task_key}_{layer_name}_basis.pt"
+                )
+                importance_path = os.path.join(
+                    self.temp_dir, f"{task_key}_{layer_name}_importance.pt"
+                )
+                torch.save(basis_tensor.detach().cpu().clone(), basis_path)
+                torch.save(importance_tensor.detach().cpu().clone(), importance_path)
+                shape = info.get("shape")
+                if shape is None or len(shape) != 2:
+                    shape = tuple(basis_tensor.shape)
+                self.layer_bases[task_key][layer_name] = {
+                    "basis": basis_path,
+                    "importance": importance_path,
+                    "shape": tuple(shape),
+                }
+
+        self.old_space = {}
+        self.importance_weights = {}
+        self._cached_proj_matrices_per_device = {}
+        self._pre_step_logged_this_task = False
+
 
 class CGoFedAggregator(BaseAggregator):
     """
@@ -1409,6 +1557,98 @@ class CGoFedAggregator(BaseAggregator):
         return {
             "historical_models": self._current_historical_models.copy(),
             "similarity_weights": self._current_similarity_weights.copy(),
+        }
+
+    def get_resume_state(self) -> Dict[str, Any]:
+        """
+        Export aggregator state with all artifact-backed models materialized.
+
+        Continuation files must be self-contained, so we serialize historical
+        models into in-memory state dicts instead of keeping stale temp paths.
+        """
+        return {
+            "cross_task_weight": self.cross_task_weight,
+            "top_k": self.top_k,
+            "rounds_per_task": self.rounds_per_task,
+            "current_task": self.current_task,
+            "_round_in_task": self._round_in_task,
+            "client_representations": {
+                int(client_id): {
+                    int(task_id): clone_representation_state(rep)
+                    for task_id, rep in task_map.items()
+                }
+                for client_id, task_map in self.client_representations.items()
+            },
+            "task_global_models": {
+                int(task_id): serialize_model_reference(model_ref)
+                for task_id, model_ref in self.task_global_models.items()
+            },
+            "client_historical_models": {
+                int(client_id): {
+                    int(task_id): serialize_model_reference(model_ref)
+                    for task_id, model_ref in task_map.items()
+                }
+                for client_id, task_map in self.client_historical_models.items()
+            },
+            "task_representations": {
+                int(task_id): rep.detach().cpu().clone()
+                for task_id, rep in self.task_representations.items()
+            },
+            "task_representation_matrices": {
+                int(task_id): clone_representation_state(rep)
+                for task_id, rep in self.task_representation_matrices.items()
+            },
+            "_current_similarity_weights": dict(self._current_similarity_weights),
+            "_current_historical_models": {
+                key: serialize_model_reference(model_ref)
+                for key, model_ref in self._current_historical_models.items()
+            },
+        }
+
+    def load_resume_state(self, state: Dict[str, Any]) -> None:
+        """Restore aggregator state without requiring old history artifact files."""
+        self.cross_task_weight = float(
+            state.get("cross_task_weight", self.cross_task_weight)
+        )
+        self.top_k = int(state.get("top_k", self.top_k))
+        self.rounds_per_task = int(state.get("rounds_per_task", self.rounds_per_task))
+        self.current_task = int(state.get("current_task", self.current_task))
+        self._round_in_task = int(state.get("_round_in_task", 0))
+
+        self.client_representations = {
+            int(client_id): {
+                int(task_id): clone_representation_state(rep)
+                for task_id, rep in task_map.items()
+            }
+            for client_id, task_map in state.get("client_representations", {}).items()
+        }
+        self.task_global_models = {
+            int(task_id): clone_model_state_dict(params)
+            for task_id, params in state.get("task_global_models", {}).items()
+        }
+        self.client_historical_models = {
+            int(client_id): {
+                int(task_id): clone_model_state_dict(params)
+                for task_id, params in task_map.items()
+            }
+            for client_id, task_map in state.get("client_historical_models", {}).items()
+        }
+        self.task_representations = {
+            int(task_id): rep.detach().cpu().clone()
+            for task_id, rep in state.get("task_representations", {}).items()
+            if isinstance(rep, torch.Tensor)
+        }
+        self.task_representation_matrices = {
+            int(task_id): clone_representation_state(rep)
+            for task_id, rep in state.get("task_representation_matrices", {}).items()
+        }
+        self._current_similarity_weights = {
+            key: float(value)
+            for key, value in state.get("_current_similarity_weights", {}).items()
+        }
+        self._current_historical_models = {
+            key: clone_model_state_dict(params)
+            for key, params in state.get("_current_historical_models", {}).items()
         }
 
     def _store_client_representations(self, results: List[Dict]):
