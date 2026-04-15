@@ -92,7 +92,7 @@ def _refresh_server_clients(server, clients, config, test_data, task_config):
 
 def _train_nice(server, participating_clients, config, data_loader, task_id):
     """NICE: Phase-based training with single federated round."""
-    nice_rounds = 1  # NICE uses internal phases, only 1 federated round needed
+    nice_rounds = config.get("rounds_per_task", 1)
     is_last_task = task_id == data_loader.get_num_tasks() - 1
 
     print(
@@ -276,7 +276,7 @@ def _train_plexus_der(server, participating_clients, config, trainer):
 
 def _train_plexus_nice(server, participating_clients, config, data_loader, task_id):
     """PlexusNICE: Decentralized NICE with phase-based training."""
-    nice_rounds = 1  # NICE uses internal phases, only 1 federated round needed
+    nice_rounds = config.get("rounds_per_task", 1)
     is_last_task = task_id == data_loader.get_num_tasks() - 1
 
     print(
@@ -439,6 +439,31 @@ def _resolve_output_dir(config: Dict[str, Any], mode: str, algorithm: str) -> st
         output_dir = f"{config['output_dir']}_{algorithm}_{ts}"
     os.makedirs(output_dir, exist_ok=True)
     return output_dir
+
+
+def _inject_persistent_algorithm_paths(
+    config: Dict[str, Any], output_dir: str
+) -> Dict[str, Any]:
+    """
+    Resolve algorithm-specific artifact directories under the run output.
+
+    This is important on Kaggle because `/tmp` is session-scoped. For split-run
+    continuation, artifacts such as CGoFed SVD bases and history snapshots must
+    live alongside the run outputs unless the user explicitly overrides them.
+    """
+    resolved = dict(config)
+    algorithm = resolved.get("algorithm", "").lower()
+
+    if algorithm == "cgofed":
+        cgofed_root = os.path.join(output_dir, "cgofed_artifacts")
+        resolved.setdefault("cgofed_temp_dir", os.path.join(cgofed_root, "svd"))
+        resolved.setdefault(
+            "cgofed_history_dir", os.path.join(cgofed_root, "history")
+        )
+        os.makedirs(resolved["cgofed_temp_dir"], exist_ok=True)
+        os.makedirs(resolved["cgofed_history_dir"], exist_ok=True)
+
+    return resolved
 
 
 def _resolve_task_bounds(
@@ -964,6 +989,7 @@ def run_incremental_training(config: Dict[str, Any]):
             )
 
     output_dir = _resolve_output_dir(config, mode, config["algorithm"])
+    config = _inject_persistent_algorithm_paths(config, output_dir)
 
     config_name = "config_phase_resume.json" if resume_state else "config.json"
     with open(os.path.join(output_dir, config_name), "w") as f:
@@ -1135,11 +1161,14 @@ def run_incremental_training(config: Dict[str, Any]):
         last_round_record = None
 
         if algo == "nice":
-            nice_rounds = 1
+            nice_rounds = config.get("rounds_per_task", 1)
             if is_last_task:
-                print("\n  === NICE Training (1 rounds) [LAST EPISODE: tau=100%] ===")
+                print(
+                    f"\n  === NICE Training ({nice_rounds} rounds) "
+                    "[LAST EPISODE: tau=100%] ==="
+                )
             else:
-                print("\n  === NICE Training (1 rounds) ===")
+                print(f"\n  === NICE Training ({nice_rounds} rounds) ===")
             last_round_record = _run_tracked_rounds(
                 server,
                 lambda _r: server.train_round(
@@ -1347,10 +1376,14 @@ def run_incremental_training(config: Dict[str, Any]):
             if task_id > 0 and hasattr(server.global_model, "weight_align"):
                 server.global_model.weight_align(len(new_classes))
         elif algo == "plexus_nice":
+            nice_rounds = config.get("rounds_per_task", 1)
             if is_last_task:
-                print("\n  === PlexusNICE Training (1 rounds) [LAST EPISODE: tau=100%] ===")
+                print(
+                    f"\n  === PlexusNICE Training ({nice_rounds} rounds) "
+                    "[LAST EPISODE: tau=100%] ==="
+                )
             else:
-                print("\n  === PlexusNICE Training (1 rounds) ===")
+                print(f"\n  === PlexusNICE Training ({nice_rounds} rounds) ===")
             last_round_record = _run_tracked_rounds(
                 server,
                 lambda _r: server.train_round(
@@ -1358,7 +1391,7 @@ def run_incremental_training(config: Dict[str, Any]):
                     is_last_task=is_last_task,
                     verbose=True,
                 ),
-                1,
+                nice_rounds,
                 task_id,
                 output_dir,
                 all_history,

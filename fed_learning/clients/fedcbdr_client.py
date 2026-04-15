@@ -616,3 +616,59 @@ class FedCBDRClient(FederatedClient):
             "class_distribution": self.replay_buffer.get_class_distribution(),
             "buffer_size": self.buffer_size
         }
+
+    def get_resume_state(self) -> Dict[str, Any]:
+        """
+        Export only the persistent FedCBDR state needed for continuation.
+
+        Do not serialize X_original / y_original or current task raw tensors here.
+        Those are rebuilt from the loader when the client is recreated.
+        """
+        replay_state = {
+            "max_size": self.replay_buffer.max_size,
+            "total_samples": self.replay_buffer.total_samples,
+            "class_buffers": {
+                int(cls): {
+                    "X": buf["X"].detach().cpu().clone(),
+                    "y": buf["y"].detach().cpu().clone(),
+                    "importance": buf["importance"].detach().cpu().clone(),
+                }
+                for cls, buf in self.replay_buffer.class_buffers.items()
+            },
+        }
+        return {
+            "client_id": self.client_id,
+            "buffer_size": self.buffer_size,
+            "leverage_rank": self.leverage_calculator.rank,
+            "current_task": self.current_task,
+            "current_classes": sorted(self.current_classes),
+            "seen_classes": sorted(self.seen_classes),
+            "replay_buffer": replay_state,
+        }
+
+    def load_resume_state(self, state: Dict[str, Any]) -> None:
+        """Restore replay buffer and task trackers from continuation state."""
+        self.buffer_size = int(state.get("buffer_size", self.buffer_size))
+        leverage_rank = int(
+            state.get("leverage_rank", getattr(self.leverage_calculator, "rank", 50))
+        )
+        self.leverage_calculator = LeverageScoreCalculator(rank=leverage_rank)
+
+        self.current_task = int(state.get("current_task", self.current_task))
+        self.current_classes = set(state.get("current_classes", []))
+        self.seen_classes = set(state.get("seen_classes", []))
+
+        replay_state = state.get("replay_buffer", {})
+        max_size = int(replay_state.get("max_size", self.buffer_size))
+        self.replay_buffer = ReplayBuffer(max_size=max_size)
+        self.replay_buffer.class_buffers = {
+            int(cls): {
+                "X": buf["X"].detach().cpu().clone(),
+                "y": buf["y"].detach().cpu().clone(),
+                "importance": buf["importance"].detach().cpu().clone(),
+            }
+            for cls, buf in replay_state.get("class_buffers", {}).items()
+        }
+        self.replay_buffer.total_samples = int(
+            replay_state.get("total_samples", 0)
+        )

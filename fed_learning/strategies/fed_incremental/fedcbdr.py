@@ -231,6 +231,46 @@ class FedCBDRTrainer(BaseTrainer):
 
             self.last_af = forgetting_sum / max(1, count)
 
+    def get_resume_state(self) -> Dict[str, object]:
+        """Export compact trainer state for continuation."""
+        return {
+            "tau_old": self.tau_old,
+            "tau_new": self.tau_new,
+            "omega_old": self.omega_old,
+            "omega_new": self.omega_new,
+            "current_task": self.current_task,
+            "seen_classes": sorted(self.seen_classes),
+            "old_classes": list(self.old_classes),
+            "new_classes": list(self.new_classes),
+            "mu_coefficient": self.mu_coefficient,
+            "best_acc_per_task": dict(self.best_acc_per_task),
+            "current_acc_per_task": dict(self.current_acc_per_task),
+            "last_af": self.last_af,
+        }
+
+    def load_resume_state(self, state: Dict[str, object]) -> None:
+        """Restore trainer state for phase-2 continuation."""
+        self.tau_old = float(state.get("tau_old", self.tau_old))
+        self.tau_new = float(state.get("tau_new", self.tau_new))
+        self.omega_old = float(state.get("omega_old", self.omega_old))
+        self.omega_new = float(state.get("omega_new", self.omega_new))
+        self.current_task = int(state.get("current_task", self.current_task))
+        self.seen_classes = set(state.get("seen_classes", []))
+        self.old_classes = list(state.get("old_classes", []))
+        self.new_classes = list(state.get("new_classes", []))
+        self.mu_coefficient = float(
+            state.get("mu_coefficient", self.mu_coefficient)
+        )
+        self.best_acc_per_task = {
+            int(task_id): float(acc)
+            for task_id, acc in state.get("best_acc_per_task", {}).items()
+        }
+        self.current_acc_per_task = {
+            int(task_id): float(acc)
+            for task_id, acc in state.get("current_acc_per_task", {}).items()
+        }
+        self.last_af = float(state.get("last_af", self.last_af))
+
 
 class FedCBDRAggregator(BaseAggregator):
     """

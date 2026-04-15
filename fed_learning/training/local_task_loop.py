@@ -230,18 +230,20 @@ def _run_local_nice(
 
 
 def _run_local_generic(model, client, trainer, config, device, task_id, algorithm):
-    effective_epochs = max(
-        1, config.get("local_epochs", 1) * config.get("rounds_per_task", 1)
-    )
+    local_epochs = max(1, int(config.get("local_epochs", 1)))
+    num_rounds = max(1, int(config.get("rounds_per_task", 1)))
     client.setup_for_gpu(model, device)
 
-    client.train(
-        trainer=trainer,
-        epochs=effective_epochs,
-        batch_size=config["batch_size"],
-        lr=config["learning_rate"],
-        global_params=None,
-    )
+    print(f"  Local schedule: {num_rounds} rounds x {local_epochs} epochs")
+    for round_id in range(num_rounds):
+        print(f"    Round {round_id}/{num_rounds - 1}")
+        client.train(
+            trainer=trainer,
+            epochs=local_epochs,
+            batch_size=config["batch_size"],
+            lr=config["learning_rate"],
+            global_params=None,
+        )
 
 
 def _post_task_local(algorithm, trainer, model, client, combined_data, config, device):

@@ -130,6 +130,28 @@ class FedCBDRServer:
         """Update the client list for a new task while preserving server state."""
         self.clients = clients
 
+    def get_resume_state(self) -> Dict:
+        """Export lightweight server state for continuation."""
+        return {
+            "current_task": self.current_task,
+            "seen_classes": list(self.seen_classes),
+            "task_classes": {int(k): list(v) for k, v in self.task_classes.items()},
+            "leverage_rank": self.leverage_calculator.rank,
+        }
+
+    def load_resume_state(self, state: Dict) -> None:
+        """Restore server-side FedCBDR metadata."""
+        self.current_task = int(state.get("current_task", self.current_task))
+        self.seen_classes = list(state.get("seen_classes", self.seen_classes))
+        self.task_classes = {
+            int(task_id): list(classes)
+            for task_id, classes in state.get("task_classes", {}).items()
+        }
+        leverage_rank = int(
+            state.get("leverage_rank", getattr(self.leverage_calculator, "rank", 50))
+        )
+        self.leverage_calculator.rank = leverage_rank
+
     def train_round(self, participating_clients=None, verbose: bool = True) -> Dict:
         """Chạy một round train FedCBDR rồi aggregate bằng weighted average kiểu FedAvg."""
         import time

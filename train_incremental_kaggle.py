@@ -74,13 +74,13 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "fed_il",
+    "mode": "il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "cgofed",
+    "algorithm": "lwf",
     # Output
     "output_dir": "./results_incremental",
     # Split-run / continuation state
@@ -88,18 +88,18 @@ CONFIG = {
     #"task_start": 0,
     #"task_end": 2,
     #"save_resume_after_task": 2,
-    "resume_state_path": None,
+    #"resume_state_path": None,
     # Phase 2 example:
-    "task_start": 3,
-    "task_end": 5,
-    "resume_state_path": "/tmp/FL_IL_IDS/continue/cgofed_phase2.pt",
+    #"task_start": 3,
+    #"task_end": 5,
+    #"resume_state_path": "/tmp/FL_IL_IDS/continue/cgofed_phase2.pt",
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
-    # "task_start": 0,
-    # "task_end": 5,
-    # "save_resume_after_task": None,
-    # "resume_state_path": None,
-    # "resume_output_dir": None,
+    "task_start": 0,
+    "task_end": 5,
+    "save_resume_after_task": None,
+    "resume_state_path": None,
+    "resume_output_dir": None,
     # Incremental Learning - 6 Tasks Distribution
     # Task 0-4: 6 classes each, Task 5: 4 classes (total 34)
     "num_clients": 100,

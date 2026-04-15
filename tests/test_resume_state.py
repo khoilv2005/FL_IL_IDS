@@ -6,6 +6,7 @@ from fed_learning.strategies.fed_incremental.cgofed import (
     CGoFedAggregator,
     CGoFedTrainer,
 )
+from fed_learning.clients.fedcbdr_client import FedCBDRClient
 from fed_learning.strategies.incremental.ewc import EWCTrainer
 from fed_learning.training.resume_state import (
     restore_client_state,
@@ -161,3 +162,43 @@ def test_cgofed_aggregator_resume_materializes_historical_models():
     assert isinstance(restored.client_historical_models[7][0], OrderedDict)
     assert isinstance(restored._current_historical_models[0], OrderedDict)
     assert torch.equal(restored.task_global_models[0]["weight"], model_state["weight"])
+
+
+def test_fedcbdr_client_resume_keeps_replay_buffer_without_raw_dataset_dump():
+    client = FedCBDRClient(
+        client_id=3,
+        X_train=torch.randn(6, 4),
+        y_train=torch.tensor([0, 0, 1, 1, 2, 2]),
+        buffer_size=10,
+        leverage_rank=7,
+    )
+    client.current_task = 2
+    client.current_classes = {4, 5}
+    client.seen_classes = {0, 1, 2, 4, 5}
+    client.replay_buffer.add_samples(
+        X=torch.randn(3, 4),
+        y=torch.tensor([0, 1, 1]),
+        importance_scores=torch.tensor([0.2, 0.3, 0.5]),
+    )
+
+    state = snapshot_client_state(client)
+
+    assert "X_original" not in state["attrs"]
+    assert "y_original" not in state["attrs"]
+    assert "replay_buffer" in state["attrs"]
+
+    restored = FedCBDRClient(
+        client_id=3,
+        X_train=torch.zeros(1, 4),
+        y_train=torch.tensor([0]),
+        buffer_size=1,
+        leverage_rank=1,
+    )
+    restore_client_state(restored, state)
+
+    assert restored.current_task == 2
+    assert restored.current_classes == {4, 5}
+    assert restored.seen_classes == {0, 1, 2, 4, 5}
+    assert restored.leverage_calculator.rank == 7
+    assert restored.replay_buffer.total_samples == 3
+    assert restored.replay_buffer.num_classes == 2
