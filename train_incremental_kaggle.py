@@ -80,7 +80,7 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "cgofed",
+    "algorithm": "fedcbdr",
     # Output
     "output_dir": "./results_incremental",
     # Split-run / continuation state

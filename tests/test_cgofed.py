@@ -297,7 +297,7 @@ class TestCGoFedServer:
         """Eq.12 personalization should respect permutation-invariant similarity."""
         clients = [CGoFedClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
         server = self._make_server(clients)
-        server.eq12_self_weight = 0.0
+        server.eq12_peer_weight = 1.0
 
         results = [
             {
@@ -318,3 +318,17 @@ class TestCGoFedServer:
         ]
         personalized = server._compute_personalized_models(results)
         assert personalized[0]["w"].item() > 6.0
+
+    def test_eq12_personalization_is_additive_not_convex_blend(self):
+        """Eq.12 should add the weighted peer model on top of the client's own model."""
+        clients = [CGoFedClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
+        server = self._make_server(clients)
+        server.eq12_peer_weight = 1.0
+
+        personalized = server._blend_models(
+            OrderedDict({"w": torch.tensor([2.0])}),
+            OrderedDict({"w": torch.tensor([3.0])}),
+            peer_weight=server.eq12_peer_weight,
+        )
+
+        assert abs(personalized["w"].item() - 5.0) < 1e-6
