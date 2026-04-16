@@ -129,6 +129,7 @@ class NICEClient(FederatedClient):
         phase_epochs = getattr(trainer, "phase_epochs", self.phase_epochs)
         tau = getattr(trainer, "tau", self.tau)
         is_last_task = kwargs.get("is_last_task", False)
+        phase_offset = int(kwargs.get("phase_offset", 0))
 
         # Sample data for neuron selection (subsample for efficiency)
         n_sample = min(500, self.num_samples)
@@ -145,11 +146,12 @@ class NICEClient(FederatedClient):
         # Phase loop
         # ================================================================
         for phase in range(max_phases):
+            global_phase = phase_offset + phase
             # Official: Phase 1 uses tau=100% (keep all), Phase 2+ uses tau=config
             # Official: Last episode uses tau=100% for ALL phases (keep all neurons)
             if is_last_task:
                 phase_tau = 1.0  # Last episode: keep all neurons
-            elif phase == 0:
+            elif global_phase == 0:
                 phase_tau = 1.0  # First phase: keep all candidates
             else:
                 phase_tau = tau  # Other phases: prune with tau

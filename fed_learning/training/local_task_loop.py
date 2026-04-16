@@ -3,6 +3,7 @@
 import gc
 import json
 import os
+import time
 from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
@@ -153,97 +154,280 @@ def _compute_local_forgetting(
     return current_task_accuracies, af
 
 
+def _write_local_history(output_dir: str, history: Dict[str, Any]):
+    with open(os.path.join(output_dir, "results.json"), "w") as f:
+        json.dump(history, f, indent=2, default=str)
+
+    with open(os.path.join(output_dir, "round_metrics.json"), "w") as f:
+        json.dump(history.get("round_metrics", []), f, indent=2, default=str)
+
+
+def _get_seen_classes(data_loader: IncrementalDataLoader, task_id: int) -> List[int]:
+    return sorted(
+        {
+            cls_id
+            for prev_tid in range(task_id + 1)
+            for cls_id in data_loader.get_task_classes(prev_tid)
+        }
+    )
+
+
+def _save_local_round_checkpoint(
+    output_dir: str,
+    task_id: int,
+    round_id: int,
+    model: nn.Module,
+    config: Dict[str, Any],
+    seen_classes: List[int],
+    train_loss: float,
+    round_time: float,
+    metrics: Dict[str, Any],
+    avg_forgetting: float,
+    per_task_acc: Dict[int, float],
+):
+    ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}_round_{round_id}.pt")
+    torch.save(
+        {
+            "task_id": task_id,
+            "round_id": round_id,
+            "model_state_dict": OrderedDict(
+                (k, v.detach().cpu().clone()) for k, v in model.state_dict().items()
+            ),
+            "config": config,
+            "seen_classes": list(seen_classes),
+            "metrics": {
+                "train_loss": train_loss,
+                "round_time": round_time,
+                **metrics,
+                "avg_forgetting": avg_forgetting,
+            },
+            "per_task_acc": per_task_acc,
+        },
+        ckpt_path,
+    )
+    print(f"  Round checkpoint saved: {ckpt_path}")
+
+
+def _save_local_task_checkpoint(
+    output_dir: str,
+    task_id: int,
+    final_round_id: int,
+    model: nn.Module,
+    config: Dict[str, Any],
+    seen_classes: List[int],
+    metrics: Dict[str, Any],
+    avg_forgetting: float,
+    per_task_acc: Dict[int, float],
+):
+    ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
+    torch.save(
+        {
+            "task_id": task_id,
+            "final_round_id": final_round_id,
+            "model_state_dict": OrderedDict(
+                (k, v.detach().cpu().clone()) for k, v in model.state_dict().items()
+            ),
+            "config": config,
+            "seen_classes": list(seen_classes),
+            "metrics": {**metrics, "avg_forgetting": avg_forgetting},
+            "per_task_acc": per_task_acc,
+        },
+        ckpt_path,
+    )
+    print(f"Checkpoint saved: {ckpt_path}")
+
+
+def _record_local_round(
+    model: nn.Module,
+    device: str,
+    data_loader: IncrementalDataLoader,
+    output_dir: str,
+    history: Dict[str, Any],
+    task_id: int,
+    round_id: int,
+    train_loss: float,
+    round_time: float,
+    best_acc_per_task: Dict[int, float],
+    trainer,
+    config: Dict[str, Any],
+    seen_classes: List[int],
+):
+    test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+    metrics = _evaluate_model(model, {"X_test": test_X, "y_test": test_y}, device)
+    current_task_accuracies, af = _compute_local_forgetting(
+        model, device, data_loader, task_id, best_acc_per_task, trainer
+    )
+
+    round_record = {
+        "task": task_id,
+        "round": round_id,
+        "train_loss": train_loss,
+        "round_time": round_time,
+        "test_loss": metrics["loss"],
+        "accuracy": metrics["accuracy"],
+        "precision_macro": metrics["precision_macro"],
+        "recall_macro": metrics["recall_macro"],
+        "f1_macro": metrics["f1_macro"],
+        "f1_weighted": None,
+        "auc_macro_ovr": None,
+        "avg_forgetting": af,
+        "per_task_acc": current_task_accuracies,
+    }
+    history["round_metrics"].append(round_record)
+    _write_local_history(output_dir, history)
+
+    print(
+        "    Metrics -> "
+        f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
+        f"accuracy={metrics['accuracy'] * 100:.2f}%, "
+        f"f1={metrics['f1_macro'] * 100:.2f}%, "
+        f"precision={metrics['precision_macro'] * 100:.2f}%, "
+        f"recall={metrics['recall_macro'] * 100:.2f}%, "
+        f"AF={af * 100:.2f}%"
+    )
+
+    _save_local_round_checkpoint(
+        output_dir,
+        task_id,
+        round_id,
+        model,
+        config,
+        seen_classes,
+        train_loss,
+        round_time,
+        metrics,
+        af,
+        current_task_accuracies,
+    )
+    return round_record
+
+
 def _run_local_der(model, client, trainer, config, device, new_classes):
-    stage1_epochs = max(
-        1,
-        config.get("local_epochs", 1)
-        * config.get("der_stage1_rounds", config.get("rounds_per_task", 1)),
+    local_epochs = max(1, int(config.get("local_epochs", 1)))
+    stage1_rounds = max(
+        1, int(config.get("der_stage1_rounds", config.get("rounds_per_task", 1)))
     )
-    stage2_epochs = max(
-        1,
-        config.get("local_epochs", 1) * config.get("der_stage2_rounds", 3),
-    )
+    stage2_rounds = max(1, int(config.get("der_stage2_rounds", 3)))
+    round_records: List[Dict[str, float]] = []
 
     trainer.set_stage(1)
     client.setup_for_gpu(model, device)
-    client.train(
-        trainer=trainer,
-        epochs=stage1_epochs,
-        batch_size=config["batch_size"],
-        lr=config["learning_rate"],
-        global_params=None,
-        stage=1,
-    )
+    for stage_round in range(stage1_rounds):
+        start_time = time.time()
+        result = client.train(
+            trainer=trainer,
+            epochs=local_epochs,
+            batch_size=config["batch_size"],
+            lr=config["learning_rate"],
+            global_params=None,
+            stage=1,
+        )
+        round_records.append(
+            {
+                "round": stage_round,
+                "train_loss": float((result or {}).get("loss", 0.0)),
+                "round_time": time.time() - start_time,
+            }
+        )
 
     trainer.set_stage(2)
     if hasattr(model, "reset_classifier"):
         model.reset_classifier()
     client.setup_for_gpu(model, device)
-    client.train(
-        trainer=trainer,
-        epochs=stage2_epochs,
-        batch_size=config["batch_size"],
-        lr=config["learning_rate"],
-        global_params=None,
-        stage=2,
-    )
+    for stage_round in range(stage2_rounds):
+        round_id = stage1_rounds + stage_round
+        start_time = time.time()
+        result = client.train(
+            trainer=trainer,
+            epochs=local_epochs,
+            batch_size=config["batch_size"],
+            lr=config["learning_rate"],
+            global_params=None,
+            stage=2,
+        )
+        round_records.append(
+            {
+                "round": round_id,
+                "train_loss": float((result or {}).get("loss", 0.0)),
+                "round_time": time.time() - start_time,
+            }
+        )
 
     if hasattr(client, "update_exemplars"):
         client.update_exemplars(model)
     if getattr(model, "current_task", -1) > 0 and hasattr(model, "weight_align"):
         model.weight_align(len(new_classes))
+    return round_records
 
 
 def _run_local_nice(
     model, client, trainer, config, device, task_id, num_tasks, new_classes
 ):
-    trainer.max_phases = config.get(
-        "rounds_per_task", getattr(trainer, "max_phases", 1)
-    )
-    trainer.phase_epochs = config.get(
-        "local_epochs", getattr(trainer, "phase_epochs", 1)
-    )
+    num_rounds = max(1, int(config.get("rounds_per_task", 1)))
+    local_epochs = max(1, int(config.get("local_epochs", 1)))
+    trainer.max_phases = 1
+    trainer.phase_epochs = local_epochs
 
     for cls_id in new_classes:
         if cls_id < model.num_classes:
             model.unit_ranks["fc2"][cls_id] = 1
 
-    print(
-        f"  NICE local schedule: {trainer.max_phases} phases x "
-        f"{trainer.phase_epochs} epochs"
-    )
+    print(f"  NICE local schedule: {num_rounds} rounds x {local_epochs} epochs")
 
     client.setup_for_gpu(model, device)
-    client.train(
-        trainer=trainer,
-        epochs=trainer.phase_epochs,
-        batch_size=config["batch_size"],
-        lr=config["learning_rate"],
-        global_params=None,
-        is_last_task=(task_id == num_tasks - 1),
-    )
+    round_records: List[Dict[str, float]] = []
+    for round_id in range(num_rounds):
+        print(f"    Round {round_id}/{num_rounds - 1}")
+        start_time = time.time()
+        result = client.train(
+            trainer=trainer,
+            epochs=trainer.phase_epochs,
+            batch_size=config["batch_size"],
+            lr=config["learning_rate"],
+            global_params=None,
+            is_last_task=(task_id == num_tasks - 1),
+            phase_offset=round_id,
+        )
+        round_records.append(
+            {
+                "round": round_id,
+                "train_loss": float((result or {}).get("loss", 0.0)),
+                "round_time": time.time() - start_time,
+            }
+        )
 
     increase_unit_ranks(model)
     update_freeze_masks(model)
     if hasattr(model, "freeze_bn_for_mature"):
         model.freeze_bn_for_mature()
+    return round_records
 
 
 def _run_local_generic(model, client, trainer, config, device, task_id, algorithm):
     local_epochs = max(1, int(config.get("local_epochs", 1)))
     num_rounds = max(1, int(config.get("rounds_per_task", 1)))
     client.setup_for_gpu(model, device)
+    round_records: List[Dict[str, float]] = []
 
     print(f"  Local schedule: {num_rounds} rounds x {local_epochs} epochs")
     for round_id in range(num_rounds):
         print(f"    Round {round_id}/{num_rounds - 1}")
-        client.train(
+        start_time = time.time()
+        result = client.train(
             trainer=trainer,
             epochs=local_epochs,
             batch_size=config["batch_size"],
             lr=config["learning_rate"],
             global_params=None,
         )
+        round_records.append(
+            {
+                "round": round_id,
+                "train_loss": float((result or {}).get("loss", 0.0)),
+                "round_time": time.time() - start_time,
+            }
+        )
+    return round_records
 
 
 def _post_task_local(algorithm, trainer, model, client, combined_data, config, device):
@@ -336,13 +520,14 @@ def run_local_incremental_training(config: Dict[str, Any]):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _create_local_model(config["algorithm"], config, device)
-    all_history = {"task_accuracies": [], "task_forgetting": []}
+    all_history = {"task_accuracies": [], "task_forgetting": [], "round_metrics": []}
     best_acc_per_task: Dict[int, float] = {}
     persistent_client = None
     pending_client_state = None
 
     if resume_state is not None:
         all_history = resume_state.get("all_history", all_history)
+        all_history.setdefault("round_metrics", [])
         best_acc_per_task = resume_state.get("best_acc_per_task", {})
         restore_trainer_state(trainer, resume_state.get("trainer_state"))
         pending_clients = resume_state.get("persistent_clients_state", {})
@@ -407,12 +592,14 @@ def run_local_incremental_training(config: Dict[str, Any]):
 
         print(f"\n🎯 Local training on {len(new_classes)} new classes...")
         algo = config["algorithm"].lower()
+        seen_classes = _get_seen_classes(data_loader, task_id)
+        last_round_record = None
         if algo == "der":
-            _run_local_der(
+            round_records = _run_local_der(
                 model, persistent_client, trainer, config, device, new_classes
             )
         elif algo == "nice":
-            _run_local_nice(
+            round_records = _run_local_nice(
                 model,
                 persistent_client,
                 trainer,
@@ -423,8 +610,25 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 new_classes,
             )
         else:
-            _run_local_generic(
+            round_records = _run_local_generic(
                 model, persistent_client, trainer, config, device, task_id, algo
+            )
+
+        for round_summary in round_records:
+            last_round_record = _record_local_round(
+                model,
+                device,
+                data_loader,
+                output_dir,
+                all_history,
+                task_id,
+                int(round_summary["round"]),
+                float(round_summary.get("train_loss", 0.0)),
+                float(round_summary.get("round_time", 0.0)),
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
             )
 
         _post_task_local(
@@ -434,7 +638,11 @@ def run_local_incremental_training(config: Dict[str, Any]):
         test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
         metrics = _evaluate_model(model, {"X_test": test_X, "y_test": test_y}, device)
         print(
-            f"  Accuracy: {metrics['accuracy'] * 100:.2f}% | F1: {metrics['f1_macro'] * 100:.2f}%"
+            "  Task summary -> "
+            f"accuracy={metrics['accuracy'] * 100:.2f}%, "
+            f"f1={metrics['f1_macro'] * 100:.2f}%, "
+            f"precision={metrics['precision_macro'] * 100:.2f}%, "
+            f"recall={metrics['recall_macro'] * 100:.2f}%"
         )
 
         current_task_accuracies, af = _compute_local_forgetting(
@@ -443,32 +651,32 @@ def run_local_incremental_training(config: Dict[str, Any]):
         all_history["task_accuracies"].append(
             {
                 "task": task_id,
+                "final_round": last_round_record["round"] if last_round_record else 0,
+                "loss": metrics["loss"],
                 "accuracy": metrics["accuracy"],
+                "precision_macro": metrics["precision_macro"],
+                "recall_macro": metrics["recall_macro"],
                 "f1_macro": metrics["f1_macro"],
+                "f1_weighted": None,
+                "auc_macro_ovr": None,
                 "avg_forgetting": af,
                 "per_task_acc": current_task_accuracies,
             }
         )
+        all_history["task_forgetting"].append({"task": task_id, "avg_forgetting": af})
 
-        ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
-        torch.save(
-            {
-                "task_id": task_id,
-                "model_state_dict": OrderedDict(
-                    (k, v.detach().cpu().clone()) for k, v in model.state_dict().items()
-                ),
-                "config": config,
-                "seen_classes": sorted(
-                    {
-                        c
-                        for t in range(task_id + 1)
-                        for c in data_loader.get_task_classes(t)
-                    }
-                ),
-            },
-            ckpt_path,
+        _save_local_task_checkpoint(
+            output_dir,
+            task_id,
+            last_round_record["round"] if last_round_record else 0,
+            model,
+            config,
+            seen_classes,
+            metrics,
+            af,
+            current_task_accuracies,
         )
-        print(f"💾 Checkpoint saved: {ckpt_path}")
+        _write_local_history(output_dir, all_history)
 
         if config.get("save_resume_after_task") == task_id:
             local_model_state = None
@@ -489,13 +697,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 persistent_clients={0: persistent_client} if persistent_client else {},
                 all_history=all_history,
                 best_acc_per_task=best_acc_per_task,
-                seen_classes=sorted(
-                    {
-                        c
-                        for t in range(task_id + 1)
-                        for c in data_loader.get_task_classes(t)
-                    }
-                ),
+                seen_classes=seen_classes,
             )
             continuation_path = save_continuation_state(
                 output_dir, task_id, continuation_state
@@ -514,7 +716,6 @@ def run_local_incremental_training(config: Dict[str, Any]):
         print(f"Final Accuracy: {final['accuracy'] * 100:.2f}%")
         print(f"Final Forgetting: {final['avg_forgetting'] * 100:.2f}%")
 
-    with open(f"{output_dir}/results.json", "w") as f:
-        json.dump(all_history, f, indent=2)
+    _write_local_history(output_dir, all_history)
 
     return all_history

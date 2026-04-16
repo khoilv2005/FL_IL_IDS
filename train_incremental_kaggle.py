@@ -74,13 +74,13 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "il",
+    "mode": "fed_il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "lwf",
+    "algorithm": "cgofed",
     # Output
     "output_dir": "./results_incremental",
     # Split-run / continuation state
@@ -114,7 +114,7 @@ CONFIG = {
     "local_epochs": 1,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
-    "batch_size": 512,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
+    "batch_size": 2048,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
     "eval_every": 1,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
