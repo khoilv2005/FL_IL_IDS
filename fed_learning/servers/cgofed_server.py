@@ -62,12 +62,9 @@ class CGoFedServer(IncrementalServer):
         # Paper Eq. 12: Per-client personalized models for next round initialization
         self._personalized_round_models: Dict[int, OrderedDict] = {}
 
-        # Paper Eq. 12 is additive: Θ_k^{t,g} = Θ_k^t + Σ_i w_i Θ_i^t.
-        # Keep an optional scale on the peer term for backward compatibility.
-        self.eq12_peer_weight = float(
-            config.get("eq12_peer_weight", config.get("eq12_self_weight", 1.0))
-        )
-        self.eq12_peer_weight = max(0.0, self.eq12_peer_weight)
+        # Ratio between own model and weighted sum of other-client models (Eq. 12 note)
+        self.eq12_self_weight = float(config.get("eq12_self_weight", 0.5))
+        self.eq12_self_weight = max(0.0, min(1.0, self.eq12_self_weight))
 
     def _sync_history_from_aggregator(self) -> None:
         """
@@ -145,8 +142,7 @@ class CGoFedServer(IncrementalServer):
             "current_task": self.current_task,
             "seen_classes": list(self.seen_classes),
             "task_classes": {int(k): list(v) for k, v in self.task_classes.items()},
-            "eq12_peer_weight": self.eq12_peer_weight,
-            "eq12_self_weight": self.eq12_peer_weight,
+            "eq12_self_weight": self.eq12_self_weight,
         }
 
     def load_resume_state(self, state: Dict) -> None:
@@ -157,11 +153,8 @@ class CGoFedServer(IncrementalServer):
             int(task_id): list(classes)
             for task_id, classes in state.get("task_classes", {}).items()
         }
-        self.eq12_peer_weight = float(
-            state.get(
-                "eq12_peer_weight",
-                state.get("eq12_self_weight", self.eq12_peer_weight),
-            )
+        self.eq12_self_weight = float(
+            state.get("eq12_self_weight", self.eq12_self_weight)
         )
         self._task_global_models = {}
         self._task_representation_matrices = {}
@@ -456,19 +449,23 @@ class CGoFedServer(IncrementalServer):
 
     @staticmethod
     def _blend_models(
-        own_params: OrderedDict, others_params: OrderedDict, peer_weight: float
+        own_params: OrderedDict, others_params: OrderedDict, self_weight: float
     ) -> OrderedDict:
         """
-        Paper Eq. 12: Θ_k^{t,g} = Θ_k^t + Σ_i w_i Θ_i^t.
+        Paper Eq. 12: Θ^{t,g}_k = β * Θ^t_k + (1-β) * Σ w_i Θ^t_i.
 
-        We keep an optional non-negative scale on the peer term for ablations or
-        backward compatibility. `peer_weight=1.0` reproduces the paper formula.
+        Convex combination (interpolation) of own model and weighted others.
+        self_weight is β (eq12_self_weight). When β=1 the result is pure own model;
+        when β=0 the result is pure weighted sum of others.
         """
         blend = OrderedDict()
         for name, own_tensor in own_params.items():
             if own_tensor.dtype.is_floating_point and name in others_params:
                 other_tensor = others_params[name].to(dtype=torch.float32)
-                mixed = own_tensor.float() + peer_weight * other_tensor
+                mixed = (
+                    self_weight * own_tensor.float()
+                    + (1.0 - self_weight) * other_tensor
+                )
                 blend[name] = mixed.to(dtype=own_tensor.dtype)
             else:
                 blend[name] = own_tensor.clone()
@@ -546,7 +543,7 @@ class CGoFedServer(IncrementalServer):
             personalized_models[client_id] = self._blend_models(
                 own_params,
                 others_agg,
-                peer_weight=self.eq12_peer_weight,
+                self_weight=self.eq12_self_weight,
             )
 
         return personalized_models

@@ -80,26 +80,26 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "fedcbdr",
+    "algorithm": "cgofed",
     # Output
     "output_dir": "./results_incremental",
     # Split-run / continuation state
     # Phase 1 example:
-    #"task_start": 0,
-    #"task_end": 2,
-    #"save_resume_after_task": 2,
-    #"resume_state_path": None,
+    "task_start": 0,
+    "task_end": 2,
+    "save_resume_after_task": 2,
+    "resume_state_path": None,
     # Phase 2 example:
     #"task_start": 3,
     #"task_end": 5,
     #"resume_state_path": "/tmp/FL_IL_IDS/continue/cgofed_phase2.pt",
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
-    "task_start": 0,
-    "task_end": 5,
-    "save_resume_after_task": None,
-    "resume_state_path": None,
-    "resume_output_dir": None,
+    #"task_start": 0,
+    #"task_end": 5,
+    #"save_resume_after_task": None,
+    #"resume_state_path": None,
+    #"resume_output_dir": None,
     # Incremental Learning - 6 Tasks Distribution
     # Task 0-4: 6 classes each, Task 5: 4 classes (total 34)
     "num_clients": 100,
