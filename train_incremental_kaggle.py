@@ -92,7 +92,7 @@ CONFIG = {
     # Phase 2 example:
     "task_start": 4,
     "task_end": 5,
-    "resume_state_path": "/tmp/FL_IL_IDS/continue/cgofed_phase2.pt",
+    "resume_state_path": "/tmp/next/continue/cgofed_phase3.pt",
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
     #"task_start": 0,
