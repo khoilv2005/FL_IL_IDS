@@ -220,6 +220,15 @@ def clone_model_state_dict(params: OrderedDict) -> OrderedDict:
     return OrderedDict((k, v.detach().cpu().clone()) for k, v in params.items())
 
 
+def restore_model_reference(obj: Any) -> OrderedDict:
+    """
+    Restore a persisted model entry from either:
+    - a materialized OrderedDict of tensors, or
+    - a lightweight artifact reference dict from older continuation files.
+    """
+    return clone_model_state_dict(load_model_state(obj))
+
+
 def serialize_model_reference(obj: Any) -> OrderedDict:
     """
     Convert any supported model reference into an in-memory state dict.
@@ -1623,12 +1632,12 @@ class CGoFedAggregator(BaseAggregator):
             for client_id, task_map in state.get("client_representations", {}).items()
         }
         self.task_global_models = {
-            int(task_id): clone_model_state_dict(params)
+            int(task_id): restore_model_reference(params)
             for task_id, params in state.get("task_global_models", {}).items()
         }
         self.client_historical_models = {
             int(client_id): {
-                int(task_id): clone_model_state_dict(params)
+                int(task_id): restore_model_reference(params)
                 for task_id, params in task_map.items()
             }
             for client_id, task_map in state.get("client_historical_models", {}).items()
@@ -1647,7 +1656,7 @@ class CGoFedAggregator(BaseAggregator):
             for key, value in state.get("_current_similarity_weights", {}).items()
         }
         self._current_historical_models = {
-            key: clone_model_state_dict(params)
+            key: restore_model_reference(params)
             for key, params in state.get("_current_historical_models", {}).items()
         }
 

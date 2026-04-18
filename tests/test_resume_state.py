@@ -164,6 +164,60 @@ def test_cgofed_aggregator_resume_materializes_historical_models():
     assert torch.equal(restored.task_global_models[0]["weight"], model_state["weight"])
 
 
+def test_cgofed_aggregator_resume_accepts_legacy_model_artifact_refs(tmp_path):
+    history_dir = tmp_path / "history"
+    history_dir.mkdir()
+    model_state = OrderedDict(weight=torch.tensor([1.0, 2.0]))
+    artifact_path = history_dir / "task0.pt"
+    torch.save(model_state, artifact_path)
+
+    legacy_state = {
+        "cross_task_weight": 0.3,
+        "top_k": 2,
+        "rounds_per_task": 20,
+        "current_task": 2,
+        "_round_in_task": 0,
+        "client_representations": {},
+        "task_global_models": {
+            0: {
+                "_artifact_type": "cgofed_model_artifact",
+                "path": str(artifact_path),
+                "key": "task_0",
+            }
+        },
+        "client_historical_models": {
+            7: {
+                0: {
+                    "_artifact_type": "cgofed_model_artifact",
+                    "path": str(artifact_path),
+                    "key": "client_7_task_0",
+                }
+            }
+        },
+        "task_representations": {},
+        "task_representation_matrices": {},
+        "_current_similarity_weights": {},
+        "_current_historical_models": {
+            0: {
+                "_artifact_type": "cgofed_model_artifact",
+                "path": str(artifact_path),
+                "key": "task_0",
+            }
+        },
+    }
+
+    restored = CGoFedAggregator(rounds_per_task=20)
+    restored.load_resume_state(legacy_state)
+
+    assert torch.equal(restored.task_global_models[0]["weight"], model_state["weight"])
+    assert torch.equal(
+        restored.client_historical_models[7][0]["weight"], model_state["weight"]
+    )
+    assert torch.equal(
+        restored._current_historical_models[0]["weight"], model_state["weight"]
+    )
+
+
 def test_fedcbdr_client_resume_keeps_replay_buffer_without_raw_dataset_dump():
     client = FedCBDRClient(
         client_id=3,
