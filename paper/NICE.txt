@@ -1,0 +1,714 @@
+                          This CVPR paper is the Open Access version, provided by the Computer Vision Foundation.
+                                       Except for this watermark, it is identical to the accepted version;
+                                 the final published version of the proceedings is available on IEEE Xplore.
+
+
+
+
+      NICE: Neurogenesis Inspired Contextual Encoding for Replay-free Class
+                             Incremental Learning
+
+                    Mustafa Burak Gurbuz                                    Jean Michael Moorman
+             Georgia Institute of Technology, USA                     Georgia Institute of Technology, USA
+                       mgurbuz6@gatech.edu                                      jmoorman9@gatech.edu
+
+                                                 Constantine Dovrolis
+                                            The Cyprus Institute, Cyprus
+                                         Georgia Institute of Technology, USA
+                                                 constantine@gatech.edu
+
+
+
+                         Abstract                                    vanced the field, it overlooks a key facet of intelligence:
+                                                                     the ability to continuously learn from non-stationary distri-
+    Deep neural networks (DNNs) struggle to learn in dy-             butions over time. In such continual learning (CL) scenar-
+namic settings because they mainly rely on static datasets.          ios, when DNNs process new data, they tend to suffer from
+Continual learning (CL) aims to overcome this limitation by          catastrophic forgetting (CF) of prior knowledge [25, 44].
+enabling DNNs to incrementally accumulate knowledge. A                   Recent interest in CL has led to various scenarios [21, 48,
+widely adopted scenario in CL is class-incremental learn-            71]. Widely adopted are class-incremental learning (CIL)
+ing (CIL), where DNNs are required to sequentially learn             and task-incremental learning (TIL) [67, 68]. In both, learn-
+more classes. Among the various strategies in CL, replay             ers process series of datasets and classify test samples into
+methods, which revisit previous classes, stand out as the            previously seen classes. The difference between them lies
+only effective ones in CIL. Other strategies, such as ar-            in the handling of test samples. In TIL, a task identifier
+chitectural modifications to segregate information across            indicates the originating dataset of the test sample. In con-
+weights and protect them from change, are ineffective in             trast, CIL lacks this information, requiring learners to also
+CIL. This is because they need additional information dur-           distinguish classes appearing at different timepoints.
+ing testing to select the correct network parts to use. In this          This subtle distinction leads to significant variations in
+paper, we propose NICE, Neurogenesis Inspired Contex-                performance. Many TIL approaches either fail or show sub-
+tual Encoding, a replay-free architectural method inspired           stantial drops in performance when adapted to CIL. Among
+by adult neurogenesis in the hippocampus. NICE groups                the various strategies to address CL, replay stand out as the
+neurons in the DNN based on different maturation stages              only effective ones in the CIL setting [23, 31, 36, 67]. In
+and infers which neurons to use during testing without any           their basic form, replay methods retain a subset of samples
+additional signal. Through extensive experiments across 6            from all previously seen classes [19]. When introduced to a
+datasets and 3 architectures, we show that NICE performs             new class, they augment the training batches with samples
+on par with or often outperforms replay methods. We also             from earlier classes and train on all classes simultaneously.
+make the case that neurons exhibit highly distinctive acti-              Despite the success of replay methods, they have faced
+vation patterns for the classes in which they specialize, en-        some criticism. For example, [50] proposed the GDumb
+abling us to determine when they should be used. The code            algorithm, which keeps a subset of samples and retrains
+is available at https://github.com/BurakGurbuz97/NICE.               a model from scratch on these samples at test time, as a
+                                                                     critique of prevailing replay methods. Surprisingly, this
+                                                                     straightforward approach often outperforms well-known re-
+1. Introduction                                                      play methods, suggesting that the performance of these
+                                                                     methods may largely depend on the samples retained in
+Deep neural networks (DNNs) are typically trained on static          memory. Another work [16] indicates that in the Experience
+data distributions, where training batches are drawn from            Replay (ER) algorithm [19], which has inspired numerous
+a fixed dataset adhering to the independent and identically          replay methods, representations of older classes are rapidly
+distributed (i.i.d.) assumption. While this approach has ad-         disrupted when training on new classes. Consequently, the
+
+
+
+                                                                  23659
+                                                                            Consequently, we are motivated to develop an architec-
+                                                                         ture that recognizes the sequential aspect of CL. Our inten-
+                                                                         tion is not to discredit replay. Biology has taught us that the
+                                                                         replay of neural patterns is essential in memory formation,
+                                                                         retrieval, and consolidation in the brain. It stands as a valu-
+                                                                         able model, inspired by nature, for achieving CL desiderata
+                                                                         [29, 30, 38, 66]. However, nature also offers architectural
+                                                                         insights to preserve knowledge while continuing to learn
+                                                                         progressively. Hence, this paper seeks to identify neuro-
+                                                                         inspired architectural strategies to address CIL. We do not
+                                                                         perform any replay and focus on the architecture alone. In
+                                                                         the long run, architectures with CIL capabilities can serve as
+                                                                         a backbone for hybrid systems that use other CL strategies,
+                                                                         including replay – briefly discussed in Section 5.
+Figure 1. Top: DER & FDR trained on MNIST, with vertical                    Note that while architectural strategies are common in
+dashed lines indicating the introduction of two novel classes. Bot-      CL, their effectiveness is largely limited to TIL [31, 36].
+tom: Accuracy across all classes after sequentially learning Fash-       The few methods developed for CIL still tend to signifi-
+ionMNIST and CIFAR10. Results are averaged across 3 seeds.               cantly underperform in comparison to even simple replay
+                                                                         [62, 63]. We propose an architectural approach that not only
+model must relearn representations for these older classes.
+                                                                         rivals but often outperforms replay methods in CIL.
+   Following these critiques, we evaluated some common
+                                                                            Our approach, Neurogenesis Inspired Contextual Encod-
+replay methods and observed similar issues. For instance,
+                                                                         ing (NICE), is inspired by adult neurogenesis observed in
+Figure 1 shows the performance of the Dark Experience
+                                                                         the hippocampus. This process continuously introduces
+Replay (DER) [14] and Function Distance Regularization
+                                                                         adult-born granule cells into the dentate gyrus, providing
+(FDR) [9] methods on the first two classes of MNIST as we
+                                                                         a unique form of plasticity not found in most other brain
+introduce more classes. Both methods exhibit a drastic drop
+                                                                         regions [2, 3, 46]. As these newly introduced cells ma-
+in accuracy for the first two classes after few updates with
+                                                                         ture, they help to form disentangled representations for ex-
+new data, despite using replay. After this drop, they recover
+                                                                         periences and play a crucial role in contextual discrimina-
+performance on previous classes with the aid of replay. Sup-
+                                                                         tion [20, 47, 65, 74]. This process facilitates the efficient
+plementary Material Section-D.1 presents similar observa-
+                                                                         integration of new information without causing forgetting.
+tions on larger datasets. This drop in performance does not
+                                                                         In DNNs, we emulate this by introducing neurons at dif-
+necessarily mean complete forgetting, as knowledge may
+                                                                         ferent maturation stages. Furthermore, we have devised a
+be kept in earlier layers. To investigate this, we reset the
+                                                                         context-detector that identifies which neurons are most pre-
+weights of the replay methods each time new classes were
+                                                                         dictive for a sample. During testing, this detector predicts
+introduced. As shown in Figure 1, they experienced a mild
+                                                                         the context and sends inhibitory signals to certain neurons
+drop in accuracy due to the weight reset. This mild drop
+                                                                         that would otherwise cause interference. A comprehensive
+indicates that information is not entirely forgotten. How-
+                                                                         discussion of the neuroscientific underpinnings of NICE is
+ever, these results also suggest that the accuracy of replay
+                                                                         presented in the Supplementary Material Section-E.
+methods fluctuates erratically with the new data.
+   We argue that this issue arises because the architecture              2. Related Work
+does not recognize the sequential nature of learning. Re-
+play primarily focuses on inputs and outputs. With this                  More detailed overviews can be found in [21, 48, 71].
+approach, the network distributes information across all
+                                                                         2.1. Replay Methods for CL
+weights, optimizing for i.i.d. input. However, in CL, in-
+put is not i.i.d., and new classes can cause rapid disrup-               Raw Replay: The most common form of replay is revisit-
+tion in representations, leading to performance fluctuations             ing old examples [6, 11, 12, 14, 16, 19, 41, 50, 52, 60, 76].
+and abrupt forgetting. For instance, when new data is                    They employ an extra memory and fill it by sampling from
+introduced, neurons representing old classes are likely to               seen examples. The batches are formed by mixing examples
+make overconfident, incorrect predictions because standard               from new dataset with memory examples. Although it is an
+DNNs suffer from a calibration problem – that is, a model’s              effective strategy, raw replay may not be feasible in settings
+predicted class probabilities do not accurately estimate the             where the indefinite retention of previous data is prohibited
+true likelihood of correctness [26, 27]. Thus, output neu-               due to regulatory restrictions or compute limitations.
+rons of old classes receive significant penalties, and class                Generative Replay: Some studies have suggested using
+representations rapidly change, especially in the top layers.            a generative model to produce samples that resemble seen
+
+
+
+                                                                      23660
+examples [7, 8, 15, 35, 51, 54, 61]. They address data reten-       ages. These ages start at 0 and can increase up to the num-
+tion concerns, but with high computational costs. Training          ber of episodes observed, reflecting the neurons’ maturation
+generative models is challenging since they also forget [66].       levels. We represent the neuron i in layer l as nli ∈ N l . Ad-
+   Activation Replay: Some works suggested replaying                ditionally, we use subscripts to denote neurons with certain
+                                                                                           l
+activations [29, 49, 66, 70]. They pass examples through            ages; for example, N=1   represents all neurons in layer l that
+a frozen feature extractor, storing the activations output by       are age 1. Furthermore, A(nli , x, α) denotes the activation
+the feature extractor rather than the examples. Thus, they          of the neuron nli for the sample x, considering only incom-
+can store more within the same memory budget, and they              ing activations from previous layer neurons of age α.
+do not access old data. However, they depend on pretrain-
+ing and freezing. Without these steps, stored activations
+                                                                    3.2. Neuron Ages
+become outdated once the feature extractors are updated.            Neurogenesis (from age 0 to 1): NICE draws inspiration
+   Lastly, replay methods revisit all classes to create             from biological neurogenesis, which continually integrates
+batches, which introduces significant computational over-           new neurons into neural circuits. However, the growing ar-
+head. Furthermore, they focus on engineering the input              chitectures introduce complexity and computational over-
+rather than addressing forgetting within the architecture.          head. Thus, we have adapted the neurogenesis idea to a
+                                                                    fixed architecture. In this model, neurons are initially as-
+2.2. Replay-free Approaches in CL                                   signed an age of 0, indicating that they are in surplus ca-
+Regularization Methods: Regularization methods modu-                pacity (i.e., neurons to be added to the architecture). As
+late updates to protect important weights and preserve past         network learns, we periodically transition neurons between
+knowledge [5, 17, 37, 40, 55, 58, 59, 78]. However, they            age-0 and age-1 to determine which neurons should be per-
+primarily work in TIL and perform poorly in CIL settings            manently integrated into the network. When learning begins
+[31, 36, 67], as their training does not enforce discrimina-        with the new dataset De , all neurons at age 0 are temporarily
+tion across classes that appear at different time points.           set to age 1. Subsequently, every p epochs, we revert some
+    Architectural Methods: Some work modifies the DNN               neurons back to age 0 based on their activations. Here, p
+structure to perform CL. They allocate distinct parameters          is NICE’s only additional hyperparameter. To revert neu-
+for tasks (e.g., set of classes) to segregate the knowledge         rons back to age-0, first, we calculate the activations (after
+of different classes. This segregation is often achieved by         ReLU) of the neurons at age 1 in each layer, using a subset
+expanding new branches/modules [4, 45, 56, 57, 69, 75]              of the episode examples (1024 for experiments):
+or partitioning existing connections through weight pruning
+                                                                                                          A^l_{=1} = \sum _{x_k \sim D_e} \sum _{n_i^l \in N^l_{=1}} A(n_i^l, x_k, 1)                                                                 (1)
+[1, 28, 33, 42, 62, 63]. Additionally, another approach en-
+tails learning unique masks for each task to select a subset
+of weights for a given task [34, 43, 72, 73]. A common is-             Here, Al=1 the total activation for layer l, considering
+sue with these architectural methods is their heavy reliance        only neurons at age 1. Next, we select age-1 neurons to
+on task identifiers to determine which branches, modules,           keep at layer l denoted by set S1l by solving the following
+or masks to use for predictions, rendering them effective           discrete constrained optimization problem:
+only in TIL settings. As far as we are aware, only SpaceNet
+[62] and AFAF [63] demonstrate good performance in CIL                     \underset {S_1^l \subseteq N_{=1}^l}{\text {min}} \left | S_1^l \right | \; \text {subject to} \sum _{x_k \sim D_e} \sum _{n_i^l \in S^l_{1}} A(n_i^l, x_k, 1) \geq \tau A^l_{=1} 
+scenarios among architectural methods. However, they sig-
+nificantly lag behind replay methods. Our approach, NICE,                                                                     (2)
+is an architectural method; however, it does not rely on task-          Simply put, we aim to keep the smallest subset of age-
+identifiers and often outperforms replay methods.                   1 neurons that, in combination, contribute to at least a τ
+                                                                    fraction (set at 0.95 in our experiments) of the layer’s to-
+3. Neurogenesis Inspired Contextual Encoding                        tal activation. The problem can be solved optimally using a
+                                                                    greedy algorithm. First, sort the neurons based on their ac-
+3.1. Problem Formulation and Notation
+                                                                    tivations in descending order. Then, select neurons with the
+We focus on CIL through a series of E episodes where each           highest activation until the target is achieved or exceeded
+episode e has a training dataset De . Although the term task        (see Supplementary Material Section-C for the proof).
+is commonly used in the literature, we avoid using it due to            We assume that the activation of a neuron is a reliable
+its various meanings in different contexts. A neural network        indicator of its importance in learning. This assumption is
+f with L layers is trained sequentially on one dataset per          supported by previous research in CL [24, 28, 33], network
+episode. At test time, f is given a new example x and must          pruning [32, 39, 53], and model interpretation [22, 77].
+predict its label from the set of classes observed so far.          Nevertheless, it is possible to substitute this score of im-
+    In NICE, neurons in f are denoted as N and are assigned         portance with more complex scores. Note that the τ value
+
+
+
+                                                                 23661
+Figure 2. a) Transition diagram of neuron ages. b) Paths within the network and their roles. c) Diagram of NICE operations. d) Overview
+structure of the NICE. Gray neurons are reserved for the future, green neurons are receiving gradient updates, and blue neurons are frozen.
+
+that is set to 0.95 may require adjustment for different im-            frozen neurons, if included, cannot decrease in activation
+portance scores. Excessively high values of τ could result              due to their state. This could potentially lead to an unin-
+in the selection of too many neurons, thereby diminishing               tended escalation in the activity of other neurons as they try
+the capacity available for future tasks. Conversely, setting τ          to compensate, which could cause training instability.
+too low could lead to aggressive elimination, which might                  To summarize, age-0 neurons act as excess capacity, age-
+not allocate sufficient capacity to learn current classes.              1 neurons are immature neurons that are plastic and learn,
+    Maturation (from age 1 to beyond): At the end of each               and neurons older than age 1 are mature neurons serving as
+episode, a subset of neurons maintains age-1, while the re-             memory. Another way to view this is in terms of paths from
+mainder revert to N=0 because of the iterative elimination.             layer-1 to outputs. If we traverse along the paths, we can
+We then age all neurons above age-0 by one, allowing those              only have monotonically non-increasing paths in terms of
+that survived the elimination to mature to age-2. These neu-            ages. Here, decreasing paths are knowledge transfer paths
+rons will continue to age incrementally after each episode,             that carry information from older episodes to newer ones.
+as shown in Figure 2-a. As neurons age, they lose plastic-              Paths that form only same age neurons are backbones for
+ity and connections, which we will explain next. By design,             particular episode’s knowledge, while increasing paths are
+input neurons always have the maximum age (i.e., E), and                not permitted because of pruning (see Figure 2-b).
+output neurons are aged to 1 when their class is first seen.               In NICE, a subnetwork comprising neurons of a cer-
+                                                                        tain age and older is isolated from future updates by means
+3.3. Avoiding Interference Between Neurons                              of freezing and pruning, ensuring that these neurons re-
+We group neurons by their age, which indicates the episode              main unchanged (i.e., they neither forget nor learn). Conse-
+during which they were introduced. For example, in episode              quently, this approach guarantees zero forgetting, provided
+3, age-1 neurons are newly selected, while age-2 and age-3              that we are able to identify the ages associated with pre-
+neurons were selected at the end of episodes 2 and 1, re-               dicting the class of a test example. Let us assume we are
+spectively. The formula is: at episode E, the neurons re-               in episode E, we encounter a test example that pertains to
+sponsible for episode e are at the age of E − e + 1.                    a class taught in episode e (although this is unknown to
+    Now, we will avoid modifying neurons age-2 or older so              the model). Then the correct output neuron would be one
+that NICE does not forget earlier episodes. Learning mod-               from age E − e + 1. Therefore, our focus is on the subnet-
+ifies a neuron in two ways: (a) by directly changing the in-            work connected to these output neurons (comprising neu-
+coming connections and (b) by altering the connections of               rons N≥E−e+1 ). In the following, we explain how to infer
+ancestors. To address (a), we freeze incoming connections               which neuron ages should be utilized during prediction.
+to neurons older than 1. We tackle (b) by pruning connec-
+                                                                        3.4. Context-Detector
+tions from age-u to age-v neurons where u < v, applying
+this every p epochs. So, neurons cannot have younger an-                NICE infers which ages to use during predictions through
+cestors that will receive updates. This does not completely             a context-detector, akin to the hippocampus where neurons
+isolate neurons of different ages; we keep connections from             at different maturation stages enable contextual discrimina-
+older to younger ones to allow knowledge transfer between               tion. However, the underlying mechanisms involve com-
+episodes. The combination of these two operations ensures               plex recurrent relationships between hippocampal regions
+neurons age-2 or older never change. Note that when train-              [20, 47, 65, 74]. We adopt a simplified perspective and use
+ing with cross-entropy loss, we only consider the activations           the network’s global activation patterns to infer context.
+of output neurons that correspond to batch classes prior to                Firstly, we periodically store information on neurons
+the softmax. This is a pivotal step as it avoids including              N>0 that exhibit high activation for some recently seen ex-
+frozen neurons whose classes are not in the batch. These                amples. Specifically, every p epochs, we input m randomly
+
+
+
+                                                                    23662
+                                                                                                                                                                                                           Given a test sample, we input it to the network, gen-
+                                                                                                                                                                                                       erate a binary activation vector, and evaluate it using our
+                                                                                                                                                                                                       chained probabilities. This results in a probability distribu-
+                                                                                                                                                                                                       tion across episodes, helping us identify the most probable
+                                                                                                                                                                                                       episode and inhibiting irrelevant outputs. Note that the neu-
+                                                                                                                                                                                                       rons used for learning these conditional probabilities are al-
+                                                                                                                                                                                                       ready frozen and isolated from the younger ones. Therefore,
+                                                                                                                                                                                                       they remain constant despite training, ensuring that memory
+Figure 3. Left: Example memory for a network with 8 neurons and                                                                                                                                        entries do not become outdated. While this method requires
+m = 3. Right: Illustration of chaining conditional probabilities.
+                                                                                                                                                                                                       fitting logistic regressions, the cost is negligible compared
+                                                                                                                                                                                                       to training DNN on older classes (i.e., replay).
+selected examples into the f and get activations. Next, we
+apply threshold tl on each layer activations, with tl defined                                                                                                                                          3.5. Summary
+as the mean plus one standard deviation of the activations in
+                                                                                                                                                                                                       Over the course of training, we select neurons (Section 3.2),
+layer l after episode-1 (for simplicity, we rely on statistics
+                                                                                                                                                                                                       update connections (Section 3.3), train for p epochs, and up-
+from the first episode). This yields a binary vector, repre-
+                                                                                                                                                                                                       date the memory and context detector (Section 3.4). We re-
+senting the neurons that were notably active for the samples
+                                                                                                                                                                                                       peat this cycle until an episode ends. Once an episode ends,
+in the current episode. To illustrate this with a simplified
+                                                                                                                                                                                                       we increment the ages and freeze certain neurons (Section
+example, imagine we have 8 neurons, and during episode 3,
+                                                                                                                                                                                                       3.3). Figure 2-c shows a diagram of these operations. Note
+our neurons are grouped as follows: N=3 = {n1 , n2 , n3 },
+                                                                                                                                                                                                       training always ends with memory and context detector up-
+N=2 = {n4 , n5 }, N=1 = {n6 , n7 }, and N=0 = {n8 }.
+                                                                                                                                                                                                       date. The pseudo-code for the NICE is provided in the Sup-
+Also, let’s assume that m = 3. An example memory state
+                                                                                                                                                                                                       plementary Material Section-B. At test time, we input the
+for this case is shown on the left side of Figure 3. Note that
+                                                                                                                                                                                                       test example x into the network, generate activations and
+if we already have memory allocated for current episode
+                                                                                                                                                                                                       then feed the thresholded binary vector into the context-
+classes, incoming ones will replace the existing ones.
+                                                                                                                                                                                                       detector to infer the episode (see Figure 2-d). Suppose the
+    Next, we learn a set of conditional probabilities using
+                                                                                                                                                                                                       current episode is E, and our context indicates that the test
+this binary memory of activations. We model these con-
+                                                                                                                                                                                                       sample x belongs to Ep ; in that case, we mask out output
+ditional probabilities by fitting a logistic regression model.
+                                                                                                                                                                                                       neurons except for those of age-(E−Ep +1). This let us use
+Suppose we are at episode E. First, we calculate the condi-
+                                                                                                                                                                                                       the subnetwork that is composed of neurons N≥E−Ep +1 .
+tional probability that a sample belongs to episode 1 (e = 1)
+                                                                                                                                                                                                       For instance, the context-detector predicts that an input im-
+given observations N=E , or P (E1 |N=E ), using memory
+                                                                                                                                                                                                       age is an animal, then the subnetwork deduces it is a cat.
+(recall formula E − e + 1). For instance, in our example,
+the first three rows and columns act as positive samples, and
+                                                                                                                                                                                                       4. Experimental Results
+the remaining six rows as negative samples. Then, we de-
+termine the probability for episode 2, given it is not episode                                                                                                                                         Our experiments cover six datasets: MNIST, FashionM-
+1, or P (E2 |N=E , N=E−1 , E¯1 ), using memory samples ex-                                                                                                                                             NIST, EMNIST, CIFAR10, CIFAR100, and Tiny ImageNet.
+cluding episode 1. In our example, this involves using the                                                                                                                                             For the first three, we utilize a network comprising two con-
+first five columns, with rows 4-6 as positive and 7-9 as nega-                                                                                                                                         volutional layers with 32 filters each and a fully connected
+tive samples. We continue this process up to Episode E − 1.                                                                                                                                            layer with 500 neurons. For CIFAR10 and CIFAR100, we
+The derived conditional probabilities are then chained, as                                                                                                                                             employ a modified version of VGG11 to adapt it to smaller
+depicted in Figure 3. More specifically, the probability of                                                                                                                                            datasets. For Tiny ImageNet, we use ResNet18. Table 1
+a sample belonging to episode e (except when E = e) is:                                                                                                                                                shows how we slice the datasets to create learning episodes.
+                                                                                                                                                                                                       We keep the original class order, and episodes have the same
+                                                                                                                                                                                                       number of non-overlapping classes. For more details on ex-
+     p_e = & P(E_{e} | N_{\geq E - e + 1}, \bar {E}_1, \ldots , \bar {E}_{e-1}) \\ & \times \prod _{i = 1}^{e - 1} (1 - P(E_i | N_{\geq E - i + 1}, \bar {E_1}, \ldots , \bar {E}_{i - 1}))
+                                                                                                                                                                                                       periments, see the Supplementary Material Section-A.
+                                                                                                                                                                                                          In convolutional layers, 3D filters replace neurons, and
+                                                                                                                                                                                              (4)      2D kernels replace connections. We define a convolutional
+                                                                                                                                                                                                       neuron’s activation as the average of the feature map it pro-
+Here, the second term represents the probability of the sam-                                                                                                                                           duces. Freezing a neuron entails freezing the correspond-
+ple not belonging to earlier episodes, and the first term is                                                                                                                                           ing dimensions in the batch normalization, which includes
+the probability of the sample belonging to episode e given                                                                                                                                             learnable parameters, running mean, and variance. Note
+that it does not belong to any of the earlier episodes. If we                                                                                                                                          that logistic regressions introduce extra parameters; how-
+are calculating p1 , the second term is omitted. PIf we are                                                                                                                                            ever, pruning reduces NICE’s parameters. So, the number
+                                                     E−1
+calculating pE , the formula is simply pE = 1 − i=1 pi .                                                                                                                                               of parameters in NICE is lower than those of a standard
+
+
+
+                                                                                                                                                                                                    23663
+ Table 1. Episode details and memory budgets (denote with M ).                 ×2 budgets. To our knowledge, this is the first instance
+                                                                               of a replay-free CL approach outperforming replay-based
+                                         Datasets
+                                                                               methods in a CIL context, an achievement that we believe
+ Details           MNIST/Fashion   EMNIST     CIFAR10/100    TinyImgNet
+                                                                               will encourage further exploration into architectural meth-
+ # Classes               10           26          10/100         200
+ # Episodes               5           13           5/10           5
+                                                                               ods functioning without artificial task identifiers.
+ # Neurons              575          591       3437/3527        4107               Surprisingly, iCaRL, one of the earliest replay meth-
+ M (activations)        500         1300       1500/5000        5000           ods in the literature, shows robust performance across all
+ M (byte)             35.2 KB      91.2 KB     0.6/2.1 MB      2.5 MB
+ M (images)              46          120         210/718         210           datasets and memory budgets. For instance, iCaRL is
+                                                                               among the top-3 performing methods on all datasets for
+                                                                               standard and ×2 memory budgets, while more recent base-
+dense network—see Supplementary Material Section-A.5.                          lines such as x-DER and TAMiL lag behind significantly on
+Furthermore, the training time for logistic regression is neg-                 some datasets like CIFAR10. The robustness of iCaRL can
+ligible compared to the replay, which effectively doubles                      be attributed to its sample selection strategy, which selects
+training costs by increasing the batch size with replay sam-                   images that closely approximate the class mean embedding.
+ples. Lastly, to maintain a fair comparison, the NICE algo-                    As a result, iCaRL identifies a core subset of examples that
+rithm uses all age-0 neurons in the final episode.                             best represent the seen classes, optimizing the use of the
+4.1. Comparison with Replay Methods                                            memory budget. Furthermore, its knowledge distillation
+                                                                               component avoids abrupt changes in old class knowledge.
+We compare NICE with eight replay methods1 . We only                           Although these results suggest iCaRL is a robust choice for
+consider raw replay methods because generative and activa-                     replay, it has a practical limitation. iCaRL uses a nearest-
+tion replay often attempt to approximate raw replay. We es-                    mean-of-exemplars classifier for predictions, which neces-
+tablish a lower bound by employing SGD without any mea-                        sitates passing all replay samples through the network to
+sures to prevent forgetting, and we denote an upper bound                      compute the class mean embeddings before making predic-
+as Joint, which involves training on all classes simultane-                    tions. This introduces considerable overhead and may be
+ously. We ensure that the same memory budget is main-                          impractical in scenarios, where the model must be ready to
+tained for both NICE and the replay methods. This is done                      classify at any moment – not only at episode boundaries.
+by computing NICE’s memory usage in the worst-case sce-                            With a budget quadrupled (×4), replay methods begin
+nario. For instance, in the early episodes, we store only ac-                  to outperform NICE. In such a high-memory scenario, re-
+tivations of neurons of certain age rather than all. However,                  play is expected to dominate, as the setting starts to resem-
+we calculate memory usage assuming that each memory en-                        ble i.i.d. conditions where models can access a substantial
+try occupies a number of bits equal to the total number of                     number of previously seen examples.
+neurons. Therefore, NICE’s actual memory usage remains
+significantly below the allocated budget.                                      4.2. Relationship between activations and context
+    Table 2 presents the average accuracy across all classes
+                                                                               NICE infers context through activations, although neurons
+following the last episode. We report results for a standard
+                                                                               are not explicitly trained to respond distinctly to different
+memory budget (refer to Table 1) and for increased bud-
+                                                                               episode classes. This poses an intriguing question: How do
+gets (doubled, denoted as ×2, and quadrupled, denoted as
+                                                                               neuron activations enable context detection?
+×4). Note that NICE does not require a large memory, and
+                                                                                   To explore this, we ran NICE on the CIFAR10 and scru-
+our estimates are based on a worst-case, while actual mem-
+                                                                               tinize the oldest neurons linked with episode-1 classes. We
+ory usage is significantly lower. Nevertheless, to provide a
+                                                                               examined these neurons’ responses to familiar episode-1
+comprehensive overview, we include experiments with in-
+                                                                               classes and the novel classes that appeared after the neurons
+creased memory budgets. Also, Figure 4 shows the accu-
+                                                                               had been frozen. We analyzed 300 thresholded activations
+racy after each learning episode across three datasets for the
+                                                                               from each episode. Given the extensive number of neurons,
+top-performing methods (NICE, iCaRL, TAMiL, x-DER).
+                                                                               we used a Random Forest to pick the top-250 neurons by
+    We observe that NICE outperforms all baselines when
+                                                                               feature importance for visualization. Figure 5 presents the
+utilizing standard and ×2 budgets in terms of final accuracy
+                                                                               contrasting activation patterns for episode-1 and the other
+(Table 2). The only exceptions are on CIFAR100 and Tiny
+                                                                               classes. Remarkably, the top-250 neurons showed stronger
+ImageNet with the ×2 budget. Furthermore, in the Sup-
+                                                                               activations for learned classes, weaker for unfamiliar, which
+plementary Material Table 5, we present forgetting scores
+                                                                               allows distinguishing between the two types of classes. We
+for the top-performing methods. We observe that NICE ex-
+                                                                               noted similar findings across different datasets and architec-
+hibits less forgetting across all datasets on both standard and
+                                                                               tures (see the Supplementary Material Section-D.2).
+    1 We implemented all the baselines by customizing the PyTorch contin-          This phenomenon aligns with a recent discovery in the
+ual learning framework, Mammoth [14].                                          out-of-distribution (OOD) detection that inspired an OOD
+
+
+
+                                                                            23664
+         Figure 4. Accuracies for seen classes on EMNIST, CIFAR10, and CIFAR100 throughout training. Standard memory budget.
+
+Table 2. Accuracy after all episodes on three memory budgets.
+Results averaged across three seeds. C stands for CIFAR. Standard
+deviations presented in Supplementary Material Section-D.
+
+                                     Datasets
+ Method         MNIST   Fashion   EMNIST   C10    C100   TinyImgNet
+ Joint           98.4    86.8      92.1    75.8   41.3      38.0
+ NICE            83.4    73.9      66.3    55.1   20.3      11.8
+ iCaRL [52]      79.7    68.7      65.3    54.2   23.5      10.3
+ TAMiL [10]      81.1    68.2      58.1    26.8   16.8       7.2
+ x-DER [13]      77.6    65.3      62.4    37.2   24.7      11.6
+ DER [14]        67.6    65.4      47.5    27.3   13.1       9.6
+ GDumb [50]      60.3    62.6      43.8    30.2   10.4       2.7
+ ER [19]         66.5    58.3      39.0    23.1    8.9       8.8
+ FDR [9]         64.3    52.7      42.2    27.5    9.6      10.2
+ A-GEM [18]      33.9    42.6      15.5    21.2    7.7      10.2
+ NICE (×2)       85.9    75.1      69.4    56.5   22.0      12.2
+ iCaRL (×2)      84.6    74.5      67.9    56.3   24.6      13.6
+ TAMiL (×2)      84.4    70.6      67.4    34.1   21.7      11.6
+ x-DER (×2)      85.6    71.9      68.6    42.6   25.7      14.8         Figure 5. Average activations of the top 250 neurons for episode-1
+ DER (×2)        80.7    73.4      63.6    35.4   18.5       9.8         classes (top) and for the remaining classes (bottom).
+ GDumb (×2)      73.4    66.4      56.7    37.0   14.5       3.8
+ ER (×2)         79.7    66.6      53.8    31.5   12.7       8.6         may be using novelty as a means to determine context.
+ FDR (×2)        75.9    64.8      54.0    35.5   12.3      10.1
+ A-GEM (×2)      64.8    45.5      17.6    21.9    7.8      10.4
+                                                                         4.3. Which layers are important for context?
+ NICE (×4)       87.7    76.3      71.7    57.6   23.0      12.3
+ iCaRL (×4)      85.8    76.1      69.1    59.1   25.8      15.8         Throughout the experiments, we stored the activations of all
+ TAMiL (×4)      92.7    77.2      78.6    37.2   24.8      13.3
+ x-DER (×4)      91.6    75.8      74.8    50.0   28.5      16.8         neurons across all layers. This raises an important question:
+ DER (×4)        90.6    77.7      75.3    41.1   25.2      10.0         Is a single layer, or just a few, sufficient to achieve high ac-
+ GDumb (×4)      86.4    74.2      65.8    41.8   20.8       4.7         curacy in context detection? If this were the case, we could
+ ER (×4)         88.2    74.9      64.7    38.7   17.8       8.8
+ FDR (×4)        84.8    72.6      64.8    45.0   18.2      10.1         store the neurons at those layers and reduce memory cost.
+ A-GEM (×4)      71.6    44.5      15.8    21.1    7.7      10.5         To test this, we ran NICE on the CIFAR10 and CIFAR100
+ SGD             19.9    20.0      6.4     19.1   7.2       10.2         separately, using only one layer of the VGG11 architecture
+                                                                         to detect context. Figure 6 (left) displays these results. It is
+                                                                         evident that none of the individual layers matched the per-
+detection method ReACT [64]. They demonstrated that                      formance achieved by using all layers.
+neurons present highly distinctive activation signatures for                Furthermore, Figure 6 (right) shows results where we
+OOD samples. Specifically, for in-distribution (ID) data,                considered several layers from input to output (indicated by
+neurons show stable activations, while their responses to                the blue line) and from output to input (indicated by the red
+OOD data are more variable. ReACT also provides a the-                   line). We observe that overall, we need most of the lay-
+oretical explanation for why thresholding reduces OOD ac-                ers to perform comparably to using all layers. It seems that
+tivations more than ID activations, increasing separability.             we could avoid storing 1-2 layers from either the bottom
+Even though all classes originate from the same dataset,                 or top of the network without a significant drop in perfor-
+such as CIFAR10, we can regard all classes other than                    mance. However, determining this in a CL setting is chal-
+episode 1 classes as OOD samples for the oldest neurons                  lenging, so we suggest using all layers for context detection.
+since they never learned these classes. Consequently, NICE               Nevertheless, in a scenario with limited memory, one could
+
+
+
+                                                                      23665
+                                                                         Figure 7. Fraction of mature neurons in the network for CIFAR10
+                                                                         and CIFAR100 experiments. Results are average of three seeds.
+
+                                                                         vations corresponding to each episode vary in dimensional-
+                                                                         ity, making it challenging to fit a single model effectively.
+                                                                         However, sequential learning techniques, such as attention
+                                                                         mechanisms, could be utilized to learn from these variable-
+                                                                         sized observations. Secondly, NICE eventually exhausts the
+Figure 6. Left: Context detection accuracy when using only one           available neurons. A potential strategy to mitigate this issue
+layer. “L0” denotes the input layer, or in simpler terms, the aver-      could be to reduce the age of some neurons to reallocate ca-
+age channel value of the input images. Right: Context detection          pacity, allowing for the graceful forgetting of earlier classes.
+accuracy using multiple layers, either cumulatively from input to
+                                                                             Another question for exploration is how to integrate re-
+output or vice versa. All results are the average of three seeds.
+                                                                         play techniques with NICE. For example, age transitions
+                                                                         and freezing rules can be adjusted to incorporate replay
+potentially use the coefficients of fitted logistic regression           within a limited window (e.g., replaying classes from the
+models to identify the most useful neurons throughout the                most recent one or two episodes). Thus, replay does not
+architecture and purge the rest from memory. Additionally,               need to revisit all classes. Also, NICE could start with raw
+compression algorithms such as Huffman coding could be                   replay, and as layers become frozen, it can use these layers
+employed to represent the memory using fewer bits.                       as a frozen feature extractor and switch to activation replay.
+                                                                         So, NICE can enable activation replay without pretraining.
+4.4. Which layers are depleted first?                                    Furthermore, we could explore using replay to encourage
+As neurons mature, they lose plasticity and become frozen.               age-1 neurons to fire differently for replayed and current
+Consequently, NICE will eventually exhaust the available                 samples. This could potentially enhance the context detec-
+neurons as we learn more and more classes. Figure 7 il-                  tor’s ability to discriminate between episodes.
+lustrates the proportion of mature (frozen) neurons as we
+sequentially learn the classes of CIFAR10 and CIFAR100.                  6. Conclusion
+We note that the earlier layers become frozen quickly and                NICE is a CL method inspired by adult neurogenesis in the
+are depleted early in training, while the later layers remain            dentate gyrus. It labels neurons according to their stages of
+available to learn additional classes. It is believed that the           maturation and learns from their binary activations to pre-
+early layers of DNNs capture low-level features that are                 dict the appropriate episodic context. Our results demon-
+generalizable, while the later layers specialize in memo-                strate that NICE surpasses state-of-the-art replay methods
+rizing samples to map them to the classes. Therefore, the                across various datasets. Additionally, we have analyzed the
+depletion of early layers should not impair performance if               activations across different classes and posited that neurons
+future classes are from the same domain. For example, once               exhibit unique activation patterns for familiar and unfamil-
+the first few layers have learned 20 CIFAR100 classes, their             iar classes. To the best of our knowledge, NICE is the first
+representations should be useful for the remaining classes.              replay-free method to outperform replay methods in Class
+However, if the domain of future classes changes signifi-                Incremental Learning (CIL). We hope this achievement will
+cantly, NICE may need to add neurons into the earlier lay-               inspire further research in developing CL architectures that
+ers, which can be accomplished on-the-fly.                               do not rely on task identifiers.
+
+5. Limitations and Future Work                                           Acknowledgements
+Despite the promising results, NICE has several limita-                  This work was supported by the National Science Founda-
+tions. Firstly, chaining multiple logistic regressions repre-            tion (Award: 2039741). We are grateful to CiCi (Xingyu)
+sents a simplistic method of modeling the relationship be-               Zheng and the CVPR 2024 reviewers for their constructive
+tween activations and episode classes. A issue is that obser-            comments.
+
+
+
+                                                                      23666
+References                                                               [15] Lucas Caccia, Eugene Belilovsky, Massimo Caccia, and
+                                                                              Joelle Pineau. Online learned continual compression with
+ [1] Hongjoon Ahn, Sungmin Cha, Donggyu Lee, and Taesup                       adaptive quantization modules. In Proceedings of the
+     Moon. Uncertainty-based continual learning with adaptive                 37th International Conference on Machine Learning, pages
+     regularization. In Advances in Neural Information Process-               1240–1250. PMLR, 2020. 3
+     ing Systems 32, pages 4394–4404. Curran Associates, Inc.,
+                                                                         [16] Lucas Caccia, Rahaf Aljundi, Nader Asadi, Tinne Tuyte-
+     2019. 3
+                                                                              laars, Joelle Pineau, and Eugene Belilovsky. New insights
+ [2] James Aimone, Janet Wiles, and Fred Gage. Computational                  on reducing abrupt representation change in online continual
+     influence of adult neurogenesis on memory encoding. Neu-                 learning. In International Conference on Learning Repre-
+     ron, 61:187–202, 2009. 2                                                 sentations, 2022. 1, 2
+ [3] James Aimone, Wei Deng, and Fred Gage. Resolving new                [17] Arslan Chaudhry, Puneet K Dokania, Thalaiyasingam Ajan-
+     memories: A critical look at the dentate gyrus, adult neuro-             than, and Philip HS Torr. Riemannian walk for incremen-
+     genesis, and pattern separation. Neuron, 70:589–96, 2011.                tal learning: Understanding forgetting and intransigence. In
+     2                                                                        Proceedings of the European Conference on Computer Vi-
+ [4] Rahaf Aljundi, Punarjay Chakravarty, and Tinne Tuytelaars.               sion (ECCV), 2018. 3
+     Expert gate: Lifelong learning with a network of experts.           [18] Arslan Chaudhry, Marc’Aurelio Ranzato, Marcus Rohrbach,
+     In Proceedings of the IEEE Conference on Computer Vision                 and Mohamed Elhoseiny. Efficient lifelong learning with a-
+     and Pattern Recognition (CVPR), pages 3366–3375. IEEE,                   gem. In International Conference on Learning Representa-
+     2017. 3                                                                  tions, 2019. 7
+ [5] Rahaf Aljundi, Francesca Babiloni, Mohamed Elhoseiny,               [19] Arslan Chaudhry, Marcus Rohrbach, Mohamed Elhoseiny,
+     Marcus Rohrbach, and Tinne Tuytelaars. Memory aware                      Thalaiyasingam Ajanthan, Puneet K Dokania, Philip H. S.
+     synapses: Learning what (not) to forget. In The European                 Torr, and Marc’Aurelio Ranzato. Continual learning with
+     Conference on Computer Vision (ECCV), 2018. 3                            tiny episodic memories. In Workshop on Multi-Task and Life-
+ [6] Elahe Arani, Fahad Sarfraz, and Bahram Zonooz. Learn-                    long Reinforcement Learning, 2019. 1, 2, 7
+     ing fast, learning slow: A general continual learning method        [20] C.D. Clelland, Minee-Liane Choi, Carola Romberg, Gre-
+     based on complementary learning system. In International                 gory Clemenson, Alexandra Fragniere, Pamela Tyers, S Jess-
+     Conference on Learning Representations, 2022. 2                          berger, Lisa Saksida, Roger Barker, F.H. Gage, and Tim
+ [7] Craig Atkinson, Brendan McCane, Lech Szymanski, and                      Bussey. A functional role for adult hippocampal neuroge-
+     Anthony V. Robins. Pseudo-recursal: Solving the catas-                   nesis in spatial pattern separation. Science (New York, N.Y.),
+     trophic forgetting problem in deep neural networks. arXiv                325:210–3, 2009. 2, 4
+     preprint, abs/1802.03875, 2018. 3                                   [21] M. Delange, R. Aljundi, M. Masana, S. Parisot, X. Jia, A.
+ [8] Ali Ayub and Alan Wagner. {EEC}: Learning to encode and                  Leonardis, G. Slabaugh, and T. Tuytelaars. A continual
+     regenerate images for continual learning. In International               learning survey: Defying forgetting in classification tasks.
+     Conference on Learning Representations, 2021. 3                          IEEE Transactions on Pattern Analysis and Machine Intelli-
+ [9] Ari S. Benjamin, David Rolnick, and Konrad P. Körding.                  gence, pages 1–1, 2021. 1, 2
+     Measuring and regularizing networks in function space.              [22] Dumitru Erhan, Y. Bengio, Aaron Courville, and Pascal Vin-
+     CoRR, abs/1805.08289, 2018. 2, 7                                         cent. Visualizing higher-layer features of a deep network.
+[10] Prashant Shivaram Bhat, Bahram Zonooz, and Elahe Arani.                  Technical Report, Univeristé de Montréal, 2009. 3
+     Task-aware information routing from common representa-              [23] Sebastian Farquhar and Yarin Gal. Towards robust evalua-
+     tion space in lifelong learning. In The Eleventh International           tions of continual learning, 2019. 1
+     Conference on Learning Representations, 2023. 7                     [24] Siavash Golkar, Michael Kagan, and Kyunghyun Cho.
+[11] Zalán Borsos, Mojmir Mutny, and Andreas Krause. Coresets                Continual learning via neural pruning. arXiv preprint,
+     via bilevel optimization for continual learning and stream-              abs/1903.04476, 2019. 3
+     ing. In Advances in Neural Information Processing Systems,          [25] Ian J. Goodfellow, Mehdi Mirza, Xia Da, Aaron C.
+     pages 14879–14890. Curran Associates, Inc., 2020. 2                      Courville, and Yoshua Bengio. An empirical investigation
+[12] Matteo Boschini, Lorenzo Bonicelli, Pietro Buzzega, Angelo               of catastrophic forgetting in gradient-based neural networks.
+     Porrello, and Simone Calderara. Class-incremental continual              In International Conference on Learning Representations,
+     learning into the extended der-verse. CoRR, abs/2201.00766,              2014. 1
+     2022. 2                                                             [26] Chuan Guo, Geoff Pleiss, Yu Sun, and Kilian Q. Weinberger.
+[13] M. Boschini, L. Bonicelli, P. Buzzega, A. Porrello, and S.               On calibration of modern neural networks. In International
+     Calderara. Class-incremental continual learning into the ex-             Conference on Machine Learning, 2017. 2
+     tended der-verse. IEEE Transactions on Pattern Analysis             [27] Chuan Guo, Geoff Pleiss, Yu Sun, and Kilian Q. Weinberger.
+     amp; Machine Intelligence, 45(05), 2023. 7                               On calibration of modern neural networks. In Proceedings
+[14] Pietro Buzzega, Matteo Boschini, Angelo Porrello, Davide                 of the 34th International Conference on Machine Learning,
+     Abati, and Simone Calderara. Dark experience for general                 pages 1321–1330. PMLR, 2017. 2
+     continual learning: a strong, simple baseline. In Advances in       [28] Mustafa Burak Gurbuz and Constantine Dovrolis. Nispa:
+     Neural Information Processing Systems, 2020. 2, 6, 7                     Neuro-inspired stability-plasticity adaptation for continual
+
+
+
+
+                                                                      23667
+     learning in sparse networks. International Conference on           [40] Zhizhong Li and Derek Hoiem. Learning without forgetting.
+     Machine Learning, 30, 2022. 3                                           IEEE Transactions on Pattern Analysis and Machine Intelli-
+[29] Tyler L Hayes, Kushal Kafle, Robik Shrestha, Manoj                      gence, 2017. 3
+     Acharya, and Christopher Kanan. Remind your neural net-            [41] Zheda Mai, Ruiwen Li, Hyunwoo Kim, and Scott Sanner.
+     work to prevent catastrophic forgetting. In Proceedings                 Supervised contrastive replay: Revisiting the nearest class
+     of the European Conference on Computer Vision (ECCV),                   mean classifier in online class-incremental continual learn-
+     2020. 2, 3                                                              ing. In Proceedings of the IEEE/CVF Conference on Com-
+[30] Tyler L Hayes, Giri P Krishnan, Maxim Bazhenov, Hava T                  puter Vision and Pattern Recognition, pages 3589–3599,
+     Siegelmann, Terrence J Sejnowski, and Christopher Kanan.                2021. 2
+     Replay in deep learning: Current approaches and missing bi-        [42] Arun Mallya and Svetlana Lazebnik. Packnet: Adding mul-
+     ological elements. Neural Computation, 33(11):2908–2950,                tiple tasks to a single network by iterative pruning. In Pro-
+     2021. 2                                                                 ceedings of the IEEE Conference on Computer Vision and
+[31] Yen-Chang Hsu, Yen-Cheng Liu, and Zsolt Kira. Re-                       Pattern Recognition, pages 7765–7773, 2018. 3
+     evaluating continual learning scenarios: A categorization          [43] Arun Mallya, Dillon Davis, and Svetlana Lazebnik. Piggy-
+     and case for strong baselines. 2018. 1, 2, 3                            back: Adapting a single network to multiple tasks by learn-
+[32] Hengyuan Hu, Rui Peng, Yu-Wing Tai, and Chi-Keung                       ing to mask weights. In Proceedings of the European Con-
+     Tang. Network trimming: A data-driven neuron pruning ap-                ference on Computer Vision (ECCV), pages 67–82, 2018. 3
+     proach towards efficient deep architectures. arXiv preprint,       [44] Michael McCloskey and Neal J. Cohen. Catastrophic inter-
+     abs/1607.03250, 2016. 3                                                 ference in connectionist networks: The sequential learning
+[33] Sangwon Jung, Hongjoon Ahn, Sungmin Cha, and Taesup                     problem. Psychology of Learning and Motivation, 1989. 1
+     Moon. Continual learning with node-importance based adap-          [45] Jorge A Mendez and ERIC EATON. Lifelong learning of
+     tive group sparse regularization. In Advances in Neural In-             compositional structures. In International Conference on
+     formation Processing Systems, 2020. 3                                   Learning Representations, 2021. 3
+[34] Haeyong Kang, Rusty John Lloyd Mina, Sultan Rizky Hik-             [46] Matı́as Mugnaini, Mariela F. Trinchero, Alejandro F. Schin-
+     mawan Madjid, Jaehong Yoon, Mark Hasegawa-Johnson,                      der, Verónica C. Piatti, and Emilio Kropff. Unique potential
+     Sung Ju Hwang, and Chang D. Yoo. Forget-free continual                  of immature adult-born neurons for the remodeling of ca3
+     learning with winning subnetworks. In Proceedings of the                spatial maps. Cell Reports, 42(9):113086, 2023. 2
+     39th International Conference on Machine Learning, pages           [47] Toshiaki Nakashiba, Jesse Cushman, Kenneth Pelkey, So-
+     10734–10750. PMLR, 2022. 3                                              phie Renaudineau, Derek Buhl, Thomas Mchugh, Vanessa
+[35] Ronald Kemker and Christopher Kanan. Fearnet: Brain-                    Rodriguez Barrera, Ramesh Chittajallu, Keisuke Iwamoto,
+     inspired model for incremental learning. In International               Chris McBain, Michael Fanselow, and Susumu Tonegawa.
+     Conference on Learning Representations, 2018. 3                         Young dentate granule cells mediate pattern separation,
+[36] Ronald Kemker, Marc Mcclure, Angelina Abitino, Tyler                    whereas old granule cells facilitate pattern completion. Cell,
+     Hayes, and Christopher Kanan. Measuring catastrophic for-               149:188–201, 2012. 2, 4
+     getting in neural networks. Proceedings of the AAAI Confer-        [48] German Parisi, Ronald Kemker, Jose Part, Christopher
+     ence on Artificial Intelligence, 32, 2017. 1, 2, 3                      Kanan, and Stefan Wermter. Continual lifelong learning with
+[37] James Kirkpatrick, Razvan Pascanu, Neil Rabinowitz, Joel                neural networks: A review. Neural Networks, 113:54–71,
+     Veness, Guillaume Desjardins, Andrei A. Rusu, Kieran                    2019. 1, 2
+     Milan, John Quan, Tiago Ramalho, Agnieszka Grabska-                [49] Grégoire Petit, Adrian Popescu, Hugo Schindler, David Pi-
+     Barwinska, Demis Hassabis, Claudia Clopath, Dharshan Ku-                card, and Bertrand Delezoide. Fetril: Feature translation for
+     maran, and Raia Hadsell. Overcoming catastrophic for-                   exemplar-free class-incremental learning. In Proceedings of
+     getting in neural networks. Proceedings of the National                 the IEEE/CVF Winter Conference on Applications of Com-
+     Academy of Sciences, 114, 2017. 3                                       puter Vision (WACV), pages 3911–3920, 2023. 3
+[38] Dhireesha Kudithipudi, Mario Aguilar-Simon, Jonathan               [50] Ameya Prabhu, Philip Torr, and Puneet Dokania. Gdumb:
+     Babb, Maxim Bazhenov, Douglas Blackiston, Josh Bongard,                 A simple approach that questions our progress in continual
+     Andrew Brna, Suraj Chakravarthi Raja, Nick Cheney, Jeff                 learning. In The European Conference on Computer Vision
+     Clune, Anurag Daram, Stefano Fusi, Peter Helfer, Leslie                 (ECCV), 2020. 1, 2, 7
+     Kay, Nicholas Ketz, Zsolt Kira, Soheil Kolouri, Jeff Krich-        [51] Jason Ramapuram, Magda Gregorova, and Alexandros
+     mar, Sam Kriegman, and Hava Siegelmann. Biological un-                  Kalousis. Lifelong generative modeling. Neurocomputing,
+     derpinnings for lifelong learning machines. Nature Machine              404, 2020. 3
+     Intelligence, 4:196–210, 2022. 2                                   [52] Sylvestre-Alvise Rebuffi, Alexander Kolesnikov, Georg
+[39] Mark Kurtz, Justin Kopinsky, Rati Gelashvili, Alexander                 Sperl, and Christoph Lampert. icarl: Incremental classifier
+     Matveev, John Carr, Michael Goin, William Leiserson, Sage               and representation learning. In IEEE Conference on Com-
+     Moore, Nir Shavit, and Dan Alistarh. Inducing and exploit-              puter Vision and Pattern Recognition (CVPR), 2017. 2, 7
+     ing activation sparsity for fast neural network inference. In      [53] Minsoo Rhu, Mike O’Connor, Niladrish Chatterjee, Jeff
+     Proceedings of the 37th International Conference on Ma-                 Pool, Youngeun Kwon, and Stephen Keckler. Compressing
+     chine Learning, 2020. 3                                                 dma engine: Leveraging activation sparsity for training deep
+
+
+
+
+                                                                     23668
+     neural networks. In 2018 IEEE International Symposium on            [69] Tom Veniat, Ludovic Denoyer, and MarcAurelio Ranzato.
+     High Performance Computer Architecture (HPCA), 2018. 3                   Efficient continual learning with modular networks and task-
+[54] Matthew Riemer, Tim Klinger, Djallel Bouneffouf, and                     driven priors. In International Conference on Learning Rep-
+     Michele Franceschini. Scalable recollections for continual               resentations, 2021. 3
+     lifelong learning. Proceedings of the AAAI Conference on            [70] Kai Wang, Joost van de Weijer, and Luis Herranz. Acae-
+     Artificial Intelligence, 33:1352–1359, 2019. 3                           remind for online continual learning with compressed feature
+[55] Hippolyt Ritter, Aleksandar Botev, and David Barber. On-                 replay. Pattern Recognition Letters, 150:122–129, 2021. 3
+     line structured laplace approximations for overcoming catas-        [71] Liyuan Wang, Xingxing Zhang, Hang Su, and Jun Zhu. A
+     trophic forgetting. In Advances in Neural Information Pro-               comprehensive survey of continual learning: Theory, method
+     cessing Systems, pages 3738–3748, 2018. 3                                and application, 2023. 1, 2
+[56] Amir Rosenfeld and John K Tsotsos. Incremental learning             [72] Mitchell Wortsman, Vivek Ramanujan, Rosanne Liu,
+     through deep adaptation. IEEE transactions on pattern anal-              Aniruddha Kembhavi, Mohammad Rastegari, Jason Yosin-
+     ysis and machine intelligence, 42, 2018. 3                               ski, and Ali Farhadi. Supermasks in superposition. In Ad-
+[57] Andrei A. Rusu, Neil C. Rabinowitz, Guillaume Desjardins,                vances in Neural Information Processing Systems, 2020. 3
+     Hubert Soyer, James Kirkpatrick, Koray Kavukcuoglu, Raz-            [73] Mengqi Xue, Haofei Zhang, Jie Song, and Mingli Song.
+     van Pascanu, and Raia Hadsell. Progressive neural networks.              Meta-attention for vit-backed continual learning. In Pro-
+     arXiv preprint, abs/1606.04671, 2016. 3                                  ceedings of the IEEE/CVF Conference on Computer Vi-
+[58] Jonathan Schwarz, Jelena Luketina, Wojciech M Czarnecki,                 sion and Pattern Recognition (CVPR), pages 150–159.
+     Agnieszka Grabska-Barwinska, Yee Whye Teh, Razvan Pas-                   IEEE/CVF, 2022. 3
+     canu, and Raia Hadsell. Progress & compress: A scalable             [74] Michael Yassa and Craig Stark. Pattern separation in the
+     framework for continual learning. In ICML, 2018. 3                       hippocampus. Trends in neurosciences, 34:515–25, 2011. 2,
+[59] Joan Serra, Didac Suris, Marius Miron, and Alexandros                    4
+     Karatzoglou. Overcoming catastrophic forgetting with hard           [75] Jaehong Yoon, Eunho Yang, Jeongtae Lee, and Sung Ju
+     attention to the task. In International Conference on Machine            Hwang. Lifelong learning with dynamically expandable net-
+     Learning, 2018. 3                                                        works. In International Conference on Learning Represen-
+[60] Dongsub Shim, Zheda Mai, Jihwan Jeong, Scott San-                        tations, 2018. 3
+     ner, Hyunwoo Kim, and Jongseong Jang. Online class-
+                                                                         [76] Jaehong Yoon, Divyam Madaan, Eunho Yang, and Sung Ju
+     incremental continual learning with adversarial shapley
+                                                                              Hwang. Online coreset selection for rehearsal-based contin-
+     value. In Proceedings of the AAAI Conference on Artificial
+                                                                              ual learning. In International Conference on Learning Rep-
+     Intelligence, pages 9630–9638, 2021. 2
+                                                                              resentations, 2022. 2
+[61] Hanul Shin, Jung Kwon Lee, Jaehong Kim, and Jiwon Kim.
+                                                                         [77] Matthew D Zeiler and Rob Fergus. Visualizing and under-
+     Continual learning with deep generative replay. Advances in
+                                                                              standing convolutional networks. In European conference on
+     neural information processing systems, 30, 2017. 3
+                                                                              computer vision, 2014. 3
+[62] Ghada Sokar, Decebal Constantin Mocanu, and Mykola
+                                                                         [78] Friedemann Zenke, Ben Poole, and Surya Ganguli. Contin-
+     Pechenizkiy. Spacenet: Make free space for continual learn-
+                                                                              ual learning through synaptic intelligence. In International
+     ing. Neurocomputing, 439, 2021. 2, 3
+                                                                              Conference on Machine Learning, 2017. 3
+[63] Ghada Sokar, Decebal Constantin Mocanu, and Mykola
+     Pechenizkiy. Avoiding forgetting and allowing forward
+     transfer in continual learning via sparse networks. In Joint
+     European conference on machine learning and knowledge
+     discovery in databases. Springer, 2022. 2, 3
+[64] Yiyou Sun, Chuan Guo, and Yixuan Li. React: Out-of-
+     distribution detection with rectified activations. In Advances
+     in Neural Information Processing Systems, 2021. 7
+[65] Sophie Tronel, Laure Belnoue, Noëlle Grosjean, Jean-
+     Michel Revest, pier-vincenzo Piazza, Muriel Koehl, and Djo-
+     her Abrous. Adult-born neurons are necessary for extended
+     contextual discrimination. Hippocampus, 22:292–8, 2012.
+     2, 4
+[66] Gido van de Ven, Hava Siegelmann, and Andreas Tolias.
+     Brain-inspired replay for continual learning with artificial
+     neural networks. Nature Communications, 11, 2020. 2, 3
+[67] Gido van de Ven, Tinne Tuytelaars, and Andreas Tolias.
+     Three types of incremental learning. Nature Machine Intel-
+     ligence, 4:1–13, 2022. 1, 3
+[68] Gido M. van de Ven and Andreas S. Tolias. Three scenar-
+     ios for continual learning. arXiv preprint, abs/1904.07734,
+     2019. 1
+
+
+
+
+                                                                      23669
+

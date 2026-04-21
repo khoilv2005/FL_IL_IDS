@@ -302,12 +302,38 @@ def _record_local_round(
     return round_record
 
 
+def _resolve_der_round_split(config: Dict[str, Any]) -> tuple[int, int]:
+    """
+    Resolve DER stage rounds from config.
+
+    Rules:
+    - If either der_stage1_rounds or der_stage2_rounds is explicitly provided,
+      honor the explicit values exactly (with existing defaults for the missing side).
+    - Otherwise, treat rounds_per_task as the TOTAL DER budget and split it using
+      the historical 3:2 ratio between stage 1 and stage 2.
+    """
+    if "der_stage1_rounds" in config or "der_stage2_rounds" in config:
+        stage1_rounds = max(
+            1, int(config.get("der_stage1_rounds", config.get("rounds_per_task", 1)))
+        )
+        stage2_rounds = max(1, int(config.get("der_stage2_rounds", 3)))
+        return stage1_rounds, stage2_rounds
+
+    total_rounds = max(1, int(config.get("rounds_per_task", 1)))
+    if total_rounds == 1:
+        return 1, 1
+
+    # Preserve the old default bias of 3 stage-1 rounds and 2 stage-2 rounds.
+    stage1_rounds = max(1, round(total_rounds * 3 / 5))
+    stage2_rounds = max(1, total_rounds - stage1_rounds)
+    if stage1_rounds + stage2_rounds != total_rounds:
+        stage2_rounds = max(1, total_rounds - stage1_rounds)
+    return stage1_rounds, stage2_rounds
+
+
 def _run_local_der(model, client, trainer, config, device, new_classes):
     local_epochs = max(1, int(config.get("local_epochs", 1)))
-    stage1_rounds = max(
-        1, int(config.get("der_stage1_rounds", config.get("rounds_per_task", 1)))
-    )
-    stage2_rounds = max(1, int(config.get("der_stage2_rounds", 3)))
+    stage1_rounds, stage2_rounds = _resolve_der_round_split(config)
     round_records: List[Dict[str, float]] = []
 
     trainer.set_stage(1)

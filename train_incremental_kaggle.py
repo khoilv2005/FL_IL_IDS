@@ -80,19 +80,19 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "cgofed",
+    "algorithm": "nice",
     # Output
     "output_dir": "./results_incremental",
     # Split-run / continuation state
     # Phase 1 example:
-    #$task_start": 0,
-    #task_end": 3,
-    #"save_resume_after_task": 3,
-    #"resume_state_path": None,
+    "task_start": 0,
+    "task_end": 3,
+    "save_resume_after_task": 3,
+    "resume_state_path": None,
     # Phase 2 example:
-    "task_start": 4,
-    "task_end": 5,
-    "resume_state_path": "/tmp/next/continue/cgofed_phase3.pt",
+    #"task_start": 4,
+    #"task_end": 5,
+    #"resume_state_path": "/tmp/next/continuation_state_task_3.pt",
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
     #"task_start": 0,
@@ -110,7 +110,7 @@ CONFIG = {
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)
     # CGoFed Paper Eq. 14: NO proximal term! Only cross-task regularization A(Θ)
     "mu_fedprox": 0.0,  # 0.0 for CGoFed (paper doesn't have proximal term)
-    "rounds_per_task": 20,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
+    "rounds_per_task": 1,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
     "local_epochs": 1,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
@@ -124,7 +124,7 @@ CONFIG = {
     "cross_task_weight": 0.3,  # Tăng từ 0.08: regularization mạnh hơn
     "lambda_cross_task": 0.3,  # Paper Eq. 14: cross-task regularization
     "energy_threshold": 0.99,
-    "num_samples_rep": 2000,
+    "num_samples_rep": 1000,
     "top_k": 2,
     # EWC
     "ewc_lambda": 400.0,  # Theo mốc scaling factor EWC được nêu trong paper cho Atari
@@ -140,7 +140,7 @@ CONFIG = {
     "tau_new": 1.1,
     "omega_old": 1.1,
     "omega_new": 0.9,
-    "buffer_size": 1000,
+    "buffer_size": 500,
     "replay_ratio": 0.5,
     "seed": 42,
     # DER (Dynamically Expandable Representation)
@@ -153,7 +153,7 @@ CONFIG = {
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,
     "nice_max_phases": 5,
-    "nice_phase_epochs": 5,
+    "nice_phase_epochs": 4,
     "memo_per_class": 50,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,
