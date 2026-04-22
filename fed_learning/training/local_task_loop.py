@@ -390,20 +390,25 @@ def _run_local_nice(
     model, client, trainer, config, device, task_id, num_tasks, new_classes
 ):
     num_rounds = max(1, int(config.get("rounds_per_task", 1)))
-    local_epochs = max(1, int(config.get("local_epochs", 1)))
-    trainer.max_phases = 1
-    trainer.phase_epochs = local_epochs
+    trainer.max_phases = max(1, int(config.get("nice_max_phases", 5)))
+    trainer.phase_epochs = max(1, int(config.get("nice_phase_epochs", 5)))
+    total_phase_rounds = num_rounds * trainer.max_phases
 
     for cls_id in new_classes:
         if cls_id < model.num_classes:
             model.unit_ranks["fc2"][cls_id] = 1
 
-    print(f"  NICE local schedule: {num_rounds} rounds x {local_epochs} epochs")
+    print(
+        "  NICE local schedule: "
+        f"{num_rounds} episode(s) x {trainer.max_phases} phases x "
+        f"{trainer.phase_epochs} epochs = "
+        f"{total_phase_rounds * trainer.phase_epochs} total local epochs"
+    )
 
     client.setup_for_gpu(model, device)
     round_records: List[Dict[str, float]] = []
-    for round_id in range(num_rounds):
-        print(f"    Round {round_id}/{num_rounds - 1}")
+    for round_id in range(total_phase_rounds):
+        print(f"    Round {round_id}/{total_phase_rounds - 1} [phase]")
         start_time = time.time()
         result = client.train(
             trainer=trainer,
@@ -413,6 +418,7 @@ def _run_local_nice(
             global_params=None,
             is_last_task=(task_id == num_tasks - 1),
             phase_offset=round_id,
+            max_phases_override=1,
         )
         round_records.append(
             {

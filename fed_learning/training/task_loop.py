@@ -89,13 +89,13 @@ def _resolve_nice_schedule(config: Dict[str, Any]) -> tuple[int, int, int]:
     """
     Resolve NICE schedule.
 
-    NICE in this repo is phase-based and is much closer to the paper when a task
-    runs as a single federated round whose local client work is:
+    NICE in this repo is phase-based:
 
         max_phases x phase_epochs
 
-    So for federated NICE we intentionally force 1 communication round per task
-    and report the effective local epoch budget explicitly.
+    For tracking/debugging, we expose those phases explicitly in the task loop,
+    so each phase gets its own metrics/checkpoint while the total local epoch
+    budget per task remains unchanged.
     """
     max_phases = max(1, int(config.get("nice_max_phases", 5)))
     phase_epochs = max(1, int(config.get("nice_phase_epochs", 5)))
@@ -111,11 +111,11 @@ def _resolve_nice_schedule(config: Dict[str, Any]) -> tuple[int, int, int]:
 def _train_nice(server, participating_clients, config, data_loader, task_id):
     """NICE: Phase-based training with single federated round."""
     max_phases, phase_epochs, effective_local_epochs = _resolve_nice_schedule(config)
-    nice_rounds = 1
+    nice_rounds = max_phases
     is_last_task = task_id == data_loader.get_num_tasks() - 1
 
     print(
-        f"\n  === NICE Training ({nice_rounds} round) ==="
+        f"\n  === NICE Training ({nice_rounds} phases) ==="
         f"\n  NICE local schedule: {max_phases} phases x {phase_epochs} epochs"
         f" = {effective_local_epochs} local epochs/client"
         f"{' [LAST EPISODE: tau=100%]' if is_last_task else ''}"
@@ -125,11 +125,13 @@ def _train_nice(server, participating_clients, config, data_loader, task_id):
         server.train_round(
             participating_clients=participating_clients,
             verbose=True,
+            phase_offset=r,
+            max_phases_override=1,
         )
         if (r + 1) % config.get("eval_every", 1) == 0:
             eval_metrics = server.evaluate_global()
             print(
-                f"    Round {r + 1}/{nice_rounds} -> "
+                f"    Phase {r + 1}/{nice_rounds} -> "
                 f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
             )
 
@@ -320,11 +322,11 @@ def _train_plexus_der(server, participating_clients, config, trainer):
 def _train_plexus_nice(server, participating_clients, config, data_loader, task_id):
     """PlexusNICE: Decentralized NICE with phase-based training."""
     max_phases, phase_epochs, effective_local_epochs = _resolve_nice_schedule(config)
-    nice_rounds = 1
+    nice_rounds = max_phases
     is_last_task = task_id == data_loader.get_num_tasks() - 1
 
     print(
-        f"\n  === PlexusNICE Training ({nice_rounds} round) ==="
+        f"\n  === PlexusNICE Training ({nice_rounds} phases) ==="
         f"\n  PlexusNICE local schedule: {max_phases} phases x {phase_epochs} epochs"
         f" = {effective_local_epochs} local epochs/client"
         f"{' [LAST EPISODE: tau=100%]' if is_last_task else ''}"
@@ -339,7 +341,7 @@ def _train_plexus_nice(server, participating_clients, config, data_loader, task_
         if (r + 1) % config.get("eval_every", 1) == 0:
             eval_metrics = server.evaluate_global()
             print(
-                f"    Round {r + 1}/{nice_rounds} -> "
+                f"    Phase {r + 1}/{nice_rounds} -> "
                 f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
             )
 
@@ -1210,17 +1212,17 @@ def run_incremental_training(config: Dict[str, Any]):
             max_phases, phase_epochs, effective_local_epochs = _resolve_nice_schedule(
                 config
             )
-            nice_rounds = 1
+            nice_rounds = max_phases
             if is_last_task:
                 print(
-                    f"\n  === NICE Training ({nice_rounds} round) ==="
+                    f"\n  === NICE Training ({nice_rounds} phases) ==="
                     f"\n  NICE local schedule: {max_phases} phases x {phase_epochs} epochs"
                     f" = {effective_local_epochs} local epochs/client"
                     "\n  [LAST EPISODE: tau=100%]"
                 )
             else:
                 print(
-                    f"\n  === NICE Training ({nice_rounds} round) ==="
+                    f"\n  === NICE Training ({nice_rounds} phases) ==="
                     f"\n  NICE local schedule: {max_phases} phases x {phase_epochs} epochs"
                     f" = {effective_local_epochs} local epochs/client"
                 )
@@ -1229,6 +1231,8 @@ def run_incremental_training(config: Dict[str, Any]):
                 lambda _r: server.train_round(
                     participating_clients=participating_clients,
                     verbose=True,
+                    phase_offset=_r,
+                    max_phases_override=1,
                 ),
                 nice_rounds,
                 task_id,
@@ -1240,6 +1244,7 @@ def run_incremental_training(config: Dict[str, Any]):
                 config,
                 seen_classes,
                 is_last_task,
+                label="[phase]",
             )
         elif algo == "der":
             stage1_rounds, stage2_rounds = _resolve_der_round_split(config)
@@ -1432,17 +1437,17 @@ def run_incremental_training(config: Dict[str, Any]):
             max_phases, phase_epochs, effective_local_epochs = _resolve_nice_schedule(
                 config
             )
-            nice_rounds = 1
+            nice_rounds = max_phases
             if is_last_task:
                 print(
-                    f"\n  === PlexusNICE Training ({nice_rounds} round) ==="
+                    f"\n  === PlexusNICE Training ({nice_rounds} phases) ==="
                     f"\n  PlexusNICE local schedule: {max_phases} phases x {phase_epochs} epochs"
                     f" = {effective_local_epochs} local epochs/client"
                     "\n  [LAST EPISODE: tau=100%]"
                 )
             else:
                 print(
-                    f"\n  === PlexusNICE Training ({nice_rounds} round) ==="
+                    f"\n  === PlexusNICE Training ({nice_rounds} phases) ==="
                     f"\n  PlexusNICE local schedule: {max_phases} phases x {phase_epochs} epochs"
                     f" = {effective_local_epochs} local epochs/client"
                 )

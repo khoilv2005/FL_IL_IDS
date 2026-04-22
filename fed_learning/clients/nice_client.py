@@ -130,6 +130,9 @@ class NICEClient(FederatedClient):
         tau = getattr(trainer, "tau", self.tau)
         is_last_task = kwargs.get("is_last_task", False)
         phase_offset = int(kwargs.get("phase_offset", 0))
+        max_phases_override = kwargs.get("max_phases_override")
+        if max_phases_override is not None:
+            max_phases = max(1, int(max_phases_override))
 
         # Sample data for neuron selection (subsample for efficiency)
         n_sample = min(500, self.num_samples)

@@ -360,6 +360,8 @@ class NICEServer(IncrementalServer):
         self,
         participating_clients=None,
         verbose: bool = True,
+        phase_offset: int = 0,
+        max_phases_override: Optional[int] = None,
     ) -> Dict:
         """Train one federated round.
 
@@ -389,6 +391,9 @@ class NICEServer(IncrementalServer):
             k: v.tolist() if isinstance(v, np.ndarray) else v
             for k, v in self.global_model.freeze_masks.items()
         }
+        worker_config["phase_offset"] = int(phase_offset)
+        if max_phases_override is not None:
+            worker_config["max_phases_override"] = int(max_phases_override)
 
         # Distribute clients across GPUs
         clients_per_gpu = [[] for _ in range(self.num_gpus)]

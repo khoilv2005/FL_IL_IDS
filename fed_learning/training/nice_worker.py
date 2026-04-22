@@ -40,6 +40,8 @@ class NICEWorker(BaseGPUWorker):
         self.masks_state = config.get("masks", None)
         self.freeze_masks_raw = config.get("freeze_masks", {})
         self.is_last_task = config.get("is_last_task", False)
+        self.phase_offset = int(config.get("phase_offset", 0))
+        self.max_phases_override = config.get("max_phases_override")
 
     def create_model(self):
         """Create NICEModel instead of CNN_GRU_Model."""
@@ -72,6 +74,8 @@ class NICEWorker(BaseGPUWorker):
         return {
             "global_params": self.global_params,
             "is_last_task": self.is_last_task,
+            "phase_offset": self.phase_offset,
+            "max_phases_override": self.max_phases_override,
         }
 
     def run(self):
