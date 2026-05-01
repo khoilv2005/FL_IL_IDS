@@ -110,8 +110,8 @@ CONFIG = {
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)
     # CGoFed Paper Eq. 14: NO proximal term! Only cross-task regularization A(Θ)
     "mu_fedprox": 0.0,  # 0.0 for CGoFed (paper doesn't have proximal term)
-    "rounds_per_task": 20,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
-    "local_epochs": 1,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
+    "rounds_per_task": 20,  # 20 rounds/task: đủ để model hội tụ, sync thường xuyên giảm client drift
+    "local_epochs": 1,  # 1 epoch/round: tránh client drift trên non-IID data
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
     "batch_size": 2048,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
@@ -148,12 +148,12 @@ CONFIG = {
     "lambda_sparsity": 0.1,
     "s_max": 15.0,
     "der_temperature": 2.0,
-    "der_stage1_rounds": 3,
-    "der_stage2_rounds": 2,
+    "der_stage1_rounds": 12,  # 60% of 20 rounds: representation learning
+    "der_stage2_rounds": 8,   # 40% of 20 rounds: classifier finetuning
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,
-    "nice_max_phases": 5,
-    "nice_phase_epochs": 4,
+    "nice_max_phases": 20,  # 20 phases = 20 federated rounds/task
+    "nice_phase_epochs": 1,  # 1 epoch/phase: consistent với local_epochs
     "memo_per_class": 50,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,
