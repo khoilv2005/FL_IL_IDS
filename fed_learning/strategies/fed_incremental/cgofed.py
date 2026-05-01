@@ -229,6 +229,25 @@ def restore_model_reference(obj: Any) -> OrderedDict:
     return clone_model_state_dict(load_model_state(obj))
 
 
+def restore_model_reference_lazy(obj: Any) -> Any:
+    """
+    Restore a model entry while preserving file-backed artifacts.
+
+    Continuation resume for CGoFed should keep historical models lazy whenever
+    possible; only workers materialize them right before local training.
+    """
+    if is_model_artifact(obj):
+        return dict(obj)
+    if isinstance(obj, OrderedDict):
+        return clone_model_state_dict(obj)
+    return clone_model_reference(obj)
+
+
+def serialize_lazy_model_reference(obj: Any) -> Any:
+    """Serialize a model entry without eagerly materializing disk-backed refs."""
+    return clone_model_reference(obj)
+
+
 def serialize_model_reference(obj: Any) -> OrderedDict:
     """
     Convert any supported model reference into an in-memory state dict.
@@ -1570,10 +1589,10 @@ class CGoFedAggregator(BaseAggregator):
 
     def get_resume_state(self) -> Dict[str, Any]:
         """
-        Export aggregator state with all artifact-backed models materialized.
+        Export aggregator state while preserving file-backed model history refs.
 
-        Continuation files must be self-contained, so we serialize historical
-        models into in-memory state dicts instead of keeping stale temp paths.
+        The continuation save path will relocate artifact files into a bundled
+        directory, so the in-memory resume payload should stay lazy here.
         """
         return {
             "cross_task_weight": self.cross_task_weight,
@@ -1589,12 +1608,12 @@ class CGoFedAggregator(BaseAggregator):
                 for client_id, task_map in self.client_representations.items()
             },
             "task_global_models": {
-                int(task_id): serialize_model_reference(model_ref)
+                int(task_id): serialize_lazy_model_reference(model_ref)
                 for task_id, model_ref in self.task_global_models.items()
             },
             "client_historical_models": {
                 int(client_id): {
-                    int(task_id): serialize_model_reference(model_ref)
+                    int(task_id): serialize_lazy_model_reference(model_ref)
                     for task_id, model_ref in task_map.items()
                 }
                 for client_id, task_map in self.client_historical_models.items()
@@ -1609,13 +1628,13 @@ class CGoFedAggregator(BaseAggregator):
             },
             "_current_similarity_weights": dict(self._current_similarity_weights),
             "_current_historical_models": {
-                key: serialize_model_reference(model_ref)
+                key: serialize_lazy_model_reference(model_ref)
                 for key, model_ref in self._current_historical_models.items()
             },
         }
 
     def load_resume_state(self, state: Dict[str, Any]) -> None:
-        """Restore aggregator state without requiring old history artifact files."""
+        """Restore aggregator state while keeping disk-backed history lazy."""
         self.cross_task_weight = float(
             state.get("cross_task_weight", self.cross_task_weight)
         )
@@ -1632,12 +1651,12 @@ class CGoFedAggregator(BaseAggregator):
             for client_id, task_map in state.get("client_representations", {}).items()
         }
         self.task_global_models = {
-            int(task_id): restore_model_reference(params)
+            int(task_id): restore_model_reference_lazy(params)
             for task_id, params in state.get("task_global_models", {}).items()
         }
         self.client_historical_models = {
             int(client_id): {
-                int(task_id): restore_model_reference(params)
+                int(task_id): restore_model_reference_lazy(params)
                 for task_id, params in task_map.items()
             }
             for client_id, task_map in state.get("client_historical_models", {}).items()
@@ -1656,7 +1675,7 @@ class CGoFedAggregator(BaseAggregator):
             for key, value in state.get("_current_similarity_weights", {}).items()
         }
         self._current_historical_models = {
-            key: restore_model_reference(params)
+            key: restore_model_reference_lazy(params)
             for key, params in state.get("_current_historical_models", {}).items()
         }
 

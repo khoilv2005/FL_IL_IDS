@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Dict, Iterable, Optional
@@ -45,6 +46,7 @@ _SERVER_EXCLUDED_ATTRS = {
 }
 
 _AGGREGATOR_EXCLUDED_ATTRS = set()
+_MODEL_ARTIFACT_TYPE = "cgofed_model_artifact"
 
 
 def _clone_resume_value(value: Any) -> Any:
@@ -235,16 +237,114 @@ def build_continuation_state(
     }
 
 
+def _bundle_model_artifacts(value: Any, bundle_dir: str, copied_paths: Dict[str, str]) -> Any:
+    """Copy disk-backed model artifacts into the continuation bundle."""
+    if isinstance(value, OrderedDict):
+        return OrderedDict(
+            (k, _bundle_model_artifacts(v, bundle_dir, copied_paths))
+            for k, v in value.items()
+        )
+    if isinstance(value, dict):
+        artifact_type = value.get("_artifact_type")
+        if artifact_type == _MODEL_ARTIFACT_TYPE:
+            src_path = value.get("path")
+            if not src_path or not os.path.exists(src_path):
+                raise FileNotFoundError(
+                    f"Missing CGoFed model artifact while saving continuation: {src_path}"
+                )
+            normalized_src = os.path.abspath(src_path)
+            if normalized_src not in copied_paths:
+                os.makedirs(bundle_dir, exist_ok=True)
+                basename = os.path.basename(src_path)
+                target_name = basename
+                counter = 1
+                while True:
+                    target_path = os.path.join(bundle_dir, target_name)
+                    if not os.path.exists(target_path):
+                        break
+                    if os.path.abspath(target_path) == normalized_src:
+                        break
+                    stem, ext = os.path.splitext(basename)
+                    target_name = f"{stem}_{counter}{ext}"
+                    counter += 1
+                if os.path.abspath(target_path) != normalized_src:
+                    shutil.copy2(src_path, target_path)
+                copied_paths[normalized_src] = target_path
+
+            bundled = dict(value)
+            bundled["path"] = copied_paths[normalized_src]
+            return bundled
+
+        return {
+            k: _bundle_model_artifacts(v, bundle_dir, copied_paths)
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_bundle_model_artifacts(v, bundle_dir, copied_paths) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_bundle_model_artifacts(v, bundle_dir, copied_paths) for v in value)
+    if isinstance(value, set):
+        return {_bundle_model_artifacts(v, bundle_dir, copied_paths) for v in value}
+    return value
+
+
+def _rebase_model_artifacts(value: Any, state_dir: str) -> Any:
+    """Repoint bundled artifact refs when a continuation directory is moved."""
+    if isinstance(value, OrderedDict):
+        return OrderedDict((k, _rebase_model_artifacts(v, state_dir)) for k, v in value.items())
+    if isinstance(value, dict):
+        if value.get("_artifact_type") == _MODEL_ARTIFACT_TYPE:
+            current_path = value.get("path")
+            if current_path and os.path.exists(current_path):
+                return value
+
+            key = str(value.get("key") or "")
+            basename = os.path.basename(current_path or "")
+            candidates = []
+            if basename:
+                candidates.extend(
+                    os.path.join(root, basename)
+                    for root, _dirs, files in os.walk(state_dir)
+                    if basename in files
+                )
+            if key:
+                safe_key = key.replace(os.sep, "_").replace(":", "_")
+                key_basename = f"{safe_key}.pt"
+                candidates.extend(
+                    os.path.join(root, key_basename)
+                    for root, _dirs, files in os.walk(state_dir)
+                    if key_basename in files
+                )
+
+            if candidates:
+                rebased = dict(value)
+                rebased["path"] = candidates[0]
+                return rebased
+            return value
+
+        return {k: _rebase_model_artifacts(v, state_dir) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_rebase_model_artifacts(v, state_dir) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_rebase_model_artifacts(v, state_dir) for v in value)
+    if isinstance(value, set):
+        return {_rebase_model_artifacts(v, state_dir) for v in value}
+    return value
+
+
 def save_continuation_state(
     output_dir: str, task_id: int, state: Dict[str, Any]
 ) -> str:
     """Persist continuation state to disk."""
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, f"continuation_state_task_{task_id}.pt")
-    torch.save(state, path)
+    bundle_dir = os.path.join(output_dir, f"continuation_artifacts_task_{task_id}")
+    state_to_save = _bundle_model_artifacts(state, bundle_dir, copied_paths={})
+    torch.save(state_to_save, path)
     return path
 
 
 def load_continuation_state(path: str) -> Dict[str, Any]:
     """Load a continuation state file."""
-    return torch.load(path, map_location="cpu")
+    state = torch.load(path, map_location="cpu")
+    return _rebase_model_artifacts(state, os.path.dirname(path))

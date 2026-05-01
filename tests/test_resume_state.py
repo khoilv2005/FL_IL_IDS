@@ -1,17 +1,22 @@
 from collections import OrderedDict
+import shutil
 
 import torch
 
 from fed_learning.strategies.fed_incremental.cgofed import (
     CGoFedAggregator,
     CGoFedTrainer,
+    is_model_artifact,
+    load_model_state,
 )
 from fed_learning.clients.fedcbdr_client import FedCBDRClient
 from fed_learning.strategies.incremental.ewc import EWCTrainer
 from fed_learning.training.resume_state import (
+    load_continuation_state,
     restore_client_state,
     restore_aggregator_state,
     restore_trainer_state,
+    save_continuation_state,
     snapshot_aggregator_state,
     snapshot_client_state,
     snapshot_trainer_state,
@@ -209,13 +214,63 @@ def test_cgofed_aggregator_resume_accepts_legacy_model_artifact_refs(tmp_path):
     restored = CGoFedAggregator(rounds_per_task=20)
     restored.load_resume_state(legacy_state)
 
-    assert torch.equal(restored.task_global_models[0]["weight"], model_state["weight"])
+    assert is_model_artifact(restored.task_global_models[0])
+    assert is_model_artifact(restored.client_historical_models[7][0])
+    assert is_model_artifact(restored._current_historical_models[0])
+    assert torch.equal(load_model_state(restored.task_global_models[0])["weight"], model_state["weight"])
     assert torch.equal(
-        restored.client_historical_models[7][0]["weight"], model_state["weight"]
+        load_model_state(restored.client_historical_models[7][0])["weight"], model_state["weight"]
     )
     assert torch.equal(
-        restored._current_historical_models[0]["weight"], model_state["weight"]
+        load_model_state(restored._current_historical_models[0])["weight"], model_state["weight"]
     )
+
+
+def test_cgofed_continuation_bundles_model_artifacts_for_lazy_resume(tmp_path):
+    history_dir = tmp_path / "history"
+    history_dir.mkdir()
+    model_state = OrderedDict(weight=torch.tensor([1.0, 2.0]))
+    artifact_path = history_dir / "task0.pt"
+    torch.save(model_state, artifact_path)
+
+    aggregator = CGoFedAggregator(rounds_per_task=20)
+    aggregator.task_global_models = {
+        0: {
+            "_artifact_type": "cgofed_model_artifact",
+            "path": str(artifact_path),
+            "key": "task_0",
+        }
+    }
+    aggregator.client_historical_models = {7: {0: aggregator.task_global_models[0]}}
+    aggregator._current_historical_models = {0: aggregator.task_global_models[0]}
+
+    state = {
+        "aggregator_state": snapshot_aggregator_state(aggregator),
+    }
+
+    output_dir = tmp_path / "resume_bundle"
+    continuation_path = save_continuation_state(str(output_dir), 3, state)
+
+    moved_dir = tmp_path / "moved_bundle"
+    moved_dir.mkdir()
+    moved_path = moved_dir / "continuation_state_task_3.pt"
+    shutil.copy2(continuation_path, moved_path)
+    shutil.copytree(
+        output_dir / "continuation_artifacts_task_3",
+        moved_dir / "continuation_artifacts_task_3",
+    )
+
+    artifact_path.unlink()
+    shutil.rmtree(output_dir)
+    loaded = load_continuation_state(str(moved_path))
+
+    restored = CGoFedAggregator(rounds_per_task=20)
+    restore_aggregator_state(restored, loaded["aggregator_state"])
+
+    restored_ref = restored.task_global_models[0]
+    assert is_model_artifact(restored_ref)
+    assert str(moved_dir) in restored_ref["path"]
+    assert torch.equal(load_model_state(restored_ref)["weight"], model_state["weight"])
 
 
 def test_fedcbdr_client_resume_keeps_replay_buffer_without_raw_dataset_dump():

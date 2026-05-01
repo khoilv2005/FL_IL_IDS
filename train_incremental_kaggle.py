@@ -80,7 +80,7 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "nice",
+    "algorithm": "cgofed",
     # Output
     "output_dir": "./results_incremental",
     # Split-run / continuation state
@@ -90,16 +90,16 @@ CONFIG = {
     #"save_resume_after_task": 3,
     #"resume_state_path": None,
     # Phase 2 example:
-    #"task_start": 4,
-    #"task_end": 5,
-    #"resume_state_path": "/tmp/next/continuation_state_task_3.pt",
+    "task_start": 4,
+    "task_end": 5,
+    "resume_state_path": "/tmp/next/continuation_state_task_3.pt",
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
-    "task_start": 0,
-    "task_end": 5,
-    "save_resume_after_task": None,
-    "resume_state_path": None,
-    "resume_output_dir": None,
+    #"task_start": 0,
+    #"task_end": 5,
+    #"save_resume_after_task": None,
+    #"resume_state_path": None,
+    #"resume_output_dir": None,
     # Incremental Learning - 6 Tasks Distribution
     # Task 0-4: 6 classes each, Task 5: 4 classes (total 34)
     "num_clients": 100,
@@ -110,7 +110,7 @@ CONFIG = {
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)
     # CGoFed Paper Eq. 14: NO proximal term! Only cross-task regularization A(Θ)
     "mu_fedprox": 0.0,  # 0.0 for CGoFed (paper doesn't have proximal term)
-    "rounds_per_task": 1,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
+    "rounds_per_task": 20,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
     "local_epochs": 1,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
@@ -152,8 +152,8 @@ CONFIG = {
     "der_stage2_rounds": 2,
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,
-    "nice_max_phases": 20,
-    "nice_phase_epochs": 1,
+    "nice_max_phases": 5,
+    "nice_phase_epochs": 4,
     "memo_per_class": 50,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,
