@@ -1,34 +1,82 @@
-"""
+
 # ============================================================ #
 # Download resume state from Google Drive
 # ============================================================ #
 import os
+import subprocess
+import sys
+import zipfile
 
-os.makedirs("/tmp/next/continue", exist_ok=True)
+TRAIN_PHASE = 2  # 1: task 0-1, 2: task 2-3, 3: task 4-5
 
-!pip install -q gdown
-!gdown --fuzzy "https://drive.google.com/file/d/1kZjls4NTtGy4qWPqd8ZOJRQ28hu8wEYA/view?usp=sharing" -O /tmp/next/continue/continue.rar
+PHASE_CONFIG = {
+    1: {
+        "task_start": 0,
+        "task_end": 1,
+        "save_resume_after_task": 1,
+        "resume_file": None,
+    },
+    2: {
+        "task_start": 2,
+        "task_end": 3,
+        "save_resume_after_task": 3,
+        "resume_file": "continuation_state_task_1.pt",
+    },
+    3: {
+        "task_start": 4,
+        "task_end": 5,
+        "save_resume_after_task": None,
+        "resume_file": "continuation_state_task_3.pt",
+    },
+}
 
-!apt-get -qq update
-!apt-get -qq install -y unrar
-!unrar x -o+ /tmp/next/continue/continue.rar /tmp/next/
-
-resume_candidates = []
-for root, _, files in os.walk("/tmp/next"):
-    for f in files:
-        if f.endswith(".pt"):
-            resume_candidates.append(os.path.join(root, f))
-
-print("PT files found:")
-for p in resume_candidates:
-    print(p)
-
+phase_config = PHASE_CONFIG[TRAIN_PHASE]
+desired_resume_file = phase_config["resume_file"]
 target = None
-for p in resume_candidates:
-    name = os.path.basename(p).lower()
-    if "continuation_state_task_3.pt" in name or "cgofed_phase3.pt" in name:
-        target = p
-        break
+
+if desired_resume_file is None:
+    print(f"Phase {TRAIN_PHASE}: no resume state needed.")
+else:
+    os.makedirs("/tmp/next/continue", exist_ok=True)
+
+    archive_path = "/tmp/next/continue/continue.zip"
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "gdown"], check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gdown",
+            "--fuzzy",
+            "https://drive.google.com/file/d/1EeptFhiyn8XvOjv1LiCrI8RzbR31bDw7/view?usp=sharing",
+            "-O",
+            archive_path,
+        ],
+        check=True,
+    )
+
+    with zipfile.ZipFile(archive_path, "r") as zf:
+        zf.extractall("/tmp/next/")
+
+    resume_candidates = []
+    for root, _, files in os.walk("/tmp/next"):
+        for f in files:
+            if f.endswith(".pt"):
+                resume_candidates.append(os.path.join(root, f))
+
+    print("PT files found:")
+    for p in resume_candidates:
+        print(p)
+
+    for p in resume_candidates:
+        name = os.path.basename(p).lower()
+        if name == desired_resume_file:
+            target = p
+            break
+
+    if target is None:
+        raise FileNotFoundError(
+            f"Phase {TRAIN_PHASE} requires {desired_resume_file}, but it was not found in /tmp/next."
+        )
 
 print("Selected resume path:", target)
 
@@ -38,7 +86,7 @@ if target is not None:
 
 
 # =============================================================================#
-"""
+
 
 
 
@@ -126,31 +174,19 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "cgofed",
+    "algorithm": "der",
     # Output
     "output_dir": "./results_incremental",
 
     # Split-run / continuation state
-    # Phase 1 example:
-    "task_start": 0,
-    "task_end": 1,
-    "save_resume_after_task": 1,
-    "resume_state_path": None,
-    
-
-    # Phase 2 example:
-    #"task_start": 2,
-    #"task_end": 3,
-    #"save_resume_after_task": 3,
-    #"resume_state_path": None,
-    #"resume_state_path": "/tmp/next/continuation_state_task_1.pt",
-
-    # Phase 3 example:
-    #"task_start": 4,
-    #"task_end": 5,
-    #"resume_state_path": "/tmp/next/continuation_state_task_3.pt",
-
-
+    # Set TRAIN_PHASE at the top of this file:
+    #   1 -> train tasks 0-1, save continuation_state_task_1.pt
+    #   2 -> load continuation_state_task_1.pt, train tasks 2-3, save continuation_state_task_3.pt
+    #   3 -> load continuation_state_task_3.pt, train tasks 4-5
+    "task_start": phase_config["task_start"],
+    "task_end": phase_config["task_end"],
+    "save_resume_after_task": phase_config["save_resume_after_task"],
+    "resume_state_path": target,
 
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
