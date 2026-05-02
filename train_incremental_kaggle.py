@@ -1,4 +1,50 @@
 """
+# ============================================================ #
+# Download resume state from Google Drive
+# ============================================================ #
+import os
+
+os.makedirs("/tmp/next/continue", exist_ok=True)
+
+!pip install -q gdown
+!gdown --fuzzy "https://drive.google.com/file/d/1kZjls4NTtGy4qWPqd8ZOJRQ28hu8wEYA/view?usp=sharing" -O /tmp/next/continue/continue.rar
+
+!apt-get -qq update
+!apt-get -qq install -y unrar
+!unrar x -o+ /tmp/next/continue/continue.rar /tmp/next/
+
+resume_candidates = []
+for root, _, files in os.walk("/tmp/next"):
+    for f in files:
+        if f.endswith(".pt"):
+            resume_candidates.append(os.path.join(root, f))
+
+print("PT files found:")
+for p in resume_candidates:
+    print(p)
+
+target = None
+for p in resume_candidates:
+    name = os.path.basename(p).lower()
+    if "continuation_state_task_3.pt" in name or "cgofed_phase3.pt" in name:
+        target = p
+        break
+
+print("Selected resume path:", target)
+
+if target is not None:
+    print("exists:", os.path.exists(target))
+    print("size:", os.path.getsize(target))
+
+
+# =============================================================================#
+"""
+
+
+
+
+
+"""
 Federated Class Incremental Learning - Training Entry Point
 ============================================================
 CONFIG-only entry point. All training logic lives in fed_learning.training.task_loop.
@@ -83,16 +129,29 @@ CONFIG = {
     "algorithm": "cgofed",
     # Output
     "output_dir": "./results_incremental",
+
     # Split-run / continuation state
     # Phase 1 example:
-    #"task_start": 0,
+    "task_start": 0,
+    "task_end": 1,
+    "save_resume_after_task": 1,
+    "resume_state_path": None,
+    
+
+    # Phase 2 example:
+    #"task_start": 2,
     #"task_end": 3,
     #"save_resume_after_task": 3,
     #"resume_state_path": None,
-    # Phase 2 example:
-    "task_start": 4,
-    "task_end": 5,
-    "resume_state_path": "/tmp/next/continuation_state_task_3.pt",
+    #"resume_state_path": "/tmp/next/continuation_state_task_1.pt",
+
+    # Phase 3 example:
+    #"task_start": 4,
+    #"task_end": 5,
+    #"resume_state_path": "/tmp/next/continuation_state_task_3.pt",
+
+
+
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
     #"task_start": 0,
