@@ -465,6 +465,39 @@ def _write_training_history(output_dir: str, history: Dict[str, Any]):
         json.dump(history.get("round_metrics", []), f, indent=2, default=str)
 
 
+def _write_phase_outputs(
+    output_dir: str,
+    history: Dict[str, Any],
+    config: Dict[str, Any],
+    completed_task_id: int,
+):
+    """
+    Persist all aggregate outputs after each split-run phase/task.
+
+    Split Kaggle runs may stop at task 2, 3, 4, or 5, so every completed task
+    must leave a full metrics/report bundle, not only the final full run.
+    """
+    _write_training_history(output_dir, history)
+
+    with open(os.path.join(output_dir, "task_metrics.json"), "w") as f:
+        json.dump(history.get("task_accuracies", []), f, indent=2, default=str)
+
+    phase_summary = {
+        "algorithm": config.get("algorithm"),
+        "mode": config.get("mode", "fed_il"),
+        "task_start": int(config.get("task_start", 0)),
+        "task_end": int(config.get("task_end", completed_task_id)),
+        "completed_task": int(completed_task_id),
+        "num_task_records": len(history.get("task_accuracies", [])),
+        "num_round_records": len(history.get("round_metrics", [])),
+    }
+    with open(os.path.join(output_dir, "phase_summary.json"), "w") as f:
+        json.dump(phase_summary, f, indent=2, default=str)
+
+    if history.get("task_accuracies"):
+        _generate_fcil_report(history, config, output_dir)
+
+
 def _resolve_output_dir(config: Dict[str, Any], mode: str, algorithm: str) -> str:
     """Resolve output directory for fresh or resumed runs."""
     if config.get("resume_output_dir"):
@@ -896,7 +929,7 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
             0.0,
             {0: round_metrics.get("accuracy", 0.0) or 0.0},
         )
-        _write_training_history(output_dir, all_history)
+        _write_phase_outputs(output_dir, all_history, config, 0)
 
     # 6. Run Plexus
     result = run_plexus_training(
@@ -986,7 +1019,7 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
         0.0,
         {0: acc},
     )
-    _write_training_history(output_dir, all_history)
+    _write_phase_outputs(output_dir, all_history, config, 0)
 
     return {
         "task_accuracies": all_history["task_accuracies"],
@@ -1552,7 +1585,7 @@ def run_incremental_training(config: Dict[str, Any]):
             af,
             current_task_accuracies,
         )
-        _write_training_history(output_dir, all_history)
+        _write_phase_outputs(output_dir, all_history, config, task_id)
 
         if config.get("save_resume_after_task") == task_id:
             continuation_state = build_continuation_state(
@@ -1588,7 +1621,9 @@ def run_incremental_training(config: Dict[str, Any]):
     print(f"Final Accuracy: {final['accuracy'] * 100:.2f}%")
     print(f"Final Forgetting: {final['avg_forgetting'] * 100:.2f}%")
 
-    _write_training_history(output_dir, all_history)
-
-    # 7. FCIL Report
-    _generate_fcil_report(all_history, config, output_dir)
+    _write_phase_outputs(
+        output_dir,
+        all_history,
+        config,
+        int(final.get("task", config.get("task_end", 0))),
+    )
