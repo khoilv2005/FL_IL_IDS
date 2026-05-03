@@ -346,5 +346,8 @@ def save_continuation_state(
 
 def load_continuation_state(path: str) -> Dict[str, Any]:
     """Load a continuation state file."""
-    state = torch.load(path, map_location="cpu")
+    try:
+        state = torch.load(path, map_location="cpu", weights_only=False)
+    except TypeError:
+        state = torch.load(path, map_location="cpu")
     return _rebase_model_artifacts(state, os.path.dirname(path))

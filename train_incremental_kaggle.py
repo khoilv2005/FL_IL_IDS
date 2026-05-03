@@ -174,7 +174,7 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "der",
+    "algorithm": "nice",
     # Output
     "output_dir": "./results_incremental",
 
@@ -247,8 +247,13 @@ CONFIG = {
     "der_stage2_rounds": 8,   # 40% of 20 rounds: classifier finetuning
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,
+<<<<<<< HEAD
     "nice_max_phases": 20,  # 20 phases = 20 federated rounds/task
     "nice_phase_epochs": 1,  # 1 epoch/phase: consistent với local_epochs
+=======
+    "nice_max_phases": 20,
+    "nice_phase_epochs": 1,
+>>>>>>> db753041656646aa50246493b5dea9e2f5e95740
     "memo_per_class": 50,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,
