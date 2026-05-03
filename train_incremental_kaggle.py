@@ -1,3 +1,103 @@
+
+# ============================================================ #
+# Download resume state from Google Drive
+# ============================================================ #
+import os
+import subprocess
+import sys
+import zipfile
+
+TRAIN_PHASE = 2  # 1: task 0-1, 2: task 2, 3: task 3, 4: task 4-5
+
+PHASE_CONFIG = {
+    1: {
+        "task_start": 0,
+        "task_end": 1,
+        "save_resume_after_task": 1,
+        "resume_file": None,
+    },
+    2: {
+        "task_start": 2,
+        "task_end": 2,
+        "save_resume_after_task": 2,
+        "resume_file": "continuation_state_task_1.pt",
+    },
+    3: {
+        "task_start": 3,
+        "task_end": 3,
+        "save_resume_after_task": 3,
+        "resume_file": "continuation_state_task_2.pt",
+    },
+    4: {
+        "task_start": 4,
+        "task_end": 5,
+        "save_resume_after_task": None,
+        "resume_file": "continuation_state_task_3.pt",
+    },
+}
+
+phase_config = PHASE_CONFIG[TRAIN_PHASE]
+desired_resume_file = phase_config["resume_file"]
+target = None
+
+if desired_resume_file is None:
+    print(f"Phase {TRAIN_PHASE}: no resume state needed.")
+else:
+    os.makedirs("/tmp/next/continue", exist_ok=True)
+
+    archive_path = "/tmp/next/continue/continue.zip"
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "gdown"], check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gdown",
+            "--fuzzy",
+            "https://drive.google.com/file/d/15Ki3iBYinEmGFk5SRsSno46WI44RVtvk/view?usp=drive_link",
+            "-O",
+            archive_path,
+        ],
+        check=True,
+    )
+
+    with zipfile.ZipFile(archive_path, "r") as zf:
+        zf.extractall("/tmp/next/")
+
+    resume_candidates = []
+    for root, _, files in os.walk("/tmp/next"):
+        for f in files:
+            if f.endswith(".pt"):
+                resume_candidates.append(os.path.join(root, f))
+
+    print("PT files found:")
+    for p in resume_candidates:
+        print(p)
+
+    for p in resume_candidates:
+        name = os.path.basename(p).lower()
+        if name == desired_resume_file:
+            target = p
+            break
+
+    if target is None:
+        raise FileNotFoundError(
+            f"Phase {TRAIN_PHASE} requires {desired_resume_file}, but it was not found in /tmp/next."
+        )
+
+print("Selected resume path:", target)
+
+if target is not None:
+    print("exists:", os.path.exists(target))
+    print("size:", os.path.getsize(target))
+
+
+# =============================================================================#
+
+
+
+
+
+
 """
 Federated Class Incremental Learning - Training Entry Point
 ============================================================
@@ -80,19 +180,28 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "nice",
-    # Output
-    "output_dir": "./results_incremental",
+    "algorithm": "fedcbdr",
+    # Output - Use Kaggle's output directory for persistent storage
+    # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
+    # On local: ./results_incremental
+    "output_dir": "/kaggle/working/results_incremental",
+
     # Split-run / continuation state
-    # Phase 1 example:
-    #"task_start": 0,
-    #"task_end": 3,
-    #"save_resume_after_task": 3,
-    #"resume_state_path": None,
-    # Phase 2 example:
-    "task_start": 4,
-    "task_end": 5,
-    "resume_state_path": "/tmp/next/continuation_state_task_3.pt",
+    # Set TRAIN_PHASE at the top of this file:
+    #   1 -> train tasks 0-1, save continuation_state_task_1.pt
+    #   2 -> load task_1 state, train task 2, save continuation_state_task_2.pt
+    #   3 -> load task_2 state, train task 3, save continuation_state_task_3.pt
+    #   4 -> load task_3 state, train tasks 4-5 (done)
+    "task_start": phase_config["task_start"],
+    "task_end": phase_config["task_end"],
+    "save_resume_after_task": phase_config["save_resume_after_task"],
+    "resume_state_path": target,
+    # Always output to /kaggle/working/ for persistence (downloadable from Output tab)
+    "resume_output_dir": "/kaggle/working/results_incremental",
+    # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
+    # None = disable; set to 5 for safe recovery without bloating disk
+    "periodic_save_every": 5,
+
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
     #"task_start": 0,
@@ -110,8 +219,8 @@ CONFIG = {
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)
     # CGoFed Paper Eq. 14: NO proximal term! Only cross-task regularization A(Θ)
     "mu_fedprox": 0.0,  # 0.0 for CGoFed (paper doesn't have proximal term)
-    "rounds_per_task": 20,  # Giữ 5 rounds: sync thường xuyên giảm client drift trên non-IID data
-    "local_epochs": 1,  # Tăng từ 2: nhiều gradient updates hơn nhưng không quá cao gây drift
+    "rounds_per_task": 20,  # 20 rounds/task: đủ để model hội tụ, sync thường xuyên giảm client drift
+    "local_epochs": 1,  # 1 epoch/round: tránh client drift trên non-IID data
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
     "batch_size": 2048,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
@@ -148,8 +257,8 @@ CONFIG = {
     "lambda_sparsity": 0.1,
     "s_max": 15.0,
     "der_temperature": 2.0,
-    "der_stage1_rounds": 3,
-    "der_stage2_rounds": 2,
+    "der_stage1_rounds": 12,  # 60% of 20 rounds: representation learning
+    "der_stage2_rounds": 8,   # 40% of 20 rounds: classifier finetuning
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,
     "nice_max_phases": 20,
