@@ -80,7 +80,7 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "cgofed",
+    "algorithm": "nice",
     # Output
     "output_dir": "./results_incremental",
     # Split-run / continuation state
@@ -152,8 +152,8 @@ CONFIG = {
     "der_stage2_rounds": 2,
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,
-    "nice_max_phases": 5,
-    "nice_phase_epochs": 4,
+    "nice_max_phases": 20,
+    "nice_phase_epochs": 1,
     "memo_per_class": 50,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,
