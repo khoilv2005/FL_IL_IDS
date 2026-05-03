@@ -198,9 +198,6 @@ CONFIG = {
     "resume_state_path": target,
     # Always output to /kaggle/working/ for persistence (downloadable from Output tab)
     "resume_output_dir": "/kaggle/working/results_incremental",
-    # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
-    # None = disable; set to 5 for safe recovery without bloating disk
-    "periodic_save_every": 5,
 
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
