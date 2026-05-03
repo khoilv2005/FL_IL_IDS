@@ -7,7 +7,7 @@ import subprocess
 import sys
 import zipfile
 
-TRAIN_PHASE = 2  # 1: task 0-1, 2: task 2-3, 3: task 4-5
+TRAIN_PHASE = 2  # 1: task 0-1, 2: task 2, 3: task 3, 4: task 4-5
 
 PHASE_CONFIG = {
     1: {
@@ -18,11 +18,17 @@ PHASE_CONFIG = {
     },
     2: {
         "task_start": 2,
-        "task_end": 3,
-        "save_resume_after_task": 3,
+        "task_end": 2,
+        "save_resume_after_task": 2,
         "resume_file": "continuation_state_task_1.pt",
     },
     3: {
+        "task_start": 3,
+        "task_end": 3,
+        "save_resume_after_task": 3,
+        "resume_file": "continuation_state_task_2.pt",
+    },
+    4: {
         "task_start": 4,
         "task_end": 5,
         "save_resume_after_task": None,
@@ -47,7 +53,7 @@ else:
             "-m",
             "gdown",
             "--fuzzy",
-            "https://drive.google.com/file/d/1EeptFhiyn8XvOjv1LiCrI8RzbR31bDw7/view?usp=sharing",
+            "https://drive.google.com/file/d/15Ki3iBYinEmGFk5SRsSno46WI44RVtvk/view?usp=drive_link",
             "-O",
             archive_path,
         ],
@@ -174,19 +180,27 @@ CONFIG = {
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "nice",
-    # Output
-    "output_dir": "./results_incremental",
+    "algorithm": "fedcbdr",
+    # Output - Use Kaggle's output directory for persistent storage
+    # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
+    # On local: ./results_incremental
+    "output_dir": "/kaggle/working/results_incremental",
 
     # Split-run / continuation state
     # Set TRAIN_PHASE at the top of this file:
     #   1 -> train tasks 0-1, save continuation_state_task_1.pt
-    #   2 -> load continuation_state_task_1.pt, train tasks 2-3, save continuation_state_task_3.pt
-    #   3 -> load continuation_state_task_3.pt, train tasks 4-5
+    #   2 -> load task_1 state, train task 2, save continuation_state_task_2.pt
+    #   3 -> load task_2 state, train task 3, save continuation_state_task_3.pt
+    #   4 -> load task_3 state, train tasks 4-5 (done)
     "task_start": phase_config["task_start"],
     "task_end": phase_config["task_end"],
     "save_resume_after_task": phase_config["save_resume_after_task"],
     "resume_state_path": target,
+    # Always output to /kaggle/working/ for persistence (downloadable from Output tab)
+    "resume_output_dir": "/kaggle/working/results_incremental",
+    # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
+    # None = disable; set to 5 for safe recovery without bloating disk
+    "periodic_save_every": 5,
 
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
@@ -247,13 +261,8 @@ CONFIG = {
     "der_stage2_rounds": 8,   # 40% of 20 rounds: classifier finetuning
     # NICE (Neurogenesis Inspired Contextual Encoding)
     "tau": 0.95,
-<<<<<<< HEAD
-    "nice_max_phases": 20,  # 20 phases = 20 federated rounds/task
-    "nice_phase_epochs": 1,  # 1 epoch/phase: consistent với local_epochs
-=======
     "nice_max_phases": 20,
     "nice_phase_epochs": 1,
->>>>>>> db753041656646aa50246493b5dea9e2f5e95740
     "memo_per_class": 50,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,
