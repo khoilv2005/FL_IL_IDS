@@ -198,14 +198,14 @@ CONFIG = {
     #   2 -> load task_1 state, train task 2, save continuation_state_task_2.pt
     #   3 -> load task_2 state, train task 3, save continuation_state_task_3.pt
     #   4 -> load task_3 state, train tasks 4-5 (done)
-    # "task_start": phase_config["task_start"],
-    # "task_end": phase_config["task_end"],
-    # "save_resume_after_task": phase_config["save_resume_after_task"],
-    # "resume_state_path": target,
-    # # Always output to /kaggle/working/ for persistence (downloadable from Output tab)
-    # "resume_output_dir": "/kaggle/working/results_incremental",
-    # # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
-    # # None = disable; set to 5 for safe recovery without bloating disk
+    "task_start": phase_config["task_start"],
+    "task_end": phase_config["task_end"],
+    "save_resume_after_task": phase_config["save_resume_after_task"],
+    "resume_state_path": target,
+    # Always output to /kaggle/working/ for persistence (downloadable from Output tab)
+    "resume_output_dir": "/kaggle/working/results_incremental",
+    # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
+    # None = disable; set to 5 for safe recovery without bloating disk
 
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
