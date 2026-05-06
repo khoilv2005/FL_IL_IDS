@@ -238,7 +238,7 @@ class FedLwFTrainer(BaseTrainer):
           rồi cộng với CE loss theo hệ số `lwf_alpha`.
         """
         # Cross-entropy loss on new task data
-        ce_loss = F.cross_entropy(output, target)
+        ce_loss = self._seen_class_cross_entropy(output, target)
 
         # No distillation for first task or if no inputs
         if self.current_task == 0 or inputs is None:

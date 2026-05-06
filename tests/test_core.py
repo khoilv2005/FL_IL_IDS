@@ -91,6 +91,23 @@ class TestBaseTrainerHooks:
         trainer = FedAvgTrainer()
         assert trainer.get_optimizer_class() == torch.optim.Adam
 
+    def test_seen_class_ce_blocks_unseen_output_gradients(self):
+        """Incremental fixed-head CE should not update unseen class logits."""
+        trainer = FedAvgTrainer()
+        trainer.seen_classes = {0, 1}
+        output = torch.tensor(
+            [[3.0, 0.5, 8.0, 7.0], [0.2, 2.0, 6.0, 5.0]],
+            requires_grad=True,
+        )
+        target = torch.tensor([0, 1])
+
+        loss = trainer.compute_loss(nn.Linear(1, 4), output, target)
+        loss.backward()
+
+        assert output.grad is not None
+        assert torch.allclose(output.grad[:, 2:], torch.zeros_like(output.grad[:, 2:]))
+        assert output.grad[:, :2].abs().sum() > 0
+
 
 class TestEdgeCases:
     """Test edge cases and error handling."""

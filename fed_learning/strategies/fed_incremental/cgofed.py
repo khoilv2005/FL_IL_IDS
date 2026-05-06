@@ -63,6 +63,11 @@ def is_model_artifact(obj: Any) -> bool:
 
 def coerce_representation_matrix(rep: Any) -> Optional[torch.Tensor]:
     """Normalize a representation into a stable 2D float tensor on CPU."""
+    if is_representation_artifact(rep):
+        matrix = rep.get("matrix")
+        if isinstance(matrix, torch.Tensor):
+            return coerce_representation_matrix(matrix)
+        return None
     if rep is None or not isinstance(rep, torch.Tensor):
         return None
     if torch.isnan(rep).any() or torch.isinf(rep).any():
@@ -126,7 +131,21 @@ def representation_signature(
 def compute_representation_similarity(
     rep_a: Any, rep_b: Any
 ) -> float:
-    """Return a higher-is-better similarity score for two representations."""
+    """
+    Return higher-is-better similarity using paper Eq.10 L2 matrix distance.
+
+    The paper defines D(R_i^t, R_k^t) as an L2-norm distance between
+    representation matrices. Internally we return negative distance so larger
+    values still mean more similar for sorting/softmax code.
+    """
+    mat_a = coerce_representation_matrix(rep_a)
+    mat_b = coerce_representation_matrix(rep_b)
+    if mat_a is not None and mat_b is not None and mat_a.shape[1:] == mat_b.shape[1:]:
+        n = min(mat_a.shape[0], mat_b.shape[0])
+        if n <= 0:
+            return -1e6
+        return -torch.norm(mat_a[:n] - mat_b[:n], p="fro").item()
+
     sig_a = representation_signature(rep_a)
     sig_b = representation_signature(rep_b)
     if sig_a is None or sig_b is None or sig_a.shape != sig_b.shape:
@@ -150,6 +169,7 @@ def build_representation_artifact(rep: Any) -> Optional[Dict[str, Any]]:
     mean_vector = matrix.mean(dim=0)
     return {
         "_artifact_type": REPRESENTATION_ARTIFACT_TYPE,
+        "matrix": matrix.detach().cpu().float(),
         "signature": signature.detach().cpu().float(),
         "shape": tuple(matrix.shape),
         "mean_vector": mean_vector.detach().cpu().float(),
@@ -161,6 +181,8 @@ def clone_representation_state(rep: Any) -> Any:
     """Clone either a dense representation tensor or a lightweight artifact."""
     if is_representation_artifact(rep):
         cloned = dict(rep)
+        if isinstance(rep.get("matrix"), torch.Tensor):
+            cloned["matrix"] = rep["matrix"].detach().cpu().clone()
         if isinstance(rep.get("signature"), torch.Tensor):
             cloned["signature"] = rep["signature"].detach().cpu().clone()
         if isinstance(rep.get("mean_vector"), torch.Tensor):
@@ -313,18 +335,29 @@ def aggregate_representation_artifacts(
     )
     stacked_signatures = torch.stack([artifact["signature"] for artifact in artifacts], dim=0)
     stacked_means = torch.stack([artifact["mean_vector"] for artifact in artifacts], dim=0)
+    matrices = [
+        artifact.get("matrix")
+        for artifact in artifacts
+        if isinstance(artifact.get("matrix"), torch.Tensor)
+    ]
 
     signature = torch.sum(stacked_signatures * weights.unsqueeze(1), dim=0)
     mean_vector = torch.sum(stacked_means * weights.unsqueeze(1), dim=0)
 
     first_shape = artifacts[0]["shape"]
-    return {
+    result = {
         "_artifact_type": REPRESENTATION_ARTIFACT_TYPE,
         "signature": signature.detach().cpu(),
         "shape": (total_samples, int(first_shape[1])),
         "mean_vector": mean_vector.detach().cpu(),
         "mean_norm": torch.norm(mean_vector, p=2).item(),
     }
+    if len(matrices) == len(artifacts):
+        result["matrix"] = torch.cat(
+            [matrix.detach().cpu().float() for matrix in matrices],
+            dim=0,
+        )
+    return result
 
 
 class CGoFedTrainer(BaseTrainer):
@@ -524,7 +557,7 @@ class CGoFedTrainer(BaseTrainer):
         target_modules = []
         for name, module in model.named_modules():
             # Include Conv1d, Conv2d, and Linear (ALL layers with weights)
-            if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d)):
+            if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.GRU)):
                 # Skip batch norm if any slipped through
                 if "bn" in name.lower():
                     continue
@@ -684,6 +717,13 @@ class CGoFedTrainer(BaseTrainer):
                     except Exception as e:
                         print(f"⚠️ Unfold1d failed for {layer_name}: {e}")
                         return
+
+                elif isinstance(module, nn.GRU):
+                    act = activation.detach()
+                    if act.dim() == 3:
+                        features = act.contiguous().view(-1, act.shape[-1])
+                    else:
+                        features = act.view(act.size(0), -1)
 
                 else:
                     # Fallback
@@ -1030,7 +1070,7 @@ class CGoFedTrainer(BaseTrainer):
         Where A(Θ_k^t, Θ_old) encourages the local model to stay close to
         similar historical task models during training.
         """
-        ce_loss = F.cross_entropy(output, target)
+        ce_loss = self._seen_class_cross_entropy(output, target)
 
         # Paper Eq. 14: Add cross-task regularization A(Θ_k^t, Θ_old)
         # Get historical models and similarity weights from kwargs (passed by server)
@@ -1070,7 +1110,11 @@ class CGoFedTrainer(BaseTrainer):
         self, model: nn.Module, global_params: Optional[OrderedDict] = None, **kwargs
     ) -> None:
         """
-        Gradient projection BEFORE optimizer step (paper eq. 8).
+        Legacy trainer-side gradient projection fallback.
+
+        Paper-faithful CGoFed executes Eq.6/Eq.8/Eq.9 inside CGoFedClient during
+        local training. This method remains for backward-compatible callers/tests
+        that still provide projection_layer_bases to the shared trainer.
 
         This is called between backward() and optimizer.step() to modify
         gradients before they are applied to weights.
@@ -1085,20 +1129,31 @@ class CGoFedTrainer(BaseTrainer):
         - Union of subspaces across tasks via SVD re-orthogonalization
         - Comprehensive NaN/Inf checks at every step
         """
+        layer_bases = kwargs.get("projection_layer_bases")
+        if not layer_bases:
+            layer_bases = self.layer_bases
+
         # Skip for first task (no old space to project against)
-        if self.current_task == 0 or not self.layer_bases:
+        if self.current_task == 0 or not layer_bases:
             return
 
         with torch.no_grad():
             device = next(model.parameters()).device
             device_key = str(device)
+            projection_cache_key = str(kwargs.get("projection_cache_key", "trainer"))
+            cache_key = f"{device_key}|{projection_cache_key}"
 
-            # Lazy load and cache projection matrices PER DEVICE
-            # This avoids race conditions when multiple GPU threads share the trainer
-            if device_key not in self._cached_proj_matrices_per_device:
-                self._cache_projection_matrices(device_key)
+            # Lazy load and cache projection matrices per device AND per client.
+            # A shared trainer is used by multiple clients/threads; device-only
+            # caching would incorrectly reuse one client's projector for another.
+            if cache_key not in self._cached_proj_matrices_per_device:
+                self._cache_projection_matrices(
+                    device_key,
+                    layer_bases=layer_bases,
+                    cache_key=cache_key,
+                )
 
-            cached = self._cached_proj_matrices_per_device.get(device_key, {})
+            cached = self._cached_proj_matrices_per_device.get(cache_key, {})
 
             # Skip if no cached projections
             if not cached:
@@ -1107,7 +1162,10 @@ class CGoFedTrainer(BaseTrainer):
             # Get module name to param mapping (only Linear layers for projection)
             module_params = {}
             for name, module in self._get_projection_target_modules(model):
-                if hasattr(module, "weight") and module.weight is not None:
+                if isinstance(module, nn.GRU):
+                    if hasattr(module, "weight_ih_l0"):
+                        module_params[name] = module.weight_ih_l0
+                elif hasattr(module, "weight") and module.weight is not None:
                     module_params[name] = module.weight
 
             # DEBUG[8]: Log projection coverage once per task (first pre_step call)
@@ -1232,7 +1290,22 @@ class CGoFedTrainer(BaseTrainer):
                     )
                 self._pre_step_logged_this_task = True
 
-    def _cache_projection_matrices(self, device: str):
+    def clear_projection_cache(self, projection_cache_key: Optional[str] = None) -> None:
+        """Clear cached projection matrices to avoid retaining per-client projectors."""
+        if projection_cache_key is None:
+            self._cached_proj_matrices_per_device = {}
+            return
+        suffix = f"|{projection_cache_key}"
+        for key in list(self._cached_proj_matrices_per_device.keys()):
+            if key.endswith(suffix):
+                del self._cached_proj_matrices_per_device[key]
+
+    def _cache_projection_matrices(
+        self,
+        device: str,
+        layer_bases: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
+        cache_key: Optional[str] = None,
+    ):
         """
         Build and cache projection matrices for all layers from all old tasks.
 
@@ -1251,8 +1324,9 @@ class CGoFedTrainer(BaseTrainer):
         the projection union. The paper-faithful default is `None`, meaning all
         historical tasks contribute to the projector.
         """
+        bases_source = layer_bases if layer_bases is not None else self.layer_bases
         task_keys = sorted(
-            [k for k in self.layer_bases.keys() if k.startswith("task_")],
+            [k for k in bases_source.keys() if k.startswith("task_")],
             key=lambda x: int(x.split("_")[1])
         )
         old_task_keys = [k for k in task_keys if int(k.split("_")[1]) < self.current_task]
@@ -1268,7 +1342,7 @@ class CGoFedTrainer(BaseTrainer):
         layer_all_weighted_bases: Dict[str, List[torch.Tensor]] = {}
 
         for task_key in old_task_keys:
-            layer_dict = self.layer_bases.get(task_key, {})
+            layer_dict = bases_source.get(task_key, {})
             for layer_name, info in layer_dict.items():
                 try:
                     # Load basis and importance directly to the target device
@@ -1339,7 +1413,7 @@ class CGoFedTrainer(BaseTrainer):
                 print(f"⚠️ Failed to build projector for {layer_name}: {e}")
 
         # Store in per-device cache (thread-safe: each device writes to its own key)
-        self._cached_proj_matrices_per_device[device] = cached
+        self._cached_proj_matrices_per_device[cache_key or device] = cached
 
         if cached:
             print(f"  📦 Cached {len(cached)} layer projection matrices on {device}")

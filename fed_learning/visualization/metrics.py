@@ -66,8 +66,8 @@ def plot_confusion_matrix(y_true: np.ndarray,
     
     fig, ax = plt.subplots(figsize=figsize)
     
-    # Use grayscale colormap for IEEE
-    im = ax.imshow(cm, interpolation='nearest', cmap='Greys')
+    # Use a blue colormap for clearer ML/DL diagnostics.
+    im = ax.imshow(cm, interpolation='nearest', cmap='Blues')
     cbar = ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.ax.tick_params(labelsize=7)
     

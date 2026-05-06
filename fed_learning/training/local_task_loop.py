@@ -21,6 +21,7 @@ from fed_learning.strategies.incremental.nice import (
     increase_unit_ranks,
     update_freeze_masks,
 )
+from fed_learning.servers.nice_server import ContextDetector
 from fed_learning.training.resume_state import (
     build_continuation_state,
     load_continuation_state,
@@ -100,12 +101,81 @@ def _build_single_client_dataset(
     }
 
 
+def _nice_seen_mask(model: nn.Module, seen_classes: List[int], device: str) -> torch.Tensor:
+    num_classes = int(getattr(model, "num_classes", 0) or 0)
+    if num_classes <= 0 and hasattr(model, "fc2"):
+        num_classes = int(model.fc2.out_features)
+    if num_classes <= 0:
+        return torch.zeros(0, dtype=torch.bool, device=device)
+
+    mask = torch.ones(num_classes, dtype=torch.bool, device=device)
+    for cls_id in set(int(c) for c in seen_classes):
+        if 0 <= cls_id < num_classes:
+            mask[cls_id] = False
+    return mask
+
+
+def _allowed_nice_episode_classes(
+    context_detector: ContextDetector,
+    episode: int,
+    seen_classes: List[int],
+    num_classes: int,
+) -> List[int]:
+    seen_set = set(int(c) for c in seen_classes)
+    allowed = [
+        int(c)
+        for c in context_detector.episode_classes.get(int(episode), [])
+        if int(c) in seen_set and 0 <= int(c) < num_classes
+    ]
+    if allowed:
+        return sorted(set(allowed))
+    return sorted(c for c in seen_set if 0 <= c < num_classes)
+
+
+def _apply_local_nice_context_mask(
+    model: nn.Module,
+    logits: torch.Tensor,
+    X_batch: torch.Tensor,
+    context_detector: ContextDetector,
+    seen_classes: List[int],
+    device: str,
+) -> torch.Tensor:
+    masked = logits.clone()
+    global_unseen = _nice_seen_mask(model, seen_classes, device)
+    if len(global_unseen) == masked.shape[1]:
+        masked[:, global_unseen] = float("-inf")
+
+    if not getattr(context_detector, "episode_classes", None):
+        return masked
+
+    try:
+        binary_acts = context_detector._binarize_per_sample(model, X_batch)
+        pred_episodes = context_detector.predict_episodes_batch(binary_acts)
+    except Exception:
+        return masked
+
+    num_classes = masked.shape[1]
+    for row_idx, episode in enumerate(pred_episodes):
+        allowed = _allowed_nice_episode_classes(
+            context_detector,
+            int(episode),
+            seen_classes,
+            num_classes,
+        )
+        sample_mask = torch.ones(num_classes, dtype=torch.bool, device=masked.device)
+        sample_mask[allowed] = False
+        masked[row_idx, sample_mask] = float("-inf")
+    return masked
+
+
 def _predict_labels(
     model: nn.Module,
     X_data: torch.Tensor,
     y_data: torch.Tensor,
     device: str,
     batch_size: int,
+    context_detector: ContextDetector = None,
+    seen_classes: List[int] = None,
 ) -> Tuple[np.ndarray, np.ndarray, torch.Tensor | None]:
     if len(y_data) == 0:
         return np.array([], dtype=np.int64), np.array([], dtype=np.int64), None
@@ -121,6 +191,10 @@ def _predict_labels(
             X_batch = X_data[i : i + batch_size].to(device)
             y_batch = y_data[i : i + batch_size].to(device)
             out = model(X_batch)
+            if context_detector is not None and seen_classes is not None:
+                out = _apply_local_nice_context_mask(
+                    model, out, X_batch, context_detector, seen_classes, device
+                )
             probs = torch.softmax(out.detach().cpu(), dim=1)
             if prob_sum is None:
                 prob_sum = probs.sum(dim=0)
@@ -136,7 +210,11 @@ def _predict_labels(
 
 
 def _evaluate_model(
-    model: nn.Module, test_data: Dict[str, torch.Tensor], device: str
+    model: nn.Module,
+    test_data: Dict[str, torch.Tensor],
+    device: str,
+    context_detector: ContextDetector = None,
+    seen_classes: List[int] = None,
 ) -> Dict[str, float]:
     model.eval()
     criterion = nn.CrossEntropyLoss()
@@ -162,9 +240,20 @@ def _evaluate_model(
             X_batch = X_test[i : i + batch_size].to(device)
             y_batch = y_test[i : i + batch_size].to(device)
             out = model(X_batch)
-            loss = criterion(out, y_batch)
+            if context_detector is not None and seen_classes is not None:
+                loss_out = out.clone()
+                global_unseen = _nice_seen_mask(model, seen_classes, device)
+                if len(global_unseen) == loss_out.shape[1]:
+                    loss_out[:, global_unseen] = float("-inf")
+                pred_out = _apply_local_nice_context_mask(
+                    model, out, X_batch, context_detector, seen_classes, device
+                )
+            else:
+                loss_out = out
+                pred_out = out
+            loss = criterion(loss_out, y_batch)
             total_loss += loss.item() * len(y_batch)
-            preds.append(out.argmax(dim=1).cpu().numpy())
+            preds.append(pred_out.argmax(dim=1).cpu().numpy())
             targets.append(y_batch.cpu().numpy())
 
     y_true = np.concatenate(targets)
@@ -192,6 +281,8 @@ def _evaluate_and_visualize_local(
     task_id: int,
     output_dir: str,
     config: Dict[str, Any],
+    context_detector: ContextDetector = None,
+    seen_classes: List[int] = None,
 ):
     """Generate the same task-level diagnostic plots as federated IL."""
     print("\n  Visualization & Debugging:")
@@ -214,7 +305,13 @@ def _evaluate_and_visualize_local(
         eval_batch_size = int(config.get("eval_batch_size", config.get("batch_size", 1024)))
         eval_batch_size = max(1, eval_batch_size)
         y_true, y_pred, mean_probs = _predict_labels(
-            model, X_test, y_test, device, eval_batch_size
+            model,
+            X_test,
+            y_test,
+            device,
+            eval_batch_size,
+            context_detector=context_detector,
+            seen_classes=seen_classes,
         )
 
         unique_preds = sorted(set(y_pred.tolist()))
@@ -266,12 +363,25 @@ def _evaluate_and_visualize_local(
 
 
 def _compute_local_forgetting(
-    model, device, data_loader, task_id, best_acc_per_task, trainer
+    model,
+    device,
+    data_loader,
+    task_id,
+    best_acc_per_task,
+    trainer,
+    context_detector: ContextDetector = None,
+    seen_classes: List[int] = None,
 ):
     current_task_accuracies = {}
     for prev_tid in range(task_id + 1):
         X_prev, y_prev = data_loader.get_test_data(prev_tid, cumulative=False)
-        metrics = _evaluate_model(model, {"X_test": X_prev, "y_test": y_prev}, device)
+        metrics = _evaluate_model(
+            model,
+            {"X_test": X_prev, "y_test": y_prev},
+            device,
+            context_detector=context_detector,
+            seen_classes=seen_classes,
+        )
         current_task_accuracies[prev_tid] = metrics["accuracy"]
         best_acc_per_task[prev_tid] = max(
             best_acc_per_task.get(prev_tid, 0.0), metrics["accuracy"]
@@ -461,11 +571,25 @@ def _record_local_round(
     trainer,
     config: Dict[str, Any],
     seen_classes: List[int],
+    context_detector: ContextDetector = None,
 ):
     test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
-    metrics = _evaluate_model(model, {"X_test": test_X, "y_test": test_y}, device)
+    metrics = _evaluate_model(
+        model,
+        {"X_test": test_X, "y_test": test_y},
+        device,
+        context_detector=context_detector,
+        seen_classes=seen_classes,
+    )
     current_task_accuracies, af = _compute_local_forgetting(
-        model, device, data_loader, task_id, best_acc_per_task, trainer
+        model,
+        device,
+        data_loader,
+        task_id,
+        best_acc_per_task,
+        trainer,
+        context_detector=context_detector,
+        seen_classes=seen_classes,
     )
 
     round_record = {
@@ -597,7 +721,15 @@ def _run_local_der(model, client, trainer, config, device, new_classes):
 
 
 def _run_local_nice(
-    model, client, trainer, config, device, task_id, num_tasks, new_classes
+    model,
+    client,
+    trainer,
+    config,
+    device,
+    task_id,
+    num_tasks,
+    new_classes,
+    context_detector: ContextDetector,
 ):
     num_rounds = max(1, int(config.get("rounds_per_task", 1)))
     trainer.max_phases = max(1, int(config.get("nice_max_phases", 5)))
@@ -607,6 +739,7 @@ def _run_local_nice(
     for cls_id in new_classes:
         if cls_id < model.num_classes:
             model.unit_ranks["fc2"][cls_id] = 1
+    context_detector.episode_classes[task_id] = list(new_classes)
 
     print(
         "  NICE local schedule: "
@@ -630,6 +763,15 @@ def _run_local_nice(
             phase_offset=round_id,
             max_phases_override=1,
         )
+        _update_local_nice_context_memory(
+            context_detector,
+            model,
+            client.X_train,
+            client.y_train,
+            task_id,
+            new_classes,
+            device,
+        )
         round_records.append(
             {
                 "round": round_id,
@@ -643,6 +785,40 @@ def _run_local_nice(
     if hasattr(model, "freeze_bn_for_mature"):
         model.freeze_bn_for_mature()
     return round_records
+
+
+def _update_local_nice_context_memory(
+    context_detector: ContextDetector,
+    model: nn.Module,
+    X_train: torch.Tensor,
+    y_train: torch.Tensor,
+    task_id: int,
+    task_classes: List[int],
+    device: str,
+) -> None:
+    """Update local NICE context memory from train samples, never test data."""
+    if X_train is None or y_train is None or len(y_train) == 0:
+        return
+
+    context_detector.episode_classes[task_id] = list(task_classes)
+    per_class = max(1, int(getattr(context_detector, "memo_per_class", 50)))
+    chunks = []
+    y_cpu = y_train.detach().cpu()
+
+    for cls_id in task_classes:
+        idx = torch.nonzero(y_cpu == int(cls_id), as_tuple=False).flatten()
+        if len(idx) == 0:
+            continue
+        take = min(per_class, len(idx))
+        selected = idx[torch.randperm(len(idx))[:take]]
+        chunks.append(X_train[selected].detach().cpu())
+
+    if not chunks:
+        return
+
+    sample_data = torch.cat(chunks, dim=0).to(device)
+    context_detector.push_activations(model, sample_data, task_id)
+    context_detector.train_models(task_id)
 
 
 def _run_local_generic(model, client, trainer, config, device, task_id, algorithm):
@@ -766,6 +942,11 @@ def run_local_incremental_training(config: Dict[str, Any]):
     best_acc_per_task: Dict[int, float] = {}
     persistent_client = None
     pending_client_state = None
+    nice_context_detector = (
+        ContextDetector(memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))))
+        if config["algorithm"].lower() == "nice"
+        else None
+    )
 
     if resume_state is not None:
         all_history = resume_state.get("all_history", all_history)
@@ -850,6 +1031,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 task_id,
                 data_loader.get_num_tasks(),
                 new_classes,
+                nice_context_detector,
             )
         else:
             round_records = _run_local_generic(
@@ -871,6 +1053,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 trainer,
                 config,
                 seen_classes,
+                context_detector=nice_context_detector if algo == "nice" else None,
             )
 
         _post_task_local(
@@ -878,7 +1061,13 @@ def run_local_incremental_training(config: Dict[str, Any]):
         )
 
         test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
-        metrics = _evaluate_model(model, {"X_test": test_X, "y_test": test_y}, device)
+        metrics = _evaluate_model(
+            model,
+            {"X_test": test_X, "y_test": test_y},
+            device,
+            context_detector=nice_context_detector if algo == "nice" else None,
+            seen_classes=seen_classes,
+        )
         print(
             "  Task summary -> "
             f"accuracy={metrics['accuracy'] * 100:.2f}%, "
@@ -893,10 +1082,19 @@ def run_local_incremental_training(config: Dict[str, Any]):
             task_id,
             output_dir,
             config,
+            context_detector=nice_context_detector if algo == "nice" else None,
+            seen_classes=seen_classes,
         )
 
         current_task_accuracies, af = _compute_local_forgetting(
-            model, device, data_loader, task_id, best_acc_per_task, trainer
+            model,
+            device,
+            data_loader,
+            task_id,
+            best_acc_per_task,
+            trainer,
+            context_detector=nice_context_detector if algo == "nice" else None,
+            seen_classes=seen_classes,
         )
         all_history["task_accuracies"].append(
             {

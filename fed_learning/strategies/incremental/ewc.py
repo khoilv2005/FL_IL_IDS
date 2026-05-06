@@ -168,8 +168,6 @@ class EWCMixin:
         }
 
         sample_count = 0
-        criterion = nn.CrossEntropyLoss()
-
         for X, y in data_loader:
             if sample_count >= self.fisher_samples:
                 break
@@ -183,7 +181,7 @@ class EWCMixin:
 
                 model.zero_grad()
                 output = model(X[i : i + 1])
-                loss = criterion(output, y[i : i + 1])
+                loss = self._seen_class_cross_entropy(output, y[i : i + 1])
                 loss.backward()
 
                 for name, param in model.named_parameters():

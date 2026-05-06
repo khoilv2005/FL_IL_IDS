@@ -124,7 +124,7 @@ class FedCBDRTrainer(BaseTrainer):
         """
         # Task 0: Standard cross-entropy (no old classes)
         if self.current_task == 0 or len(self.old_classes) == 0:
-            return F.cross_entropy(output, target)
+            return self._seen_class_cross_entropy(output, target)
 
         # Task > 0: Apply TTS loss
         return self._compute_tts_loss(output, target)
@@ -155,7 +155,7 @@ class FedCBDRTrainer(BaseTrainer):
 
         if max_old >= num_classes or max_new >= num_classes:
             # Fallback to standard CE if class indices exceed logits dimension
-            return F.cross_entropy(logits, target)
+            return self._seen_class_cross_entropy(logits, target)
 
         # Create temperature-scaled logits
         scaled_logits = logits.clone()
@@ -185,19 +185,23 @@ class FedCBDRTrainer(BaseTrainer):
         if old_mask.any():
             old_logits = scaled_logits[old_mask]
             old_targets = target[old_mask]
-            old_loss = F.cross_entropy(old_logits, old_targets, reduction="mean")
+            old_loss = self._seen_class_cross_entropy(
+                old_logits, old_targets, reduction="mean"
+            )
             loss = loss + self.omega_old * old_loss
 
         # Loss for new class samples
         if new_mask.any():
             new_logits = scaled_logits[new_mask]
             new_targets = target[new_mask]
-            new_loss = F.cross_entropy(new_logits, new_targets, reduction="mean")
+            new_loss = self._seen_class_cross_entropy(
+                new_logits, new_targets, reduction="mean"
+            )
             loss = loss + self.omega_new * new_loss
 
         # Handle edge case where no samples match
         if not old_mask.any() and not new_mask.any():
-            loss = F.cross_entropy(scaled_logits, target)
+            loss = self._seen_class_cross_entropy(scaled_logits, target)
 
         return loss
 

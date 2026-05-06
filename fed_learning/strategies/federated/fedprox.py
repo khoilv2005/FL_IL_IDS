@@ -36,8 +36,9 @@ class FedProxTrainer(BaseTrainer):
         global_params: Optional[OrderedDict] = None,
         **kwargs
     ) -> torch.Tensor:
-        # Base cross-entropy loss
-        ce_loss = nn.CrossEntropyLoss()(output, target)
+        # Base cross-entropy loss. In incremental runs, restrict CE softmax to
+        # classes seen so far so unseen output nodes do not receive gradients.
+        ce_loss = self._seen_class_cross_entropy(output, target)
         
         # Proximal term - move global params to device on-demand
         if global_params is not None:

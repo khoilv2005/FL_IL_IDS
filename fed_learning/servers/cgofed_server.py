@@ -122,8 +122,8 @@ class CGoFedServer(IncrementalServer):
         Chuẩn bị task mới cho CGoFed.
 
         Đây là bước server nạp history cũ và reset state cho task mới.
-        Theo paper, Eq.12 / Eq.14 dùng similarity từ previous training round,
-        nên task mới luôn bắt đầu với global init chuẩn và chưa có reg info.
+        Eq.12 / Eq.14 state is prepared lazily at the beginning of the first
+        train round, after trainer/aggregator have been moved to the new task.
         """
         super().set_task(task_id, task_classes, seen_classes)
         self._sync_history_from_aggregator()
@@ -175,6 +175,12 @@ class CGoFedServer(IncrementalServer):
             print(f"\n→ CGOFED: Training {len(self.clients)} clients on {device_info}")
 
         global_params = self.get_global_params()
+        if self.config.get("cgofed_pre_round_state", False):
+            self._prepare_initial_round_state(global_params, verbose=verbose)
+        build_projection_space = (
+            getattr(self.aggregator, "_round_in_task", 0) + 1
+            >= getattr(self.aggregator, "rounds_per_task", 1)
+        )
 
         # Distribute clients across GPUs
         clients_per_gpu = [[] for _ in range(self.num_gpus)]
@@ -215,6 +221,7 @@ class CGoFedServer(IncrementalServer):
                         self.use_cpu,
                         client_reg_info,  # Per-client regularization info
                         client_init_models,  # Eq.12 personalized init models
+                        build_projection_space,  # Client-local Eq.3-5 SVD once per task
                     ),
                 )
                 threads.append(t)
@@ -329,6 +336,38 @@ class CGoFedServer(IncrementalServer):
         peer_scores.sort(key=lambda x: x[1], reverse=True)
         return [other_id for other_id, _score in peer_scores[:top_k]]
 
+    def _select_peer_clients_from_history(
+        self,
+        client_id: int,
+        current_rep: object,
+        top_k: int,
+    ) -> List[int]:
+        """
+        Select peer clients using Eq.10 distances to historical task reps.
+
+        For client k at task t, Ψ_k compares R_k^t with every historical task
+        representation from every other client. We select the peer clients whose
+        historical tasks have the smallest distance to R_k^t.
+        """
+        peer_scores = []
+        for other_id, task_rep_map in self._client_task_representations.items():
+            if other_id == client_id:
+                continue
+            best_sim = None
+            for hist_task_id, hist_rep in task_rep_map.items():
+                if hist_task_id >= self.current_task:
+                    continue
+                sim = self._compute_similarity(current_rep, hist_rep)
+                if not np.isfinite(sim):
+                    continue
+                if best_sim is None or sim > best_sim:
+                    best_sim = sim
+            if best_sim is not None:
+                peer_scores.append((other_id, best_sim))
+
+        peer_scores.sort(key=lambda x: x[1], reverse=True)
+        return [other_id for other_id, _score in peer_scores[:top_k]]
+
     def _prepare_next_round_reg_info(self, results: List[Dict]) -> Dict[int, Dict]:
         """
         Prepare Eq.14 regularization info for the NEXT round of the current task.
@@ -352,14 +391,28 @@ class CGoFedServer(IncrementalServer):
         if len(current_round_reps) < 2:
             return {}
 
+        return self._prepare_reg_info_from_current_reps(current_round_reps)
+
+    def _prepare_reg_info_from_current_reps(
+        self, current_round_reps: Dict[int, object]
+    ) -> Dict[int, Dict]:
+        """
+        Build per-client Eq.14 regularization state from current-task reps.
+
+        This is used both before the first round of a task and after each
+        non-final round. The server only selects historical model references and
+        weights; the actual regularization loss is computed on each client.
+        """
+        if self.current_task == 0 or len(current_round_reps) < 2:
+            return {}
+
         top_k = getattr(self.aggregator, "top_k", 2)
         next_round_reg_info: Dict[int, Dict] = {}
 
         for client_id, current_rep in current_round_reps.items():
-            selected_peer_ids = self._select_peer_clients_for_current_round(
+            selected_peer_ids = self._select_peer_clients_from_history(
                 client_id=client_id,
                 current_rep=current_rep,
-                current_round_reps=current_round_reps,
                 top_k=top_k,
             )
             if not selected_peer_ids:
@@ -416,6 +469,138 @@ class CGoFedServer(IncrementalServer):
             print("  ⚠️ No valid next-round Eq.14 matches found")
 
         return next_round_reg_info
+
+    def _compute_pre_round_representations(self) -> Dict[int, object]:
+        """
+        Compute current-task Eq.2 representations before local training.
+
+        For round 0 of task t>0 there is no trained current-round result yet.
+        We therefore forward the current global model over each client's private
+        task data to get R_k^t, then use those reps to select historical models
+        for Eq.14 before the client starts local optimization.
+        """
+        if not self.clients:
+            return {}
+
+        device = self.primary_device
+        model = type(self.global_model)(
+            self.config["input_shape"], self.config["num_classes"]
+        ).to(device)
+        model.load_state_dict(
+            {k: v.to(device) for k, v in self.get_global_params().items()},
+            strict=True,
+        )
+
+        num_samples = int(getattr(self.trainer, "num_samples_rep", 0) or 0)
+        if num_samples <= 0:
+            num_samples = int(self.config.get("num_samples_rep", 2000))
+
+        reps: Dict[int, object] = {}
+        try:
+            for client in self.clients:
+                rep = client.compute_activation_representation(
+                    model=model,
+                    num_samples=num_samples,
+                )
+                artifact = build_representation_artifact(rep)
+                if artifact is not None:
+                    reps[client.client_id] = artifact
+        finally:
+            model.cpu()
+            del model
+            if torch.cuda.is_available() and not self.use_cpu:
+                torch.cuda.empty_cache()
+
+        return reps
+
+    def _prepare_initial_personalized_models(
+        self,
+        global_params: OrderedDict,
+        reg_info: Dict[int, Dict],
+    ) -> Dict[int, OrderedDict]:
+        """
+        Prepare Eq.12-style personalized init for the first round of a task.
+
+        The base model is the current server global model. If a client has
+        similar historical peer models selected for Eq.14, blend them with the
+        global model using eq12_self_weight.
+        """
+        if not reg_info:
+            return {}
+
+        personalized: Dict[int, OrderedDict] = {}
+        base_global = self._clone_params(global_params)
+
+        for client_id, info in reg_info.items():
+            hist_refs = info.get("historical_models", {})
+            sim_weights = info.get("similarity_weights", {})
+            if not hist_refs:
+                continue
+
+            model_params = []
+            weights = []
+            for key, ref in hist_refs.items():
+                weight = float(sim_weights.get(key, 0.0))
+                if weight <= 0.0:
+                    continue
+                try:
+                    model_params.append(load_model_state(ref))
+                    weights.append(weight)
+                except Exception as exc:
+                    print(
+                        f"  ⚠️ CGoFed: failed to load historical model {key} "
+                        f"for client {client_id}: {exc}"
+                    )
+
+            if not model_params:
+                continue
+
+            weight_tensor = torch.tensor(weights, dtype=torch.float32)
+            weight_tensor = weight_tensor / (weight_tensor.sum() + 1e-12)
+            hist_agg = self._weighted_average_models(model_params, weight_tensor)
+            personalized[client_id] = self._blend_models(
+                base_global,
+                hist_agg,
+                self_weight=self.eq12_self_weight,
+            )
+
+        return personalized
+
+    def _prepare_initial_round_state(
+        self, global_params: OrderedDict, verbose: bool = True
+    ) -> None:
+        """
+        Ensure round 0 of task t>0 receives Eq.12/Eq.14 state.
+
+        Without this pre-round pass, CGoFed only prepares regularization for the
+        next round inside the same task. That disables Eq.14 entirely when
+        rounds_per_task=1.
+        """
+        if self.current_task == 0:
+            return
+        if self._client_reg_info or self._personalized_round_models:
+            return
+        if not self._client_task_representations or not self._client_task_models:
+            self._sync_history_from_aggregator()
+        if not self._client_task_representations or not self._client_task_models:
+            return
+
+        if verbose:
+            print("  → Preparing initial Eq.12/Eq.14 state from pre-round representations...")
+
+        current_reps = self._compute_pre_round_representations()
+        self._client_reg_info = self._prepare_reg_info_from_current_reps(current_reps)
+        self._personalized_round_models = self._prepare_initial_personalized_models(
+            global_params,
+            self._client_reg_info,
+        )
+
+        if verbose:
+            print(
+                f"  ✓ Initial Eq.14 reg clients: {len(self._client_reg_info)}/"
+                f"{len(self.clients)} | Eq.12 init clients: "
+                f"{len(self._personalized_round_models)}/{len(self.clients)}"
+            )
 
     @staticmethod
     def _clone_params(params) -> OrderedDict:

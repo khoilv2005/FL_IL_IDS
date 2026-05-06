@@ -314,6 +314,75 @@ class NICEServer(IncrementalServer):
 
         print(f"  Strategy: NICE (Neurogenesis Inspired Contextual Encoding)")
 
+    def _sample_context_data_from_clients(self, task_classes: List[int]) -> torch.Tensor:
+        """Sample recently seen training examples for NICE context memory."""
+        if not task_classes:
+            return torch.empty(0)
+
+        per_class = max(1, int(getattr(self.context_detector, "memo_per_class", 50)))
+        samples = []
+
+        for cls_id in task_classes:
+            remaining = per_class
+            cls_chunks = []
+            for client in self.clients:
+                X_train = getattr(client, "X_train", None)
+                y_train = getattr(client, "y_train", None)
+                if X_train is None or y_train is None or len(y_train) == 0:
+                    continue
+
+                y_cpu = y_train.detach().cpu() if isinstance(y_train, torch.Tensor) else torch.as_tensor(y_train)
+                idx = torch.nonzero(y_cpu == int(cls_id), as_tuple=False).flatten()
+                if len(idx) == 0:
+                    continue
+
+                take = min(remaining, len(idx))
+                if take <= 0:
+                    break
+                perm = torch.randperm(len(idx))[:take]
+                selected = idx[perm]
+                cls_chunks.append(X_train[selected].detach().cpu())
+                remaining -= take
+                if remaining <= 0:
+                    break
+
+            if cls_chunks:
+                samples.append(torch.cat(cls_chunks, dim=0))
+
+        if not samples:
+            return torch.empty(0)
+        return torch.cat(samples, dim=0)
+
+    def update_context_detector_memory(self, verbose: bool = False) -> None:
+        """
+        Update NICE context memory from current task training samples.
+
+        Paper Section 3.4 stores activation memory from recently seen examples
+        every p epochs and retrains the chained context detector. In this
+        federated simulator the server has access to simulated client tensors,
+        so we sample from client train data rather than from test data.
+        """
+        task_classes = self.task_classes.get(self.current_task, [])
+        if not task_classes:
+            return
+
+        sample_data = self._sample_context_data_from_clients(task_classes)
+        if sample_data.numel() == 0:
+            if verbose:
+                print("    Context detector: no train samples available")
+            return
+
+        self.context_detector.push_activations(
+            self.global_model,
+            sample_data.to(self.primary_device),
+            self.current_task,
+        )
+        self.context_detector.train_models(self.current_task)
+        if verbose:
+            print(
+                f"    Context detector: {len(self.context_detector.context_learners)} models trained"
+            )
+
     def set_task(self, task_id: int, task_classes: list, seen_classes: list = None):
         """Set up for a new task - set output neuron ages for new classes.
 
@@ -432,13 +501,16 @@ class NICEServer(IncrementalServer):
             {k: v.to(self.primary_device) for k, v in new_params.items()}
         )
 
-        # Update server model's neuron ages from client results.
-        # Use the ages from the first client that has them (all clients
-        # start from the same ages and perform similar selection).
-        for r in results:
-            if "neuron_ages" in r and r["neuron_ages"]:
-                self.global_model.set_neuron_ages_state(r["neuron_ages"])
-                break
+        # Update server ages using the union/max over client selections rather
+        # than an arbitrary first client. Clients start from the same ages but
+        # can select different learner neurons on non-IID local data.
+        merged_ages = self._merge_client_neuron_ages(results)
+        if merged_ages:
+            self.global_model.set_neuron_ages_state(merged_ages)
+
+        # Paper Section 3.4 updates context memory every p epochs. This train
+        # round is one exposed NICE phase, so refresh memory after aggregation.
+        self.update_context_detector_memory(verbose=False)
 
         avg_loss = float(np.mean([r["loss"] for r in results]))
         round_time = time.time() - round_start
@@ -456,6 +528,24 @@ class NICEServer(IncrementalServer):
 
         return {"train_loss": avg_loss, "round_time": round_time}
 
+    def _merge_client_neuron_ages(self, results: List[Dict]) -> Dict[str, np.ndarray]:
+        """Merge per-client NICE neuron ages by taking the max age per neuron."""
+        age_states = [r.get("neuron_ages") for r in results if r.get("neuron_ages")]
+        if not age_states:
+            return {}
+
+        merged = {}
+        for layer_name in self.global_model.LAYER_NAMES:
+            layer_arrays = [
+                np.asarray(state[layer_name], dtype=np.int32)
+                for state in age_states
+                if layer_name in state
+            ]
+            if not layer_arrays:
+                continue
+            merged[layer_name] = np.maximum.reduce(layer_arrays)
+        return merged
+
     def end_task(self):
         """End-of-task processing: age transition, freeze masks, context detector.
 
@@ -470,6 +560,10 @@ class NICEServer(IncrementalServer):
         Đây là bước update trí nhớ dài hạn quan trọng nhất của NICE sau mỗi task.
         """
         print(f"\n  NICE end_task({self.current_task}):")
+
+        # Ensure training always ends with a final memory/context update before
+        # age transition, as described in NICE Section 3.5.
+        self.update_context_detector_memory(verbose=True)
 
         # 1. Age transition: all rank >= 1 get +1
         increase_unit_ranks(self.global_model)
@@ -489,30 +583,6 @@ class NICEServer(IncrementalServer):
         # 3. Freeze BN for layers with all-mature neurons
         self.global_model.freeze_bn_for_mature()
 
-        # 4. Push activations for context detector
-        # Use a sample of test data for this task
-        task_classes = self.task_classes.get(self.current_task, [])
-        if task_classes:
-            X_test = self.test_data["X_test"]
-            y_test = self.test_data["y_test"]
-            task_set = set(task_classes)
-            mask = torch.tensor([y.item() in task_set for y in y_test])
-            if mask.any():
-                X_task = X_test[mask]
-                # Subsample
-                n_sample = min(200, len(X_task))
-                idx = torch.randperm(len(X_task))[:n_sample]
-                sample_data = X_task[idx].to(self.primary_device)
-                self.context_detector.push_activations(
-                    self.global_model, sample_data, self.current_task
-                )
-
-        # 5. Train context detector
-        self.context_detector.train_models(self.current_task)
-        print(
-            f"    Context detector: {len(self.context_detector.context_learners)} models trained"
-        )
-
         # Update aggregator frozen keys AND per-neuron freeze masks
         if hasattr(self.aggregator, "set_frozen_keys"):
             frozen_keys = self._get_frozen_param_keys()
@@ -526,11 +596,13 @@ class NICEServer(IncrementalServer):
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:
-        """Evaluate with output masking for unseen classes.
+        """Evaluate with NICE context-aware output masking.
 
         NICE uses LetLearner during training which blocks gradient flow to
         unseen output neurons, leaving them with random weights. During eval,
-        we must mask those logits to -inf so argmax only picks from seen classes.
+        we first mask unseen classes globally for loss stability, then use the
+        trained ContextDetector to predict the episode of each sample and mask
+        future-episode classes for argmax.
 
         Nếu bỏ bước này, lớp chưa học có thể thắng argmax chỉ vì trọng số ngẫu nhiên.
         """
@@ -558,16 +630,7 @@ class NICEServer(IncrementalServer):
         if n_test == 0:
             return {"loss": 0.0, "accuracy": 0.0, "f1_macro": 0.0, "f1_weighted": 0.0}
 
-        # Build unseen class mask for output masking
-        seen_set = (
-            set(self.seen_classes)
-            if self.seen_classes
-            else set(range(self.global_model.num_classes))
-        )
-        unseen_mask = torch.ones(self.global_model.num_classes, dtype=torch.bool)
-        for c in seen_set:
-            unseen_mask[c] = False
-        unseen_mask = unseen_mask.to(self.primary_device)
+        unseen_mask = self._build_global_unseen_mask()
 
         all_preds = []
         all_targets = []
@@ -579,13 +642,14 @@ class NICEServer(IncrementalServer):
                 y_batch = y_test[i : i + batch_size].to(self.primary_device)
 
                 out = self.global_model(X_batch)
-                # Mask unseen class logits to -inf so they can't be argmax winners
-                out[:, unseen_mask] = float("-inf")
 
-                loss = criterion(out, y_batch)
+                loss_out = out.clone()
+                loss_out[:, unseen_mask] = float("-inf")
+                loss = criterion(loss_out, y_batch)
                 total_loss += loss.item() * len(y_batch)
 
-                preds = out.argmax(dim=1)
+                pred_out = self._apply_context_mask(out, X_batch)
+                preds = pred_out.argmax(dim=1)
                 all_preds.extend(preds.cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
 
@@ -608,6 +672,85 @@ class NICEServer(IncrementalServer):
             "auc_macro_ovr": None,
         }
 
+    def _build_global_unseen_mask(self) -> torch.Tensor:
+        """Return a class mask that blocks classes not seen by the server yet."""
+        seen_set = (
+            set(self.seen_classes)
+            if self.seen_classes
+            else set(range(self.global_model.num_classes))
+        )
+        unseen_mask = torch.ones(self.global_model.num_classes, dtype=torch.bool)
+        for cls_id in seen_set:
+            if 0 <= int(cls_id) < self.global_model.num_classes:
+                unseen_mask[int(cls_id)] = False
+        return unseen_mask.to(self.primary_device)
+
+    def _allowed_classes_for_episode(self, episode: int) -> List[int]:
+        """
+        Classes allowed by NICE context prediction.
+
+        If ContextDetector predicts episode k, only classes introduced in that
+        episode are candidate output labels. The hidden subnetwork can still use
+        older neurons through the model masks; this function only masks outputs.
+        """
+        seen_set = (
+            set(int(c) for c in self.seen_classes)
+            if self.seen_classes
+            else set(range(self.global_model.num_classes))
+        )
+        allowed = [
+            int(c)
+            for c in self.context_detector.episode_classes.get(int(episode), [])
+        ]
+        allowed = [
+            c
+            for c in allowed
+            if c in seen_set and 0 <= c < self.global_model.num_classes
+        ]
+        if allowed:
+            return sorted(set(allowed))
+        return sorted(
+            c for c in seen_set if 0 <= int(c) < self.global_model.num_classes
+        )
+
+    def _apply_context_mask(self, logits: torch.Tensor, X_batch: torch.Tensor) -> torch.Tensor:
+        """
+        Apply ContextDetector inference-time masking.
+
+        Flow:
+        1. Extract binary activations for each sample.
+        2. Predict episode k with chained context detector.
+        3. Keep only classes from episodes <= k, plus global seen-class guard.
+        """
+        masked = logits.clone()
+        global_unseen = self._build_global_unseen_mask()
+        masked[:, global_unseen] = float("-inf")
+
+        if not self.context_detector.episode_classes:
+            return masked
+
+        try:
+            binary_acts = self.context_detector._binarize_per_sample(
+                self.global_model,
+                X_batch,
+            )
+            pred_episodes = self.context_detector.predict_episodes_batch(binary_acts)
+        except Exception as exc:
+            print(f"  ⚠️ NICE context detector failed during eval: {exc}")
+            return masked
+
+        for row_idx, episode in enumerate(pred_episodes):
+            allowed = self._allowed_classes_for_episode(int(episode))
+            sample_mask = torch.ones(
+                self.global_model.num_classes,
+                dtype=torch.bool,
+                device=masked.device,
+            )
+            sample_mask[allowed] = False
+            masked[row_idx, sample_mask] = float("-inf")
+
+        return masked
+
     def compute_average_forgetting(self) -> float:
         """Tính Average Forgetting của NICE dựa trên accuracy từng task."""
         if self.current_task == 0:
@@ -627,17 +770,6 @@ class NICEServer(IncrementalServer):
 
         X_test = self.test_data["X_test"]
         y_test = self.test_data["y_test"]
-
-        # Mask unseen class logits
-        seen_set = (
-            set(self.seen_classes)
-            if self.seen_classes
-            else set(range(self.global_model.num_classes))
-        )
-        unseen_mask = torch.ones(self.global_model.num_classes, dtype=torch.bool)
-        for c in seen_set:
-            unseen_mask[c] = False
-        unseen_mask = unseen_mask.to(self.primary_device)
 
         for task_id, task_classes in self.task_classes.items():
             if not task_classes:
@@ -662,8 +794,8 @@ class NICEServer(IncrementalServer):
                     y_batch = y_task[i : i + batch_size]
 
                     out = self.global_model(X_batch)
-                    out[:, unseen_mask] = float("-inf")
-                    preds = out.argmax(dim=1)
+                    pred_out = self._apply_context_mask(out, X_batch)
+                    preds = pred_out.argmax(dim=1)
                     all_preds.extend(preds.cpu().numpy())
                     all_targets.extend(y_batch.numpy())
 

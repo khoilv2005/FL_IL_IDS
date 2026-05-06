@@ -102,7 +102,7 @@ class ReFedTrainer(BaseTrainer):
         Re-Fed không sửa công thức loss; điểm khác biệt nằm ở cách client
         chọn và cache dữ liệu replay bằng PIM.
         """
-        return nn.CrossEntropyLoss()(output, target)
+        return self._seen_class_cross_entropy(output, target)
 
 
 class ReFedAggregator(BaseAggregator):

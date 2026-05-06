@@ -62,6 +62,14 @@ class IncrementalServer(FederatedServer):
         print(f"\n📌 Task {task_id}: classes {task_classes}")
         print(f"   Total seen classes: {len(self.seen_classes)}")
 
+        # Some standard FL trainers (FedAvg/FedProx) do not implement set_task(),
+        # but when they are run through the incremental loop they still need
+        # class-incremental output masking during local CE training.
+        if hasattr(self, "trainer"):
+            setattr(self.trainer, "current_task", task_id)
+            setattr(self.trainer, "seen_classes", set(self.seen_classes))
+            setattr(self.trainer, "new_classes", list(task_classes))
+
     def evaluate_global(
         self,
         batch_size: int = 1024,

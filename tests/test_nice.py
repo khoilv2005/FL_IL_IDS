@@ -11,6 +11,7 @@ from fed_learning.strategies import STRATEGIES, get_strategy
 from fed_learning.strategies.fed_incremental.nice import NICETrainer, NICEAggregator
 from fed_learning.models.nice_model import NICEModel
 from fed_learning.clients.nice_client import NICEClient
+from fed_learning.servers.nice_server import NICEServer
 
 
 class TestNICE:
@@ -104,3 +105,53 @@ class TestNICE:
         stats = client.get_buffer_stats()
         assert stats["buffer_type"] == "none"
         assert stats["has_replay"] == False
+
+    def test_nice_context_mask_blocks_future_episode_classes(self, monkeypatch):
+        """Evaluation mask should use ContextDetector-predicted episodes."""
+        clients = [NICEClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
+        test_data = {
+            "X_test": torch.randn(4, 32),
+            "y_test": torch.tensor([0, 2, 4, 5]),
+        }
+        server = NICEServer(
+            clients,
+            test_data,
+            {
+                "algorithm": "nice",
+                "input_shape": (32,),
+                "num_classes": 6,
+                "num_gpus": 0,
+            },
+        )
+        server.seen_classes = [0, 1, 2, 3, 4, 5]
+        server.context_detector.episode_classes = {
+            0: [0, 1],
+            1: [2, 3],
+            2: [4, 5],
+        }
+
+        monkeypatch.setattr(
+            server.context_detector,
+            "_binarize_per_sample",
+            lambda _model, data: np.zeros((len(data), 3), dtype=np.float32),
+        )
+        monkeypatch.setattr(
+            server.context_detector,
+            "predict_episodes_batch",
+            lambda _binary: np.array([0, 1]),
+        )
+
+        logits = torch.tensor(
+            [
+                [0.0, 1.0, 9.0, 8.0, 7.0, 6.0],
+                [0.0, 1.0, 2.0, 3.0, 9.0, 8.0],
+            ],
+            dtype=torch.float32,
+        )
+        masked = server._apply_context_mask(logits, torch.randn(2, 32))
+
+        assert masked[0, 2:].isneginf().all()
+        assert masked[0, :2].isfinite().all()
+        assert masked[1, :2].isneginf().all()
+        assert masked[1, 4:].isneginf().all()
+        assert masked[1, 2:4].isfinite().all()

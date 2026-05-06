@@ -289,8 +289,37 @@ class NICETrainer(BaseTrainer):
         global_params: Optional[OrderedDict] = None,
         **kwargs,
     ) -> torch.Tensor:
-        """Tính CE loss chuẩn; chống quên của NICE nằm ở masking chứ không ở loss."""
-        return F.cross_entropy(output, target)
+        """
+        Compute NICE CE over classes present in the current mini-batch.
+
+        The paper explicitly states that, before softmax, CE should only
+        consider output neurons corresponding to batch classes. This prevents
+        frozen/non-batch output neurons from entering the denominator.
+        """
+        if output.dim() != 2:
+            return F.cross_entropy(output, target)
+
+        num_classes = int(output.shape[1])
+        batch_classes = sorted(
+            {
+                int(cls_id)
+                for cls_id in torch.unique(target.detach()).cpu().tolist()
+                if 0 <= int(cls_id) < num_classes
+            }
+        )
+        if not batch_classes or len(batch_classes) >= num_classes:
+            return F.cross_entropy(output, target)
+
+        device = output.device
+        class_tensor = torch.tensor(batch_classes, dtype=torch.long, device=device)
+        mapping = torch.full((num_classes,), -1, dtype=torch.long, device=device)
+        mapping[class_tensor] = torch.arange(len(batch_classes), device=device)
+        remapped = mapping[target.long()]
+
+        if not bool((remapped >= 0).all()):
+            return F.cross_entropy(output, target)
+
+        return F.cross_entropy(output.index_select(dim=1, index=class_tensor), remapped)
 
     def pre_step(
         self, model: nn.Module, global_params: Optional[OrderedDict] = None, **kwargs

@@ -60,7 +60,7 @@ class TestEWC:
         target = torch.randint(0, 5, (4,))
 
         loss = trainer.compute_loss(model, output, target)
-        loss_ce = nn.CrossEntropyLoss()(output, target)
+        loss_ce = trainer._seen_class_cross_entropy(output, target)
         assert abs(loss.item() - loss_ce.item()) < 1e-5
 
     def test_ewc_online_ewc_gamma(self):
@@ -120,7 +120,7 @@ class TestFedLwF:
         target = torch.randint(0, 5, (4,))
 
         loss = trainer.compute_loss(model, output, target)
-        loss_ce = nn.CrossEntropyLoss()(output, target)
+        loss_ce = trainer._seen_class_cross_entropy(output, target)
         assert abs(loss.item() - loss_ce.item()) < 1e-5
 
     def test_fedlwf_aggregator(self):
