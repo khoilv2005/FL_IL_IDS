@@ -448,6 +448,13 @@ def _compute_forgetting(server, task_id, all_test_data, best_acc_per_task, train
             for t in range(task_id)
         ]
         af = sum(diffs) / len(diffs) if diffs else 0.0
+        details = []
+        for t in range(task_id):
+            current = current_task_accuracies.get(t, 0.0)
+            best = best_acc_per_task.get(t, 0.0)
+            details.append(f"T{t}: current={current * 100:.2f}%, best={best * 100:.2f}%")
+        if details:
+            print("    Per-task old accuracy -> " + " | ".join(details))
     print(f"  Avg Forgetting: {af * 100:.2f}%")
 
     # Feed AF back to trainer for μ reset mechanism (paper Eq. 8)
@@ -590,7 +597,6 @@ def _save_fed_round_checkpoint(
     round_time: float,
     metrics: Dict[str, Any],
     avg_forgetting: float,
-    per_task_acc: Dict[int, float],
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}_round_{round_id}.pt")
     torch.save(
@@ -606,7 +612,6 @@ def _save_fed_round_checkpoint(
                 **metrics,
                 "avg_forgetting": avg_forgetting,
             },
-            "per_task_acc": per_task_acc,
         },
         ckpt_path,
     )
@@ -622,7 +627,6 @@ def _save_fed_task_checkpoint(
     seen_classes: List[int],
     metrics: Dict[str, Any],
     avg_forgetting: float,
-    per_task_acc: Dict[int, float],
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
     torch.save(
@@ -633,7 +637,6 @@ def _save_fed_task_checkpoint(
             "config": config,
             "seen_classes": list(seen_classes),
             "metrics": {**metrics, "avg_forgetting": avg_forgetting},
-            "per_task_acc": per_task_acc,
         },
         ckpt_path,
     )
@@ -654,11 +657,15 @@ def _record_fed_round(
     config: Dict[str, Any],
     seen_classes: List[int],
     is_last_task: bool,
+    compute_forgetting: bool = True,
 ):
-    metrics = server.evaluate_global(compute_auc=is_last_task)
-    current_task_accuracies, af = _compute_forgetting(
-        server, task_id, all_test_data, best_acc_per_task, trainer
-    )
+    metrics = server.evaluate_global(compute_auc=False)
+    if compute_forgetting:
+        current_task_accuracies, af = _compute_forgetting(
+            server, task_id, all_test_data, best_acc_per_task, trainer
+        )
+    else:
+        current_task_accuracies, af = {}, None
 
     round_record = {
         "task": task_id,
@@ -671,13 +678,12 @@ def _record_fed_round(
         "recall_macro": metrics["recall_macro"],
         "f1_macro": metrics["f1_macro"],
         "f1_weighted": metrics.get("f1_weighted"),
-        "auc_macro_ovr": metrics.get("auc_macro_ovr"),
         "avg_forgetting": af,
-        "per_task_acc": current_task_accuracies,
     }
     history["round_metrics"].append(round_record)
     _write_training_history(output_dir, history)
 
+    af_text = f"{af * 100:.2f}%" if af is not None else "N/A (final round only)"
     print(
         "    Metrics -> "
         f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
@@ -685,7 +691,7 @@ def _record_fed_round(
         f"f1={metrics['f1_macro'] * 100:.2f}%, "
         f"precision={metrics['precision_macro'] * 100:.2f}%, "
         f"recall={metrics['recall_macro'] * 100:.2f}%, "
-        f"AF={af * 100:.2f}%"
+        f"AF={af_text}"
     )
 
     _save_fed_round_checkpoint(
@@ -699,7 +705,6 @@ def _record_fed_round(
         round_time,
         metrics,
         af,
-        current_task_accuracies,
     )
     return round_record
 
@@ -744,6 +749,7 @@ def _run_tracked_rounds(
             config,
             seen_classes,
             is_last_task,
+            compute_forgetting=(round_id == round_total_last),
         )
     return last_record
 
@@ -760,12 +766,7 @@ def _generate_fcil_report(all_history, config, output_dir):
 
         for entry in all_history["task_accuracies"]:
             tid = entry["task"]
-            per_task_acc = entry.get("per_task_acc", {})
-
-            acc_list = []
-            for t in range(tid + 1):
-                acc_list.append(per_task_acc.get(t, entry["accuracy"]))
-            fcil_results[strategy_name][tid] = acc_list
+            fcil_results[strategy_name][tid] = [entry["accuracy"]]
 
         fcil_output_dir = os.path.join(output_dir, "fcil_plots")
         os.makedirs(fcil_output_dir, exist_ok=True)
@@ -903,9 +904,7 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
             "recall_macro": round_metrics.get("recall_macro"),
             "f1_macro": round_metrics.get("f1_macro"),
             "f1_weighted": round_metrics.get("f1_weighted"),
-            "auc_macro_ovr": round_metrics.get("auc_macro_ovr"),
             "avg_forgetting": 0.0,
-            "per_task_acc": {0: round_metrics.get("accuracy", 0.0) or 0.0},
         }
         all_history["round_metrics"].append(round_record)
         _save_fed_round_checkpoint(
@@ -924,7 +923,6 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
                 "recall_macro": round_metrics.get("recall_macro", 0.0) or 0.0,
                 "f1_macro": round_metrics.get("f1_macro", 0.0) or 0.0,
                 "f1_weighted": round_metrics.get("f1_weighted", 0.0) or 0.0,
-                "auc_macro_ovr": round_metrics.get("auc_macro_ovr"),
             },
             0.0,
             {0: round_metrics.get("accuracy", 0.0) or 0.0},
@@ -988,7 +986,6 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
         "recall_macro": recall,
         "f1_macro": f1,
         "f1_weighted": history["test_f1_weighted"][-1] if history.get("test_f1_weighted") else None,
-        "auc_macro_ovr": history["test_auc_macro"][-1] if history.get("test_auc_macro") else None,
     }
     all_history["task_accuracies"] = [
         {
@@ -1000,9 +997,7 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
             "recall_macro": recall,
             "f1_macro": f1,
             "f1_weighted": final_metrics["f1_weighted"],
-            "auc_macro_ovr": final_metrics["auc_macro_ovr"],
             "avg_forgetting": 0.0,
-            "per_task_acc": {0: acc},
         }
     ]
     all_history["task_forgetting"] = [{"task": 0, "avg_forgetting": 0.0}]
@@ -1535,7 +1530,7 @@ def run_incremental_training(config: Dict[str, Any]):
 
         # 5h. Evaluate
         print(f"\n📊 Evaluation:")
-        metrics = server.evaluate_global(compute_auc=is_last_task)
+        metrics = server.evaluate_global(compute_auc=False)
         print(
             "  ✅ Task summary -> "
             f"accuracy={metrics['accuracy'] * 100:.2f}%, "
@@ -1566,9 +1561,7 @@ def run_incremental_training(config: Dict[str, Any]):
                 "recall_macro": metrics["recall_macro"],
                 "f1_macro": metrics["f1_macro"],
                 "f1_weighted": metrics.get("f1_weighted"),
-                "auc_macro_ovr": metrics.get("auc_macro_ovr"),
                 "avg_forgetting": af,
-                "per_task_acc": current_task_accuracies,
             }
         )
         all_history["task_forgetting"].append({"task": task_id, "avg_forgetting": af})

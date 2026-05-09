@@ -1,627 +1,833 @@
-Dưới đây là bản viết lại có cấu trúc hơn để bạn dùng báo cáo.
+# NICE.md - Map 1:1 giữa NICE gốc và code hiện tại
+
+Tài liệu này map từng bước của NICE với implementation hiện tại trong repo
+`FL_IL_IDS`, đồng thời đối chiếu với repo gốc:
+
+- Upstream: https://github.com/BurakGurbuz97/NICE/tree/main/Source
+- Code hiện tại: `fed_learning/models/nice_model.py`, `fed_learning/clients/nice_client.py`,
+  `fed_learning/servers/nice_server.py`, `fed_learning/strategies/incremental/nice.py`,
+  `fed_learning/strategies/fed_incremental/nice.py`, `fed_learning/training/task_loop.py`,
+  `fed_learning/training/local_task_loop.py`.
+
+Ghi chú quan trọng:
+
+- Upstream NICE chạy single-machine continual learning với Avalanche.
+- Repo hiện tại adapt NICE sang federated class-incremental IDS, nên có thêm
+  `NICEServer`, `NICEClient`, worker đa GPU, FedAvg-style aggregation, checkpoint,
+  resume, và local IL mode.
+- Upstream dùng episode index bắt đầu từ `1`; repo hiện tại dùng task/episode
+  index bắt đầu từ `0`.
+- Output head trong repo hiện tại là fixed-head: `num_classes = total_classes = 34`
+  ngay từ task đầu. Class chưa thấy bị chặn qua loss/eval/context logic.
 
 ---
 
-# Báo cáo cơ chế NICE
+## 1. Khởi tạo model, output head, và tuổi neuron
 
-## 1. Bài toán NICE giải quyết
+### Ý nghĩa trong NICE
 
-NICE, viết tắt của **Neurogenesis Inspired Contextual Encoding**, là một phương pháp dùng cho **continual learning**, cụ thể là **class-incremental learning**.
+Mỗi neuron có tuổi:
 
-Trong class-incremental learning, mô hình không học toàn bộ dữ liệu cùng lúc. Thay vào đó, dữ liệu được chia thành nhiều **episode**. Mỗi episode chứa một nhóm class mới, và mỗi episode có thể được train trong nhiều epoch.
+- `0`: young/surplus, dự trữ cho episode tương lai.
+- `1`: learner, đang học episode hiện tại.
+- `>1`: mature, lưu tri thức cũ và bị freeze.
+- `999`: input pseudo-layer trong repo gốc.
 
-Ví dụ:
+Output layer vẫn có toàn bộ class ngay từ đầu. Khi episode mới đến, chỉ output
+unit của class trong episode đó được set thành learner.
 
-```text
-Episode 1: học class 0, 1
-Episode 2: học class 2, 3
-Episode 3: học class 4, 5
+### Code hiện tại
+
+File: `fed_learning/models/nice_model.py`
+
+- `NICEModel.__init__()` tạo backbone CNN-GRU và fixed output:
+
+```python
+self.fc2 = nn.Linear(256, num_classes)
+self._layer_dims = {
+    "conv1": 64,
+    "conv2": 128,
+    "conv3": 256,
+    "gru": 100,
+    "fc1": 256,
+    "fc2": num_classes,
+}
+```
+
+- `NICEModel._init_unit_ranks()` set tất cả layer về age `0`.
+- `NICEServer.set_task()` set output neuron của class mới sang learner:
+
+```python
+for cls_id in task_classes:
+    self.global_model.unit_ranks["fc2"][cls_id] = 1
+```
+
+### Code gốc upstream
+
+File upstream: `Source/architecture.py`
+
+Trong `CNN_Simple.__init__()`:
+
+```python
+self.output_layer = SparseOutput(1024, output_size, layer_name="output")
+unit_ranks_list = [([999]*self.input_size, "input")]
+```
+
+File upstream: `Source/nice_operations.py`
+
+Trong `select_learner_units(...)`, output units của episode được thêm trực tiếp:
+
+```python
+top_unit_indices.append(train_episode.classes_in_this_experience)
+```
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Fixed output head | `SparseOutput(..., output_size)` | `fc2 = Linear(256, num_classes)` | Tương đương về ý tưởng fixed-head |
+| Tất cả neuron ban đầu young | `unit_ranks` khởi tạo `0` | `unit_ranks` dict khởi tạo `0` | Tương đương |
+| Output class mới thành learner | `classes_in_this_experience` trong `select_learner_units` | `NICEServer.set_task()` set `fc2[class]=1` | Cùng logic, vị trí khác do federated server quản lý task |
+
+### Fixed-head hay dynamic-head?
+
+NICE gốc không dynamic expand output layer theo từng episode. Output layer được
+tạo cố định ngay khi khởi tạo backbone bằng `output_size` của benchmark/dataset:
+
+```python
+self.output_layer = SparseOutput(1024, output_size, layer_name="output")
+```
+
+Khi episode mới đến, upstream không thêm node output mới. Thay vào đó, code chỉ
+đưa output units của class trong episode hiện tại vào tập learner:
+
+```python
+top_unit_indices.append(train_episode.classes_in_this_experience)
+```
+
+Vì vậy, cơ chế của upstream và repo hiện tại giống nhau ở điểm cốt lõi:
+
+- tất cả output node tồn tại vật lý từ task đầu;
+- class chưa xuất hiện vẫn có output node, nhưng chưa được set learner;
+- khi class xuất hiện, output node tương ứng được chuyển sang learner;
+- training/evaluation chỉ cho các class hợp lệ của task/context tham gia.
+
+Điểm khác là upstream fixed theo `output_size` truyền từ dataset, còn repo hiện
+tại fixed cụ thể theo IDS config:
+
+```python
+config["num_classes"] = config["total_classes"]  # total_classes = 34
+```
+
+Nói ngắn gọn: NICE gốc cũng là fixed-head, không phải dynamic-head. Repo mình
+fixed-head `34` là cùng hướng với NICE gốc, chỉ khác kích thước output do dataset.
+
+---
+
+## 2. Lịch phase trong mỗi episode/task
+
+### Ý nghĩa trong NICE
+
+Mỗi episode gồm nhiều phase. Phase đầu tiên dùng 100% neuron ứng viên; các phase
+sau chọn neuron bằng activation threshold `activation_perc` của paper. Episode
+cuối dùng 100% để sử dụng hết capacity còn lại.
+
+### Code hiện tại
+
+File: `fed_learning/training/task_loop.py`
+
+- `_resolve_nice_schedule()` đọc `nice_max_phases` và `nice_phase_epochs`.
+- Path federated NICE chạy `nice_rounds = max_phases`, mỗi exposed round là một
+  NICE phase:
+
+```python
+server.train_round(..., phase_offset=_r, max_phases_override=1)
+```
+
+File: `fed_learning/clients/nice_client.py`
+
+- `NICEClient.train()` chạy phase loop.
+- Nếu `is_last_task=True` thì `phase_tau = 1.0`.
+- Nếu `global_phase == 0` thì `phase_tau = 1.0`.
+- Các phase sau dùng `tau` từ config.
+
+### Code gốc upstream
+
+File upstream: `Source/learner.py`
+
+`Learner.learn_episode(...)` có vòng lặp:
+
+```python
+phase_index = 1
+selection_perc = 100.0
 ...
+selection_perc = self.args.activation_perc
 ```
 
-Vấn đề chính là khi mô hình học episode mới, nó dễ quên kiến thức từ episode cũ. Hiện tượng này gọi là **catastrophic forgetting**.
+Trong episode cuối, upstream gán lại `selection_perc = 100.0`.
 
-Các phương pháp replay thường giải quyết bằng cách lưu lại một số ảnh cũ rồi train lại cùng dữ liệu mới. Tuy nhiên, NICE không lưu ảnh cũ. NICE giải quyết bằng cách thay đổi cách tổ chức neuron trong mạng.
+### Đối chiếu
 
-Ý tưởng chính của NICE là:
-
-> Chia neuron thành nhiều nhóm tuổi khác nhau. Neuron trẻ học kiến thức mới, neuron đã trưởng thành thì bị freeze để giữ kiến thức cũ. Khi test, mô hình dùng context-detector để đoán input thuộc episode nào, rồi chỉ dùng subnet tương ứng để phân loại. 
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Phase đầu giữ 100% | `selection_perc = 100.0` | `global_phase == 0 -> phase_tau = 1.0` | Tương đương |
+| Phase sau dùng activation percent | `args.activation_perc` | `trainer.tau`, mặc định `0.95` | Tương đương, khác scale percent vs fraction |
+| Episode cuối dùng 100% | `episode_index == number_of_tasks` | `is_last_task -> phase_tau = 1.0` | Tương đương |
+| Phase được expose thành round | Không có federated round | Mỗi phase là 1 `server.train_round` | Adapt cho federated tracking/checkpoint |
 
 ---
 
-## 2. Tuổi của neuron: cơ chế cốt lõi
+## 3. Chọn learner neuron bằng activation
 
-Trong NICE, mỗi neuron được gán một giá trị gọi là **age**.
+### Ý nghĩa trong NICE
 
-Neuron được chia thành ba nhóm chính:
+Sau khi forward một subset data của episode hiện tại, NICE tính activation từng
+neuron và chọn tập nhỏ nhất đạt ngưỡng tổng activation. Nếu ngưỡng là 95%, tập
+được chọn phải giải thích ít nhất 95% tổng activation của learner candidates.
 
-```text
-Age = 0   → neuron dự trữ, chưa được gán cho episode nào
-Age = 1   → neuron đang học episode hiện tại
-Age > 1   → neuron đã học xong episode cũ, bị freeze để lưu memory
-```
+### Code hiện tại
 
-Ví dụ, nếu mô hình đang ở episode hiện tại `E = 5`, thì:
+File: `fed_learning/strategies/incremental/nice.py`
 
-```text
-Neuron age 1: đang học episode 5
-Neuron age 2: từng học episode 4
-Neuron age 3: từng học episode 3
-Neuron age 4: từng học episode 2
-Neuron age 5: từng học episode 1
-```
+- `pick_top_neurons(scores, tau)` sort activation giảm dần, lấy đến khi
+  cumulative sum đạt `tau * total`.
+- `select_learner_units(model, tau, data)`:
+  - reset non-mature về young cho hidden layers;
+  - nếu `tau >= 1.0`, promote tất cả young thành learner;
+  - nếu không, gọi `model.get_activations(data)`;
+  - chọn young units có activation cao và set age `1`.
 
-Công thức ánh xạ giữa episode và tuổi neuron là:
+File: `fed_learning/models/nice_model.py`
 
-[
-\text{age của neuron phụ trách episode } e = E - e + 1
-]
+- `get_activations()` trả mean absolute activation cho `conv1`, `conv2`,
+  `conv3`, `gru`, `fc1`.
+- Đã dùng masked path `_apply_masked_conv`, `_apply_masked_linear` để activation
+  nhất quán với connectivity hiện tại.
 
-Trong đó:
+### Code gốc upstream
 
-```text
-E = episode hiện tại
-e = episode mà neuron từng học
-```
+File upstream: `Source/nice_operations.py`
 
-Ví dụ:
+`pick_top_neurons(...)` làm greedy theo activation:
 
-```text
-E = 5, e = 1
-age = 5 - 1 + 1 = 5
-```
-
-Nghĩa là neuron học episode 1 sẽ có age bằng 5 khi mô hình đang ở episode 5.
-
----
-
-## 3. Neurogenesis: đưa neuron age-0 vào học
-
-Ở đầu mỗi episode mới, NICE tạm thời chuyển toàn bộ neuron `age = 0` thành `age = 1`.
-
-Ký hiệu:
-
-[
-N_{=0} \rightarrow N_{=1}
-]
-
-Các neuron này được xem như neuron mới sinh. Chúng bắt đầu tham gia học dữ liệu của episode hiện tại.
-
-Ví dụ, trước episode mới:
-
-```text
-Neuron age-0: đang dự trữ
-```
-
-Khi episode mới bắt đầu:
-
-```text
-Neuron age-0 → age-1
-```
-
-Sau đó, các neuron age-1 này được train trên dữ liệu của episode hiện tại.
-
-Tuy nhiên, NICE không giữ lại tất cả neuron mới. Sau một số epoch, nó sẽ chọn neuron nào thật sự quan trọng để giữ lại, còn neuron không quan trọng thì trả về age-0.
-
----
-
-## 4. Chọn neuron age-1 nào được giữ lại
-
-Sau mỗi `p` epoch, NICE đánh giá các neuron age-1 trong từng layer để xem neuron nào đang đóng góp nhiều cho việc học episode hiện tại.
-
-Với mỗi layer `l`, NICE lấy một subset dữ liệu của episode hiện tại, ví dụ 1024 mẫu, cho đi qua mạng. Sau đó, nó tính tổng activation của các neuron age-1 trong layer đó.
-
-Activation có thể hiểu là mức độ một neuron phản ứng với input. Neuron activation cao nghĩa là neuron đó đang hoạt động mạnh trên dữ liệu hiện tại.
-
-NICE tính tổng activation của toàn bộ neuron age-1 trong layer:
-
-[
-A^l_{=1}
-]
-
-Sau đó, NICE tìm một tập nhỏ nhất các neuron age-1, ký hiệu là:
-
-[
-S^l_1
-]
-
-sao cho tổng activation của tập này chiếm ít nhất tỷ lệ `τ` tổng activation của toàn bộ neuron age-1 trong layer.
-
-Trong paper, tác giả dùng:
-
-[
-\tau = 0.95
-]
-
-Nghĩa là NICE muốn giữ lại tập neuron nhỏ nhất nhưng vẫn giữ được ít nhất 95% tổng activation của layer.
-
-Ví dụ một layer có 6 neuron age-1:
-
-| Neuron | Tổng activation |
-| ------ | --------------: |
-| n1     |              40 |
-| n2     |              30 |
-| n3     |              15 |
-| n4     |              10 |
-| n5     |               3 |
-| n6     |               2 |
-
-Tổng activation là:
-
-```text
-40 + 30 + 15 + 10 + 3 + 2 = 100
-```
-
-95% của 100 là 95.
-
-NICE sắp xếp neuron theo activation giảm dần rồi cộng dần:
-
-```text
-n1 = 40
-n1 + n2 = 70
-n1 + n2 + n3 = 85
-n1 + n2 + n3 + n4 = 95
-```
-
-Vậy NICE giữ lại:
-
-```text
-n1, n2, n3, n4
-```
-
-Còn:
-
-```text
-n5, n6
-```
-
-sẽ quay về `age = 0`.
-
-Ý nghĩa của bước này là:
-
-> Neuron nào phản ứng mạnh với dữ liệu episode hiện tại thì được giữ lại để học và lưu kiến thức. Neuron nào gần như không đóng góp thì được trả về kho dự trữ để dùng cho episode sau.
-
----
-
-## 5. Maturation: neuron trưởng thành sau mỗi episode
-
-Khi một episode kết thúc, NICE tăng tuổi của tất cả neuron đã được dùng:
-
-[
-age \leftarrow age + 1
-]
-
-Các neuron age-1 được giữ lại sau quá trình chọn lọc sẽ trở thành age-2.
-
-Ví dụ:
-
-```text
-Cuối episode 3:
-neuron age-1 → age-2
-```
-
-Từ lúc này, các neuron đó được xem là neuron đã trưởng thành. Chúng lưu kiến thức của episode vừa học và sẽ bị freeze để tránh bị thay đổi khi học episode mới.
-
-Tóm tắt quá trình:
-
-```text
-Đầu episode:
-age-0 → age-1
-
-Trong episode:
-chọn neuron age-1 quan trọng
-
-Cuối episode:
-age-1 được giữ lại → age-2
-age-2 trở lên → memory neuron, bị freeze
-```
-
----
-
-## 6. Tránh quên: freeze và pruning
-
-NICE cần đảm bảo rằng neuron đã học episode cũ không bị thay đổi khi học episode mới.
-
-Có hai cách mà kiến thức cũ có thể bị ảnh hưởng:
-
-```text
-1. Trọng số đi vào neuron cũ bị update trực tiếp
-2. Input đi vào neuron cũ thay đổi do neuron trẻ phía trước bị update
-```
-
-NICE xử lý bằng hai cơ chế.
-
-### 6.1. Freeze neuron đã trưởng thành
-
-Neuron có `age > 1` sẽ bị freeze. Nghĩa là trọng số đi vào các neuron này không còn được cập nhật nữa.
-
-```text
-age = 1   → được train
-age > 1   → bị freeze
-```
-
-Như vậy, kiến thức cũ được bảo vệ.
-
-### 6.2. Prune connection từ neuron trẻ sang neuron già
-
-Nếu neuron già nhận input từ neuron trẻ, thì dù neuron già đã freeze, output của nó vẫn có thể thay đổi vì input từ neuron trẻ thay đổi.
-
-Vì vậy, NICE prune các connection có hướng:
-
-```text
-neuron trẻ → neuron già
-```
-
-Nói cách khác, NICE không cho neuron mới đang học làm ảnh hưởng neuron cũ đã lưu memory.
-
-Các đường đi được cho phép:
-
-```text
-neuron già → neuron trẻ     // cho phép transfer knowledge từ cũ sang mới
-neuron cùng tuổi → cùng tuổi // lưu kiến thức của cùng một episode
-```
-
-Đường đi bị cấm:
-
-```text
-neuron trẻ → neuron già
-```
-
-Nhờ vậy, kiến thức cũ được giữ ổn định trong quá trình học episode mới.
-
----
-
-## 7. Training loss: chỉ xét output của class trong batch
-
-Khi train episode hiện tại, batch chỉ chứa class của episode hiện tại.
-
-Ví dụ:
-
-```text
-Episode 1: cat, dog
-Episode 2: car, truck
-```
-
-Khi đang train episode 2, batch chỉ có ảnh `car` và `truck`.
-
-Nếu dùng softmax trên toàn bộ output:
-
-```text
-cat, dog, car, truck
-```
-
-thì output của `cat`, `dog` vẫn tham gia vào loss. Nhưng trong NICE, output của `cat`, `dog` đã thuộc episode cũ và bị freeze. Nếu chúng có giá trị cao, optimizer không thể giảm chúng xuống vì chúng đã bị khóa.
-
-Điều này có thể gây training instability.
-
-Vì vậy, khi train episode 2, NICE chỉ xét các output class trong batch:
-
-```text
-car, truck
-```
-
-Nó không xét:
-
-```text
-cat, dog
-```
-
-Nghĩa là loss chỉ hỏi:
-
-```text
-Trong car và truck, đáp án đúng là gì?
-```
-
-chứ không bắt class mới phải cạnh tranh với toàn bộ class cũ đã bị freeze.
-
----
-
-## 8. Binary activation memory
-
-NICE không lưu ảnh cũ như replay methods. Thay vào đó, nó lưu **binary activation memory**.
-
-Sau mỗi `p` epoch, NICE lấy `m` mẫu ngẫu nhiên từ episode hiện tại, cho đi qua mạng, rồi ghi lại neuron nào kích hoạt mạnh.
-
-Với mỗi layer `l`, NICE đặt một threshold:
-
-[
-t_l = mean_l + std_l
-]
-
-Trong paper, threshold này được lấy từ thống kê activation sau episode đầu tiên để đơn giản hóa.
-
-Sau đó, activation được nhị phân hóa:
-
-```text
-Activation > threshold  → 1
-Activation ≤ threshold  → 0
-```
-
-Ví dụ một ảnh đi qua mạng tạo ra activation của 7 neuron:
-
-```text
-[4.2, 0.3, 5.1, 0.0, 0.5, 6.0, 4.7]
-```
-
-Giả sử threshold là 3.0, ta có binary vector:
-
-```text
-[1, 0, 1, 0, 0, 1, 1]
-```
-
-Vector này cho biết neuron nào đang kích hoạt mạnh.
-
-Ví dụ memory có thể như sau:
-
-```text
-Episode 1 memory:
-[1, 0, 1, 1, 0, 0, 1]
-[1, 0, 1, 0, 0, 1, 1]
-
-Episode 2 memory:
-[0, 1, 0, 0, 1, 1, 0]
-[0, 1, 0, 0, 1, 0, 1]
-
-Episode 3 memory:
-[0, 0, 1, 0, 1, 1, 1]
-[0, 0, 1, 1, 1, 0, 1]
-```
-
-Mỗi vector là một “dấu vân tay activation” của dữ liệu trong một episode.
-
----
-
-## 9. Context-detector: làm sao NICE biết ảnh test thuộc episode nào?
-
-Khi test, NICE không được cho biết ảnh thuộc episode nào.
-
-Ví dụ, sau khi học xong ba episode:
-
-```text
-Episode 1: cat, dog
-Episode 2: car, truck
-Episode 3: bird, horse
-```
-
-Khi đưa một ảnh test vào, NICE phải tự đoán ảnh này thuộc episode nào.
-
-NICE làm điều đó bằng **context-detector**.
-
-Quy trình như sau:
-
-```text
-Input test image
-→ chạy qua network
-→ lấy activation
-→ threshold thành binary vector
-→ đưa vào context-detector
-→ context-detector dự đoán episode
-```
-
-Ví dụ ảnh test tạo ra binary activation vector:
-
-```text
-[1, 0, 1, 1, 0, 0, 1]
-```
-
-Context-detector so pattern này với memory đã lưu:
-
-```text
-Episode 1 memory:
-[1, 0, 1, 1, 0, 0, 1]
-[1, 0, 1, 0, 0, 1, 1]
-
-Episode 2 memory:
-[0, 1, 0, 0, 1, 1, 0]
-[0, 1, 0, 0, 1, 0, 1]
-
-Episode 3 memory:
-[0, 0, 1, 0, 1, 1, 1]
-[0, 0, 1, 1, 1, 0, 1]
-```
-
-Vector ảnh test giống episode 1 nhất. Vì vậy context-detector có thể trả ra:
-
-```text
-P(episode 1) = 0.91
-P(episode 2) = 0.06
-P(episode 3) = 0.03
-```
-
-Do đó NICE chọn episode 1.
-
-Điểm quan trọng là:
-
-> NICE không biết chắc ảnh test thuộc episode nào. Nó dự đoán dựa trên activation pattern của ảnh đó.
-
----
-
-## 10. Logistic regression theo chuỗi
-
-Để tính xác suất input thuộc từng episode, NICE dùng một chuỗi logistic regression.
-
-Giả sử hiện tại đang ở episode `E`. NICE cần tính:
-
-[
-p_1, p_2, ..., p_E
-]
-
-Trong đó:
-
-```text
-p1 = xác suất input thuộc episode 1
-p2 = xác suất input thuộc episode 2
+```python
+sort_indices = torch.argsort(-scores)
 ...
-pE = xác suất input thuộc episode E
+if accumulate >= total * selection_ratio / 100.0:
+    break
 ```
 
-Tuy nhiên, mỗi episode tương ứng với một nhóm neuron có age khác nhau. Vì vậy NICE không dùng một classifier duy nhất, mà dùng nhiều logistic regression theo chuỗi.
+`select_learner_units(...)` lấy activation qua:
 
-### Bước 1: xác suất thuộc episode 1
-
-Dùng neuron già nhất, tức neuron liên quan đến episode 1:
-
-[
-P(E_1 \mid N_{=E})
-]
-
-### Bước 2: xác suất thuộc episode 2, với điều kiện không thuộc episode 1
-
-[
-P(E_2 \mid N_{\geq E-1}, \bar{E}_1)
-]
-
-### Bước 3: xác suất thuộc episode 3, với điều kiện không thuộc episode 1 và episode 2
-
-[
-P(E_3 \mid N_{\geq E-2}, \bar{E}_1, \bar{E}_2)
-]
-
-Tiếp tục như vậy cho các episode sau.
-
-Công thức tổng quát cho episode `e` là:
-
-[
-p_e =
-P(E_e \mid N_{\geq E-e+1}, \bar{E}*1, ..., \bar{E}*{e-1})
-\prod_{i=1}^{e-1}
-\left(
-1 -
-P(E_i \mid N_{\geq E-i+1}, \bar{E}*1, ..., \bar{E}*{i-1})
-\right)
-]
-
-Ý nghĩa đơn giản là:
-
-```text
-Xác suất thuộc episode e
-=
-xác suất không thuộc các episode trước
-×
-xác suất thuộc episode e
+```python
+layer_activations = network.get_activation_selection(data)
 ```
 
-Với episode cuối cùng:
+### Đối chiếu
 
-[
-p_E = 1 - \sum_{i=1}^{E-1} p_i
-]
-
-Sau đó NICE chọn episode có xác suất cao nhất.
-
-Ví dụ:
-
-```text
-P(episode 1) = 0.91
-P(episode 2) = 0.06
-P(episode 3) = 0.03
-```
-
-NICE chọn episode 1.
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Greedy top activation | `pick_top_neurons(scores, selection_ratio)` | `pick_top_neurons(scores, tau)` | Tương đương |
+| Scale ngưỡng | percent, ví dụ `95.0` | fraction, ví dụ `0.95` | Khác scale config |
+| Activation source | `get_activation_selection` với `Let_Learner` filter | `get_activations` trên CNN-GRU masked path | Adapt cho CNN-GRU IDS |
+| Output units | Append class trong episode tại `select_learner_units` | Server set `fc2[class]=1` trước training | Cùng ý tưởng, khác nơi thực hiện |
 
 ---
 
-## 11. Inference: quá trình dự đoán khi test
+## 4. Drop young -> learner/non-young connections
 
-Khi test một input `x`, NICE thực hiện các bước sau:
+### Ý nghĩa trong NICE
 
-```text
-Input x
-→ lấy activation
-→ threshold thành binary vector
-→ context-detector đoán episode
-→ mask output không thuộc episode đó
-→ classify trong subnet tương ứng
+NICE cắt kết nối từ neuron young sang neuron đã được gán cho episode nào đó
+(`learner` hoặc `mature`). Mục tiêu là neuron trẻ đang học episode mới không
+làm thay đổi input của memory neuron cũ.
+
+### Code hiện tại
+
+File: `fed_learning/strategies/incremental/nice.py`
+
+`drop_young_to_learner(model)` xử lý:
+
+- `conv1 -> conv2`;
+- `conv2 -> conv3`;
+- `conv3 -> fc1` qua flatten mapping;
+- `gru -> fc1`;
+- `fc1 -> fc2`.
+
+Sau khi update mask, code gọi:
+
+```python
+model.apply_masks_to_weights()
 ```
 
-Ví dụ context-detector đoán input thuộc episode 1:
+File: `fed_learning/models/nice_model.py`
 
-```text
-Episode 1: cat, dog
-Episode 2: car, truck
-Episode 3: bird, horse
+`apply_masks_to_weights()` zero physical `weight.data` tại vị trí mask bằng `0`.
+
+### Code gốc upstream
+
+File upstream: `Source/nice_operations.py`
+
+`drop_young_to_learner(...)` tạo drop mask từ:
+
+```python
+all_young_indices = [...]
+all_not_young_indices = [...]
 ```
 
-NICE sẽ chỉ mở output:
+Sau đó set `weight_mask[...] = 0` cho các kết nối young -> non-young.
 
-```text
-cat, dog
-```
+### Đối chiếu
 
-và mask output:
-
-```text
-car, truck, bird, horse
-```
-
-Sau đó mô hình chỉ phân loại trong nhóm class của episode 1.
-
-Nếu ảnh là cat, mô hình sẽ chọn giữa:
-
-```text
-cat hoặc dog
-```
-
-chứ không còn so với car, truck, bird, horse.
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Drop young -> non-young | Dùng sparse layer masks | Dùng `weight_masks` dict theo layer | Tương đương |
+| Conv -> linear mapping | Có `conv2lin_mapping_size` | Dùng `cnn_len = cnn_output_size // 256` | Adapt cho CNN-GRU |
+| Physical zero | `module.set_mask(...)` trong sparse module | `apply_masks_to_weights()` | Tương đương gần đúng |
+| GRU | Upstream CNN image không có GRU | Repo thêm `gru -> fc1` và output mask GRU | Domain adaptation |
 
 ---
 
-## 12. Toàn bộ thuật toán NICE
+## 5. Grow all -> young connections
 
-Có thể tóm tắt quá trình training như sau:
+### Ý nghĩa trong NICE
 
-```text
-For each episode e:
-    1. Chuyển neuron age-0 thành age-1
+Sau khi selection/drop, NICE mở lại tất cả incoming connections vào neuron young
+để neuron dự trữ có thể nhận tín hiệu khi được dùng trong phase/episode sau.
 
-    2. Train trên dữ liệu episode hiện tại
+### Code hiện tại
 
-    3. Mỗi p epoch:
-        a. Tính activation của neuron age-1
-        b. Giữ neuron quan trọng nhất đủ 95% activation
-        c. Trả neuron dư về age-0
-        d. Prune connection trẻ → già
-        e. Cập nhật binary activation memory
-        f. Fit/update context-detector
+File: `fed_learning/strategies/incremental/nice.py`
 
-    4. Cuối episode:
-        a. Tăng tuổi neuron đã dùng
-        b. Freeze neuron age > 1
-```
+`grow_all_to_young(model)`:
 
-Khi test:
+- với layer 2D/3D: enable tất cả input connections của target neuron age `0`;
+- với GRU: set output mask/bias mask của young units về `1`;
+- không zero weight vì đây là bước enable mask.
 
-```text
-Input x
-→ chạy qua network
-→ lấy activation
-→ threshold thành binary vector
-→ context-detector đoán episode
-→ mask output không thuộc episode đó
-→ classify trong subnet tương ứng
-```
+### Code gốc upstream
+
+File upstream: `Source/nice_operations.py`
+
+`grow_all_to_young(...)` tạo `grow_mask` cho target young units và set mask về `1`.
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Enable incoming to young | `weight_mask[grow_mask] = 1` | `mask[idx, :] = 1` hoặc `mask[idx,:,:] = 1` | Tương đương |
+| Bias young | Upstream set qua sparse module mask | Repo set `bias_masks[name][young] = 1` | Tương đương |
+| GRU | Không có | Output mask của GRU young = 1 | Adapt cho CNN-GRU |
 
 ---
 
-## 13. Kết luận
+## 6. Forward training: MaskedOutYoung và LetLearner
 
-NICE là một phương pháp continual learning không dùng replay ảnh cũ.
+### Ý nghĩa trong NICE
 
-Cơ chế chính của NICE gồm:
+Trong training:
 
-```text
-1. Chia neuron theo tuổi
-2. Dùng neuron age-1 để học episode hiện tại
-3. Chọn neuron age-1 quan trọng dựa trên activation
-4. Trả neuron không quan trọng về age-0
-5. Tăng tuổi neuron sau mỗi episode
-6. Freeze neuron đã trưởng thành để giữ kiến thức cũ
-7. Prune connection trẻ → già để tránh interference
-8. Lưu binary activation memory thay vì lưu ảnh
-9. Dùng context-detector để đoán input thuộc episode nào
-10. Khi test, chỉ dùng subnet tương ứng với episode được dự đoán
+- `MaskedOutYoung`: zero young units ở penultimate representation để young
+  không đóng góp lung tung vào output.
+- `LetLearner`: chỉ learner output logits được đi qua và nhận gradient.
+
+### Code hiện tại
+
+File: `fed_learning/models/nice_model.py`
+
+- `MaskedOutYoung.forward/backward()` zero young columns cả forward và backward.
+- `LetLearner.forward/backward()` zero non-learner logits/gradients.
+- `NICEModel.forward_output()`:
+  - forward backbone;
+  - apply masked `fc1`;
+  - apply `MaskedOutYoung` trên `fc1`;
+  - apply masked `fc2`;
+  - apply `LetLearner` trên output logits.
+
+File: `fed_learning/clients/nice_client.py`
+
+Trong phase training, client dùng:
+
+```python
+output = model.forward_output(X_batch)
+loss = trainer.compute_loss(model, output, y_batch, global_params)
 ```
 
-Tóm lại:
+### Code gốc upstream
 
-> NICE đưa tính tuần tự của continual learning vào kiến trúc mạng. Neuron trẻ học kiến thức mới, neuron già lưu kiến thức cũ, và context-detector giúp mô hình chọn đúng nhóm neuron khi dự đoán.
+File upstream: `Source/architecture.py`
+
+Upstream dùng hai custom autograd function cùng vai trò:
+
+```python
+x = MaskedOut_Young.apply(x, self.current_young_neurons[-1])
+x = Let_Learner.apply(x, self.current_learner_neurons[-1])
+```
+
+File upstream: `Source/train_eval.py`
+
+Training gọi:
+
+```python
+stream_output = network.forward_output(data)
+ce_loss = loss(stream_output, target.long())
+```
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Mask young penultimate | `MaskedOut_Young` | `MaskedOutYoung` | Tương đương |
+| Let learner output | `Let_Learner` | `LetLearner` | Tương đương |
+| Training forward | `network.forward_output(data)` | `model.forward_output(X_batch)` | Tương đương |
+| Loss scope | CE trên output sau LetLearner | CE remap trên class có trong batch | Repo thêm guard để unseen/frozen logits không vào denominator |
+
+---
+
+## 7. Loss trong task hiện tại
+
+### Ý nghĩa trong NICE
+
+Paper và repo gốc tránh để output class không liên quan can thiệp vào learning
+của episode hiện tại. Repo hiện tại làm rõ hơn bằng cách chỉ tính CE trên class
+xuất hiện trong mini-batch.
+
+### Code hiện tại
+
+File: `fed_learning/strategies/incremental/nice.py`
+
+`NICETrainer.compute_loss()`:
+
+- lấy `torch.unique(target)`;
+- tạo `class_tensor`;
+- remap target về index cục bộ;
+- `F.cross_entropy(output.index_select(...), remapped)`.
+
+### Code gốc upstream
+
+File upstream: `Source/train_eval.py`
+
+Upstream dùng output đã qua `Let_Learner`, rồi CE:
+
+```python
+stream_output = network.forward_output(data)
+ce_loss = loss(stream_output, target.long())
+```
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Output non-learner bị zero | Có | Có | Tương đương |
+| CE denominator | CE trên full output đã zero non-learner | CE trên batch classes | Repo chuyển thành stricter class-sliced CE để ổn định fixed 34-head IDS |
+| Unseen class gradient | Giảm qua LetLearner | Bị loại khỏi CE | Repo bảo vệ mạnh hơn |
+
+---
+
+## 8. Freeze mature neurons
+
+### Ý nghĩa trong NICE
+
+Neuron mature (`age > 1`) không được cập nhật nữa. NICE freeze incoming weights
+của mature neurons và freeze BN units liên quan.
+
+### Code hiện tại
+
+File: `fed_learning/strategies/incremental/nice.py`
+
+`update_freeze_masks(model)` tạo:
+
+```python
+model.freeze_masks[name] = ranks > 1
+```
+
+File: `fed_learning/models/nice_model.py`
+
+`reset_frozen_gradients()` zero gradient rows của mature neurons cho conv/linear.
+GRU không freeze theo row internal weights; repo mask GRU output thay vì can thiệp
+vào weight matrices phức tạp của GRU.
+
+File: `fed_learning/clients/nice_client.py`
+
+Sau `loss.backward()`:
+
+```python
+model.reset_frozen_gradients()
+```
+
+File: `fed_learning/models/nice_model.py`
+
+`freeze_bn_for_mature()` set BN eval nếu cả layer đã mature.
+
+### Code gốc upstream
+
+File upstream: `Source/nice_operations.py`
+
+`update_freeze_masks(...)` tạo freeze masks dựa trên mature units:
+
+```python
+mature_neurons = network.get_frozen_units()
+```
+
+File upstream: `Source/architecture.py`
+
+`reset_frozen_gradients()` zero gradient theo `freeze_masks`.
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Mature definition | `unit_layer > 1` | `ranks > 1` | Tương đương |
+| Freeze gradient | `module.weight.grad[freeze_mask] = 0` | row-wise zero grad trong `reset_frozen_gradients` | Tương đương cho conv/linear |
+| BN freeze | `freeze_bn_layers()`/freeze BN units | `freeze_bn_for_mature()` layer-level | Gần đúng, đơn giản hơn |
+| GRU freeze | Không có GRU | output mask GRU, skip internal GRU grad row freeze | Adapt, không 1:1 |
+
+---
+
+## 9. End episode/task: context memory, age increment, freeze mask
+
+### Ý nghĩa trong NICE
+
+Khi episode kết thúc:
+
+1. Push activation memory cho context detector.
+2. Tăng age của neuron đã dùng.
+3. Update freeze masks.
+4. Freeze BN.
+
+### Code hiện tại
+
+File: `fed_learning/servers/nice_server.py`
+
+`NICEServer.end_task()`:
+
+- gọi `update_context_detector_memory(verbose=True)`;
+- gọi `increase_unit_ranks(self.global_model)`;
+- gọi `update_freeze_masks(self.global_model)`;
+- gọi `freeze_bn_for_mature()`;
+- đồng bộ `frozen_keys` và `freeze_masks` vào `NICEAggregator`.
+
+File: `fed_learning/training/post_task.py`
+
+Post-task dispatcher gọi hook `server.end_task()` nếu server có method này.
+
+### Code gốc upstream
+
+File upstream: `Source/learner.py`
+
+`Learner.end_episode(...)` có thứ tự:
+
+```python
+self.context_detector.push_activations(...)
+self.network = increase_unit_ranks(self.network)
+self.network = update_freeze_masks(self.network)
+self.network.freeze_bn_layers()
+```
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Push context memory | `context_detector.push_activations` | `update_context_detector_memory` -> `push_activations` | Tương đương, data lấy từ simulated clients |
+| Age increment | `increase_unit_ranks` | `increase_unit_ranks` | Tương đương |
+| Freeze masks | `update_freeze_masks` | `update_freeze_masks` + aggregator sync | Repo thêm federated protection |
+| BN freeze | `freeze_bn_layers` | `freeze_bn_for_mature` | Adapt |
+
+---
+
+## 10. Context detector: memory và train logistic chain
+
+### Ý nghĩa trong NICE
+
+Context detector lưu binary activation fingerprints của từng episode. Khi đã có
+episode mới, nó train chuỗi binary classifiers:
+
+- classifier cho episode k: positive = samples episode k;
+- negative = samples của các episode sau k;
+- khi predict, tính chain probability và chọn episode có xác suất lớn nhất.
+
+### Code hiện tại
+
+File: `fed_learning/servers/nice_server.py`
+
+`ContextDetector` hiện tại có:
+
+- `activation_memory: Dict[int, np.ndarray]`;
+- `context_masks: Dict[int, np.ndarray]`;
+- `binarize_thresholds` per layer;
+- `context_learners`;
+- `episode_classes`.
+
+`push_activations()`:
+
+- episode `0` fit threshold `mean + std`;
+- lưu per-sample binary vectors;
+- lưu context mask `unit_ranks > 0`.
+
+`train_models(current_episode)`:
+
+- loop `k in range(current_episode)`;
+- positive = `activation_memory[k][:, mask]`;
+- negative = concat `activation_memory[j][:, mask]` với `j > k`;
+- fit `LogisticRegression(max_iter=1000, solver="lbfgs")`.
+
+`predict_episodes_batch()`:
+
+- lấy `predict_proba`;
+- tính `pos_probs`, `neg_probs`;
+- tính chain probability;
+- return `argmax`.
+
+### Code gốc upstream
+
+File upstream: `Source/context_detector.py`
+
+Upstream có các thành phần tương ứng:
+
+- `quantized_context_representations`;
+- `context_layers_masks`;
+- `layer_binarizers`;
+- `train_models(...)`;
+- `tree_preds(...)`;
+- `predict_context(...)`.
+
+Trích yếu logic chain:
+
+```python
+prev_neg_prob = np.prod(neg_probs[:, :episode_index], axis=1)
+chain_probs[:, episode_index] = prev_neg_prob * pos_probs[:, episode_index]
+```
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Quantize activation | `Binarizer.fit(mean+std)`, `quantize` | `binarize_thresholds[name]=mean+std` | Tương đương |
+| Context masks | `network.unit_ranks[index][0] > 0` | concat `unit_ranks[layer] > 0` | Tương đương |
+| Logistic learners | prototype `args.context_learner` | sklearn `LogisticRegression` fixed | Tương đương nếu upstream config là LogisticRegression |
+| Episode indexing | 1-based | 0-based | Cần chú ý khi đọc code |
+| Prediction | `tree_preds` chain probabilities | `predict_episodes_batch` chain probabilities | Tương đương |
+
+Cần lưu ý trong code hiện tại: `ContextDetector` đang có cặp method
+`predict_episode/predict_episodes_batch` bị định nghĩa hai lần trong file; Python
+sẽ dùng bản sau. Bản sau mới là bản chain-probability argmax gần với upstream
+`tree_preds`.
+
+---
+
+## 11. Inference/test: boost class của episode dự đoán
+
+### Ý nghĩa trong NICE
+
+Khi test, NICE:
+
+1. Forward input để lấy logits và activations.
+2. Context detector dự đoán episode.
+3. Tăng rất lớn logits của class thuộc episode đó.
+4. `argmax` chọn class trong context dự đoán.
+
+### Code hiện tại
+
+File: `fed_learning/models/nice_model.py`
+
+`get_output_and_context_activations(X_batch)` forward một lần để lấy cả:
+
+- `logits`;
+- per-sample context activations `conv1`, `conv2`, `conv3`, `gru`.
+
+File: `fed_learning/servers/nice_server.py`
+
+`evaluate_global()`:
+
+- tính `loss_out` với global unseen mask để loss ổn định;
+- gọi `_apply_context_mask(...)` cho prediction.
+
+`_apply_context_mask(...)`:
+
+- binarize activations;
+- `pred_episodes = context_detector.predict_episodes_batch(...)`;
+- với mỗi sample, lấy classes của episode dự đoán;
+- boost logits:
+
+```python
+masked[row_idx, allowed] = masked[row_idx, allowed] + 99999.0
+```
+
+File: `fed_learning/training/local_task_loop.py`
+
+Local IL NICE dùng cùng logic trong `_apply_local_nice_context_mask(...)`.
+
+### Code gốc upstream
+
+File upstream: `Source/train_eval.py`
+
+`test(...)`:
+
+```python
+output, activations = network.get_activations(data, return_output=True)
+class_preds, episode_preds = context_detector.predict_context(activations, episode_id)
+output[index, episode_pred] = output[index, episode_pred] + 99999
+```
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Forward logits + activations | `get_activations(..., return_output=True)` | `get_output_and_context_activations` | Tương đương, repo tránh forward 2 lần |
+| Predict context | `predict_context` | `predict_episodes_batch` | Tương đương |
+| Boost episode classes | `+ 99999` | `+ 99999.0` | Tương đương |
+| Global unseen guard | Không cần trong Avalanche stream theo cách repo gốc | Có `_build_global_unseen_mask` cho fixed 34-head | Adapt cần thiết cho IDS fixed-head |
+
+---
+
+## 12. Federated aggregation và bảo vệ mature neurons
+
+### Ý nghĩa trong repo hiện tại
+
+Upstream NICE không có federated aggregation. Repo này phải thêm logic để sau
+FedAvg, tham số mature neurons không bị client average ghi đè.
+
+### Code hiện tại
+
+File: `fed_learning/strategies/fed_incremental/nice.py`
+
+`NICEAggregator.aggregate(...)`:
+
+1. Weighted average client params.
+2. Restore fully frozen parameter keys từ `global_params`.
+3. Restore row-level mature neurons theo `_freeze_masks`.
+
+File: `fed_learning/servers/nice_server.py`
+
+`NICEServer.train_round(...)`:
+
+- gửi global params, neuron ages, masks, freeze masks xuống workers;
+- aggregate results;
+- merge client neuron ages bằng `np.maximum.reduce(...)`.
+
+File: `fed_learning/training/nice_worker.py`
+
+Worker transfer:
+
+- `neuron_ages`;
+- `masks`;
+- `freeze_masks`;
+- `phase_offset`;
+- `max_phases_override`.
+
+### Code gốc upstream
+
+Không có counterpart trực tiếp. Upstream `Learner` train một network duy nhất,
+nên không cần aggregation hay merge ages.
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo hiện tại | Nhận xét |
+|---|---|---|---|
+| Local training | Một model duy nhất | Mỗi client train local copy | Federated adaptation |
+| Aggregation | Không có | `NICEAggregator` weighted average + restore frozen | Thêm mới, hợp lý |
+| Age state | Một `network.unit_ranks` duy nhất | Server state + client states + max merge | Thêm mới để xử lý non-IID client selection |
+| Mask broadcast | Không có | Worker config truyền masks xuống client | Thêm mới |
+
+---
+
+## 13. Local IL path
+
+### Code hiện tại
+
+File: `fed_learning/training/local_task_loop.py`
+
+Local NICE dùng cùng primitives:
+
+- `_run_local_nice(...)` set `fc2` class mới thành learner;
+- gọi `client.train(...)` theo phase;
+- update context memory bằng train samples qua `_update_local_nice_context_memory(...)`;
+- sau task gọi `increase_unit_ranks(model)` và `update_freeze_masks(model)`;
+- evaluate dùng context boost trong `_apply_local_nice_context_mask(...)`.
+
+### Code gốc upstream
+
+Gần với `Source/learner.py` hơn federated path vì đều là một model local. Điểm
+khác là upstream dùng Avalanche experience object, repo hiện tại gộp data từ
+tất cả clients thành một pseudo-client local.
+
+### Đối chiếu
+
+| Bước | Upstream NICE | Repo local IL | Nhận xét |
+|---|---|---|---|
+| Một model | Có | Có | Tương đương |
+| Data object | Avalanche `TCLExperience` | TensorDataset từ federated split | Adapt |
+| Context memory | `get_n_samples_per_class(train_episode, n)` | sample theo class từ `X_train/y_train` | Tương đương |
+| Eval boost | `test(...)` boost class context | `_apply_local_nice_context_mask` boost class context | Tương đương |
+
+---
+
+## 14. Bảng tổng hợp fidelity
+
+| Cơ chế NICE | File repo hiện tại | File upstream | Mức map |
+|---|---|---|---|
+| Unit ages | `models/nice_model.py` | `Source/architecture.py` | 1:1 về semantic |
+| Output class learner | `servers/nice_server.py:set_task` | `Source/nice_operations.py:select_learner_units` | 1:1, khác vị trí |
+| Phase loop | `clients/nice_client.py`, `training/task_loop.py` | `Source/learner.py` | 1:1 semantic, federated expose phase thành round |
+| Activation selection | `strategies/incremental/nice.py` | `Source/nice_operations.py` | 1:1 core, adapt CNN-GRU |
+| Drop young -> non-young | `strategies/incremental/nice.py` | `Source/nice_operations.py` | 1:1 core, thêm GRU |
+| Grow young incoming | `strategies/incremental/nice.py` | `Source/nice_operations.py` | 1:1 core, thêm GRU |
+| MaskedOutYoung | `models/nice_model.py` | `Source/architecture.py` | 1:1 |
+| LetLearner | `models/nice_model.py` | `Source/architecture.py` | 1:1 |
+| Mature freeze | `models/nice_model.py`, `strategies/incremental/nice.py` | `Source/architecture.py`, `Source/nice_operations.py` | 1:1 cho conv/linear, GRU adapt |
+| Context memory | `servers/nice_server.py` | `Source/context_detector.py` | 1:1 core, 0-based index |
+| Logistic chain | `servers/nice_server.py` | `Source/context_detector.py` | 1:1 core |
+| Test boost | `servers/nice_server.py`, `local_task_loop.py` | `Source/train_eval.py` | 1:1 |
+| Federated aggregation | `strategies/fed_incremental/nice.py` | Không có | Repo-specific extension |
+
+---
+
+## 15. Các sai khác/điểm cần chú ý
+
+1. `ContextDetector` trong `fed_learning/servers/nice_server.py` có method
+   `predict_episode` và `predict_episodes_batch` bị định nghĩa lặp. Bản sau
+   override bản trước, nên runtime vẫn dùng bản chain-probability. Nên cleanup
+   để tránh đọc code nhầm.
+
+2. Upstream episode index là `1..E`, repo là `0..E-1`. Khi so sánh công thức
+   context detector phải trừ/đổi index.
+
+3. Repo hiện tại dùng fixed output `34` từ task đầu. Nếu task đầu có 6 class,
+   28 output còn lại tồn tại vật lý nhưng:
+   - không vào CE của NICE batch-sliced loss;
+   - bị global unseen mask trong eval;
+   - chỉ được set learner khi class của nó xuất hiện.
+
+4. GRU không có trong upstream NICE image backbone. Repo hiện tại mask GRU output
+   và context activation GRU, nhưng không freeze row-level internal GRU weights
+   trong `reset_frozen_gradients()`. Đây là adaptation cẩn thận nhưng không 1:1.
+
+5. Upstream sparse modules có `SparseConv2d`, `SparseLinear`, `SparseOutput`.
+   Repo hiện tại dùng standard PyTorch layers cộng manual `weight_masks`/`bias_masks`.
+   Semantic mask giống nhau, implementation khác.
+
+6. Repo hiện tại update context memory cả sau mỗi NICE train round/phase và trước
+   age transition ở `end_task()`. Upstream push context trong mỗi phase và end
+   episode. Đây là gần tương đương, phù hợp federated tracking.
+
+---
+
+## 16. Kết luận ngắn
+
+Implementation NICE hiện tại map rất sát với upstream ở các cơ chế cốt lõi:
+
+- age system;
+- learner selection bằng activation;
+- drop/grow connection masks;
+- `MaskedOutYoung` và `LetLearner`;
+- freeze mature gradients;
+- context detector binary memory + logistic chain;
+- inference bằng context-class boost `+99999`.
+
+Các phần không 1:1 chủ yếu đến từ việc repo này adapt NICE sang IDS + federated:
+
+- backbone CNN-GRU thay vì CNN image/sparse layers;
+- GRU cần masking riêng;
+- fixed 34-class head cần unseen-class guard;
+- server/client/worker/aggregator phải đồng bộ age/mask và bảo vệ mature params
+  sau FedAvg.

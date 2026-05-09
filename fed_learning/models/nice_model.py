@@ -340,25 +340,80 @@ class NICEModel(nn.Module):
         with torch.no_grad():
             x_cnn = x.permute(0, 2, 1)
 
-            x_cnn = self.pool1(self.relu(self.bn1(self.conv1(x_cnn))))
+            x_cnn = self._apply_masked_conv(x_cnn, self.conv1, self.bn1, self.pool1, "conv1")
             activations["conv1"] = x_cnn.abs().mean(dim=(0, 2))
 
-            x_cnn = self.pool2(self.relu(self.bn2(self.conv2(x_cnn))))
+            x_cnn = self._apply_masked_conv(x_cnn, self.conv2, self.bn2, self.pool2, "conv2")
             activations["conv2"] = x_cnn.abs().mean(dim=(0, 2))
 
-            x_cnn = self.pool3(self.relu(self.bn3(self.conv3(x_cnn))))
+            x_cnn = self._apply_masked_conv(x_cnn, self.conv3, self.bn3, self.pool3, "conv3")
             activations["conv3"] = x_cnn.abs().mean(dim=(0, 2))
             cnn_output = x_cnn.view(x.size(0), -1)
 
             x_gru, _ = self.gru(x)
             gru_output = x_gru[:, -1, :]
+            gru_output = gru_output * self.weight_masks["gru"].to(gru_output.device)
             activations["gru"] = gru_output.abs().mean(dim=0)
 
             z = torch.cat([cnn_output, gru_output], dim=1)
-            z = self.relu(self.fc1(z))
+            z = self.relu(self._apply_masked_linear(z, self.fc1, "fc1"))
             activations["fc1"] = z.abs().mean(dim=0)
 
         return activations
+
+    def get_context_activations_per_sample(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """Return masked per-sample activations used by NICE ContextDetector."""
+        self.eval()
+        if x.ndim == 2:
+            x = x.unsqueeze(-1)
+
+        with torch.no_grad():
+            x_cnn = x.permute(0, 2, 1)
+            x_cnn = self._apply_masked_conv(x_cnn, self.conv1, self.bn1, self.pool1, "conv1")
+            conv1 = x_cnn.abs().mean(dim=2)
+            x_cnn = self._apply_masked_conv(x_cnn, self.conv2, self.bn2, self.pool2, "conv2")
+            conv2 = x_cnn.abs().mean(dim=2)
+            x_cnn = self._apply_masked_conv(x_cnn, self.conv3, self.bn3, self.pool3, "conv3")
+            conv3 = x_cnn.abs().mean(dim=2)
+
+            x_gru, _ = self.gru(x)
+            gru = x_gru[:, -1, :]
+            gru = gru * self.weight_masks["gru"].to(gru.device)
+
+        return {"conv1": conv1, "conv2": conv2, "conv3": conv3, "gru": gru.abs()}
+
+    def get_output_and_context_activations(
+        self, x: torch.Tensor
+    ) -> tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+        """Official NICE eval path: one forward for logits and context activations."""
+        self.eval()
+        if x.ndim == 2:
+            x = x.unsqueeze(-1)
+
+        x_cnn = x.permute(0, 2, 1)
+        x_cnn = self._apply_masked_conv(x_cnn, self.conv1, self.bn1, self.pool1, "conv1")
+        conv1 = x_cnn.abs().mean(dim=2)
+        x_cnn = self._apply_masked_conv(x_cnn, self.conv2, self.bn2, self.pool2, "conv2")
+        conv2 = x_cnn.abs().mean(dim=2)
+        x_cnn = self._apply_masked_conv(x_cnn, self.conv3, self.bn3, self.pool3, "conv3")
+        conv3 = x_cnn.abs().mean(dim=2)
+        cnn_output = x_cnn.view(x.size(0), -1)
+
+        x_gru, _ = self.gru(x)
+        gru = x_gru[:, -1, :]
+        gru = gru * self.weight_masks["gru"].to(gru.device)
+
+        z = torch.cat([cnn_output, gru], dim=1)
+        z = self.relu(self._apply_masked_linear(z, self.fc1, "fc1"))
+        z = self.dropout(z)
+        logits = self._apply_masked_linear(z, self.fc2, "fc2")
+
+        return logits, {
+            "conv1": conv1,
+            "conv2": conv2,
+            "conv3": conv3,
+            "gru": gru.abs(),
+        }
 
     def get_binary_activations(self, x: torch.Tensor, thresholds: Optional[Dict[str, float]] = None) -> torch.Tensor:
         """Get binary activation vector for context detection.

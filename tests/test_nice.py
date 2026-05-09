@@ -106,8 +106,8 @@ class TestNICE:
         assert stats["buffer_type"] == "none"
         assert stats["has_replay"] == False
 
-    def test_nice_context_mask_blocks_future_episode_classes(self, monkeypatch):
-        """Evaluation mask should use ContextDetector-predicted episodes."""
+    def test_nice_context_mask_boosts_predicted_episode_classes(self, monkeypatch):
+        """Evaluation should follow official NICE context-logit boost."""
         clients = [NICEClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
         test_data = {
             "X_test": torch.randn(4, 32),
@@ -150,8 +150,9 @@ class TestNICE:
         )
         masked = server._apply_context_mask(logits, torch.randn(2, 32))
 
-        assert masked[0, 2:].isneginf().all()
-        assert masked[0, :2].isfinite().all()
-        assert masked[1, :2].isneginf().all()
-        assert masked[1, 4:].isneginf().all()
-        assert masked[1, 2:4].isfinite().all()
+        assert masked[0, :2].min() > 99998.0
+        assert masked[0, 2:].max() < 99998.0
+        assert masked[1, 2:4].min() > 99998.0
+        assert masked[1, :2].max() < 99998.0
+        assert masked[1, 4:].max() < 99998.0
+        assert masked.argmax(dim=1).tolist() == [1, 3]

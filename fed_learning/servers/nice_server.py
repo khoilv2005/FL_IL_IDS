@@ -53,6 +53,7 @@ class ContextDetector:
         """Khởi tạo bộ nhớ activation và các bộ phân loại context theo episode."""
         self.memo_per_class = memo_per_class
         self.activation_memory: Dict[int, np.ndarray] = {}
+        self.context_masks: Dict[int, np.ndarray] = {}
         self.binarize_thresholds: Optional[Dict[str, float]] = None
         self.context_learners: List[LogisticRegression] = []
         self.episode_classes: Dict[int, List[int]] = {}
@@ -70,37 +71,14 @@ class ContextDetector:
         có thể học episode/task một cách gọn nhẹ hơn.
         """
         model.eval()
-        binary_all = []
-
-        with torch.no_grad():
-            if data.ndim == 2:
-                x = data.unsqueeze(-1)
-            else:
-                x = data
-
-            # CNN pathway
-            x_cnn = x.permute(0, 2, 1)
-            x_cnn = model.pool1(model.relu(model.bn1(model.conv1(x_cnn))))
-            act_conv1 = x_cnn  # [batch, 64, seq_len]
-
-            x_cnn = model.pool2(model.relu(model.bn2(model.conv2(x_cnn))))
-            act_conv2 = x_cnn  # [batch, 128, seq_len]
-
-            x_cnn = model.pool3(model.relu(model.bn3(model.conv3(x_cnn))))
-            act_conv3 = x_cnn  # [batch, 256, seq_len]
-
-            # GRU pathway
-            x_gru, _ = model.gru(x)
-            act_gru = x_gru[:, -1, :]  # [batch, 100]
-
-        # Binarize per-sample, per-layer
         layer_acts = {
-            "conv1": act_conv1.abs().mean(dim=2).cpu().numpy(),  # [batch, 64]
-            "conv2": act_conv2.abs().mean(dim=2).cpu().numpy(),  # [batch, 128]
-            "conv3": act_conv3.abs().mean(dim=2).cpu().numpy(),  # [batch, 256]
-            "gru": act_gru.abs().cpu().numpy(),  # [batch, 100]
+            name: act.cpu().numpy()
+            for name, act in model.get_context_activations_per_sample(data).items()
         }
+        return self.binarize_layer_activations(layer_acts)
 
+    def binarize_layer_activations(self, layer_acts: Dict[str, np.ndarray]) -> np.ndarray:
+        """Binarize already-computed per-sample context activations."""
         parts = []
         for name in ["conv1", "conv2", "conv3", "gru"]:
             act = layer_acts[name]
@@ -114,6 +92,20 @@ class ContextDetector:
             parts.append(binary)
 
         return np.concatenate(parts, axis=1)  # [batch, total_features]
+
+    def _get_context_mask(self, model: NICEModel) -> np.ndarray:
+        """Official-style context mask: only units allocated by this episode."""
+        parts = []
+        for name in ["conv1", "conv2", "conv3", "gru"]:
+            ranks = getattr(model, "unit_ranks", {}).get(name)
+            if ranks is not None:
+                parts.append(np.asarray(ranks) > 0)
+        if not parts:
+            return np.ones(0, dtype=bool)
+        mask = np.concatenate(parts).astype(bool)
+        if not mask.any():
+            mask[:] = True
+        return mask
 
     def push_activations(self, model: NICEModel, data: torch.Tensor, episode: int):
         """Store per-sample binary activation vectors for an episode.
@@ -132,7 +124,7 @@ class ContextDetector:
 
         # Set thresholds from first episode BEFORE binarizing (mean + std)
         if episode == 0 and self.binarize_thresholds is None:
-            acts = model.get_activations(data)
+            acts = model.get_context_activations_per_sample(data)
             self.binarize_thresholds = {}
             for name in ["conv1", "conv2", "conv3", "gru"]:
                 act = acts[name].cpu()
@@ -141,6 +133,7 @@ class ContextDetector:
         # Store per-sample binary activations
         binary_vecs = self._binarize_per_sample(model, data)  # [n_samples, features]
         self.activation_memory[episode] = binary_vecs
+        self.context_masks[episode] = self._get_context_mask(model)
 
     def train_models(self, current_episode: int):
         """Fit chained logistic regression models.
@@ -165,8 +158,14 @@ class ContextDetector:
                 self.context_learners.append(None)
                 continue
 
+            mask = self.context_masks.get(k)
+            if mask is None or mask.size == 0:
+                mask = np.ones(self.activation_memory[k].shape[1], dtype=bool)
+            elif not mask.any():
+                mask = np.ones(mask.shape[0], dtype=bool)
+
             # Positive: all samples from episode k
-            pos = self.activation_memory[k]
+            pos = self.activation_memory[k][:, mask]
             if pos.ndim == 1:
                 pos = pos.reshape(1, -1)
 
@@ -177,7 +176,7 @@ class ContextDetector:
                     neg_j = self.activation_memory[j]
                     if neg_j.ndim == 1:
                         neg_j = neg_j.reshape(1, -1)
-                    neg_parts.append(neg_j)
+                    neg_parts.append(neg_j[:, mask])
 
             if not neg_parts:
                 self.context_learners.append(None)
@@ -277,6 +276,52 @@ class ContextDetector:
                 continue
 
         return results
+
+    def predict_episode(self, binary_activations: np.ndarray) -> int:
+        """Predict one episode using official NICE chain-probability argmax."""
+        return int(self.predict_episodes_batch(binary_activations.reshape(1, -1))[0])
+
+    def predict_episodes_batch(self, binary_activations: np.ndarray) -> np.ndarray:
+        """Batch episode prediction using official NICE tree_preds semantics."""
+        if binary_activations.ndim == 1:
+            binary_activations = binary_activations.reshape(1, -1)
+
+        latest_episode = max(self.episode_classes.keys()) if self.episode_classes else 0
+        if not self.context_learners:
+            return np.full(len(binary_activations), latest_episode, dtype=int)
+
+        pos_probs = []
+        for k, clf in enumerate(self.context_learners):
+            if clf is None:
+                pos_probs.append(np.zeros(len(binary_activations), dtype=np.float32))
+                continue
+            mask = self.context_masks.get(k)
+            if mask is None or mask.size == 0:
+                mask = np.ones(binary_activations.shape[1], dtype=bool)
+            elif not mask.any():
+                mask = np.ones(mask.shape[0], dtype=bool)
+            try:
+                proba = clf.predict_proba(binary_activations[:, mask])
+                pos_probs.append(proba[:, 1])
+            except Exception:
+                pos_probs.append(np.zeros(len(binary_activations), dtype=np.float32))
+
+        pos_probs_arr = np.asarray(pos_probs).T
+        neg_probs = 1.0 - pos_probs_arr
+        chain_probs = np.zeros(
+            (len(binary_activations), len(self.context_learners) + 1),
+            dtype=np.float32,
+        )
+        for episode_index in range(len(self.context_learners)):
+            if episode_index == 0:
+                chain_probs[:, 0] = pos_probs_arr[:, 0]
+            else:
+                prev_neg_prob = np.prod(neg_probs[:, :episode_index], axis=1)
+                chain_probs[:, episode_index] = (
+                    prev_neg_prob * pos_probs_arr[:, episode_index]
+                )
+        chain_probs[:, -1] = np.maximum(0.0, 1.0 - chain_probs.sum(axis=1))
+        return chain_probs.argmax(axis=1).astype(int)
 
 
 class NICEServer(IncrementalServer):
@@ -641,14 +686,24 @@ class NICEServer(IncrementalServer):
                 X_batch = X_test[i : i + batch_size].to(self.primary_device)
                 y_batch = y_test[i : i + batch_size].to(self.primary_device)
 
-                out = self.global_model(X_batch)
+                if hasattr(self.global_model, "get_output_and_context_activations"):
+                    out, context_activations = (
+                        self.global_model.get_output_and_context_activations(X_batch)
+                    )
+                else:
+                    out = self.global_model(X_batch)
+                    context_activations = None
 
                 loss_out = out.clone()
                 loss_out[:, unseen_mask] = float("-inf")
                 loss = criterion(loss_out, y_batch)
                 total_loss += loss.item() * len(y_batch)
 
-                pred_out = self._apply_context_mask(out, X_batch)
+                pred_out = self._apply_context_mask(
+                    out,
+                    X_batch,
+                    context_activations=context_activations,
+                )
                 preds = pred_out.argmax(dim=1)
                 all_preds.extend(preds.cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
@@ -689,9 +744,8 @@ class NICEServer(IncrementalServer):
         """
         Classes allowed by NICE context prediction.
 
-        If ContextDetector predicts episode k, only classes introduced in that
-        episode are candidate output labels. The hidden subnetwork can still use
-        older neurons through the model masks; this function only masks outputs.
+        If ContextDetector predicts episode k, official NICE boosts classes
+        introduced in that episode so argmax is selected from that context.
         """
         seen_set = (
             set(int(c) for c in self.seen_classes)
@@ -713,41 +767,48 @@ class NICEServer(IncrementalServer):
             c for c in seen_set if 0 <= int(c) < self.global_model.num_classes
         )
 
-    def _apply_context_mask(self, logits: torch.Tensor, X_batch: torch.Tensor) -> torch.Tensor:
+    def _apply_context_mask(
+        self,
+        logits: torch.Tensor,
+        X_batch: torch.Tensor,
+        context_activations: Optional[Dict[str, torch.Tensor]] = None,
+    ) -> torch.Tensor:
         """
-        Apply ContextDetector inference-time masking.
+        Apply official NICE inference-time context correction.
 
-        Flow:
-        1. Extract binary activations for each sample.
-        2. Predict episode k with chained context detector.
-        3. Keep only classes from episodes <= k, plus global seen-class guard.
+        Official test flow forwards once, predicts the context episode from
+        activations, then adds a very large bias to classes of that episode.
         """
         masked = logits.clone()
-        global_unseen = self._build_global_unseen_mask()
-        masked[:, global_unseen] = float("-inf")
-
         if not self.context_detector.episode_classes:
+            global_unseen = self._build_global_unseen_mask()
+            masked[:, global_unseen] = float("-inf")
             return masked
 
         try:
-            binary_acts = self.context_detector._binarize_per_sample(
-                self.global_model,
-                X_batch,
-            )
+            if context_activations is not None:
+                binary_acts = self.context_detector.binarize_layer_activations(
+                    {
+                        name: act.detach().cpu().numpy()
+                        for name, act in context_activations.items()
+                    }
+                )
+            else:
+                binary_acts = self.context_detector._binarize_per_sample(
+                    self.global_model,
+                    X_batch,
+                )
             pred_episodes = self.context_detector.predict_episodes_batch(binary_acts)
         except Exception as exc:
             print(f"  ⚠️ NICE context detector failed during eval: {exc}")
+            global_unseen = self._build_global_unseen_mask()
+            masked[:, global_unseen] = float("-inf")
             return masked
 
         for row_idx, episode in enumerate(pred_episodes):
             allowed = self._allowed_classes_for_episode(int(episode))
-            sample_mask = torch.ones(
-                self.global_model.num_classes,
-                dtype=torch.bool,
-                device=masked.device,
-            )
-            sample_mask[allowed] = False
-            masked[row_idx, sample_mask] = float("-inf")
+            if allowed:
+                masked[row_idx, allowed] = masked[row_idx, allowed] + 99999.0
 
         return masked
 
@@ -793,8 +854,18 @@ class NICEServer(IncrementalServer):
                     X_batch = X_task[i : i + batch_size].to(self.primary_device)
                     y_batch = y_task[i : i + batch_size]
 
-                    out = self.global_model(X_batch)
-                    pred_out = self._apply_context_mask(out, X_batch)
+                    if hasattr(self.global_model, "get_output_and_context_activations"):
+                        out, context_activations = (
+                            self.global_model.get_output_and_context_activations(X_batch)
+                        )
+                    else:
+                        out = self.global_model(X_batch)
+                        context_activations = None
+                    pred_out = self._apply_context_mask(
+                        out,
+                        X_batch,
+                        context_activations=context_activations,
+                    )
                     preds = pred_out.argmax(dim=1)
                     all_preds.extend(preds.cpu().numpy())
                     all_targets.extend(y_batch.numpy())

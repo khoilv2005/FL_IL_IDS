@@ -139,19 +139,30 @@ def _apply_local_nice_context_mask(
     context_detector: ContextDetector,
     seen_classes: List[int],
     device: str,
+    context_activations: Dict[str, torch.Tensor] | None = None,
 ) -> torch.Tensor:
     masked = logits.clone()
-    global_unseen = _nice_seen_mask(model, seen_classes, device)
-    if len(global_unseen) == masked.shape[1]:
-        masked[:, global_unseen] = float("-inf")
-
     if not getattr(context_detector, "episode_classes", None):
+        global_unseen = _nice_seen_mask(model, seen_classes, device)
+        if len(global_unseen) == masked.shape[1]:
+            masked[:, global_unseen] = float("-inf")
         return masked
 
     try:
-        binary_acts = context_detector._binarize_per_sample(model, X_batch)
+        if context_activations is not None:
+            binary_acts = context_detector.binarize_layer_activations(
+                {
+                    name: act.detach().cpu().numpy()
+                    for name, act in context_activations.items()
+                }
+            )
+        else:
+            binary_acts = context_detector._binarize_per_sample(model, X_batch)
         pred_episodes = context_detector.predict_episodes_batch(binary_acts)
     except Exception:
+        global_unseen = _nice_seen_mask(model, seen_classes, device)
+        if len(global_unseen) == masked.shape[1]:
+            masked[:, global_unseen] = float("-inf")
         return masked
 
     num_classes = masked.shape[1]
@@ -162,9 +173,8 @@ def _apply_local_nice_context_mask(
             seen_classes,
             num_classes,
         )
-        sample_mask = torch.ones(num_classes, dtype=torch.bool, device=masked.device)
-        sample_mask[allowed] = False
-        masked[row_idx, sample_mask] = float("-inf")
+        if allowed:
+            masked[row_idx, allowed] = masked[row_idx, allowed] + 99999.0
     return masked
 
 
@@ -190,10 +200,26 @@ def _predict_labels(
         for i in range(0, len(y_data), batch_size):
             X_batch = X_data[i : i + batch_size].to(device)
             y_batch = y_data[i : i + batch_size].to(device)
-            out = model(X_batch)
+            if (
+                context_detector is not None
+                and seen_classes is not None
+                and hasattr(model, "get_output_and_context_activations")
+            ):
+                out, context_activations = model.get_output_and_context_activations(
+                    X_batch
+                )
+            else:
+                out = model(X_batch)
+                context_activations = None
             if context_detector is not None and seen_classes is not None:
                 out = _apply_local_nice_context_mask(
-                    model, out, X_batch, context_detector, seen_classes, device
+                    model,
+                    out,
+                    X_batch,
+                    context_detector,
+                    seen_classes,
+                    device,
+                    context_activations=context_activations,
                 )
             probs = torch.softmax(out.detach().cpu(), dim=1)
             if prob_sum is None:
@@ -239,14 +265,30 @@ def _evaluate_model(
         for i in range(0, len(y_test), batch_size):
             X_batch = X_test[i : i + batch_size].to(device)
             y_batch = y_test[i : i + batch_size].to(device)
-            out = model(X_batch)
+            if (
+                context_detector is not None
+                and seen_classes is not None
+                and hasattr(model, "get_output_and_context_activations")
+            ):
+                out, context_activations = model.get_output_and_context_activations(
+                    X_batch
+                )
+            else:
+                out = model(X_batch)
+                context_activations = None
             if context_detector is not None and seen_classes is not None:
                 loss_out = out.clone()
                 global_unseen = _nice_seen_mask(model, seen_classes, device)
                 if len(global_unseen) == loss_out.shape[1]:
                     loss_out[:, global_unseen] = float("-inf")
                 pred_out = _apply_local_nice_context_mask(
-                    model, out, X_batch, context_detector, seen_classes, device
+                    model,
+                    out,
+                    X_batch,
+                    context_detector,
+                    seen_classes,
+                    device,
+                    context_activations=context_activations,
                 )
             else:
                 loss_out = out
@@ -420,10 +462,7 @@ def _generate_local_fcil_report(history: Dict[str, Any], config: Dict[str, Any],
         fcil_results = {strategy_name: {}}
         for entry in history["task_accuracies"]:
             tid = int(entry["task"])
-            per_task_acc = entry.get("per_task_acc", {})
-            fcil_results[strategy_name][tid] = [
-                per_task_acc.get(t, entry["accuracy"]) for t in range(tid + 1)
-            ]
+            fcil_results[strategy_name][tid] = [entry["accuracy"]]
 
         fcil_output_dir = os.path.join(output_dir, "fcil_plots")
         os.makedirs(fcil_output_dir, exist_ok=True)
@@ -503,7 +542,6 @@ def _save_local_round_checkpoint(
     round_time: float,
     metrics: Dict[str, Any],
     avg_forgetting: float,
-    per_task_acc: Dict[int, float],
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}_round_{round_id}.pt")
     torch.save(
@@ -521,7 +559,6 @@ def _save_local_round_checkpoint(
                 **metrics,
                 "avg_forgetting": avg_forgetting,
             },
-            "per_task_acc": per_task_acc,
         },
         ckpt_path,
     )
@@ -537,7 +574,6 @@ def _save_local_task_checkpoint(
     seen_classes: List[int],
     metrics: Dict[str, Any],
     avg_forgetting: float,
-    per_task_acc: Dict[int, float],
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
     torch.save(
@@ -550,7 +586,6 @@ def _save_local_task_checkpoint(
             "config": config,
             "seen_classes": list(seen_classes),
             "metrics": {**metrics, "avg_forgetting": avg_forgetting},
-            "per_task_acc": per_task_acc,
         },
         ckpt_path,
     )
@@ -572,6 +607,7 @@ def _record_local_round(
     config: Dict[str, Any],
     seen_classes: List[int],
     context_detector: ContextDetector = None,
+    compute_forgetting: bool = True,
 ):
     test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
     metrics = _evaluate_model(
@@ -581,16 +617,19 @@ def _record_local_round(
         context_detector=context_detector,
         seen_classes=seen_classes,
     )
-    current_task_accuracies, af = _compute_local_forgetting(
-        model,
-        device,
-        data_loader,
-        task_id,
-        best_acc_per_task,
-        trainer,
-        context_detector=context_detector,
-        seen_classes=seen_classes,
-    )
+    if compute_forgetting:
+        current_task_accuracies, af = _compute_local_forgetting(
+            model,
+            device,
+            data_loader,
+            task_id,
+            best_acc_per_task,
+            trainer,
+            context_detector=context_detector,
+            seen_classes=seen_classes,
+        )
+    else:
+        current_task_accuracies, af = {}, None
 
     round_record = {
         "task": task_id,
@@ -603,13 +642,12 @@ def _record_local_round(
         "recall_macro": metrics["recall_macro"],
         "f1_macro": metrics["f1_macro"],
         "f1_weighted": None,
-        "auc_macro_ovr": None,
         "avg_forgetting": af,
-        "per_task_acc": current_task_accuracies,
     }
     history["round_metrics"].append(round_record)
     _write_local_history(output_dir, history)
 
+    af_text = f"{af * 100:.2f}%" if af is not None else "N/A (final round only)"
     print(
         "    Metrics -> "
         f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
@@ -617,7 +655,7 @@ def _record_local_round(
         f"f1={metrics['f1_macro'] * 100:.2f}%, "
         f"precision={metrics['precision_macro'] * 100:.2f}%, "
         f"recall={metrics['recall_macro'] * 100:.2f}%, "
-        f"AF={af * 100:.2f}%"
+        f"AF={af_text}"
     )
 
     _save_local_round_checkpoint(
@@ -631,7 +669,6 @@ def _record_local_round(
         round_time,
         metrics,
         af,
-        current_task_accuracies,
     )
     return round_record
 
@@ -1038,7 +1075,9 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 model, persistent_client, trainer, config, device, task_id, algo
             )
 
+        final_round_id = int(round_records[-1]["round"]) if round_records else 0
         for round_summary in round_records:
+            round_id = int(round_summary["round"])
             last_round_record = _record_local_round(
                 model,
                 device,
@@ -1046,7 +1085,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 output_dir,
                 all_history,
                 task_id,
-                int(round_summary["round"]),
+                round_id,
                 float(round_summary.get("train_loss", 0.0)),
                 float(round_summary.get("round_time", 0.0)),
                 best_acc_per_task,
@@ -1054,6 +1093,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 config,
                 seen_classes,
                 context_detector=nice_context_detector if algo == "nice" else None,
+                compute_forgetting=(round_id == final_round_id),
             )
 
         _post_task_local(
@@ -1106,9 +1146,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 "recall_macro": metrics["recall_macro"],
                 "f1_macro": metrics["f1_macro"],
                 "f1_weighted": None,
-                "auc_macro_ovr": None,
                 "avg_forgetting": af,
-                "per_task_acc": current_task_accuracies,
             }
         )
         all_history["task_forgetting"].append({"task": task_id, "avg_forgetting": af})
