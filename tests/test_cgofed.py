@@ -202,6 +202,24 @@ class TestCGoFed:
         assert torch.load(info["basis"], map_location="cpu").shape[0] == 4
         assert torch.load(info["importance"], map_location="cpu").ndim == 1
 
+    def test_projection_targets_exclude_classifier_head(self):
+        """CGoFed should mirror upstream by excluding classifier heads from projection."""
+        model = nn.Sequential(OrderedDict([
+            ("conv1", nn.Conv1d(1, 2, 3)),
+            ("fc1", nn.Linear(4, 3)),
+            ("fc2", nn.Linear(3, 2)),
+        ]))
+        client = CGoFedClient(0, torch.randn(4, 4), torch.randint(0, 2, (4,)))
+        trainer = CGoFedTrainer()
+
+        client_targets = [name for name, _ in client._get_projection_target_modules(model)]
+        trainer_targets = [name for name, _ in trainer._get_projection_target_modules(model)]
+
+        assert "fc2" not in client_targets
+        assert "fc2" not in trainer_targets
+        assert "fc1" in client_targets
+        assert "fc1" in trainer_targets
+
     def test_trainer_pre_step_uses_client_projection_bases(self, tmp_path):
         """Shared trainer should project from kwargs client bases, not global bases."""
         client = CGoFedClient(0, torch.randn(12, 4), torch.randint(0, 2, (12,)))
@@ -430,6 +448,37 @@ class TestCGoFedServer:
         assert 0 in server._client_reg_info
         assert server._client_reg_info[0]["historical_models"]
         assert 0 in server._personalized_round_models
+
+    def test_train_round_prepares_initial_state_by_default(self, monkeypatch):
+        """Eq.12/Eq.14 pre-round state should be on unless explicitly disabled."""
+        clients = [CGoFedClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
+        server = self._make_server(clients)
+        server.set_task(1, [2, 3], [0, 1, 2, 3])
+
+        called = {"value": False}
+
+        def fake_prepare(global_params, verbose=True):
+            called["value"] = True
+
+        monkeypatch.setattr(server, "_prepare_initial_round_state", fake_prepare)
+        monkeypatch.setattr(
+            "fed_learning.training.cgofed_worker.train_cgofed_clients_on_gpu",
+            lambda *args, **kwargs: args[4].update(
+                {
+                    0: {
+                        "client_id": 0,
+                        "num_samples": 1,
+                        "loss": 0.0,
+                        "params": server.get_global_params(),
+                        "representation": torch.zeros(1, 2),
+                    }
+                }
+            ),
+        )
+
+        server.train_round(verbose=False)
+
+        assert called["value"] is True
 
     def test_similarity_uses_paper_l2_matrix_distance(self):
         """Similarity should be negative L2 distance between representation matrices."""

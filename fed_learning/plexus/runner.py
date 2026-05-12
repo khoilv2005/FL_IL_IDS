@@ -38,9 +38,7 @@ from typing import Dict, List, Any, Optional, Callable
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
-from sklearn.preprocessing import label_binarize
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 from .sampler import PlexusSampler
 from .aggregator import PlexusAggregator
@@ -148,7 +146,6 @@ def run_plexus_training(
         "test_recall_macro": [],
         "test_f1_macro": [],
         "test_f1_weighted": [],
-        "test_auc_macro": [],
     }
 
     if verbose:
@@ -241,7 +238,6 @@ def run_plexus_training(
             "recall_macro": None,
             "f1_macro": None,
             "f1_weighted": None,
-            "auc_macro_ovr": None,
         }
         if test_data is not None:
             eval_metrics = _evaluate_metrics(
@@ -254,7 +250,6 @@ def run_plexus_training(
             history["test_recall_macro"].append(eval_metrics["recall_macro"])
             history["test_f1_macro"].append(eval_metrics["f1_macro"])
             history["test_f1_weighted"].append(eval_metrics["f1_weighted"])
-            history["test_auc_macro"].append(eval_metrics["auc_macro_ovr"])
             if verbose:
                 print(
                     "   Metrics -> "
@@ -271,7 +266,6 @@ def run_plexus_training(
             history["test_recall_macro"].append(None)
             history["test_f1_macro"].append(None)
             history["test_f1_weighted"].append(None)
-            history["test_auc_macro"].append(None)
 
         if round_callback is not None:
             round_callback(round_r, global_params, round_metrics)
@@ -305,7 +299,6 @@ def _evaluate_metrics(
             "recall_macro": 0.0,
             "f1_macro": 0.0,
             "f1_weighted": 0.0,
-            "auc_macro_ovr": None,
         }
 
     model = model_template.__class__(model_template.input_shape, model_template.num_classes)
@@ -319,7 +312,6 @@ def _evaluate_metrics(
     total_loss = 0.0
     all_preds = []
     all_targets = []
-    all_proba = []
 
     with torch.no_grad():
         for i in range(0, len(X_test), batch_size):
@@ -329,16 +321,13 @@ def _evaluate_metrics(
             output = model(batch_X)
             loss = criterion(output, batch_y)
             preds = output.argmax(dim=1)
-            proba = F.softmax(output, dim=1)
 
             total_loss += loss.item() * len(batch_y)
             all_preds.extend(preds.cpu().numpy())
             all_targets.extend(batch_y.cpu().numpy())
-            all_proba.append(proba.cpu().numpy())
 
     y_true = np.array(all_targets)
     y_pred = np.array(all_preds)
-    y_proba = np.vstack(all_proba) if all_proba else np.empty((0, model_template.num_classes))
     metrics = {
         "loss": total_loss / max(len(y_test), 1),
         "accuracy": accuracy_score(y_true, y_pred) if len(y_true) else 0.0,
@@ -346,17 +335,6 @@ def _evaluate_metrics(
         "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0) if len(y_true) else 0.0,
         "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0) if len(y_true) else 0.0,
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0) if len(y_true) else 0.0,
-        "auc_macro_ovr": None,
     }
-
-    try:
-        y_true_bin = label_binarize(y_true, classes=list(range(model_template.num_classes)))
-        if y_true_bin is not None and y_true_bin.shape[1] == 1:
-            y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
-        metrics["auc_macro_ovr"] = roc_auc_score(
-            y_true_bin, y_proba, average="macro", multi_class="ovr"
-        )
-    except Exception:
-        metrics["auc_macro_ovr"] = None
 
     return metrics

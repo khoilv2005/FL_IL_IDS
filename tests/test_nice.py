@@ -9,6 +9,7 @@ import numpy as np
 
 from fed_learning.strategies import STRATEGIES, get_strategy
 from fed_learning.strategies.fed_incremental.nice import NICETrainer, NICEAggregator
+from fed_learning.strategies.incremental.nice import select_learner_units
 from fed_learning.models.nice_model import NICEModel
 from fed_learning.clients.nice_client import NICEClient
 from fed_learning.servers.nice_server import NICEServer
@@ -54,6 +55,41 @@ class TestNICE:
         assert trainer.current_task == 0
         assert trainer.seen_classes == {0, 1, 2}
         assert trainer.new_classes == [0, 1, 2]
+
+    def test_nice_loss_keeps_gradient_for_single_class_batch(self):
+        """NICE CE must not collapse to zero on one-class non-IID batches."""
+        trainer = NICETrainer()
+        output = torch.randn(8, 6, requires_grad=True)
+        target = torch.full((8,), 2, dtype=torch.long)
+
+        loss = trainer.compute_loss(None, output, target)
+        loss.backward()
+
+        assert loss.item() > 0.0
+        assert output.grad is not None
+        assert output.grad.abs().sum().item() > 0.0
+
+    def test_select_learner_units_prunes_current_learners_only(self):
+        """Later NICE phases should not reintroduce already-pruned young units."""
+
+        class FakeModel:
+            LAYER_NAMES = ["fc1", "fc2"]
+
+            def __init__(self):
+                self.unit_ranks = {
+                    "fc1": np.array([1, 1, 0, 2], dtype=np.int32),
+                    "fc2": np.array([1, 0], dtype=np.int32),
+                }
+
+            def get_activations(self, _data):
+                return {
+                    "fc1": torch.tensor([0.1, 0.9, 100.0, 0.0]),
+                }
+
+        model = FakeModel()
+        select_learner_units(model, tau=0.5, data=torch.empty(1))
+
+        assert model.unit_ranks["fc1"].tolist() == [0, 1, 0, 2]
 
     def test_nice_aggregator_creation(self):
         """NICEAggregator should be created without errors."""

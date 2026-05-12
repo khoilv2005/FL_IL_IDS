@@ -340,6 +340,12 @@ class CGoFedClient(FederatedClient):
     ) -> List[Tuple[str, nn.Module]]:
         modules = []
         for name, module in model.named_modules():
+            # Upstream CGoFed excludes the classifier heads (`fc3`). In this
+            # fixed-head IDS model, `fc2` is the classifier head, so projection
+            # should protect feature extractors without constraining new-class
+            # classifier rows.
+            if name in {"fc2", "classifier", "output_layer"}:
+                continue
             if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.GRU)):
                 if "bn" in name.lower() or "batch" in name.lower():
                     continue

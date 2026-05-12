@@ -9,16 +9,13 @@ from typing import Any, Dict, List, cast
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from threading import Thread
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
     recall_score,
     f1_score,
-    roc_auc_score,
 )
-from sklearn.preprocessing import label_binarize
 
 from ..models.cnn_gru import CNN_GRU_Model
 from ..clients.client import FederatedClient
@@ -80,7 +77,6 @@ class FederatedServer:
             "test_f1_weighted": [],
             "test_precision_macro": [],
             "test_recall_macro": [],
-            "test_auc_macro": [],
         }
 
         # Paper Eq. 14: Local regularization info for CGoFed (passed to clients)
@@ -193,7 +189,6 @@ class FederatedServer:
 
         all_preds = []
         all_targets = []
-        all_proba = []
         total_loss = 0.0
 
         with torch.no_grad():
@@ -205,16 +200,13 @@ class FederatedServer:
                 loss = criterion(out, y_batch)
                 total_loss += loss.item() * len(y_batch)
 
-                proba = F.softmax(out, dim=1)
                 preds = out.argmax(dim=1)
 
                 all_preds.extend(preds.cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
-                all_proba.append(proba.cpu().numpy())
 
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)
-        y_proba = np.vstack(all_proba)
         zero_division: Any = 0
 
         metrics = {
@@ -233,16 +225,5 @@ class FederatedServer:
                 y_true, y_pred, average="weighted", zero_division=zero_division
             ),
         }
-
-        # AUC
-        try:
-            y_true_bin = label_binarize(y_true, classes=list(range(self.num_classes)))
-            if y_true_bin is not None and y_true_bin.shape[1] == 1:
-                y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
-            metrics["auc_macro_ovr"] = roc_auc_score(
-                y_true_bin, y_proba, average="macro", multi_class="ovr"
-            )
-        except Exception:
-            metrics["auc_macro_ovr"] = None
 
         return metrics

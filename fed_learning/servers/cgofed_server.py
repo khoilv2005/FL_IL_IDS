@@ -175,7 +175,7 @@ class CGoFedServer(IncrementalServer):
             print(f"\n→ CGOFED: Training {len(self.clients)} clients on {device_info}")
 
         global_params = self.get_global_params()
-        if self.config.get("cgofed_pre_round_state", False):
+        if self.config.get("cgofed_pre_round_state", True):
             self._prepare_initial_round_state(global_params, verbose=verbose)
         build_projection_space = (
             getattr(self.aggregator, "_round_in_task", 0) + 1

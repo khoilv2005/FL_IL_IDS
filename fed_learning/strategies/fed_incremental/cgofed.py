@@ -556,6 +556,11 @@ class CGoFedTrainer(BaseTrainer):
         """
         target_modules = []
         for name, module in model.named_modules():
+            # Upstream excludes classifier heads (`fc3`). For this fixed-head
+            # model, skip equivalent classifier modules to avoid constraining
+            # new-class output rows.
+            if name in {"fc2", "classifier", "output_layer"}:
+                continue
             # Include Conv1d, Conv2d, and Linear (ALL layers with weights)
             if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.GRU)):
                 # Skip batch norm if any slipped through

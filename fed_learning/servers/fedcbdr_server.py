@@ -6,7 +6,6 @@ from typing import Dict
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from collections import OrderedDict
 from threading import Thread
 
@@ -15,9 +14,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
-    roc_auc_score,
 )
-from sklearn.preprocessing import label_binarize
 
 
 class FedCBDRServer:
@@ -88,7 +85,6 @@ class FedCBDRServer:
             "test_f1_weighted": [],
             "test_precision_macro": [],
             "test_recall_macro": [],
-            "test_auc_macro": [],
             "task_accuracies": [],
             "average_forgetting": [],
         }
@@ -298,7 +294,6 @@ class FedCBDRServer:
 
         all_preds = []
         all_targets = []
-        all_proba = [] if compute_auc else None
         total_loss = 0.0
 
         with torch.no_grad():
@@ -313,10 +308,6 @@ class FedCBDRServer:
                 preds = out.argmax(dim=1)
                 all_preds.extend(preds.cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
-
-                if compute_auc:
-                    proba = F.softmax(out, dim=1)
-                    all_proba.append(proba.cpu().numpy())
 
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)
@@ -335,21 +326,6 @@ class FedCBDRServer:
                 y_true, y_pred, average="weighted", zero_division=0
             ),
         }
-
-        metrics["auc_macro_ovr"] = None
-        if compute_auc and all_proba:
-            try:
-                y_proba = np.vstack(all_proba)
-                y_true_bin = label_binarize(
-                    y_true, classes=list(range(self.num_classes))
-                )
-                if y_true_bin.shape[1] == 1:
-                    y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
-                metrics["auc_macro_ovr"] = roc_auc_score(
-                    y_true_bin, y_proba, average="macro", multi_class="ovr"
-                )
-            except Exception:
-                pass
 
         return metrics
 

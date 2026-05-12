@@ -6,16 +6,13 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
     recall_score,
     f1_score,
-    roc_auc_score,
 )
-from sklearn.preprocessing import label_binarize
 
 from .server import FederatedServer
 
@@ -27,7 +24,6 @@ class IncrementalServer(FederatedServer):
     So với `FederatedServer`, class này thêm:
     - theo dõi `current_task`, `task_classes`, `seen_classes`
     - đánh giá chỉ trên các lớp đã thấy nếu cần
-    - giảm chi phí evaluation bằng cách không tính AUC mặc định
     """
 
     def __init__(self, clients, test_data: Dict, config: Dict):
@@ -108,7 +104,6 @@ class IncrementalServer(FederatedServer):
 
         all_preds = []
         all_targets = []
-        all_proba = [] if compute_auc else None
         total_loss = 0.0
 
         with torch.no_grad():
@@ -124,9 +119,6 @@ class IncrementalServer(FederatedServer):
                 all_preds.extend(preds.cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
 
-                if compute_auc:
-                    proba = F.softmax(out, dim=1)
-                    all_proba.append(proba.cpu().numpy())
 
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)
@@ -171,39 +163,6 @@ class IncrementalServer(FederatedServer):
                 y_true, y_pred, average="weighted", zero_division=zero_division
             ),
         }
-
-        # AUC - only compute if requested
-        metrics["auc_macro_ovr"] = None
-        if compute_auc and all_proba:
-            try:
-                y_proba = np.vstack(all_proba)
-                # Check which classes are present in y_true
-                present_classes = np.unique(y_true)
-                if len(present_classes) < self.num_classes and compute_auc:
-                    missing = set(range(self.num_classes)) - set(present_classes)
-                    print(
-                        f"⚠️ AUC Debug: Missing classes in y_true: {list(missing)[:10]}... (Total {len(missing)} missing)"
-                    )
-
-                y_true_bin = label_binarize(
-                    y_true, classes=list(range(self.num_classes))
-                )
-
-                # Handle edge case where only 1 class is present (e.g. very sparse test set)
-                if len(present_classes) < 2:
-                    metrics["auc_macro_ovr"] = 0.5  # Default for undefined
-                else:
-                    if y_true_bin is not None and y_true_bin.shape[1] == 1:
-                        y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
-
-                    metrics["auc_macro_ovr"] = roc_auc_score(
-                        y_true_bin, y_proba, average="macro", multi_class="ovr"
-                    )
-            except ValueError as e:
-                # print(f"⚠️ AUC Calculation Skipped: {e}")
-                pass
-            except Exception as e:
-                pass
 
         return metrics
 

@@ -416,7 +416,6 @@ class PlexusNICEServer(PlexusServer):
             "f1_weighted": f1_score(
                 y_true, y_pred, average="weighted", zero_division=0
             ),
-            "auc_macro_ovr": None,
         }
 
     def compute_average_forgetting(self) -> float:

@@ -724,7 +724,6 @@ class NICEServer(IncrementalServer):
             "f1_weighted": f1_score(
                 y_true, y_pred, average="weighted", zero_division=0
             ),
-            "auc_macro_ovr": None,
         }
 
     def _build_global_unseen_mask(self) -> torch.Tensor:
