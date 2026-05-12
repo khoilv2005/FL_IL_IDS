@@ -627,6 +627,7 @@ def _save_fed_task_checkpoint(
     seen_classes: List[int],
     metrics: Dict[str, Any],
     avg_forgetting: float,
+    task_accuracies: Optional[Dict[int, float]] = None,
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
     torch.save(
@@ -637,6 +638,7 @@ def _save_fed_task_checkpoint(
             "config": config,
             "seen_classes": list(seen_classes),
             "metrics": {**metrics, "avg_forgetting": avg_forgetting},
+            "task_accuracies": task_accuracies or {},
         },
         ckpt_path,
     )
