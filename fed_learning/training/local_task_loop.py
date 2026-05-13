@@ -6,7 +6,7 @@ import os
 import time
 from collections import OrderedDict
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -574,6 +574,7 @@ def _save_local_task_checkpoint(
     seen_classes: List[int],
     metrics: Dict[str, Any],
     avg_forgetting: float,
+    current_task_accuracies: Optional[Dict[int, float]] = None,
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
     torch.save(
@@ -586,6 +587,7 @@ def _save_local_task_checkpoint(
             "config": config,
             "seen_classes": list(seen_classes),
             "metrics": {**metrics, "avg_forgetting": avg_forgetting},
+            "task_accuracies": current_task_accuracies or {},
         },
         ckpt_path,
     )
