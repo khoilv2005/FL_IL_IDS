@@ -201,7 +201,7 @@ class ContextDetector:
             except Exception:
                 self.context_learners.append(None)
 
-    def predict_episode(self, binary_activations: np.ndarray) -> int:
+    def _predict_episode_threshold_unused(self, binary_activations: np.ndarray) -> int:
         """Predict which episode a sample belongs to using chained probabilities (Eq.4).
 
         Official tree_preds logic (from GitHub context_detector.py):
@@ -238,7 +238,7 @@ class ContextDetector:
         # Default to most recent episode
         return max(self.episode_classes.keys()) if self.episode_classes else 0
 
-    def predict_episodes_batch(self, binary_activations: np.ndarray) -> np.ndarray:
+    def _predict_episodes_batch_threshold_unused(self, binary_activations: np.ndarray) -> np.ndarray:
         """Batch prediction for multiple samples.
 
         Args:
@@ -277,29 +277,38 @@ class ContextDetector:
 
         return results
 
+    def _mask_for_episode(self, episode: int, n_features: int) -> np.ndarray:
+        """Return stored context mask, falling back when dimensions drift."""
+        mask = self.context_masks.get(episode)
+        if mask is None or mask.size == 0 or mask.shape[0] != n_features:
+            return np.ones(n_features, dtype=bool)
+        if not mask.any():
+            return np.ones(mask.shape[0], dtype=bool)
+        return mask
+
     def predict_episode(self, binary_activations: np.ndarray) -> int:
         """Predict one episode using official NICE chain-probability argmax."""
         return int(self.predict_episodes_batch(binary_activations.reshape(1, -1))[0])
 
-    def predict_episodes_batch(self, binary_activations: np.ndarray) -> np.ndarray:
-        """Batch episode prediction using official NICE tree_preds semantics."""
+    def predict_episodes_with_scores(
+        self, binary_activations: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Return episode predictions and chain probabilities."""
         if binary_activations.ndim == 1:
             binary_activations = binary_activations.reshape(1, -1)
 
         latest_episode = max(self.episode_classes.keys()) if self.episode_classes else 0
         if not self.context_learners:
-            return np.full(len(binary_activations), latest_episode, dtype=int)
+            preds = np.full(len(binary_activations), latest_episode, dtype=int)
+            probs = np.ones((len(binary_activations), 1), dtype=np.float32)
+            return preds, probs
 
         pos_probs = []
         for k, clf in enumerate(self.context_learners):
             if clf is None:
                 pos_probs.append(np.zeros(len(binary_activations), dtype=np.float32))
                 continue
-            mask = self.context_masks.get(k)
-            if mask is None or mask.size == 0:
-                mask = np.ones(binary_activations.shape[1], dtype=bool)
-            elif not mask.any():
-                mask = np.ones(mask.shape[0], dtype=bool)
+            mask = self._mask_for_episode(k, binary_activations.shape[1])
             try:
                 proba = clf.predict_proba(binary_activations[:, mask])
                 pos_probs.append(proba[:, 1])
@@ -321,7 +330,12 @@ class ContextDetector:
                     prev_neg_prob * pos_probs_arr[:, episode_index]
                 )
         chain_probs[:, -1] = np.maximum(0.0, 1.0 - chain_probs.sum(axis=1))
-        return chain_probs.argmax(axis=1).astype(int)
+        return chain_probs.argmax(axis=1).astype(int), chain_probs
+
+    def predict_episodes_batch(self, binary_activations: np.ndarray) -> np.ndarray:
+        """Batch episode prediction using official NICE tree_preds semantics."""
+        preds, _probs = self.predict_episodes_with_scores(binary_activations)
+        return preds
 
 
 class NICEServer(IncrementalServer):
@@ -676,9 +690,14 @@ class NICEServer(IncrementalServer):
             return {"loss": 0.0, "accuracy": 0.0, "f1_macro": 0.0, "f1_weighted": 0.0}
 
         unseen_mask = self._build_global_unseen_mask()
+        use_context_eval = bool(self.config.get("nice_context_eval", False))
+        debug_context = bool(self.config.get("nice_debug_context_detector", False))
 
         all_preds = []
         all_targets = []
+        all_true_episodes = []
+        all_pred_episodes = []
+        all_context_conf = []
         total_loss = 0.0
 
         with torch.no_grad():
@@ -699,17 +718,52 @@ class NICEServer(IncrementalServer):
                 loss = criterion(loss_out, y_batch)
                 total_loss += loss.item() * len(y_batch)
 
-                pred_out = self._apply_context_mask(
-                    out,
-                    X_batch,
-                    context_activations=context_activations,
-                )
+                if debug_context:
+                    try:
+                        if context_activations is not None:
+                            binary_acts = self.context_detector.binarize_layer_activations(
+                                {
+                                    name: act.detach().cpu().numpy()
+                                    for name, act in context_activations.items()
+                                }
+                            )
+                        else:
+                            binary_acts = self.context_detector._binarize_per_sample(
+                                self.global_model,
+                                X_batch,
+                            )
+                        pred_episodes, chain_probs = (
+                            self.context_detector.predict_episodes_with_scores(binary_acts)
+                        )
+                        true_episodes = self._labels_to_episodes(
+                            y_batch.detach().cpu().numpy()
+                        )
+                        all_true_episodes.extend(true_episodes.tolist())
+                        all_pred_episodes.extend(pred_episodes.tolist())
+                        all_context_conf.extend(chain_probs.max(axis=1).tolist())
+                    except Exception as exc:
+                        print(f"  WARNING: NICE context debug failed: {exc}")
+
+                if use_context_eval:
+                    pred_out = self._apply_context_mask(
+                        out,
+                        X_batch,
+                        context_activations=context_activations,
+                    )
+                else:
+                    pred_out = loss_out
                 preds = pred_out.argmax(dim=1)
                 all_preds.extend(preds.cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
 
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)
+        if debug_context and all_true_episodes:
+            self._print_context_debug(
+                np.array(all_true_episodes),
+                np.array(all_pred_episodes),
+                np.array(all_context_conf, dtype=np.float32),
+            )
 
         return {
             "loss": total_loss / n_test,
@@ -766,6 +820,59 @@ class NICEServer(IncrementalServer):
             c for c in seen_set if 0 <= int(c) < self.global_model.num_classes
         )
 
+    def _labels_to_episodes(self, labels: np.ndarray) -> np.ndarray:
+        """Map class labels to NICE episode ids for context-detector debugging."""
+        label_to_episode = {}
+        for episode, classes in self.context_detector.episode_classes.items():
+            for cls_id in classes:
+                label_to_episode[int(cls_id)] = int(episode)
+        for episode, classes in self.task_classes.items():
+            for cls_id in classes:
+                label_to_episode.setdefault(int(cls_id), int(episode))
+
+        labels = np.asarray(labels)
+        return np.array(
+            [label_to_episode.get(int(label), -1) for label in labels],
+            dtype=np.int64,
+        )
+
+    def _print_context_debug(
+        self,
+        true_episodes: np.ndarray,
+        pred_episodes: np.ndarray,
+        confidences: np.ndarray,
+    ) -> None:
+        """Print compact diagnostics for NICE context-detector routing."""
+        if len(true_episodes) == 0:
+            return
+
+        known = true_episodes >= 0
+        if known.any():
+            route_acc = float(np.mean(true_episodes[known] == pred_episodes[known]))
+        else:
+            route_acc = 0.0
+
+        def counts(values: np.ndarray) -> Dict[int, int]:
+            unique, freq = np.unique(values, return_counts=True)
+            return {int(k): int(v) for k, v in zip(unique, freq)}
+
+        print("\n  NICE context detector debug:")
+        print(f"    route_acc={route_acc * 100:.2f}%")
+        print(f"    true episode counts: {counts(true_episodes)}")
+        print(f"    pred episode counts: {counts(pred_episodes)}")
+        if len(confidences) > 0:
+            q10, q50, q90 = np.quantile(confidences, [0.1, 0.5, 0.9])
+            print(
+                "    confidence max(chain_probs): "
+                f"q10={q10:.4f}, q50={q50:.4f}, q90={q90:.4f}"
+            )
+
+        for episode in sorted(counts(true_episodes).keys()):
+            if episode < 0:
+                continue
+            row = pred_episodes[true_episodes == episode]
+            print(f"    true {episode} -> pred {counts(row)}")
+
     def _apply_context_mask(
         self,
         logits: torch.Tensor,
@@ -799,7 +906,7 @@ class NICEServer(IncrementalServer):
                 )
             pred_episodes = self.context_detector.predict_episodes_batch(binary_acts)
         except Exception as exc:
-            print(f"  ⚠️ NICE context detector failed during eval: {exc}")
+            print(f"  WARNING: NICE context detector failed during eval: {exc}")
             global_unseen = self._build_global_unseen_mask()
             masked[:, global_unseen] = float("-inf")
             return masked
@@ -827,6 +934,8 @@ class NICEServer(IncrementalServer):
 
         self.global_model.eval()
         task_accuracies = {}
+        use_context_eval = bool(self.config.get("nice_context_eval", False))
+        unseen_mask = self._build_global_unseen_mask()
 
         X_test = self.test_data["X_test"]
         y_test = self.test_data["y_test"]
@@ -860,11 +969,15 @@ class NICEServer(IncrementalServer):
                     else:
                         out = self.global_model(X_batch)
                         context_activations = None
-                    pred_out = self._apply_context_mask(
-                        out,
-                        X_batch,
-                        context_activations=context_activations,
-                    )
+                    if use_context_eval:
+                        pred_out = self._apply_context_mask(
+                            out,
+                            X_batch,
+                            context_activations=context_activations,
+                        )
+                    else:
+                        pred_out = out.clone()
+                        pred_out[:, unseen_mask] = float("-inf")
                     preds = pred_out.argmax(dim=1)
                     all_preds.extend(preds.cpu().numpy())
                     all_targets.extend(y_batch.numpy())

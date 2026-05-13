@@ -54,78 +54,82 @@ class CGoFedClient(FederatedClient):
         """
         Train and compute activation representation for CGoFed.
 
-        Paper-faithful split:
-        - Eq.6/Eq.8/Eq.9 gradient projection is executed by the client during
-          local optimization.
-        - Trainer still supplies optimizer/loss hyperparameters and Eq.14 loss.
-        - Eq.2 task representation is returned to the server for Eq.10.
+        Keep the task-0 training path aligned with the stable CGoFed snapshot:
+        use the shared FederatedClient training loop, then append the CGoFed
+        representation artifact. Projection-space construction remains client
+        local and only runs when the server requests it at the end of a task.
         """
-        if self.model is None:
-            raise RuntimeError("CGoFedClient.train() called before setup_for_gpu().")
+        if int(getattr(trainer, "current_task", 0)) == 0:
+            result = super().train(
+                trainer, epochs, batch_size, lr, global_params, **kwargs
+            )
+        else:
+            if self.model is None:
+                raise RuntimeError("CGoFedClient.train() called before setup_for_gpu().")
 
-        try:
-            self._ensure_projection_state()
-            self.model.train()
+            try:
+                self._ensure_projection_state()
+                self.model.train()
 
-            optimizer_cls = trainer.get_optimizer_class()
-            optimizer = optimizer_cls(self.model.parameters(), lr=lr)
-            scaler = GradScaler(enabled=self.use_amp)
+                optimizer_cls = trainer.get_optimizer_class()
+                optimizer = optimizer_cls(self.model.parameters(), lr=lr)
+                scaler = GradScaler(enabled=self.use_amp)
 
-            trainer.pre_train(self.model, global_params, lr=lr, **kwargs)
+                trainer.pre_train(self.model, global_params, lr=lr, **kwargs)
 
-            total_loss = 0.0
-            total_samples = 0
+                total_loss = 0.0
+                total_samples = 0
 
-            for _ep in range(epochs):
-                for X_batch, y_batch in self._create_batches(batch_size):
-                    optimizer.zero_grad()
+                for _ep in range(epochs):
+                    for X_batch, y_batch in self._create_batches(batch_size):
+                        optimizer.zero_grad()
 
-                    with self._amp_ctx():
-                        output = self.model(X_batch)
-                        loss = trainer.compute_loss(
-                            self.model, output, y_batch, global_params, **kwargs
-                        )
+                        with self._amp_ctx():
+                            output = self.model(X_batch)
+                            loss = trainer.compute_loss(
+                                self.model, output, y_batch, global_params, **kwargs
+                            )
 
-                    if self.use_amp:
-                        scaler.scale(loss).backward()
-                        scaler.unscale_(optimizer)
-                        torch.nn.utils.clip_grad_norm_(
-                            self.model.parameters(), max_norm=1.0
-                        )
-                        self._apply_relax_constrained_gradient_update(
-                            self.model, trainer
-                        )
-                        scaler.step(optimizer)
-                        scaler.update()
-                    else:
-                        loss.backward()
-                        torch.nn.utils.clip_grad_norm_(
-                            self.model.parameters(), max_norm=1.0
-                        )
-                        self._apply_relax_constrained_gradient_update(
-                            self.model, trainer
-                        )
-                        optimizer.step()
+                        if self.use_amp:
+                            scaler.scale(loss).backward()
+                            scaler.unscale_(optimizer)
+                            torch.nn.utils.clip_grad_norm_(
+                                self.model.parameters(), max_norm=1.0
+                            )
+                            self._apply_relax_constrained_gradient_update(
+                                self.model, trainer
+                            )
+                            scaler.step(optimizer)
+                            scaler.update()
+                        else:
+                            loss.backward()
+                            torch.nn.utils.clip_grad_norm_(
+                                self.model.parameters(), max_norm=1.0
+                            )
+                            self._apply_relax_constrained_gradient_update(
+                                self.model, trainer
+                            )
+                            optimizer.step()
 
-                    trainer.post_step(self.model, global_params, **kwargs)
+                        trainer.post_step(self.model, global_params, **kwargs)
 
-                    batch_size_actual = len(y_batch)
-                    total_loss += loss.item() * batch_size_actual
-                    total_samples += batch_size_actual
+                        batch_size_actual = len(y_batch)
+                        total_loss += loss.item() * batch_size_actual
+                        total_samples += batch_size_actual
 
-            trainer.post_train(self.model, global_params, **kwargs)
+                trainer.post_train(self.model, global_params, **kwargs)
 
-            result = {
-                "client_id": self.client_id,
-                "num_samples": self.num_samples,
-                "loss": total_loss / max(1, total_samples),
-                "params": OrderedDict(
-                    (key, value.cpu().clone())
-                    for key, value in self.model.state_dict().items()
-                ),
-            }
-        finally:
-            self._clear_projection_cache()
+                result = {
+                    "client_id": self.client_id,
+                    "num_samples": self.num_samples,
+                    "loss": total_loss / max(1, total_samples),
+                    "params": OrderedDict(
+                        (key, value.cpu().clone())
+                        for key, value in self.model.state_dict().items()
+                    ),
+                }
+            finally:
+                self._clear_projection_cache()
 
         # Compute activation representation for cross-task similarity (Paper Eq. 2, 10)
         if self.model is not None:
