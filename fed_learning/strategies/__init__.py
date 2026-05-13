@@ -95,7 +95,11 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
         "trainer": FedProxEWCTrainer,
         "aggregator": FedProxAggregator,
     },
-    # LwF-based (FedAvg + LwF, FedProx + LwF)
+    # LwF-based (FedAvg + LwF, FedProx + LwF, standalone LwF)
+    "lwf": {
+        "trainer": FedLwFTrainer,
+        "aggregator": FedLwFAggregator,
+    },
     "fedavg_lwf": {
         "trainer": FedLwFTrainer,
         "aggregator": FedLwFAggregator,
@@ -215,7 +219,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             debug_logging=config.get("debug_logging", False),
             mu=config.get("mu_fedprox", config.get("mu", 0.01)),  # For FedProx base
         )
-    elif algo_lower in ("fedavg_lwf", "fedprox_lwf"):
+    elif algo_lower in ("fedavg_lwf", "fedprox_lwf", "lwf"):
         trainer = strategy["trainer"](
             lwf_alpha=config.get("lwf_alpha", 1.0),
             temperature=config.get("temperature", 2.0),
@@ -332,6 +336,7 @@ def list_strategies() -> Dict[str, str]:
         "fedcbdr": "FedCBDR - Class-Balancing Data Replay with temperature scaling",
         "fedavg_ewc": "FedAvg + EWC - Elastic Weight Consolidation on FedAvg",
         "fedprox_ewc": "FedProx + EWC - Elastic Weight Consolidation on FedProx",
+        "lwf": "LwF - Learning without Forgetting (Local, non-Federated)",
         "fedavg_lwf": "FedAvg + LwF - Learning without Forgetting on FedAvg",
         "fedprox_lwf": "FedProx + LwF - Learning without Forgetting on FedProx",
         "der": "DER - Dynamically Expandable Representation for FCIL",

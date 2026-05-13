@@ -7,7 +7,7 @@ import subprocess
 import sys
 import zipfile
 
-TRAIN_PHASE = 2  # 1: task 0-1, 2: task 2, 3: task 3, 4: task 4-5
+TRAIN_PHASE = 5  # 1: task 0-1, 2: task 2, 3: task 3, 4: task 4-5
 
 PHASE_CONFIG = {
     1: {
@@ -180,13 +180,13 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "fed_il",
+    "mode": "il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "fedcbdr",
+    "algorithm": "lwf",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental
@@ -209,9 +209,9 @@ CONFIG = {
 
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
-    "task_start": 0,
-    "task_end": 5,
-    "save_resume_after_task": None,
+    #"task_start": 0,
+    #"task_end": 5,
+    #"save_resume_after_task": None,
     #"resume_state_path": None,
     #"resume_output_dir": None,
     # Incremental Learning - 6 Tasks Distribution
