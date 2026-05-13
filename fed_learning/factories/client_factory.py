@@ -21,6 +21,7 @@ from fed_learning.clients import (
 )
 from fed_learning.clients.fedcbdr_client import FedCBDRClient
 from fed_learning.clients.fedlwf_client import FedLwFClient
+from fed_learning.clients.lwf_local_client import LwFLocalClient
 
 
 # Registry: algorithm name -> (ClientClass, extra_config_keys)
@@ -89,8 +90,11 @@ _CLIENT_REGISTRY = {
     ),
 }
 
-# These algorithms use FedLwFClient
-_LWF_ALGORITHMS = {"fedavg_lwf", "fedprox_lwf", "lwf"}
+# These algorithms use FedLwFClient (federated LwF with task management)
+_FEDLWF_ALGORITHMS = {"fedavg_lwf", "fedprox_lwf"}
+
+# Standalone "lwf" uses LwFLocalClient (passes inputs to compute_loss for KD)
+_LOCAL_LWF_ALGORITHMS = {"lwf"}
 
 
 def _resolve_client_class(algo: str):
@@ -103,8 +107,10 @@ def _resolve_client_class(algo: str):
     """
     if algo in _CLIENT_REGISTRY:
         return _CLIENT_REGISTRY[algo]
-    if algo in _LWF_ALGORITHMS:
+    if algo in _FEDLWF_ALGORITHMS:
         return (FedLwFClient, {})
+    if algo in _LOCAL_LWF_ALGORITHMS:
+        return (LwFLocalClient, {})
     # Default: CGoFedClient (works for cgofed, fedavg, fedprox, fedavg_ewc, etc.)
     return (CGoFedClient, {})
 
