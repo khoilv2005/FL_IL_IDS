@@ -92,6 +92,10 @@ class FedLwFTrainer(BaseTrainer):
         self.current_acc_per_task: Dict[int, float] = {}
         self.last_af: float = 0.0
 
+    def get_optimizer_class(self) -> type:
+        """Return SGD optimizer — matches author's original LwF implementation."""
+        return torch.optim.SGD
+
     def set_task(self, task_id: int, new_classes: List[int]):
         """
         Được gọi khi bắt đầu task mới.
