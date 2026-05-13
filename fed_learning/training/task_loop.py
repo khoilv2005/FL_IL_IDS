@@ -66,6 +66,11 @@ except ImportError:
 
 def _refresh_server_clients(server, clients, config, test_data, task_config):
     """Refresh task participants while preserving server state when possible."""
+    if hasattr(server, "test_data"):
+        server.test_data = test_data
+    if hasattr(server, "config"):
+        server.config = task_config
+
     if hasattr(server, "update_clients"):
         server.update_clients(clients)
         return server
@@ -434,7 +439,7 @@ def _compute_forgetting(server, task_id, all_test_data, best_acc_per_task, train
     for prev_tid, path in all_test_data.items():
         loaded_test = torch.load(path)
         server.test_data = loaded_test
-        tm = server.evaluate_global(seen_classes_only=False)
+        tm = server.evaluate_global(seen_classes_only=True)
         current_task_accuracies[prev_tid] = tm["accuracy"]
         best_acc_per_task[prev_tid] = max(
             best_acc_per_task.get(prev_tid, 0), tm["accuracy"]

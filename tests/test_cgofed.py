@@ -72,8 +72,8 @@ class TestCGoFed:
         loss_ce = nn.CrossEntropyLoss()(output, target)
         assert abs(loss.item() - loss_ce.item()) < 1e-6
 
-    def test_cgofed_seen_class_ce_blocks_unseen_logits(self):
-        """CGoFed fixed-head CE should mask classes not introduced yet."""
+    def test_cgofed_task_ce_updates_full_head(self):
+        """CGoFed should preserve its stable full-head CE training objective."""
         trainer = CGoFedTrainer(mu=0.0)
         trainer.set_task(0, [0, 1])
         output = torch.tensor(
@@ -86,7 +86,7 @@ class TestCGoFed:
         loss.backward()
 
         assert output.grad is not None
-        assert torch.allclose(output.grad[:, 2:], torch.zeros_like(output.grad[:, 2:]))
+        assert output.grad[:, 2:].abs().sum() > 0
         assert output.grad[:, :2].abs().sum() > 0
 
     def test_cgofed_set_task(self):

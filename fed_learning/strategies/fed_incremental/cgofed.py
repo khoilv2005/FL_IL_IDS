@@ -1075,7 +1075,7 @@ class CGoFedTrainer(BaseTrainer):
         Where A(Θ_k^t, Θ_old) encourages the local model to stay close to
         similar historical task models during training.
         """
-        ce_loss = self._seen_class_cross_entropy(output, target)
+        ce_loss = F.cross_entropy(output, target)
 
         # Paper Eq. 14: Add cross-task regularization A(Θ_k^t, Θ_old)
         # Get historical models and similarity weights from kwargs (passed by server)

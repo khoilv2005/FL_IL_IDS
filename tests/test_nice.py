@@ -192,3 +192,47 @@ class TestNICE:
         assert masked[1, :2].max() < 99998.0
         assert masked[1, 4:].max() < 99998.0
         assert masked.argmax(dim=1).tolist() == [1, 3]
+
+    def test_nice_global_eval_context_boost_is_opt_in(self, monkeypatch):
+        """Default NICE evaluation should only mask unseen classes."""
+        clients = [NICEClient(0, torch.randn(4, 32), torch.randint(0, 2, (4,)))]
+        test_data = {
+            "X_test": torch.randn(2, 32),
+            "y_test": torch.tensor([0, 2]),
+        }
+        server = NICEServer(
+            clients,
+            test_data,
+            {
+                "algorithm": "nice",
+                "input_shape": (32,),
+                "num_classes": 4,
+                "num_gpus": 0,
+            },
+        )
+        server.seen_classes = [0, 1, 2, 3]
+
+        logits = torch.tensor(
+            [
+                [9.0, 1.0, 0.0, 0.0],
+                [0.0, 1.0, 9.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+
+        monkeypatch.setattr(
+            server.global_model,
+            "get_output_and_context_activations",
+            lambda data: (logits[: len(data)].to(server.primary_device), None),
+        )
+        monkeypatch.setattr(
+            server,
+            "_apply_context_mask",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                AssertionError("context eval should be opt-in")
+            ),
+        )
+
+        metrics = server.evaluate_global(batch_size=2)
+
+        assert metrics["accuracy"] == 1.0
