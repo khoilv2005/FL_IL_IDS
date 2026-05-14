@@ -213,7 +213,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
         )
     elif algo_lower in ("fedavg_ewc", "fedprox_ewc"):
         trainer = strategy["trainer"](
-            ewc_lambda=config.get("ewc_lambda", 10.0),
+            ewc_lambda=config.get("ewc_lambda", 1000.0),
             fisher_samples=config.get("fisher_samples", 200),
             online_ewc=config.get("online_ewc", False),
             debug_logging=config.get("debug_logging", False),
