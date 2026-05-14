@@ -932,7 +932,6 @@ def _run_plexus_training(config: Dict[str, Any]) -> Dict:
                 "f1_weighted": round_metrics.get("f1_weighted", 0.0) or 0.0,
             },
             0.0,
-            {0: round_metrics.get("accuracy", 0.0) or 0.0},
         )
         _write_phase_outputs(output_dir, all_history, config, 0)
 
