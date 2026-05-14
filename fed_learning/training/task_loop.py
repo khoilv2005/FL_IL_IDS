@@ -1390,11 +1390,20 @@ def run_incremental_training(config: Dict[str, Any]):
             )
         elif algo == "plexus":
             plexus_rounds = config.get("rounds_per_task", 5)
+            
+            # Set num_tasks for dynamic client scaling in PlexusServer
+            if hasattr(server, '_num_tasks'):
+                server._num_tasks = num_tasks
+            
             print(f"\n  === Plexus Decentralized Training ({plexus_rounds} rounds) ===")
+            if hasattr(server, 'scale_clients') and server.scale_clients:
+                print(f"  📈 Dynamic scaling: {server.initial_client_ratio*100:.0f}% → {server.final_client_ratio*100:.0f}%")
+            
             last_round_record = _run_tracked_rounds(
                 server,
                 lambda _r: server.train_round(
                     participating_clients=participating_clients,
+                    task_id=task_id,
                     verbose=True,
                 ),
                 plexus_rounds,
@@ -1412,13 +1421,20 @@ def run_incremental_training(config: Dict[str, Any]):
             stage1_rounds, stage2_rounds = _resolve_der_round_split(config)
             total_rounds = stage1_rounds + stage2_rounds
 
+            # Set num_tasks for dynamic client scaling in PlexusServer
+            if hasattr(server, '_num_tasks'):
+                server._num_tasks = num_tasks
+
             if hasattr(trainer, "set_stage"):
                 trainer.set_stage(1)
             print(f"\n  === PlexusDER Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
+            if hasattr(server, 'scale_clients') and server.scale_clients:
+                print(f"  📈 Dynamic scaling: {server.initial_client_ratio*100:.0f}% → {server.final_client_ratio*100:.0f}%")
             _run_tracked_rounds(
                 server,
                 lambda _r: server.train_round(
                     participating_clients=participating_clients,
+                    task_id=task_id,
                     stage=1,
                     verbose=True,
                 ),
@@ -1448,6 +1464,7 @@ def run_incremental_training(config: Dict[str, Any]):
                 server,
                 lambda _r: server.train_round(
                     participating_clients=participating_clients,
+                    task_id=task_id,
                     stage=2,
                     verbose=True,
                 ),
@@ -1473,6 +1490,11 @@ def run_incremental_training(config: Dict[str, Any]):
                 config
             )
             nice_rounds = max_phases
+            
+            # Set num_tasks for dynamic client scaling in PlexusServer
+            if hasattr(server, '_num_tasks'):
+                server._num_tasks = num_tasks
+            
             if is_last_task:
                 print(
                     f"\n  === PlexusNICE Training ({nice_rounds} phases) ==="
@@ -1486,10 +1508,14 @@ def run_incremental_training(config: Dict[str, Any]):
                     f"\n  PlexusNICE local schedule: {max_phases} phases x {phase_epochs} epochs"
                     f" = {effective_local_epochs} local epochs/client"
                 )
+            if hasattr(server, 'scale_clients') and server.scale_clients:
+                print(f"  📈 Dynamic scaling: {server.initial_client_ratio*100:.0f}% → {server.final_client_ratio*100:.0f}%")
+            
             last_round_record = _run_tracked_rounds(
                 server,
                 lambda _r: server.train_round(
                     participating_clients=participating_clients,
+                    task_id=task_id,
                     is_last_task=is_last_task,
                     verbose=True,
                 ),

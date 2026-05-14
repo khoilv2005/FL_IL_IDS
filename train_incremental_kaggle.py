@@ -180,13 +180,13 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized FL (no server)
-    "mode": "il",
+    "mode": "fed_il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "lwf",
+    "algorithm": "fedavg_ewc",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental
@@ -241,7 +241,7 @@ CONFIG = {
     "num_samples_rep": 1000,
     "top_k": 2,
     # EWC
-    "ewc_lambda": 400.0,  # Theo mốc scaling factor EWC được nêu trong paper cho Atari
+    "ewc_lambda": 1000.0,  # Theo mốc scaling factor EWC được nêu trong paper cho Atari
     "fisher_samples": 200,
     "online_ewc": False,
     # LwF (FedLwF)
@@ -280,10 +280,14 @@ CONFIG = {
     "refed_lambda_pim": 0.5,
     "refed_pim_iterations": 5,
     # Plexus (Decentralized FL without a Server - EuroMLSys 2025)
-    "plexus_sample_size": 4,        # Number of training participants per round
+    "plexus_sample_size": 10,        # Number of training participants per round
     "plexus_num_aggregators": 1,     # Number of aggregators per round
     "plexus_success_fraction": 0.8,  # Fraction of sample needed before aggregation
     "plexus_inactivity_threshold": 50,  # Rounds before peer considered offline
+    # Dynamic client scaling (simulates increasing network participation over tasks)
+    "plexus_scale_clients": True,    # Enable dynamic client scaling per task
+    "plexus_initial_client_ratio": 0.5,  # Initial: 50% of clients participate (task 0)
+    "plexus_final_client_ratio": 1.0,   # Final: 100% of clients participate (last task)
 }
 
 

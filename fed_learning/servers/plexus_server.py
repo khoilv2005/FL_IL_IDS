@@ -70,6 +70,9 @@ class PlexusServer(IncrementalServer):
             - ``plexus_num_aggregators`` (default 1)
             - ``plexus_success_fraction`` (default 0.8)
             - ``plexus_inactivity_threshold`` (default 50)
+            - ``plexus_scale_clients`` (default True) - Enable dynamic client scaling per task
+            - ``plexus_initial_client_ratio`` (default 0.5) - Initial client ratio (0.5 = 50%)
+            - ``plexus_final_client_ratio`` (default 1.0) - Final client ratio (1.0 = 100%)
     """
 
     def __init__(self, clients, test_data: Dict, config: Dict):
@@ -80,6 +83,14 @@ class PlexusServer(IncrementalServer):
         self.num_aggregators = config.get("plexus_num_aggregators", 1)
         self.success_fraction = config.get("plexus_success_fraction", 0.8)
         self.inactivity_threshold = config.get("plexus_inactivity_threshold", 50)
+
+        # Dynamic client scaling parameters
+        self.scale_clients = config.get("plexus_scale_clients", True)
+        self.initial_client_ratio = config.get("plexus_initial_client_ratio", 0.5)
+        self.final_client_ratio = config.get("plexus_final_client_ratio", 1.0)
+        self.total_clients = len(clients)
+        self.current_task_id = 0
+        self._num_tasks = config.get("num_tasks", 6)  # Total tasks for dynamic scaling
 
         self.trainer = PlexusTrainer()
 
@@ -120,6 +131,82 @@ class PlexusServer(IncrementalServer):
             f"num_agg={self.num_aggregators}, "
             f"success_frac={self.success_fraction}"
         )
+        
+        # Print client scaling info
+        if self.scale_clients:
+            print(
+                f"📈 Dynamic Client Scaling: {self.initial_client_ratio*100:.0f}% → {self.final_client_ratio*100:.0f}% "
+                f"(tasks 0 → last)"
+            )
+
+    def get_sample_size_for_task(self, task_id: int, num_tasks: int) -> int:
+        """
+        Calculate dynamic sample size based on task progress.
+        
+        If scaling is enabled, sample size increases linearly from initial to final
+        ratio as more clients join the network.
+        
+        Example with 100 clients:
+        - Task 0 (50%): min(sample_size, 50) clients in sample
+        - Task 3 (75%): min(sample_size, 75) clients in sample
+        - Task 5 (100%): min(sample_size, 100) clients in sample
+        
+        Args:
+            task_id: Current task ID (0-indexed)
+            num_tasks: Total number of tasks
+            
+        Returns:
+            Effective sample size for this task
+        """
+        if not self.scale_clients:
+            return self.sample_size
+        
+        # Linear interpolation from initial_ratio to final_ratio
+        if num_tasks <= 1:
+            progress = 1.0
+        else:
+            progress = task_id / (num_tasks - 1)
+        
+        # Calculate target ratio
+        target_ratio = self.initial_client_ratio + progress * (
+            self.final_client_ratio - self.initial_client_ratio
+        )
+        
+        # Calculate effective sample size based on total clients
+        # This represents the number of clients we'll select from the pool
+        effective_candidates = int(target_ratio * self.total_clients)
+        
+        # Sample size is the minimum of:
+        # - The configured sample_size (max participants per round)
+        # - The effective number of candidates available
+        effective_sample_size = max(3, min(
+            self.sample_size,
+            effective_candidates
+        ))
+        
+        return effective_sample_size
+
+    def get_participant_ratio_for_task(self, task_id: int, num_tasks: int) -> float:
+        """
+        Get the client participation ratio for a given task.
+        
+        Args:
+            task_id: Current task ID
+            num_tasks: Total number of tasks
+            
+        Returns:
+            Ratio of clients participating (0.0 to 1.0)
+        """
+        if not self.scale_clients:
+            return 1.0
+        
+        if num_tasks <= 1:
+            return self.final_client_ratio
+        
+        progress = task_id / (num_tasks - 1)
+        return self.initial_client_ratio + progress * (
+            self.final_client_ratio - self.initial_client_ratio
+        )
 
     # ------------------------------------------------------------------
     # train_round — the core Plexus simulation
@@ -128,6 +215,7 @@ class PlexusServer(IncrementalServer):
     def train_round(
         self,
         participating_clients=None,
+        task_id: int = None,
         verbose: bool = True,
         **kwargs,
     ) -> Dict:
@@ -137,7 +225,7 @@ class PlexusServer(IncrementalServer):
         Protocol (mirrors ``PlexusCommunity.train_in_round_coroutine``):
         1. Increment round counter.
         2. Determine aggregator(s) via hash ordering.
-        3. Determine training sample via hash ordering.
+        3. Determine training sample via hash ordering (with dynamic scaling if enabled).
         4. Train only the sampled clients (multi-GPU).
         5. Apply success-fraction filtering.
         6. Aggregate via FedAvg.
@@ -149,39 +237,63 @@ class PlexusServer(IncrementalServer):
         self._round += 1
         self.aggregator.current_round = self._round
 
+        # Update current task for dynamic scaling
+        if task_id is not None:
+            self.current_task_id = task_id
+
         all_ids = [c.client_id for c in self.clients]
         client_map = {c.client_id: c for c in self.clients}
 
-        # --- 1. Determine aggregator(s) (highest bandwidth in sample) ---
-        aggregator_ids = self.sample_manager.get_aggregators(
-            self._round, all_ids, self.client_bandwidths
-        )
+        # Determine effective sample size based on task progress
+        num_tasks = getattr(self, '_num_tasks', 6)  # Default 6 tasks if not set
+        if self.scale_clients and task_id is not None:
+            effective_sample_size = self.get_sample_size_for_task(task_id, num_tasks)
+            participant_ratio = self.get_participant_ratio_for_task(task_id, num_tasks)
+        else:
+            effective_sample_size = self.sample_size
+            participant_ratio = 1.0
 
-        # --- 2. Determine training sample ---
-        sample_ids = self.sample_manager.get_sample(
-            self._round, all_ids, self.client_bandwidths
+        # Create task-specific sample manager with dynamic sample size
+        task_sample_manager = SampleManager(effective_sample_size, self.num_aggregators)
+
+        # --- 1. Determine aggregator(s) (highest bandwidth in sample) ---
+        # Filter to participating clients if provided
+        candidate_ids = all_ids
+        if participating_clients is not None:
+            candidate_ids = [c.client_id for c in participating_clients]
+
+        # Calculate how many clients to sample based on ratio
+        num_to_sample = max(3, int(len(candidate_ids) * participant_ratio))
+
+        # Get sample using task-specific sample manager
+        # First, get ordered sample from candidate_ids
+        ordered_sample = task_sample_manager.get_ordered_sample_list(
+            self._round, candidate_ids
         )
+        sample_ids = ordered_sample[:num_to_sample]
+
         # Ensure we have at least 3 peers (liveness)
         if len(sample_ids) < 3:
-            sample_ids = all_ids
+            sample_ids = candidate_ids[:max(3, len(candidate_ids))]
 
-        # Filter: use participating_clients if provided (e.g., for incremental tasks)
-        if participating_clients is not None:
-            valid_ids = {c.client_id for c in participating_clients}
-            sample_ids = [sid for sid in sample_ids if sid in valid_ids]
-            # If filtered sample is too small, use all participating clients
-            if len(sample_ids) < 3:
-                sample_ids = [c.client_id for c in participating_clients]
+        # Get aggregator from the sample (highest bandwidth)
+        aggregator_ids = [max(sample_ids, key=lambda sid: self.client_bandwidths.get(sid, 0.0))]
 
         sampled_clients = [client_map[sid] for sid in sample_ids if sid in client_map]
 
         if verbose:
             device_info = "CPU" if self.use_cpu else f"{self.num_gpus} GPU(s)"
             agg_bw = {a: self.client_bandwidths.get(a, 0) for a in aggregator_ids}
+            
+            # Build scaling info string
+            scaling_info = ""
+            if self.scale_clients and task_id is not None:
+                scaling_info = f", scale={effective_sample_size}/{len(candidate_ids)}={participant_ratio*100:.0f}%"
+            
             print(
-                f"\n→ Plexus Round {self._round}: "
+                f"\n→ Plexus Round {self._round} [Task {task_id}]: "
                 f"aggregator={aggregator_ids} (bw={agg_bw}), "
-                f"sample={len(sampled_clients)}/{len(all_ids)} clients, "
+                f"sample={len(sampled_clients)}/{len(all_ids)} clients{scaling_info}, "
                 f"device={device_info}"
             )
 
