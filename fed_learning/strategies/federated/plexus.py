@@ -80,6 +80,19 @@ class SampleManager:
         self.sample_size = sample_size
         self.num_aggregators = num_aggregators
 
+    def get_resume_state(self) -> Dict:
+        """Return serializable state for snapshot."""
+        return {
+            "sample_size": self.sample_size,
+            "num_aggregators": self.num_aggregators,
+        }
+
+    def load_resume_state(self, state: Dict) -> None:
+        """Restore from serialized state."""
+        if state:
+            self.sample_size = state.get("sample_size", self.sample_size)
+            self.num_aggregators = state.get("num_aggregators", self.num_aggregators)
+
     def get_ordered_sample_list(
         self, round_num: int, peer_ids: List[int]
     ) -> List[int]:
@@ -185,6 +198,15 @@ class PopulationView:
         # client_id -> (last_active_round, is_online)
         self.view: Dict[int, Tuple[int, bool]] = {}
 
+    def get_resume_state(self) -> Dict:
+        """Return serializable state for snapshot."""
+        return {"view": dict(self.view)}
+
+    def load_resume_state(self, state: Dict) -> None:
+        """Restore from serialized state."""
+        if state and "view" in state:
+            self.view = dict(state["view"])
+
     def update(self, client_id: int, round_num: int, is_online: bool = True):
         cur = self.view.get(client_id)
         if cur is None or round_num >= cur[0]:
@@ -277,6 +299,36 @@ class PlexusAggregator(BaseAggregator):
 
         # Round counter (managed externally by server)
         self.current_round: int = 0
+
+    def get_resume_state(self) -> Dict:
+        """Return serializable state for snapshot."""
+        return {
+            "sample_size": self.sample_size,
+            "num_aggregators": self.num_aggregators,
+            "success_fraction": self.success_fraction,
+            "inactivity_threshold": self.inactivity_threshold,
+            "client_bandwidths": dict(self.client_bandwidths),
+            "current_round": self.current_round,
+            "sample_manager_state": self.sample_manager.get_resume_state(),
+            "population_view_state": self.population_view.get_resume_state(),
+        }
+
+    def load_resume_state(self, state: Dict) -> None:
+        """Restore from serialized state."""
+        if not state:
+            return
+        self.sample_size = state.get("sample_size", self.sample_size)
+        self.num_aggregators = state.get("num_aggregators", self.num_aggregators)
+        self.success_fraction = state.get("success_fraction", self.success_fraction)
+        self.inactivity_threshold = state.get("inactivity_threshold", self.inactivity_threshold)
+        self.client_bandwidths = dict(state.get("client_bandwidths", {}))
+        self.current_round = state.get("current_round", 0)
+
+        # Restore internal components
+        if "sample_manager_state" in state:
+            self.sample_manager.load_resume_state(state["sample_manager_state"])
+        if "population_view_state" in state:
+            self.population_view.load_resume_state(state["population_view_state"])
 
     # ------------------------------------------------------------------
     # Core aggregation (called from Server.train_round)

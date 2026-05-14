@@ -1174,6 +1174,7 @@ def run_incremental_training(config: Dict[str, Any]):
             **config,
             "num_classes": config["total_classes"],
             "num_rounds": config["rounds_per_task"],
+            "num_tasks": num_tasks,  # For Plexus dynamic client scaling
         }
 
         # Dynamic param adjustment (e.g., LwF alpha decay)
