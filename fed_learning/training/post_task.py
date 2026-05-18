@@ -39,19 +39,22 @@ def post_task_processing(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
 
-    # 1. CGoFed: Eq. 3-5 projection space is built inside each CGoFedClient.
+    # 1. CGoFed: Build Representation Space via SVD
     if algo == "cgofed":
-        task_key = f"task_{getattr(trainer, 'current_task', 0)}"
-        built = 0
-        if participating_clients:
-            for client in participating_clients:
-                bases = getattr(client, "projection_layer_bases", {})
-                if task_key in bases and bases[task_key]:
-                    built += 1
-        print(
-            f"\n🔐 CGoFed: client-local Eq.3-5 projection spaces ready "
-            f"for {built}/{len(participating_clients or [])} clients ({task_key})"
-        )
+        if hasattr(trainer, "build_space_from_clients") and participating_clients:
+            trainer.build_space_from_clients(
+                model=server.global_model,
+                clients=participating_clients,
+                config=config,
+                device=device,
+            )
+        elif hasattr(trainer, "build_space_from_client_data"):
+            trainer.build_space_from_client_data(
+                model=server.global_model,
+                client_data=client_data,
+                config=config,
+                device=device,
+            )
 
     # 2. EWC: Consolidate (Compute Fisher Information)
     elif "ewc" in algo:  # fedavg_ewc, fedprox_ewc
