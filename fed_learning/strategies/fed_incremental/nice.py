@@ -44,6 +44,64 @@ class NICEAggregator(BaseAggregator):
         """
         self._freeze_masks = {k: np.array(v) for k, v in freeze_masks.items()}
 
+    @staticmethod
+    def _restore_rows(
+        averaged: OrderedDict,
+        global_params: OrderedDict,
+        key: str,
+        freeze: np.ndarray,
+    ) -> None:
+        if key not in averaged or key not in global_params or not np.any(freeze):
+            return
+        tensor = averaged[key]
+        if tensor.dim() == 0 or tensor.shape[0] != len(freeze):
+            return
+        mask = torch.tensor(freeze, dtype=torch.bool, device=tensor.device)
+        averaged[key][mask] = global_params[key].to(tensor.device)[mask].clone()
+
+    @staticmethod
+    def _restore_gru_rows(
+        averaged: OrderedDict,
+        global_params: OrderedDict,
+        key: str,
+        freeze: np.ndarray,
+    ) -> None:
+        if key not in averaged or key not in global_params or not np.any(freeze):
+            return
+        tensor = averaged[key]
+        hidden = len(freeze)
+        if tensor.dim() == 0 or tensor.shape[0] != 3 * hidden:
+            return
+        gate_mask = torch.tensor(
+            np.tile(freeze, 3), dtype=torch.bool, device=tensor.device
+        )
+        averaged[key][gate_mask] = global_params[key].to(tensor.device)[
+            gate_mask
+        ].clone()
+
+    def _restore_batchnorm_channels(
+        self, averaged: OrderedDict, global_params: OrderedDict
+    ) -> None:
+        bn_map = {"conv1": "bn1", "conv2": "bn2", "conv3": "bn3"}
+        for conv_layer, bn_name in bn_map.items():
+            freeze = self._freeze_masks.get(conv_layer)
+            if freeze is None or not np.any(freeze):
+                continue
+            for suffix in ("weight", "bias", "running_mean", "running_var"):
+                self._restore_rows(
+                    averaged, global_params, f"{bn_name}.{suffix}", freeze
+                )
+
+    def _restore_gru_channels(
+        self, averaged: OrderedDict, global_params: OrderedDict
+    ) -> None:
+        freeze = self._freeze_masks.get("gru")
+        if freeze is None or not np.any(freeze):
+            return
+        for key in list(averaged.keys()):
+            if key.startswith("gru.weight_") or key.startswith("gru.bias_"):
+                self._restore_gru_rows(averaged, global_params, key, freeze)
+
     def aggregate(
         self,
         results: List[Dict],
@@ -93,6 +151,9 @@ class NICEAggregator(BaseAggregator):
                     elif "bias" in key:
                         if len(freeze) == averaged[key].shape[0]:
                             averaged[key][mask] = global_params[key][mask].clone()
+
+                self._restore_batchnorm_channels(averaged, global_params)
+                self._restore_gru_channels(averaged, global_params)
 
         return averaged
 

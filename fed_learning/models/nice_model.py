@@ -104,6 +104,7 @@ class NICEModel(nn.Module):
 
     # Layer names in forward order (used for iteration)
     LAYER_NAMES = ["conv1", "conv2", "conv3", "gru", "fc1", "fc2"]
+    BN_LAYER_MAP = {"conv1": "bn1", "conv2": "bn2", "conv3": "bn3"}
 
     def __init__(self, input_shape, num_classes: int = 34):
         super().__init__()
@@ -484,11 +485,30 @@ class NICEModel(nn.Module):
             # Extract layer name from param name (e.g., "conv1.weight" -> "conv1")
             layer_name = name.split(".")[0]
 
-            # Skip GRU parameters - GRU internal weights have complex shapes
-            # (weight_ih_l0, weight_hh_l0, etc.) that don't map directly to
-            # the output neuron dimension. GRU freezing is handled by masking
-            # the output in forward pass instead.
             if layer_name == "gru":
+                freeze = self.freeze_masks.get("gru")
+                if freeze is None or not np.any(freeze):
+                    continue
+                hidden = int(self._layer_dims["gru"])
+                if param.dim() >= 1 and param.shape[0] == 3 * hidden:
+                    gate_mask = torch.tensor(
+                        np.tile(freeze, 3), dtype=torch.bool, device=param.device
+                    )
+                    param.grad.data[gate_mask] = 0.0
+                continue
+
+            conv_layer = None
+            for layer, bn_name in self.BN_LAYER_MAP.items():
+                if layer_name == bn_name:
+                    conv_layer = layer
+                    break
+            if conv_layer is not None:
+                freeze = self.freeze_masks.get(conv_layer)
+                if freeze is None or not np.any(freeze):
+                    continue
+                if len(freeze) == param.shape[0]:
+                    mask = torch.tensor(freeze, dtype=torch.bool, device=param.device)
+                    param.grad.data[mask] = 0.0
                 continue
 
             if layer_name not in self.freeze_masks:
