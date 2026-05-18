@@ -665,9 +665,15 @@ def _record_fed_round(
     seen_classes: List[int],
     is_last_task: bool,
     compute_forgetting: bool = True,
+    evaluate: bool = True,
+    save_checkpoint: bool = True,
 ):
-    metrics = server.evaluate_global(compute_auc=False)
-    if compute_forgetting:
+    if evaluate:
+        metrics = server.evaluate_global(compute_auc=False)
+    else:
+        metrics = {}
+
+    if evaluate and compute_forgetting:
         current_task_accuracies, af = _compute_forgetting(
             server, task_id, all_test_data, best_acc_per_task, trainer
         )
@@ -679,40 +685,48 @@ def _record_fed_round(
         "round": round_id,
         "train_loss": train_loss,
         "round_time": round_time,
-        "test_loss": metrics["loss"],
-        "accuracy": metrics["accuracy"],
-        "precision_macro": metrics["precision_macro"],
-        "recall_macro": metrics["recall_macro"],
-        "f1_macro": metrics["f1_macro"],
+        "test_loss": metrics.get("loss"),
+        "accuracy": metrics.get("accuracy"),
+        "precision_macro": metrics.get("precision_macro"),
+        "recall_macro": metrics.get("recall_macro"),
+        "f1_macro": metrics.get("f1_macro"),
         "f1_weighted": metrics.get("f1_weighted"),
         "avg_forgetting": af,
+        "evaluated": evaluate,
     }
     history["round_metrics"].append(round_record)
     _write_training_history(output_dir, history)
 
-    af_text = f"{af * 100:.2f}%" if af is not None else "N/A (final round only)"
-    print(
-        "    Metrics -> "
-        f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
-        f"accuracy={metrics['accuracy'] * 100:.2f}%, "
-        f"f1={metrics['f1_macro'] * 100:.2f}%, "
-        f"precision={metrics['precision_macro'] * 100:.2f}%, "
-        f"recall={metrics['recall_macro'] * 100:.2f}%, "
-        f"AF={af_text}"
-    )
+    if evaluate:
+        af_text = f"{af * 100:.2f}%" if af is not None else "N/A (final round only)"
+        print(
+            "    Metrics -> "
+            f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
+            f"accuracy={metrics['accuracy'] * 100:.2f}%, "
+            f"f1={metrics['f1_macro'] * 100:.2f}%, "
+            f"precision={metrics['precision_macro'] * 100:.2f}%, "
+            f"recall={metrics['recall_macro'] * 100:.2f}%, "
+            f"AF={af_text}"
+        )
+    else:
+        print(
+            "    Metrics skipped -> "
+            f"train_loss={train_loss:.4f}, eval_every={config.get('eval_every', 1)}"
+        )
 
-    _save_fed_round_checkpoint(
-        output_dir,
-        task_id,
-        round_id,
-        server.get_global_params(),
-        config,
-        seen_classes,
-        train_loss,
-        round_time,
-        metrics,
-        af,
-    )
+    if save_checkpoint:
+        _save_fed_round_checkpoint(
+            output_dir,
+            task_id,
+            round_id,
+            server.get_global_params(),
+            config,
+            seen_classes,
+            train_loss,
+            round_time,
+            metrics,
+            af,
+        )
     return round_record
 
 
@@ -736,12 +750,22 @@ def _run_tracked_rounds(
     if round_total_last is None:
         round_total_last = round_start + total_rounds - 1
 
+    eval_every = max(1, int(config.get("eval_every", 1)))
+    checkpoint_every = config.get("round_checkpoint_every", 1)
+    if checkpoint_every is not None:
+        checkpoint_every = max(1, int(checkpoint_every))
+
     last_record = None
     for local_round in range(total_rounds):
         round_id = round_start + local_round
         round_suffix = f" {label}" if label else ""
         print(f"  🔁 ROUND {round_id}/{round_total_last}{round_suffix}")
         round_result = train_round_fn(local_round) or {}
+        is_final_round = round_id == round_total_last
+        evaluate_round = is_final_round or ((round_id + 1) % eval_every == 0)
+        save_round_checkpoint = checkpoint_every is not None and (
+            is_final_round or ((round_id + 1) % checkpoint_every == 0)
+        )
         last_record = _record_fed_round(
             server,
             output_dir,
@@ -756,7 +780,9 @@ def _run_tracked_rounds(
             config,
             seen_classes,
             is_last_task,
-            compute_forgetting=(round_id == round_total_last),
+            compute_forgetting=is_final_round,
+            evaluate=evaluate_round,
+            save_checkpoint=save_round_checkpoint,
         )
     return last_record
 

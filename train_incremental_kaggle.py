@@ -229,7 +229,8 @@ CONFIG = {
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
     "batch_size": 2048,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
-    "eval_every": 1,
+    "eval_every": 5,
+    "round_checkpoint_every": 5,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
     "mu_cgofed": 1.0,  # Paper Eq. 9: full gradient projection
@@ -268,6 +269,8 @@ CONFIG = {
     "tau": 0.95,
     "nice_max_phases": 20,
     "nice_phase_epochs": 1,
+    "nice_context_eval": False,
+    "nice_debug_context_detector": False,
     "memo_per_class": 50,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,

@@ -292,7 +292,14 @@ class TestNICE:
         monkeypatch.setattr(
             server.global_model,
             "get_output_and_context_activations",
-            lambda data: (logits[: len(data)].to(server.primary_device), None),
+            lambda data: (_ for _ in ()).throw(
+                AssertionError("context activations should be opt-in")
+            ),
+        )
+        monkeypatch.setattr(
+            server.global_model,
+            "forward",
+            lambda data: logits[: len(data)].to(server.primary_device),
         )
         monkeypatch.setattr(
             server,

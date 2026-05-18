@@ -692,6 +692,7 @@ class NICEServer(IncrementalServer):
         unseen_mask = self._build_global_unseen_mask()
         use_context_eval = bool(self.config.get("nice_context_eval", False))
         debug_context = bool(self.config.get("nice_debug_context_detector", False))
+        need_context_activations = use_context_eval or debug_context
 
         all_preds = []
         all_targets = []
@@ -705,7 +706,9 @@ class NICEServer(IncrementalServer):
                 X_batch = X_test[i : i + batch_size].to(self.primary_device)
                 y_batch = y_test[i : i + batch_size].to(self.primary_device)
 
-                if hasattr(self.global_model, "get_output_and_context_activations"):
+                if need_context_activations and hasattr(
+                    self.global_model, "get_output_and_context_activations"
+                ):
                     out, context_activations = (
                         self.global_model.get_output_and_context_activations(X_batch)
                     )
