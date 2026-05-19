@@ -1716,3 +1716,285 @@ class TestDFCADebugLogging:
         assert "[DFCA][messages]" in captured.out
         # Should NOT have a "hidden" note since limit=0 means unlimited
         assert "additional message logs" not in captured.out
+
+
+# =============================================================================
+# Multi-GPU Fix Tests
+# =============================================================================
+
+class TestMultiGPUFix:
+    """Test that multi-GPU multi-threading does not share model objects."""
+
+    def test_ensure_client_model_creates_per_client_instance(self):
+        """_ensure_client_model_on_device must create unique model per client."""
+        import torch
+        from fed_learning.clients.dfca_client import DFCAClient
+        from fed_learning.servers.dfca_server import DFCAServer
+
+        clients = [
+            DFCAClient(i, torch.randn(4, 40), torch.randint(0, 2, (4,)), num_clusters=2)
+            for i in range(4)
+        ]
+        cfg = {
+            "algorithm": "dfca_il",
+            "input_shape": (40,),
+            "num_classes": 4,
+            "total_classes": 4,
+            "dfca_num_clusters": 2,
+            "dfca_client_ratios": [1.0],
+            "seed": 42,
+            "num_gpus": 0,
+            "batch_size": 4,
+            "local_epochs": 1,
+        }
+        test_data = {
+            "X_test": torch.randn(4, 40),
+            "y_test": torch.randint(0, 2, (4,)),
+        }
+        server = DFCAServer(clients, test_data, cfg)
+
+        # Ensure each client gets a model on CPU
+        for c in clients:
+            server._ensure_client_model_on_device(c, "cpu")
+
+        # All models must be distinct objects
+        model_ids = [id(c.model) for c in clients]
+        assert len(set(model_ids)) == len(clients), (
+            f"Expected {len(clients)} distinct model instances, got {len(set(model_ids))}. "
+            f"Multi-GPU bug: clients are sharing a model object."
+        )
+
+        # No model should be the server's global_model
+        for c in clients:
+            assert c.model is not server.global_model, (
+                "Client model is the same object as server.global_model — multi-GPU bug!"
+            )
+
+    def test_ensure_client_model_detects_shared_model(self):
+        """_ensure_client_model_on_device must detect and fix shared model."""
+        import torch
+        from fed_learning.clients.dfca_client import DFCAClient
+        from fed_learning.servers.dfca_server import DFCAServer
+
+        clients = [
+            DFCAClient(i, torch.randn(4, 40), torch.randint(0, 2, (4,)), num_clusters=2)
+            for i in range(2)
+        ]
+        cfg = {
+            "algorithm": "dfca_il",
+            "input_shape": (40,),
+            "num_classes": 4,
+            "total_classes": 4,
+            "dfca_num_clusters": 2,
+            "dfca_client_ratios": [1.0],
+            "seed": 42,
+            "num_gpus": 0,
+            "batch_size": 4,
+            "local_epochs": 1,
+        }
+        test_data = {
+            "X_test": torch.randn(4, 40),
+            "y_test": torch.randint(0, 2, (4,)),
+        }
+        server = DFCAServer(clients, test_data, cfg)
+
+        # Manually set both clients to share the server's global_model (the bug scenario)
+        clients[0].model = server.global_model
+        clients[0].device = "cpu"
+        clients[1].model = server.global_model
+        clients[1].device = "cpu"
+
+        # _ensure_client_model_on_device must replace with distinct instances
+        server._ensure_client_model_on_device(clients[0], "cpu")
+        server._ensure_client_model_on_device(clients[1], "cpu")
+
+        # Now they must be different objects
+        assert clients[0].model is not clients[1].model, (
+            "After fix, clients must have different model instances"
+        )
+        # And neither should be the shared global_model
+        assert clients[0].model is not server.global_model
+        assert clients[1].model is not server.global_model
+
+    def test_train_round_with_cpu_preserves_model_isolation(self):
+        """train_round must not produce shared model objects."""
+        import torch
+        from fed_learning.clients.dfca_client import DFCAClient
+        from fed_learning.servers.dfca_server import DFCAServer
+
+        clients = [
+            DFCAClient(i, torch.randn(8, 40), torch.randint(0, 2, (8,)), num_clusters=2)
+            for i in range(4)
+        ]
+        cfg = {
+            "algorithm": "dfca_il",
+            "input_shape": (40,),
+            "num_classes": 4,
+            "total_classes": 4,
+            "dfca_num_clusters": 2,
+            "dfca_client_ratios": [1.0],
+            "seed": 42,
+            "num_gpus": 0,
+            "batch_size": 4,
+            "local_epochs": 1,
+        }
+        test_data = {
+            "X_test": torch.randn(4, 40),
+            "y_test": torch.randint(0, 2, (4,)),
+        }
+        server = DFCAServer(clients, test_data, cfg)
+        server.train_round(task_id=0, verbose=False)
+
+        # All training clients must have distinct model objects
+        model_ids = [id(c.model) for c in clients if c.model is not None]
+        assert len(set(model_ids)) == len(model_ids), (
+            f"Model objects are shared: {len(model_ids)} models but only "
+            f"{len(set(model_ids))} unique objects. Multi-GPU bug!"
+        )
+        # No client model should be the server's global_model
+        for c in clients:
+            if c.model is not None:
+                assert c.model is not server.global_model
+
+    def test_evaluate_global_with_cpu_cluster_params(self):
+        """evaluate_global must not crash when representative params are CPU tensors."""
+        import torch
+        from fed_learning.clients.dfca_client import DFCAClient
+        from fed_learning.servers.dfca_server import DFCAServer
+
+        clients = [
+            DFCAClient(i, torch.randn(8, 40), torch.randint(0, 2, (8,)), num_clusters=2)
+            for i in range(4)
+        ]
+        cfg = {
+            "algorithm": "dfca_il",
+            "input_shape": (40,),
+            "num_classes": 4,
+            "total_classes": 4,
+            "dfca_num_clusters": 2,
+            "dfca_client_ratios": [1.0],
+            "seed": 42,
+            "num_gpus": 0,
+            "batch_size": 4,
+            "local_epochs": 1,
+        }
+        test_data = {
+            "X_test": torch.randn(16, 40),
+            "y_test": torch.randint(0, 2, (16,)),
+        }
+        server = DFCAServer(clients, test_data, cfg)
+        server.train_round(task_id=0, verbose=False)
+
+        # representative_cluster_params are CPU tensors (from cluster banks)
+        # evaluate_global must move them to GPU (primary_device) without crashing
+        result = server.evaluate_global(seen_classes_only=False)
+        assert "accuracy" in result
+        assert "loss" in result
+        assert 0.0 <= result["accuracy"] <= 1.0
+
+    def test_evaluate_global_with_mask_on_correct_device(self):
+        """_mask_unseen_classes must produce tensors on the same device as input."""
+        import torch
+        from fed_learning.clients.dfca_client import DFCAClient
+        from fed_learning.servers.dfca_server import DFCAServer
+
+        clients = [
+            DFCAClient(i, torch.randn(8, 40), torch.randint(0, 2, (8,)), num_clusters=2)
+            for i in range(4)
+        ]
+        cfg = {
+            "algorithm": "dfca_il",
+            "input_shape": (40,),
+            "num_classes": 4,
+            "total_classes": 4,
+            "dfca_num_clusters": 2,
+            "dfca_client_ratios": [1.0],
+            "seed": 42,
+            "num_gpus": 0,
+            "batch_size": 4,
+            "local_epochs": 1,
+        }
+        test_data = {
+            "X_test": torch.randn(16, 40),
+            "y_test": torch.randint(0, 2, (16,)),
+        }
+        server = DFCAServer(clients, test_data, cfg)
+        server.train_round(task_id=0, verbose=False)
+
+        # Set seen classes to trigger masking
+        server.seen_classes = [0, 1]
+
+        # Must not crash with device mismatch
+        result = server.evaluate_global(seen_classes_only=True)
+        assert "accuracy" in result
+
+    def test_results_dict_thread_safety_no_crash(self):
+        """results_dict writes from multiple threads must not crash."""
+        import torch
+        from fed_learning.clients.dfca_client import DFCAClient
+        from fed_learning.servers.dfca_server import DFCAServer
+
+        clients = [
+            DFCAClient(i, torch.randn(8, 40), torch.randint(0, 2, (8,)), num_clusters=2)
+            for i in range(8)
+        ]
+        cfg = {
+            "algorithm": "dfca_il",
+            "input_shape": (40,),
+            "num_classes": 4,
+            "total_classes": 4,
+            "dfca_num_clusters": 2,
+            "dfca_client_ratios": [1.0],
+            "seed": 42,
+            "num_gpus": 0,
+            "batch_size": 4,
+            "local_epochs": 1,
+        }
+        test_data = {
+            "X_test": torch.randn(4, 40),
+            "y_test": torch.randint(0, 2, (4,)),
+        }
+        server = DFCAServer(clients, test_data, cfg)
+
+        # Run multiple rounds — threading must be safe
+        for _ in range(3):
+            result = server.train_round(task_id=0, verbose=False)
+            assert "round_stats" in result
+
+    @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Requires 2 GPUs")
+    def test_multi_gpu_smoke_train_and_eval(self):
+        """Smoke test: train_round + evaluate_global on 2 GPUs without device mismatch."""
+        import torch
+        from fed_learning.clients.dfca_client import DFCAClient
+        from fed_learning.servers.dfca_server import DFCAServer
+
+        clients = [
+            DFCAClient(i, torch.randn(16, 40), torch.randint(0, 2, (16,)), num_clusters=2)
+            for i in range(8)
+        ]
+        cfg = {
+            "algorithm": "dfca_il",
+            "input_shape": (40,),
+            "num_classes": 4,
+            "total_classes": 4,
+            "dfca_num_clusters": 2,
+            "dfca_client_ratios": [1.0],
+            "seed": 42,
+            "num_gpus": 2,
+            "batch_size": 4,
+            "local_epochs": 1,
+        }
+        test_data = {
+            "X_test": torch.randn(16, 40),
+            "y_test": torch.randint(0, 2, (16,)),
+        }
+        server = DFCAServer(clients, test_data, cfg)
+
+        # Must not crash: device mismatch, flatten_weight, inplace version
+        result = server.train_round(task_id=0, verbose=True)
+        assert "round_stats" in result
+
+        # evaluate_global must not crash after multi-GPU training
+        eval_result = server.evaluate_global(seen_classes_only=False)
+        assert "accuracy" in eval_result
+        assert "loss" in eval_result

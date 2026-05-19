@@ -24,7 +24,7 @@ import contextlib
 import random
 import time
 from collections import Counter, OrderedDict
-from threading import Thread
+from threading import Thread, Lock
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -289,37 +289,114 @@ class DFCAServer(IncrementalServer):
             "round_stats": round_stats,
         }
 
+    def _ensure_client_model_on_device(self, client, device: str) -> None:
+        """
+        Ensure client has its own model instance on the correct device.
+
+        Multi-GPU fix: each client must have a PRIVATE nn.Module instance.
+        Sharing a single model object (e.g. self.global_model) across threads/GPU
+        causes cuDNN flatten_weight errors, device mismatch, and inplace version
+        conflicts when threads concurrently call .to(device) or forward/backward.
+
+        This helper:
+        - Detects shared model usage (client.model is self.global_model)
+        - Detects wrong device
+        - Creates a fresh per-client CNN_GRU_Model instance and loads
+          the client's cluster_params or the server's representative params
+        - Does NOT mutate self.global_model
+        """
+        global_model = self.global_model
+        model = getattr(client, "model", None)
+        client_device = getattr(client, "device", None)
+
+        # Check if model is shared (same object identity as global_model)
+        is_shared = (model is global_model) if (model is not None and global_model is not None) else False
+
+        # Check if model is on wrong device
+        wrong_device = False
+        if model is not None and device.startswith("cuda"):
+            try:
+                first_param = next(model.parameters(), None)
+                if first_param is not None and first_param.device.type != "cuda":
+                    wrong_device = True
+            except (StopIteration, ValueError):
+                wrong_device = True
+        elif model is not None and device == "cpu":
+            try:
+                first_param = next(model.parameters(), None)
+                if first_param is not None and first_param.device.type == "cuda":
+                    wrong_device = True
+            except (StopIteration, ValueError):
+                wrong_device = True
+
+        needs_new_model = (model is None) or is_shared or wrong_device
+
+        if needs_new_model:
+            num_classes = self.config.get(
+                "num_classes", self.config.get("total_classes", 34)
+            )
+            input_shape = self.config["input_shape"]
+            new_model = CNN_GRU_Model(input_shape, num_classes)
+
+            # Load cluster bank params if available (DFCA), otherwise representative params
+            if hasattr(client, "cluster_params") and client.cluster_params:
+                # Load the cluster params the client is currently using
+                assigned = getattr(client, "assigned_cluster", 0)
+                if assigned in client.cluster_params:
+                    cpu_params = OrderedDict(
+                        (k, v.clone().cpu()) for k, v in client.cluster_params[assigned].items()
+                    )
+                    new_model.load_state_dict(cpu_params)
+            elif 0 in self.representative_cluster_params and self.representative_cluster_params[0]:
+                # Fallback to representative params
+                cpu_params = OrderedDict(
+                    (k, v.clone().cpu()) for k, v in self.representative_cluster_params[0].items()
+                )
+                new_model.load_state_dict(cpu_params)
+            elif global_model is not None:
+                # Last resort: clone global_model state (NOT the object itself)
+                cpu_params = OrderedDict(
+                    (k, v.clone().cpu()) for k, v in global_model.state_dict().items()
+                )
+                new_model.load_state_dict(cpu_params)
+
+            new_model.to(device)
+            client.model = new_model
+            client.device = device
+            client.use_amp = device.startswith("cuda")
+
     def _run_cluster_assignment(
         self,
         active_clients: List,
         verbose: bool = False
     ) -> Dict[int, int]:
         """Run cluster assignment for all active clients."""
-        def assign_on_gpu(gpu_id, gpu_clients, results_dict):
+        results_dict = {}
+        results_lock = Lock()
+
+        def assign_on_gpu(gpu_id, gpu_clients, results_d, lock):
             device = "cpu" if self.use_cpu else f"cuda:{gpu_id}"
             for client in gpu_clients:
-                if hasattr(client, "model") and client.model is not None:
-                    client.model.to(device)
-                    client.device = device
-                else:
-                    client.setup_for_gpu(self.global_model, device)
+                # Multi-GPU fix: use per-client model, never shared global_model
+                self._ensure_client_model_on_device(client, device)
                 try:
                     cluster_id = client.assign_cluster(
                         trainer=self.trainer, verbose=verbose
                     )
-                    results_dict[client.client_id] = cluster_id
+                    with lock:
+                        results_d[client.client_id] = cluster_id
                 except Exception as e:
                     if verbose:
                         print(f"    Client {client.client_id}: assign_cluster error: {e}")
-                    results_dict[client.client_id] = 0
+                    with lock:
+                        results_d[client.client_id] = getattr(client, "assigned_cluster", 0)
 
         threads = []
-        results_dict = {}
         for gpu_id in range(self.num_gpus):
             gpu_clients = [c for i, c in enumerate(active_clients)
                            if i % max(1, self.num_gpus) == gpu_id]
             if gpu_clients:
-                t = Thread(target=assign_on_gpu, args=(gpu_id, gpu_clients, results_dict))
+                t = Thread(target=assign_on_gpu, args=(gpu_id, gpu_clients, results_dict, results_lock))
                 threads.append(t)
                 t.start()
 
@@ -340,8 +417,9 @@ class DFCAServer(IncrementalServer):
     ) -> List[Dict]:
         """Run local training by delegating to DFCAClient.train_assigned_cluster()."""
         results_dict = {}
+        results_lock = Lock()
 
-        def train_on_gpu(gpu_id, gpu_clients, results_d):
+        def train_on_gpu(gpu_id, gpu_clients, results_d, lock):
             device = "cpu" if self.use_cpu else f"cuda:{gpu_id}"
             lr = self.config.get("learning_rate", 0.001)
             epochs = self.config.get("local_epochs", 1)
@@ -355,8 +433,8 @@ class DFCAServer(IncrementalServer):
                     else:
                         continue
 
-                if not hasattr(client, "model") or client.model is None:
-                    client.setup_for_gpu(self.global_model, device)
+                # Multi-GPU fix: use per-client model, never shared global_model
+                self._ensure_client_model_on_device(client, device)
 
                 try:
                     result = client.train_assigned_cluster(
@@ -365,23 +443,25 @@ class DFCAServer(IncrementalServer):
                         batch_size=batch_size,
                         lr=lr,
                     )
-                    results_d[client.client_id] = result
+                    with lock:
+                        results_d[client.client_id] = result
                 except Exception as e:
                     if verbose:
                         print(f"    Client {client.client_id}: train_assigned_cluster error: {e}")
-                    results_d[client.client_id] = {
-                        "client_id": client.client_id,
-                        "assigned_cluster": getattr(client, "assigned_cluster", 0),
-                        "loss": 0.0,
-                        "params": {},
-                    }
+                    with lock:
+                        results_d[client.client_id] = {
+                            "client_id": client.client_id,
+                            "assigned_cluster": getattr(client, "assigned_cluster", 0),
+                            "loss": 0.0,
+                            "params": {},
+                        }
 
         threads = []
         for gpu_id in range(self.num_gpus):
             gpu_clients = [c for i, c in enumerate(active_clients)
                            if i % max(1, self.num_gpus) == gpu_id]
             if gpu_clients:
-                t = Thread(target=train_on_gpu, args=(gpu_id, gpu_clients, results_dict))
+                t = Thread(target=train_on_gpu, args=(gpu_id, gpu_clients, results_dict, results_lock))
                 threads.append(t)
                 t.start()
 
@@ -650,10 +730,13 @@ class DFCAServer(IncrementalServer):
             params = self.representative_cluster_params[cid]
             if not params:
                 continue
+            num_classes = self.config.get("num_classes", self.config.get("total_classes", 34))
             model = CNN_GRU_Model(
                 self.config["input_shape"],
-                self.config.get("num_classes", self.config.get("total_classes", 34))
+                num_classes
             )
+            # Move model to device BEFORE loading params so all tensors land on the right device
+            model.to(self.primary_device)
             model.load_state_dict(
                 {k: v.to(self.primary_device) for k, v in params.items()}
             )
