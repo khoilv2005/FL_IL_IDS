@@ -19,6 +19,7 @@ from fed_learning.servers import (
     PlexusDERServer,
     PlexusNICEServer,
 )
+from fed_learning.servers.dfca_server import DFCAServer
 
 
 # Registry: algorithm name -> ServerClass
@@ -32,6 +33,7 @@ _SERVER_REGISTRY = {
     "plexus": PlexusServer,
     "plexus_der": PlexusDERServer,
     "plexus_nice": PlexusNICEServer,
+    "dfca_il": DFCAServer,
 }
 
 # These algorithms use FedLwFServer

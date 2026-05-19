@@ -1531,6 +1531,28 @@ def run_incremental_training(config: Dict[str, Any]):
                 is_last_task,
                 label="[phase]",
             )
+        elif algo == "dfca_il":
+            dfca_rounds = config.get("rounds_per_task", 5)
+            print(f"\n  === DFCA-IL Training ({dfca_rounds} rounds) ===")
+            print(f"  Active clients: {server.client_ratios[task_id]:.0%} of total")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=None,
+                    task_id=task_id,
+                    verbose=True,
+                ),
+                dfca_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+            )
         else:
             total_rounds = config["rounds_per_task"]
             print(f"\n  === Standard Federated Training ({total_rounds} rounds) ===")

@@ -12,6 +12,7 @@ from .refed_server import ReFedServer
 from .plexus_server import PlexusServer
 from .plexus_der_server import PlexusDERServer
 from .plexus_nice_server import PlexusNICEServer
+from .dfca_server import DFCAServer
 
 __all__ = [
     "FederatedServer",
@@ -26,4 +27,5 @@ __all__ = [
     "PlexusServer",
     "PlexusDERServer",
     "PlexusNICEServer",
+    "DFCAServer",
 ]

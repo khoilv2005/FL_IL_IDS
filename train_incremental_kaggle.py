@@ -184,9 +184,9 @@ CONFIG = {
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
-    #         "plexus", "plexus_der", "plexus_nice"
+    #         "plexus", "plexus_der", "plexus_nice", "dfca_il"
     # il:     "ewc", "lwf", "der", "nice"
-    "algorithm": "fedavg_ewc",
+    "algorithm": "dfca_il",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental
@@ -288,6 +288,14 @@ CONFIG = {
     "plexus_scale_clients": True,    # Enable dynamic client scaling per task
     "plexus_initial_client_ratio": 0.5,  # Initial: 50% of clients participate (task 0)
     "plexus_final_client_ratio": 1.0,   # Final: 100% of clients participate (last task)
+    # DFCA-IL (Decentralized Federated Clustering Algorithm with Incremental Learning)
+    "dfca_num_clusters": 10,          # Number of clusters k (fixed)
+    "dfca_init": "global",           # Initialization: "global" (DFCA-GI) or "local"
+    "dfca_graph": "erdos_renyi",      # Graph type: Erdos-Renyi random graph
+    "dfca_connectivity": 0.15,       # Edge probability for Erdos-Renyi graph
+    "dfca_client_ratios": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],  # Active clients per task
+    "dfca_round_participation": 1.0,  # Fraction of active clients participating per round
+    "dfca_aggregation": "sequential_running_average",  # Aggregation method
 }
 
 

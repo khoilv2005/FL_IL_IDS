@@ -31,6 +31,8 @@ from .federated import (
     PlexusDERAggregator,
     PlexusNICETrainer,
     PlexusNICEAggregator,
+    DFCATrainer,
+    DFCAAggregator,
 )
 
 # Import incremental learning strategies
@@ -137,6 +139,11 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
     "plexus_nice": {
         "trainer": PlexusNICETrainer,
         "aggregator": PlexusNICEAggregator,
+    },
+    # DFCA (Decentralized Federated Clustering Algorithm) - Incremental Learning
+    "dfca_il": {
+        "trainer": DFCATrainer,
+        "aggregator": DFCAAggregator,
     },
 }
 
@@ -276,6 +283,12 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             memo_per_class=config.get("memo_per_class", 50),
             rounds_per_task=config.get("rounds_per_task", 5),
         )
+    elif algo_lower == "dfca_il":
+        trainer = strategy["trainer"](
+            local_epochs=config.get("local_epochs", 1),
+            learning_rate=config.get("learning_rate", 0.001),
+            batch_size=config.get("batch_size", 2048),
+        )
     else:
         trainer = strategy["trainer"]()
 
@@ -306,6 +319,10 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             num_aggregators=config.get("plexus_num_aggregators", 1),
             success_fraction=config.get("plexus_success_fraction", 0.8),
             inactivity_threshold=config.get("plexus_inactivity_threshold", 50),
+        )
+    elif algo_lower == "dfca_il":
+        aggregator = strategy["aggregator"](
+            num_clusters=config.get("dfca_num_clusters", 10),
         )
     else:
         aggregator = strategy["aggregator"]()
@@ -345,6 +362,7 @@ def list_strategies() -> Dict[str, str]:
         "refed": "Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)",
         "plexus_der": "PlexusDER - Decentralized DER with Plexus peer sampling",
         "plexus_nice": "PlexusNICE - Decentralized NICE with Plexus peer sampling",
+        "dfca_il": "DFCA-IL - Decentralized Federated Clustering Algorithm with Incremental Learning",
     }
 
 

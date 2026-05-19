@@ -8,6 +8,7 @@ from .glfc_client import GLFCClient
 from .refed_client import ReFedClient
 from .plexus_der_client import PlexusDERClient
 from .plexus_nice_client import PlexusNICEClient
+from .dfca_client import DFCAClient
 
 __all__ = [
     "FederatedClient",
@@ -18,4 +19,5 @@ __all__ = [
     "ReFedClient",
     "PlexusDERClient",
     "PlexusNICEClient",
+    "DFCAClient",
 ]

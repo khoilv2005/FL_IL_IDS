@@ -19,6 +19,7 @@ from fed_learning.clients import (
     PlexusDERClient,
     PlexusNICEClient,
 )
+from fed_learning.clients.dfca_client import DFCAClient
 from fed_learning.clients.fedcbdr_client import FedCBDRClient
 from fed_learning.clients.fedlwf_client import FedLwFClient
 from fed_learning.clients.lwf_local_client import LwFLocalClient
@@ -86,6 +87,13 @@ _CLIENT_REGISTRY = {
             "max_phases": ("nice_max_phases", 5),
             "phase_epochs": ("nice_phase_epochs", 5),
             "tau": ("tau", 0.95),
+        },
+    ),
+    "dfca_il": (
+        DFCAClient,
+        {
+            "num_clusters": ("dfca_num_clusters", 10),
+            "init_seed": ("seed", 42),
         },
     ),
 }
