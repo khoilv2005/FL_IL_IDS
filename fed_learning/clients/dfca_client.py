@@ -140,10 +140,15 @@ class DFCAClient(FederatedClient):
     def _evaluate_cluster_loss(
         self,
         cluster_params: OrderedDict,
+        trainer=None,
         batch_size: int = 512,
     ) -> Tuple[float, torch.Tensor, torch.Tensor]:
         """
-        Evaluate a cluster model's loss on local data.
+        Evaluate a cluster model's loss on local data using seen-class masking.
+
+        Bug 4 fix: uses the trainer's compute_loss which applies seen-class masking,
+        so unseen logits do not influence cluster assignment. Falls back to raw CE
+        if no trainer is provided.
 
         Returns:
             (avg_loss, X_batch, y_batch) — loss for the entire local dataset
@@ -153,14 +158,12 @@ class DFCAClient(FederatedClient):
 
         self.model.eval()
 
-        # Load cluster params
         self.model.load_state_dict(
             {k: v.to(self.device) for k, v in cluster_params.items()}
         )
 
         total_loss = 0.0
         total_samples = 0
-        criterion = nn.CrossEntropyLoss(reduction="sum")
 
         with torch.no_grad():
             indices = torch.randperm(self.num_samples)
@@ -169,21 +172,28 @@ class DFCAClient(FederatedClient):
                 X_batch = self.X_train[batch_idx].to(self.device, non_blocking=True)
                 y_batch = self.y_train[batch_idx].to(self.device, non_blocking=True)
 
-                out = self.model(X_batch)
-                loss = criterion(out, y_batch)
-                total_loss += loss.item()
+                if trainer is not None:
+                    out = self.model(X_batch)
+                    loss = trainer.compute_loss(self.model, out, y_batch, None)
+                else:
+                    out = self.model(X_batch)
+                    loss = nn.CrossEntropyLoss(reduction="mean")(out, y_batch)
+                total_loss += loss.item() * len(y_batch)
                 total_samples += len(y_batch)
 
         return total_loss / max(1, total_samples)
 
-    def assign_cluster(self, verbose: bool = False) -> int:
+    def assign_cluster(self, trainer=None, verbose: bool = False) -> int:
         """
         DFCA Step 1: Assign this client to the cluster with minimum local loss.
 
         Evaluates ALL k cluster models on local data and picks argmin loss.
+        Bug 4 fix: loss is computed via trainer (seen-class masking) when provided,
+        so unseen class logits do not influence the assignment.
         This is a LOCAL decision — no server coordination needed.
 
         Args:
+            trainer: DFCATrainer instance for seen-class masked loss computation.
             verbose: If True, print assignment details.
 
         Returns:
@@ -199,7 +209,7 @@ class DFCAClient(FederatedClient):
         self.assignment_losses = {}
 
         for cid in range(self.num_clusters):
-            loss = self._evaluate_cluster_loss(self.cluster_params[cid])
+            loss = self._evaluate_cluster_loss(self.cluster_params[cid], trainer=trainer)
             self.assignment_losses[cid] = loss
 
         self.assigned_cluster = min(

@@ -299,6 +299,8 @@ CONFIG = {
     "dfca_client_ratios": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],  # Active clients per task
     "dfca_round_participation": 1.0,  # Fraction of active clients participating per round
     "dfca_aggregation": "sequential_running_average",  # Aggregation method
+    "dfca_debug_messages": False,          # Enable detailed message passing debug logs
+    "dfca_debug_message_limit": 50,        # Max debug log lines per round (0=unlimited)
 }
 
 

@@ -1165,7 +1165,7 @@ def run_incremental_training(config: Dict[str, Any]):
         for t in range(task_id + 1):
             seen_classes.extend(data_loader.get_task_classes(t))
 
-        # Get client data
+        # Get client data for current task
         client_data_map = {}
         for cid in data_loader.get_all_client_ids():
             X, y = data_loader.get_client_data(cid, task_id)
@@ -1185,15 +1185,37 @@ def run_incremental_training(config: Dict[str, Any]):
         all_test_data[task_id] = test_data_path
 
         # 5c. Manage Persistent Clients
-        participating_clients = []
-        for cid, data in client_data_map.items():
-            client = get_or_create_persistent_client(
-                cid, data, config, persistent_clients
-            )
-            if cid in pending_client_states:
-                restore_client_state(client, pending_client_states.pop(cid))
-            update_client_data(client, data, task_id, new_classes)
-            participating_clients.append(client)
+        # Bug 3 fix for dfca_il: use full client population for nested active scheduling.
+        # The full population is needed so that task 0 (50%) + task 1 (60%) +
+        # ... are truly nested supersets of each other.
+        # All clients are included; those without current task data still participate
+        # in graph communication and maintain their cluster banks.
+        algo = config["algorithm"].lower()
+        if algo == "dfca_il":
+            all_client_ids = data_loader.get_all_client_ids()
+            for cid in all_client_ids:
+                if cid not in client_data_map:
+                    client_data_map[cid] = {"X_train": torch.tensor([]), "y_train": torch.tensor([], dtype=torch.long)}
+            participating_clients = []
+            for cid in all_client_ids:
+                data = client_data_map[cid]
+                client = get_or_create_persistent_client(
+                    cid, data, config, persistent_clients
+                )
+                if cid in pending_client_states:
+                    restore_client_state(client, pending_client_states.pop(cid))
+                update_client_data(client, data, task_id, new_classes)
+                participating_clients.append(client)
+        else:
+            participating_clients = []
+            for cid, data in client_data_map.items():
+                client = get_or_create_persistent_client(
+                    cid, data, config, persistent_clients
+                )
+                if cid in pending_client_states:
+                    restore_client_state(client, pending_client_states.pop(cid))
+                update_client_data(client, data, task_id, new_classes)
+                participating_clients.append(client)
 
         # 5d. Prepare Server (create only for task 0, reuse for subsequent tasks)
         task_config = {

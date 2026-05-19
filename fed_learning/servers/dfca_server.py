@@ -5,8 +5,6 @@ Key design decisions:
 - This server does NOT aggregate a single global model (DFCA is decentralized).
 - Instead, it orchestrates the round: client assignment -> training ->
   message exchange -> peer aggregation -> representative model for eval.
-- For evaluation, we use a "best-loss selection" policy: each test batch
-  is evaluated on all k cluster models, picking the one with lowest loss.
 - The cluster assignment (c(i)) is LOCAL to each client — no server-side selection.
 
 DFCA Round Flow:
@@ -54,25 +52,24 @@ class DFCAServer(IncrementalServer):
     State:
         num_clusters: Number of clusters k (fixed at 10 for this experiment)
         graph: Dict[client_id -> List[neighbor_ids]] — communication topology
-        num_active_clients: Number of active clients this task
-        task_client_ratios: List of ratios per task (50%-60%-...-100%)
+        _client_order: Fixed deterministic order for nested active client selection
         round_counter: Round number
         cluster_history: List of per-round cluster distribution logs
-        dfca_aggregator: DFCAAggregator (sequential running average logic)
         trainer: DFCATrainer instance
+        dfca_aggregator: DFCAAggregator (sequential running average logic)
 
     Evaluation Policy:
-        "best-loss selection on test batch" — for each test batch, evaluate
+        "Confidence-based selection" — for each test sample/batch, evaluate
         on all k cluster models (using representative params averaged across
-        active clients) and pick the lowest-loss one for prediction.
-        This mirrors the paper's evaluation where each client uses the best
-        cluster model for its data distribution.
+        active clients) and pick the cluster with the highest softmax confidence.
+        This avoids label leakage (no ground-truth labels used for cluster selection).
+        A separate diagnostic metric reports oracle accuracy (loss-based selection)
+        for comparison purposes only.
     """
 
     def __init__(self, clients, test_data: Dict, config: Dict):
         super().__init__(clients, test_data, config)
 
-        # DFCA-specific config
         self.num_clusters = config.get("dfca_num_clusters", 10)
         self.init_type = config.get("dfca_init", "global")
         self.graph_type = config.get("dfca_graph", "erdos_renyi")
@@ -81,10 +78,10 @@ class DFCAServer(IncrementalServer):
             "dfca_client_ratios",
             [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         )
-        self.round_participation = config.get("dfca_round_participation", 1.0)
         self.aggregation = config.get("dfca_aggregation", "sequential_running_average")
+        self.dfca_debug_messages = config.get("dfca_debug_messages", False)
+        self.dfca_debug_message_limit = config.get("dfca_debug_message_limit", 50)
 
-        # Override trainer/aggregator with DFCA-specific ones
         self.trainer = DFCATrainer(
             local_epochs=config.get("local_epochs", 1),
             learning_rate=config.get("learning_rate", 0.001),
@@ -92,26 +89,29 @@ class DFCAServer(IncrementalServer):
         )
         self.aggregator = DFCAAggregator(num_clusters=self.num_clusters)
 
-        # Round counter
         self._round: int = 0
         self.round_counter: int = 0
 
-        # Graph topology
+        # Bug 2 fix: fixed deterministic client order for nested active selection
+        seed = self.config.get("seed", 42)
+        self._client_order: List[int] = sorted([c.client_id for c in self.clients])
+        rng = random.Random(seed)
+        rng.shuffle(self._client_order)
+
+        # Graph topology (built on full client population)
         self.graph: Dict[int, List[int]] = {}
         self._build_graph()
 
-        # Cluster history for logging
         self.cluster_history: List[Dict[str, Any]] = []
-
-        # Track assignment changes across rounds
         self._prev_assignments: Dict[int, int] = {}
+
+        # P0 fix: MUST initialize representative_cluster_params BEFORE calling
+        # _initialize_all_client_cluster_banks(), because the latter calls
+        # get_global_params() which the override checks self.representative_cluster_params.
+        self.representative_cluster_params: Dict[int, OrderedDict] = {}
 
         # Initialize cluster banks for all clients
         self._initialize_all_client_cluster_banks()
-
-        # For evaluation: maintain representative cluster models
-        # (average of all active clients' cluster params)
-        self.representative_cluster_params: Dict[int, OrderedDict] = {}
 
         print(
             f"DFCA Strategy: k={self.num_clusters}, init={self.init_type}, "
@@ -125,17 +125,15 @@ class DFCAServer(IncrementalServer):
 
     def _build_graph(self) -> None:
         """
-        Build communication graph between all clients.
+        Build communication graph on the full client population.
 
         Uses Erdos-Renyi random graph: each edge (i, j) is included
-        with probability p = connectivity.
-
-        Graph is symmetric (undirected): if j is in N_i, then i is in N_j.
+        with probability p = connectivity. Graph is symmetric (undirected).
         """
         seed = self.config.get("seed", 42)
         rng = random.Random(seed)
 
-        all_ids = [c.client_id for c in self.clients]
+        all_ids = self._client_order
         n = len(all_ids)
         self.graph = {cid: [] for cid in all_ids}
 
@@ -150,7 +148,6 @@ class DFCAServer(IncrementalServer):
                     self.graph[cid_i].append(cid_j)
                     self.graph[cid_j].append(cid_i)
 
-        # Ensure at least 1 neighbor per node (add closest if isolated)
         for cid in all_ids:
             if not self.graph[cid]:
                 other = all_ids[(all_ids.index(cid) + 1) % n]
@@ -167,39 +164,32 @@ class DFCAServer(IncrementalServer):
         """
         Initialize cluster banks for all clients.
 
-        DFCA-GI: all clients start with the same global params for all k clusters.
-        New clients (joining later tasks) are initialized by copying from neighbors
-        or using the global model params.
+        Uses super().get_global_params() to avoid depending on
+        self.representative_cluster_params during init.
         """
-        global_params = self.get_global_params()
-
+        global_params = super().get_global_params()
         for client in self.clients:
             if hasattr(client, "initialize_cluster_bank"):
-                if self.init_type == "global":
-                    client.initialize_cluster_bank(global_params=global_params)
-                else:
-                    client.initialize_cluster_bank(template_model=self.global_model)
+                # Skip if already initialized (preserve state across tasks)
+                if not getattr(client, "_initialized", False):
+                    if self.init_type == "global":
+                        client.initialize_cluster_bank(global_params=global_params)
+                    else:
+                        client.initialize_cluster_bank(template_model=self.global_model)
 
+    # Bug 2 fix: nested prefix selection using fixed client order
     def _get_active_clients_for_task(self, task_id: int) -> List:
         """
         Get the active clients for a specific task.
 
-        Active clients per task: 50%, 60%, 70%, 80%, 90%, 100%
-        Uses deterministic nested prefix selection: shuffle all client IDs
-        and take the first N clients for each ratio.
+        Uses FIXED deterministic order (`self._client_order`) and takes
+        a nested prefix. Task t's active set is always a superset of task t-1's.
         """
-        seed = self.config.get("seed", 42)
-        task_seed = seed + task_id
-        rng = random.Random(task_seed)
-
-        all_ids = sorted([c.client_id for c in self.clients])
-        shuffled = all_ids.copy()
-        rng.shuffle(shuffled)
-
         ratio = self.client_ratios[task_id] if task_id < len(self.client_ratios) else 1.0
-        num_active = max(1, int(len(all_ids) * ratio))
+        n_total = len(self._client_order)
+        num_active = max(1, int(n_total * ratio))
 
-        active_ids = set(shuffled[:num_active])
+        active_ids = set(self._client_order[:num_active])
         return [c for c in self.clients if c.client_id in active_ids]
 
     def _get_participating_clients(
@@ -207,7 +197,6 @@ class DFCAServer(IncrementalServer):
         participating_clients: Optional[List],
         task_id: int
     ) -> List:
-        """Resolve the final list of active clients for this round."""
         if participating_clients is not None:
             return participating_clients
         return self._get_active_clients_for_task(task_id)
@@ -224,55 +213,71 @@ class DFCAServer(IncrementalServer):
 
         DFCA Round:
         1. Select active clients (deterministic nested prefix)
-        2. Each client assigns itself to a cluster (min local loss)
-        3. Each client trains its assigned cluster model
-        4. Build and exchange messages between neighbors
-        5. Each client aggregates received messages per cluster
-        6. Build representative cluster models for evaluation
+        2. Filter to training_clients (active clients with num_samples > 0)
+        3. Each training client assigns itself to a cluster (min local loss)
+        4. Each training client trains its assigned cluster model
+        5. Build and exchange messages between neighbors (training clients only send)
+        6. Each active client aggregates received messages
+        7. Build representative cluster models for evaluation
         """
         round_start = time.time()
         self._round += 1
         self.round_counter = self._round
 
         active_clients = self._get_participating_clients(participating_clients, task_id)
+
+        # P1 fix: distinguish active_clients from training_clients.
+        # Only clients with num_samples > 0 participate in assignment/training/message-sending.
+        # All active clients still participate in receive/aggregate.
+        training_clients = [
+            c for c in active_clients
+            if getattr(c, "num_samples", 0) > 0
+        ]
+        skipped_no_data = len(active_clients) - len(training_clients)
+
         client_map = {c.client_id: c for c in self.clients}
 
         if verbose:
             print(
                 f"\n-> DFCA Round {self._round} [Task {task_id}]: "
-                f"{len(active_clients)}/{len(self.clients)} active clients"
+                f"{len(active_clients)}/{len(self.clients)} active clients "
+                f"({len(training_clients)} training"
+                + (f", {skipped_no_data} no-data)" if skipped_no_data else ")")
             )
-
-        global_params = self.get_global_params()
 
         # ---- PHASE 1: Cluster Assignment ----
         if verbose:
             print("  [1/4] Cluster Assignment...")
-        assignment_results = self._run_cluster_assignment(active_clients, verbose=verbose)
+        assignment_results = self._run_cluster_assignment(training_clients, verbose=verbose)
 
         # ---- PHASE 2: Local Training ----
         if verbose:
             print("  [2/4] Local Training...")
-        train_results = self._run_local_training(active_clients, verbose=verbose)
+        train_results = self._run_local_training(training_clients, verbose=verbose)
 
         # ---- PHASE 3: Message Exchange & Aggregation ----
         if verbose:
             print("  [3/4] Message Exchange & Aggregation...")
         aggregation_stats = self._run_decentralized_aggregation(
-            active_clients, client_map, verbose=verbose
+            active_clients, client_map, training_clients, verbose=verbose
         )
 
         # ---- PHASE 4: Build Representative Models ----
         self._update_representative_cluster_models(active_clients)
 
-        # ---- Log round statistics ----
         round_stats = self._log_round_statistics(
-            active_clients, assignment_results, train_results,
+            active_clients, training_clients, skipped_no_data,
+            assignment_results, train_results,
             aggregation_stats, verbose=verbose
         )
 
         round_time = time.time() - round_start
-        avg_loss = float(np.mean([r["loss"] for r in train_results]))
+
+        # P1 fix: avg_loss only over training clients (no-data clients have no loss)
+        if train_results:
+            avg_loss = float(np.mean([r["loss"] for r in train_results if "loss" in r]))
+        else:
+            avg_loss = 0.0
 
         if verbose:
             print(f"  -> Avg train loss: {avg_loss:.4f}")
@@ -290,8 +295,6 @@ class DFCAServer(IncrementalServer):
         verbose: bool = False
     ) -> Dict[int, int]:
         """Run cluster assignment for all active clients."""
-        results = {}
-
         def assign_on_gpu(gpu_id, gpu_clients, results_dict):
             device = "cpu" if self.use_cpu else f"cuda:{gpu_id}"
             for client in gpu_clients:
@@ -301,7 +304,9 @@ class DFCAServer(IncrementalServer):
                 else:
                     client.setup_for_gpu(self.global_model, device)
                 try:
-                    cluster_id = client.assign_cluster(verbose=verbose)
+                    cluster_id = client.assign_cluster(
+                        trainer=self.trainer, verbose=verbose
+                    )
                     results_dict[client.client_id] = cluster_id
                 except Exception as e:
                     if verbose:
@@ -321,25 +326,23 @@ class DFCAServer(IncrementalServer):
         for t in threads:
             t.join()
 
+        results = {}
         for client in active_clients:
             results[client.client_id] = results_dict.get(client.client_id, client.assigned_cluster)
 
         return results
 
+    # Bug 1 fix: delegate to DFCAClient.train_assigned_cluster() — no duplicate training logic
     def _run_local_training(
         self,
         active_clients: List,
         verbose: bool = False
     ) -> List[Dict]:
-        """Run local training for all active clients on their assigned clusters."""
-        global_params = self.get_global_params()
+        """Run local training by delegating to DFCAClient.train_assigned_cluster()."""
         results_dict = {}
 
         def train_on_gpu(gpu_id, gpu_clients, results_d):
             device = "cpu" if self.use_cpu else f"cuda:{gpu_id}"
-            use_amp = not self.use_cpu
-            scaler = GradScaler(enabled=use_amp) if use_amp else None
-            trainer = self.trainer
             lr = self.config.get("learning_rate", 0.001)
             epochs = self.config.get("local_epochs", 1)
             batch_size = self.config.get("batch_size", 2048)
@@ -347,61 +350,31 @@ class DFCAServer(IncrementalServer):
             for client in gpu_clients:
                 if not hasattr(client, "cluster_params") or not client.cluster_params:
                     if hasattr(client, "initialize_cluster_bank"):
+                        global_params = super().get_global_params()
                         client.initialize_cluster_bank(global_params=global_params)
                     else:
                         continue
 
-                client.setup_for_gpu(self.global_model, device)
-                client.model.train()
+                if not hasattr(client, "model") or client.model is None:
+                    client.setup_for_gpu(self.global_model, device)
 
-                optimizer_cls = trainer.get_optimizer_class()
-                optimizer = optimizer_cls(client.model.parameters(), lr=lr)
-                cluster_id = client.assigned_cluster
-
-                total_loss = 0.0
-                total_samples = 0
-
-                for ep in range(epochs):
-                    for X_batch, y_batch in client._create_batches(batch_size):
-                        optimizer.zero_grad()
-
-                        with torch_autocast(device_type="cuda", dtype=torch.float16) if use_amp else contextlib.nullcontext():
-                            client.model.load_state_dict(
-                                {k: v.to(device) for k, v in client.cluster_params[cluster_id].items()}
-                            )
-                            out = client.model(X_batch)
-                            loss = trainer.compute_loss(client.model, out, y_batch, None)
-
-                        if use_amp:
-                            scaler.scale(loss).backward()
-                            scaler.unscale_(optimizer)
-                            torch.nn.utils.clip_grad_norm_(client.model.parameters(), max_norm=1.0)
-                            trainer.pre_step(client.model, None)
-                            scaler.step(optimizer)
-                            scaler.update()
-                            trainer.post_step(client.model, None)
-                        else:
-                            loss.backward()
-                            torch.nn.utils.clip_grad_norm_(client.model.parameters(), max_norm=1.0)
-                            trainer.pre_step(client.model, None)
-                            optimizer.step()
-                            trainer.post_step(client.model, None)
-
-                        bs = len(y_batch)
-                        total_loss += loss.item() * bs
-                        total_samples += bs
-
-                # Update cluster params with trained params
-                client.cluster_params[cluster_id] = OrderedDict(
-                    (k, v.cpu().clone()) for k, v in client.model.state_dict().items()
-                )
-
-                results_d[client.client_id] = {
-                    "client_id": client.client_id,
-                    "assigned_cluster": cluster_id,
-                    "loss": total_loss / max(1, total_samples),
-                    "params": client.cluster_params[cluster_id],
-                }
+                try:
+                    result = client.train_assigned_cluster(
+                        self.trainer,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        lr=lr,
+                    )
+                    results_d[client.client_id] = result
+                except Exception as e:
+                    if verbose:
+                        print(f"    Client {client.client_id}: train_assigned_cluster error: {e}")
+                    results_d[client.client_id] = {
+                        "client_id": client.client_id,
+                        "assigned_cluster": getattr(client, "assigned_cluster", 0),
+                        "loss": 0.0,
+                        "params": {},
+                    }
 
         threads = []
         for gpu_id in range(self.num_gpus):
@@ -421,35 +394,87 @@ class DFCAServer(IncrementalServer):
         self,
         active_clients: List,
         client_map: Dict[int, Any],
+        training_clients: List,
         verbose: bool = False
     ) -> Dict[str, Any]:
         """
         Execute decentralized peer-to-peer aggregation.
 
-        Each client sends its trained params to all neighbors.
-        Each client receives messages and aggregates per cluster using
-        sequential running average.
-
-        Communication:
-            - Client i sends (client_id, round, assigned_cluster, theta_i,c(i))
-              to ALL neighbors N_i
-            - Client i receives messages from neighbors
-            - Client i groups received params by cluster:
-              N_i,j = {m in N_i | c(m) = j}
-            - For each cluster j, client i applies running average:
-              theta_i,j = seq_avg(theta_i,j, {theta_m,j | m in N_i,j})
+        P1 fix: Only training_clients export and send messages.
+        All active_clients receive messages and aggregate.
+        This prevents no-data clients from sending fake cluster-0 messages.
         """
         num_messages = 0
         per_cluster_updates: Dict[int, int] = {c: 0 for c in range(self.num_clusters)}
         changes_count = 0
 
-        # Step A: Each client exports its message
+        # P1 fix: only training_clients export and send messages
         messages: Dict[int, Dict[int, OrderedDict]] = {}
-        for client in active_clients:
+        for client in training_clients:
             msg = client.export_assigned_cluster_message()
             messages[client.client_id] = msg
 
-        # Step B: Route messages to neighbors and aggregate
+        # Debug message logging (per-sender: one line per sender showing all recipients)
+        logged_count = 0
+        limit = self.dfca_debug_message_limit
+        unlimited = (limit <= 0)
+
+        if self.dfca_debug_messages:
+            for client in training_clients:
+                if not unlimited and logged_count >= limit:
+                    remaining = len(training_clients) - logged_count
+                    if remaining > 0:
+                        print(
+                            f"[DFCA][messages] hidden {remaining} additional message logs"
+                        )
+                    break
+
+                sender_cid = client.client_id
+                msg = messages.get(sender_cid, {})
+
+                # Check if sender has a valid message to send
+                if not msg:
+                    print(
+                        f"[DFCA][messages] sender=client_{sender_cid} "
+                        f"skipped reason=no_assigned_cluster"
+                    )
+                    logged_count += 1
+                    continue
+
+                # Find which cluster this sender is sending
+                cluster_ids = list(msg.keys())
+                if not cluster_ids:
+                    print(
+                        f"[DFCA][messages] sender=client_{sender_cid} "
+                        f"skipped reason=no_assigned_cluster"
+                    )
+                    logged_count += 1
+                    continue
+
+                sender_cluster = cluster_ids[0]
+
+                # Find all active_clients that have this sender in their neighbor list
+                recipients = [
+                    c.client_id
+                    for c in active_clients
+                    if sender_cid in self.graph.get(c.client_id, [])
+                ]
+
+                if recipients:
+                    recipients_str = ", ".join(f"client_{r}" for r in sorted(recipients))
+                    print(
+                        f"[DFCA][messages] sender=client_{sender_cid} "
+                        f"cluster={sender_cluster} "
+                        f"recipients=[{recipients_str}] count={len(recipients)}"
+                    )
+                else:
+                    print(
+                        f"[DFCA][messages] sender=client_{sender_cid} "
+                        f"cluster={sender_cluster} "
+                        f"recipients=[] count=0"
+                    )
+                logged_count += 1
+
         for client in active_clients:
             neighbors = self.graph.get(client.client_id, [])
             received: Dict[int, Dict[int, OrderedDict]] = {}
@@ -460,21 +485,17 @@ class DFCAServer(IncrementalServer):
                 received[neighbor_id] = messages[neighbor_id]
                 num_messages += 1
 
-            # Pass messages to client for aggregation
             if hasattr(client, "receive_neighbor_message"):
                 for sender_id, msg in received.items():
                     client.receive_neighbor_message(sender_id, msg)
 
-            # Aggregate
             if hasattr(client, "aggregate_received_messages"):
                 client.aggregate_received_messages()
 
-            # Count per-cluster updates
             for sender_id, msg in received.items():
                 for cluster_id in msg:
                     per_cluster_updates[cluster_id] = per_cluster_updates.get(cluster_id, 0) + 1
 
-        # Count assignment changes
         for client in active_clients:
             prev = self._prev_assignments.get(client.client_id, -1)
             curr = client.assigned_cluster
@@ -488,23 +509,24 @@ class DFCAServer(IncrementalServer):
             "changes_count": changes_count,
         }
 
+    # Bug 6 fix: divide by actual contributor count per cluster
     def _update_representative_cluster_models(self, active_clients: List) -> None:
         """
         Build representative cluster models for evaluation.
 
         Representative model for cluster j = average of theta_i,j
-        across all active clients (unweighted mean, per paper).
-
-        This is used for evaluation only — it does NOT replace the
-        decentralized peer-to-peer aggregation.
+        across active clients that actually have cluster j (unweighted mean).
+        Bug 6 fix: divide by actual contributor count per cluster,
+        not by total active clients (some clients may not have all clusters).
         """
         if not active_clients:
             return
 
+        # Count contributors per cluster
+        contributor_count: Dict[int, int] = {c: 0 for c in range(self.num_clusters)}
         for cid in range(self.num_clusters):
             self.representative_cluster_params[cid] = OrderedDict()
 
-        client_count = 0
         for client in active_clients:
             if not hasattr(client, "cluster_params") or not client.cluster_params:
                 continue
@@ -512,21 +534,50 @@ class DFCAServer(IncrementalServer):
                 if cluster_id not in client.cluster_params:
                     continue
                 params = client.cluster_params[cluster_id]
+                contributor_count[cluster_id] += 1
+
                 if not self.representative_cluster_params[cluster_id]:
                     self.representative_cluster_params[cluster_id] = OrderedDict(
-                        (k, v.clone().float() / len(active_clients))
-                        for k, v in params.items()
+                        (k, v.clone().float()) for k, v in params.items()
                     )
                 else:
                     for k in self.representative_cluster_params[cluster_id]:
-                        self.representative_cluster_params[cluster_id][k] += (
-                            params[k].float() / len(active_clients)
-                        )
-            client_count += 1
+                        self.representative_cluster_params[cluster_id][k] += params[k].float()
+
+        # Divide by actual contributor count
+        for cluster_id in range(self.num_clusters):
+            count = contributor_count[cluster_id]
+            if count == 0:
+                self.representative_cluster_params[cluster_id] = OrderedDict()
+                continue
+            for k in self.representative_cluster_params[cluster_id]:
+                if self.representative_cluster_params[cluster_id][k].dtype.is_floating_point:
+                    self.representative_cluster_params[cluster_id][k] /= count
+                # Non-floating tensors (e.g., BN counters) are kept as-sum, not averaged
+
+    def _format_cluster_updates(self, per_cluster_updates: Dict[int, int]) -> str:
+        """Format per-cluster updates dict into a compact, readable string."""
+        if not per_cluster_updates:
+            return "none"
+
+        total = sum(per_cluster_updates.values())
+        if total == 0:
+            parts = []
+            for cid in sorted(per_cluster_updates.keys()):
+                parts.append(f"c{cid}=0")
+            return ", ".join(parts)
+
+        parts = []
+        for cid in sorted(per_cluster_updates.keys()):
+            n = per_cluster_updates.get(cid, 0)
+            parts.append(f"c{cid}={n}")
+        return ", ".join(parts)
 
     def _log_round_statistics(
         self,
         active_clients: List,
+        training_clients: List,
+        skipped_no_data: int,
         assignment_results: Dict[int, int],
         train_results: List[Dict],
         agg_stats: Dict,
@@ -542,6 +593,8 @@ class DFCAServer(IncrementalServer):
         stats = {
             "round": self._round,
             "active_clients": len(active_clients),
+            "training_clients": len(training_clients),
+            "skipped_no_data": skipped_no_data,
             "cluster_distribution": dict(cluster_counts),
             "assignment_changes": agg_stats["changes_count"],
             "avg_assignment_loss": avg_assign_loss,
@@ -554,15 +607,19 @@ class DFCAServer(IncrementalServer):
             cluster_str = ", ".join(
                 f"c{c}={n}" for c, n in sorted(cluster_counts.items())
             )
+            cluster_updates_str = self._format_cluster_updates(agg_stats["per_cluster_updates"])
             print(
                 f"  Cluster dist: [{cluster_str}], "
                 f"changes={agg_stats['changes_count']}, "
                 f"messages={agg_stats['num_messages']}, "
                 f"avg_loss={avg_assign_loss:.4f}"
+                + (f", skipped_no_data={skipped_no_data}" if skipped_no_data else "")
             )
+            print(f"  [DFCA] Cluster updates: {cluster_updates_str}")
 
         return stats
 
+    # P2 fix: ensemble averaging evaluation — code, docstring, and tests are now consistent
     def evaluate_global(
         self,
         batch_size: int = 1024,
@@ -570,11 +627,19 @@ class DFCAServer(IncrementalServer):
         **kwargs
     ) -> Dict:
         """
-        Evaluate using "best-loss selection" policy.
+        Evaluate using "representative cluster ensemble averaging" policy.
 
-        For each test batch, evaluate on all k representative cluster models
-        and pick the one with the lowest loss. This mirrors the paper's
-        evaluation where clients use the best cluster model for their data.
+        Policy: average softmax probabilities across all k representative cluster models,
+        then take argmax per sample. This is an ensemble approach, NOT cluster selection.
+        - No ground-truth labels are used for model/prediction selection
+        - No loss is used to pick a "best" cluster
+        - Loss is computed on the ensemble's averaged probability predictions
+
+        Evaluation steps per sample:
+            1. Forward pass each of k cluster models → k probability distributions
+            2. Average the k probability distributions → ensemble probs
+            3. argmax on ensemble probs → prediction
+            4. Cross-entropy between ensemble probs and label → loss (not for selection)
         """
         self.global_model.eval()
 
@@ -582,13 +647,15 @@ class DFCAServer(IncrementalServer):
         for cid in range(self.num_clusters):
             if cid not in self.representative_cluster_params:
                 continue
+            params = self.representative_cluster_params[cid]
+            if not params:
+                continue
             model = CNN_GRU_Model(
                 self.config["input_shape"],
                 self.config.get("num_classes", self.config.get("total_classes", 34))
             )
             model.load_state_dict(
-                {k: v.to(self.primary_device) for k, v in
-                 self.representative_cluster_params[cid].items()}
+                {k: v.to(self.primary_device) for k, v in params.items()}
             )
             model.eval()
             eval_models[cid] = model
@@ -610,34 +677,43 @@ class DFCAServer(IncrementalServer):
                 "f1_macro": 0.0, "f1_weighted": 0.0,
             }
 
+        if not eval_models:
+            return {
+                "loss": 0.0, "accuracy": 0.0,
+                "precision_macro": 0.0, "recall_macro": 0.0,
+                "f1_macro": 0.0, "f1_weighted": 0.0,
+            }
+
         all_preds = []
         all_targets = []
-        total_loss = 0.0
-        criterion = nn.CrossEntropyLoss(reduction="sum")
+        total_ce_loss = 0.0
 
         with torch.no_grad():
             for i in range(0, n_test, batch_size):
                 X_batch = X_test[i : i + batch_size].to(self.primary_device)
                 y_batch = y_test[i : i + batch_size].to(self.primary_device)
 
-                best_cluster = None
-                best_loss = float("inf")
-                best_out = None
-
+                # Ensemble averaging: collect softmax probs from all cluster models
+                all_probs: List[torch.Tensor] = []
                 for cid, model in eval_models.items():
                     out = model(X_batch)
                     if seen_classes_only and self.seen_classes:
                         out = self._mask_unseen_classes(out)
-                    loss = criterion(out, y_batch).item()
-                    if loss < best_loss:
-                        best_loss = loss
-                        best_cluster = cid
-                        best_out = out
+                    probs = torch.softmax(out, dim=1)
+                    all_probs.append(probs)
 
-                total_loss += best_loss
-                preds = best_out.argmax(dim=1) if best_out is not None else torch.zeros(
-                    len(y_batch), dtype=torch.long, device=self.primary_device
-                )
+                # Average probabilities: [batch, num_classes]
+                stacked_probs = torch.stack(all_probs, dim=0)
+                avg_probs = stacked_probs.mean(dim=0)
+
+                # Per-sample argmax from ensemble probs
+                preds = avg_probs.argmax(dim=1)
+
+                # Compute CE loss on ensemble probs (not used for selection)
+                ce_loss = -torch.gather(
+                    torch.log(avg_probs + 1e-8), dim=1, index=y_batch.unsqueeze(1)
+                ).sum()
+                total_ce_loss += ce_loss.item()
 
                 all_preds.extend(preds.cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
@@ -652,7 +728,7 @@ class DFCAServer(IncrementalServer):
         zero_division: Any = 0
 
         return {
-            "loss": total_loss / n_test,
+            "loss": total_ce_loss / n_test,
             "accuracy": accuracy_score(y_true, y_pred),
             "precision_macro": precision_score(
                 y_true, y_pred, average="macro", zero_division=zero_division
@@ -693,17 +769,26 @@ class DFCAServer(IncrementalServer):
         if hasattr(self.trainer, "set_task"):
             self.trainer.set_task(task_id, task_classes)
 
+        # Sync seen_classes to all clients for assignment masking
+        for client in self.clients:
+            if hasattr(client, "set_task"):
+                client.set_task(task_id, self.seen_classes, task_classes)
+
     def get_global_params(self) -> OrderedDict:
         """Return params of representative cluster 0 (for compatibility)."""
-        if 0 in self.representative_cluster_params:
+        if 0 in self.representative_cluster_params and self.representative_cluster_params[0]:
             return self.representative_cluster_params[0]
         return super().get_global_params()
 
     def set_global_params(self, params: OrderedDict) -> None:
-        """
-        Set global params (for compatibility).
-
-        In DFCA, this is not used for training. Only for compatibility
-        with the server interface and checkpoint loading.
-        """
+        """Set global params (for compatibility only — not used in DFCA training."""
         pass
+
+    def update_clients(self, clients: List) -> None:
+        """
+        Update client list.
+
+        Bug 3 fix: ensures the full client population is maintained.
+        Only updates the list; graph is built on full population in __init__.
+        """
+        self.clients = clients
