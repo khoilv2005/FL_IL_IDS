@@ -109,6 +109,75 @@ class TestNICE:
         agg = aggregator.aggregate(results)
         assert torch.allclose(agg["w"], torch.tensor([1.0]), atol=1e-5)
 
+    def test_nice_aggregator_restores_mature_bn_and_gru_channels(self):
+        """Federated averaging must not drift frozen BN stats or GRU gate rows."""
+        model = NICEModel(input_shape=(32,), num_classes=4)
+        global_params = OrderedDict(
+            (k, v.detach().cpu().clone()) for k, v in model.state_dict().items()
+        )
+
+        client_params = OrderedDict()
+        for key, value in global_params.items():
+            if value.dtype.is_floating_point:
+                client_params[key] = value + 10.0
+            else:
+                client_params[key] = value.clone()
+
+        conv1_freeze = np.zeros(64, dtype=bool)
+        conv1_freeze[0] = True
+        gru_freeze = np.zeros(100, dtype=bool)
+        gru_freeze[0] = True
+
+        aggregator = NICEAggregator()
+        aggregator.set_freeze_masks({"conv1": conv1_freeze, "gru": gru_freeze})
+        averaged = aggregator.aggregate(
+            [{"params": client_params, "num_samples": 1}],
+            global_params=global_params,
+        )
+
+        assert torch.allclose(averaged["conv1.weight"][0], global_params["conv1.weight"][0])
+        assert torch.allclose(averaged["bn1.weight"][0], global_params["bn1.weight"][0])
+        assert torch.allclose(
+            averaged["bn1.running_mean"][0], global_params["bn1.running_mean"][0]
+        )
+        assert torch.allclose(
+            averaged["bn1.running_var"][0], global_params["bn1.running_var"][0]
+        )
+        assert torch.allclose(
+            averaged["gru.weight_ih_l0"][0], global_params["gru.weight_ih_l0"][0]
+        )
+        assert torch.allclose(
+            averaged["gru.weight_ih_l0"][100], global_params["gru.weight_ih_l0"][100]
+        )
+        assert torch.allclose(
+            averaged["gru.weight_ih_l0"][200], global_params["gru.weight_ih_l0"][200]
+        )
+        assert not torch.allclose(
+            averaged["bn1.weight"][1], global_params["bn1.weight"][1]
+        )
+
+    def test_nice_reset_frozen_gradients_freezes_bn_and_gru_rows(self):
+        """Local optimizer should not update mature BN channels or GRU gate rows."""
+        model = NICEModel(input_shape=(32,), num_classes=4)
+        conv1_freeze = np.zeros(64, dtype=bool)
+        conv1_freeze[0] = True
+        gru_freeze = np.zeros(100, dtype=bool)
+        gru_freeze[0] = True
+        model.freeze_masks = {"conv1": conv1_freeze, "gru": gru_freeze}
+
+        for param in model.parameters():
+            param.grad = torch.ones_like(param)
+
+        model.reset_frozen_gradients()
+
+        assert model.conv1.weight.grad[0].abs().sum().item() == 0.0
+        assert model.bn1.weight.grad[0].item() == 0.0
+        assert model.bn1.bias.grad[0].item() == 0.0
+        assert model.gru.weight_ih_l0.grad[0].abs().sum().item() == 0.0
+        assert model.gru.weight_ih_l0.grad[100].abs().sum().item() == 0.0
+        assert model.gru.weight_ih_l0.grad[200].abs().sum().item() == 0.0
+        assert model.bn1.weight.grad[1].item() == 1.0
+
     def test_nice_model_creation(self):
         """NICEModel should be created without errors."""
         model = NICEModel(input_shape=(100, 1), num_classes=34)
@@ -223,7 +292,14 @@ class TestNICE:
         monkeypatch.setattr(
             server.global_model,
             "get_output_and_context_activations",
-            lambda data: (logits[: len(data)].to(server.primary_device), None),
+            lambda data: (_ for _ in ()).throw(
+                AssertionError("context activations should be opt-in")
+            ),
+        )
+        monkeypatch.setattr(
+            server.global_model,
+            "forward",
+            lambda data: logits[: len(data)].to(server.primary_device),
         )
         monkeypatch.setattr(
             server,

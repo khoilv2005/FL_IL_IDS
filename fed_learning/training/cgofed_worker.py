@@ -30,12 +30,10 @@ class CGoFedWorker(BaseGPUWorker):
         use_cpu: bool = False,
         client_reg_info: Dict = None,
         client_init_models: Dict = None,
-        build_projection_space: bool = False,
     ):
         super().__init__(gpu_id, clients, global_params, config, results_dict, trainer, use_cpu)
         self.client_reg_info = client_reg_info or {}
         self.client_init_models = client_init_models or {}
-        self.build_projection_space = build_projection_space
 
     def get_init_params(self, client) -> Optional[OrderedDict]:
         """Eq.12: initialize from per-client personalized model when available."""
@@ -48,10 +46,7 @@ class CGoFedWorker(BaseGPUWorker):
     def get_train_kwargs(self, client, idx: int) -> Dict:
         """Paper Eq.14: Pass per-client regularization info."""
         init_params = self.get_init_params(client)
-        kwargs = {
-            "global_params": init_params,
-            "build_projection_space": self.build_projection_space,
-        }
+        kwargs = {"global_params": init_params}
         if self.client_reg_info and client.client_id in self.client_reg_info:
             reg_info = self.client_reg_info[client.client_id]
             historical_models = reg_info.get("historical_models", {})
@@ -75,7 +70,6 @@ def train_cgofed_clients_on_gpu(
     use_cpu: bool = False,
     client_reg_info: Dict = None,
     client_init_models: Dict = None,
-    build_projection_space: bool = False,
 ):
     """
     Train CGoFed clients on a specific GPU.
@@ -93,10 +87,9 @@ def train_cgofed_clients_on_gpu(
         use_cpu: If True, use CPU instead of GPU
         client_reg_info: Per-client regularization info (Eq.14)
         client_init_models: Per-client personalized init models (Eq.12)
-        build_projection_space: Build client-local Eq.3-5 basis after this round
     """
     worker = CGoFedWorker(
         gpu_id, clients, global_params, config, results_dict,
-        trainer, use_cpu, client_reg_info, client_init_models, build_projection_space,
+        trainer, use_cpu, client_reg_info, client_init_models,
     )
     worker.run()
