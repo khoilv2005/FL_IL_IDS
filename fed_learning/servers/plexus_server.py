@@ -275,7 +275,8 @@ class PlexusServer(IncrementalServer):
             return {"train_loss": 0.0, "round_time": time.time() - round_start}
 
         sampled_clients = [client_map[sid] for sid in sample_ids if sid in client_map]
-        n_required = max(1, floor(effective_sample_size * self.success_fraction))
+        threshold_base = len(sampled_clients)
+        n_required = max(1, floor(threshold_base * self.success_fraction))
         # Server simulation skips late clients because their updates would be
         # ignored once the Plexus success threshold is reached.
         train_clients = sampled_clients[:n_required]

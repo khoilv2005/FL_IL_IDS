@@ -85,7 +85,7 @@ def test_plexus_server_train_round_smoke():
         "local_epochs": 1,
         "batch_size": 4,
         "learning_rate": 0.001,
-        "plexus_sample_size": 2,
+        "plexus_sample_size": 10,
         "plexus_num_aggregators": 1,
         "plexus_success_fraction": 0.5,
         "plexus_scale_clients": False,
@@ -93,7 +93,7 @@ def test_plexus_server_train_round_smoke():
     }
 
     server = PlexusServer(clients, test_data, config)
-    expected_sample = SampleManager(2, 1).get_sample(
+    expected_sample = SampleManager(10, 1).get_sample(
         1, [client.client_id for client in clients], server.client_bandwidths
     )
     metrics = server.train_round(verbose=False)
@@ -104,5 +104,5 @@ def test_plexus_server_train_round_smoke():
     ]
 
     assert server._round == 1
-    assert sorted(updated_clients) == sorted(expected_sample[:1])
+    assert sorted(updated_clients) == sorted(expected_sample[:2])
     assert metrics["train_loss"] >= 0.0
