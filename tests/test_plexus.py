@@ -7,6 +7,9 @@ from fed_learning.servers.plexus_server import PlexusServer
 from fed_learning.strategies import get_strategy, list_strategies
 from fed_learning.strategies.federated.plexus import SampleManager, PlexusAggregator
 from fed_learning.plexus.aggregator import PlexusAggregator as PurePlexusAggregator
+from fed_learning.plexus.orchestrator import NodeWrapper
+from fed_learning.models.cnn_gru import CNN_GRU_Model
+from fed_learning.training import decentralized_plexus_il as decentralized_il
 
 
 def test_plexus_strategy_registered():
@@ -63,6 +66,32 @@ def test_pure_plexus_threshold_uses_paper_success_fraction():
     assert aggregator.get_threshold() == 1
 
 
+def test_decentralized_plexus_nodes_do_not_share_model_instance():
+    template = CNN_GRU_Model((16, 1), num_classes=2)
+    node_a = NodeWrapper(
+        node_id=0,
+        X_train=torch.randn(4, 16, 1),
+        y_train=torch.tensor([0, 1, 0, 1]),
+        bandwidth=1.0,
+        model_template=template,
+        device="cpu",
+        batch_size=4,
+    )
+    node_b = NodeWrapper(
+        node_id=1,
+        X_train=torch.randn(4, 16, 1),
+        y_train=torch.tensor([0, 1, 0, 1]),
+        bandwidth=1.0,
+        model_template=template,
+        device="cpu",
+        batch_size=4,
+    )
+
+    assert node_a.model is not node_b.model
+    assert node_a.model is not template
+    assert node_b.model is not template
+
+
 def test_plexus_server_train_round_smoke():
     torch.manual_seed(0)
     clients = [
@@ -106,3 +135,98 @@ def test_plexus_server_train_round_smoke():
     assert server._round == 1
     assert sorted(updated_clients) == sorted(expected_sample[:2])
     assert metrics["train_loss"] >= 0.0
+
+def test_decentralized_plexus_il_writes_fed_il_output_contract(tmp_path, monkeypatch):
+    class FakeIncrementalDataLoader:
+        input_shape = (16, 1)
+
+        def __init__(self, data_dir):
+            self.data_dir = data_dir
+
+        def get_num_tasks(self):
+            return 2
+
+        def get_task_classes(self, task_id):
+            return [task_id]
+
+        def get_all_client_ids(self):
+            return [0, 1]
+
+        def get_client_data(self, client_id, task_id):
+            torch.manual_seed(10 + client_id + task_id)
+            return torch.randn(4, 16, 1), torch.full((4,), task_id, dtype=torch.long)
+
+        def get_test_data(self, task_id, cumulative=True):
+            X_parts = []
+            y_parts = []
+            for tid in range(task_id + 1):
+                torch.manual_seed(100 + tid)
+                X_parts.append(torch.randn(4, 16, 1))
+                y_parts.append(torch.full((4,), tid, dtype=torch.long))
+            return torch.cat(X_parts), torch.cat(y_parts)
+
+    monkeypatch.setattr(decentralized_il, "IncrementalDataLoader", FakeIncrementalDataLoader)
+    monkeypatch.setattr(
+        "fed_learning.training.task_loop._evaluate_and_visualize",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "fed_learning.training.task_loop._generate_fcil_report",
+        lambda *args, **kwargs: None,
+    )
+
+    config = {
+        "mode": "decentralized",
+        "algorithm": "plexus",
+        "data_dir": "unused",
+        "output_dir": str(tmp_path / "run"),
+        "total_classes": 2,
+        "task_start": 0,
+        "task_end": 1,
+        "rounds_per_task": 1,
+        "local_epochs": 1,
+        "batch_size": 4,
+        "learning_rate": 0.001,
+        "plexus_sample_size": 2,
+        "plexus_success_fraction": 0.5,
+        "eval_every": 1,
+        "round_checkpoint_every": 1,
+        "seed": 123,
+        "random_seed": 123,
+    }
+
+    history = decentralized_il.run_decentralized_plexus_il(config)
+    output_dirs = list(tmp_path.glob("run_plexus_*"))
+    assert len(output_dirs) == 1
+    output_dir = output_dirs[0]
+
+    for filename in (
+        "config.json",
+        "results.json",
+        "round_metrics.json",
+        "task_metrics.json",
+        "phase_summary.json",
+        "checkpoint_task_0.pt",
+        "checkpoint_task_1.pt",
+        "checkpoint_task_0_round_0.pt",
+        "checkpoint_task_1_round_1.pt",
+    ):
+        assert (output_dir / filename).exists()
+
+    assert len(history["round_metrics"]) == 2
+    assert len(history["task_accuracies"]) == 2
+    assert set(history) == {"task_accuracies", "task_forgetting", "round_metrics"}
+    assert set(history["round_metrics"][0]) == {
+        "task",
+        "round",
+        "train_loss",
+        "round_time",
+        "test_loss",
+        "accuracy",
+        "precision_macro",
+        "recall_macro",
+        "f1_macro",
+        "f1_weighted",
+        "avg_forgetting",
+        "evaluated",
+    }

@@ -17,6 +17,7 @@ Key difference from centralized FL:
 """
 
 import time
+import copy
 from collections import OrderedDict
 from math import floor
 from typing import Dict, List, Optional
@@ -292,7 +293,7 @@ class NodeWrapper:
         self.batch_size = batch_size
 
         # Create model
-        self.model = model_template.to(device)
+        self.model = copy.deepcopy(model_template).to(device)
 
         # Local data
         self.X_train = X_train.to(device)
