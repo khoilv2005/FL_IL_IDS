@@ -269,8 +269,8 @@ CONFIG = {
     "tau": 0.95,
     "nice_max_phases": 20,
     "nice_phase_epochs": 1,
-    "nice_context_eval": False,
-    "nice_debug_context_detector": False,
+    "nice_context_eval": True,
+    "nice_debug_context_detector": True,
     "memo_per_class": 50,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,

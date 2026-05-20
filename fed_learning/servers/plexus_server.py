@@ -70,7 +70,7 @@ class PlexusServer(IncrementalServer):
             - ``plexus_num_aggregators`` (default 1)
             - ``plexus_success_fraction`` (default 0.8)
             - ``plexus_inactivity_threshold`` (default 50)
-            - ``plexus_scale_clients`` (default True) - Enable dynamic client scaling per task
+            - ``plexus_scale_clients`` (default False) - Enable dynamic client scaling per task
             - ``plexus_initial_client_ratio`` (default 0.5) - Initial client ratio (0.5 = 50%)
             - ``plexus_final_client_ratio`` (default 1.0) - Final client ratio (1.0 = 100%)
     """
@@ -85,7 +85,7 @@ class PlexusServer(IncrementalServer):
         self.inactivity_threshold = config.get("plexus_inactivity_threshold", 50)
 
         # Dynamic client scaling parameters
-        self.scale_clients = config.get("plexus_scale_clients", True)
+        self.scale_clients = config.get("plexus_scale_clients", False)
         self.initial_client_ratio = config.get("plexus_initial_client_ratio", 0.5)
         self.final_client_ratio = config.get("plexus_final_client_ratio", 1.0)
         self.total_clients = len(clients)
@@ -231,7 +231,7 @@ class PlexusServer(IncrementalServer):
         6. Aggregate via FedAvg.
         7. Distribute aggregated model + population view.
         """
-        from ..training.plexus_worker import train_plexus_clients_on_gpu
+        from ..training.worker import train_clients_on_gpu
 
         round_start = time.time()
         self._round += 1
@@ -248,10 +248,8 @@ class PlexusServer(IncrementalServer):
         num_tasks = getattr(self, '_num_tasks', 6)  # Default 6 tasks if not set
         if self.scale_clients and task_id is not None:
             effective_sample_size = self.get_sample_size_for_task(task_id, num_tasks)
-            participant_ratio = self.get_participant_ratio_for_task(task_id, num_tasks)
         else:
             effective_sample_size = self.sample_size
-            participant_ratio = 1.0
 
         # Create task-specific sample manager with dynamic sample size
         task_sample_manager = SampleManager(effective_sample_size, self.num_aggregators)
@@ -262,24 +260,25 @@ class PlexusServer(IncrementalServer):
         if participating_clients is not None:
             candidate_ids = [c.client_id for c in participating_clients]
 
-        # Calculate how many clients to sample based on ratio
-        num_to_sample = max(3, int(len(candidate_ids) * participant_ratio))
-
-        # Get sample using task-specific sample manager
-        # First, get ordered sample from candidate_ids
-        ordered_sample = task_sample_manager.get_ordered_sample_list(
-            self._round, candidate_ids
+        # Plexus Algorithm 1: sample = first K hash-ordered active peers;
+        # aggregator = highest-bandwidth peer inside that same sample.
+        sample_ids = task_sample_manager.get_sample(
+            self._round, candidate_ids, self.client_bandwidths
         )
-        sample_ids = ordered_sample[:num_to_sample]
+        aggregator_ids = task_sample_manager.get_aggregators(
+            self._round, candidate_ids, self.client_bandwidths
+        )
 
-        # Ensure we have at least 3 peers (liveness)
-        if len(sample_ids) < 3:
-            sample_ids = candidate_ids[:max(3, len(candidate_ids))]
-
-        # Get aggregator from the sample (highest bandwidth)
-        aggregator_ids = [max(sample_ids, key=lambda sid: self.client_bandwidths.get(sid, 0.0))]
+        if not sample_ids:
+            if verbose:
+                print(f"\n→ Plexus Round {self._round}: no sampled clients")
+            return {"train_loss": 0.0, "round_time": time.time() - round_start}
 
         sampled_clients = [client_map[sid] for sid in sample_ids if sid in client_map]
+        n_required = max(1, floor(effective_sample_size * self.success_fraction))
+        # Server simulation skips late clients because their updates would be
+        # ignored once the Plexus success threshold is reached.
+        train_clients = sampled_clients[:n_required]
 
         if verbose:
             device_info = "CPU" if self.use_cpu else f"{self.num_gpus} GPU(s)"
@@ -288,12 +287,13 @@ class PlexusServer(IncrementalServer):
             # Build scaling info string
             scaling_info = ""
             if self.scale_clients and task_id is not None:
-                scaling_info = f", scale={effective_sample_size}/{len(candidate_ids)}={participant_ratio*100:.0f}%"
+                scaling_info = f", sample_size={effective_sample_size}"
             
             print(
                 f"\n→ Plexus Round {self._round} [Task {task_id}]: "
                 f"aggregator={aggregator_ids} (bw={agg_bw}), "
-                f"sample={len(sampled_clients)}/{len(all_ids)} clients{scaling_info}, "
+                f"sample={len(sampled_clients)}/{len(all_ids)} clients, "
+                f"training={len(train_clients)} threshold clients{scaling_info}, "
                 f"device={device_info}"
             )
 
@@ -301,7 +301,7 @@ class PlexusServer(IncrementalServer):
 
         # --- 3. Train sampled clients on GPUs ---
         clients_per_gpu = [[] for _ in range(self.num_gpus)]
-        for i, c in enumerate(sampled_clients):
+        for i, c in enumerate(train_clients):
             clients_per_gpu[i % self.num_gpus].append(c)
 
         results_dict: Dict = {}
@@ -310,7 +310,7 @@ class PlexusServer(IncrementalServer):
         for gpu_id in range(self.num_gpus):
             if len(clients_per_gpu[gpu_id]) > 0:
                 t = Thread(
-                    target=train_plexus_clients_on_gpu,
+                    target=train_clients_on_gpu,
                     args=(
                         gpu_id,
                         clients_per_gpu[gpu_id],
@@ -327,20 +327,19 @@ class PlexusServer(IncrementalServer):
         for t in threads:
             t.join()
 
-        results = list(results_dict.values())
+        sample_order = {cid: idx for idx, cid in enumerate(sample_ids)}
+        results = sorted(
+            results_dict.values(),
+            key=lambda r: sample_order.get(r.get("client_id", -1), len(sample_order)),
+        )
 
         # --- 4. Success-fraction filtering ---
-        # success_fraction - 80%: chỉ cần 80% số node trong sample gửi local model về là aggregator có thể  bắt đầu quá trình aggregation, không cần đợi tất cả mẫu gửi về (giảm latency, tăng tốc độ vòng) 
-        n_required = max(3, floor(len(results) * self.success_fraction)) # len(re): số node đã gửi local model về cho aggre, 3 là ít nhất phải có 3 node gửi local model về  
-        if len(results) > n_required:
-            used_results = results[:n_required]
-        else:
-            used_results = results
+        used_results = results[:n_required] if len(results) >= n_required else []
 
         if verbose:
             print(
                 f"   Aggregating {len(used_results)}/{len(results)} models "
-                f"(success_fraction={self.success_fraction})"
+                f"(threshold={n_required}, success_fraction={self.success_fraction})"
             )
 
         # --- 5. Aggregate ---

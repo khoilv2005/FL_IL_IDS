@@ -175,6 +175,9 @@ class NICEModel(nn.Module):
 
         # NICE-specific: Gradient freeze masks for mature neurons
         self.freeze_masks: Dict[str, np.ndarray] = {}
+        self._bn_frozen_units: Dict[str, torch.Tensor] = {}
+        self._bn_running_mean_frozen: Dict[str, torch.Tensor] = {}
+        self._bn_running_var_frozen: Dict[str, torch.Tensor] = {}
 
     def _init_unit_ranks(self):
         """Initialize all neuron ages to 0 (young/surplus)."""
@@ -223,6 +226,52 @@ class NICEModel(nn.Module):
     # Forward methods
     # ========================================================================
 
+    def _restore_frozen_bn_stats(self, bn, layer_name: str) -> None:
+        frozen = self._bn_frozen_units.get(layer_name)
+        mean = self._bn_running_mean_frozen.get(layer_name)
+        var = self._bn_running_var_frozen.get(layer_name)
+        if frozen is None or mean is None or var is None or not frozen.any():
+            return
+
+        frozen = frozen.to(bn.running_mean.device)
+        bn.running_mean.data[frozen] = mean.to(bn.running_mean.device)[frozen]
+        bn.running_var.data[frozen] = var.to(bn.running_var.device)[frozen]
+
+    def _apply_partial_frozen_bn(self, x, bn, layer_name: str):
+        frozen = self._bn_frozen_units.get(layer_name)
+        if frozen is None or not frozen.any() or not bn.training:
+            return bn(x)
+
+        frozen = frozen.to(x.device)
+        self._restore_frozen_bn_stats(bn, layer_name)
+
+        train_out = F.batch_norm(
+            x,
+            bn.running_mean,
+            bn.running_var,
+            bn.weight,
+            bn.bias,
+            training=True,
+            momentum=bn.momentum,
+            eps=bn.eps,
+        )
+        self._restore_frozen_bn_stats(bn, layer_name)
+
+        frozen_out = F.batch_norm(
+            x,
+            bn.running_mean,
+            bn.running_var,
+            bn.weight,
+            bn.bias,
+            training=False,
+            momentum=0.0,
+            eps=bn.eps,
+        )
+
+        view_shape = [1, -1] + [1] * (x.dim() - 2)
+        frozen_view = frozen.view(*view_shape)
+        return torch.where(frozen_view, frozen_out, train_out)
+
     def _apply_masked_conv(self, x, conv, bn, pool, layer_name):
         """Apply conv layer with weight masking."""
         device = x.device
@@ -231,7 +280,7 @@ class NICEModel(nn.Module):
         masked_weight = conv.weight * w_mask
         masked_bias = conv.bias * b_mask if conv.bias is not None else None
         x = F.conv1d(x, masked_weight, masked_bias, padding=conv.padding[0])
-        x = pool(self.relu(bn(x)))
+        x = pool(self.relu(self._apply_partial_frozen_bn(x, bn, layer_name)))
         return x
 
     def _forward_backbone(self, x):
@@ -529,12 +578,44 @@ class NICEModel(nn.Module):
                     param.grad.data[mask] = 0.0
 
     def freeze_bn_for_mature(self):
-        """Set BatchNorm to eval mode for layers with all-mature neurons."""
+        """Freeze BatchNorm channels whose corresponding conv units are mature."""
         bn_map = {"conv1": self.bn1, "conv2": self.bn2, "conv3": self.bn3}
         for layer_name, bn in bn_map.items():
             if layer_name in self.unit_ranks:
                 ranks = self.unit_ranks[layer_name]
-                if np.all(ranks >= 2):
+                mature = torch.tensor(
+                    ranks >= 2, dtype=torch.bool, device=bn.running_mean.device
+                )
+                if mature.any():
+                    prev = self._bn_frozen_units.get(layer_name)
+                    if prev is None:
+                        prev = torch.zeros_like(mature)
+                        self._bn_running_mean_frozen[layer_name] = (
+                            bn.running_mean.detach().clone()
+                        )
+                        self._bn_running_var_frozen[layer_name] = (
+                            bn.running_var.detach().clone()
+                        )
+                    else:
+                        prev = prev.to(mature.device)
+
+                    newly_frozen = mature & ~prev
+                    if newly_frozen.any():
+                        mean = self._bn_running_mean_frozen[layer_name].to(
+                            mature.device
+                        )
+                        var = self._bn_running_var_frozen[layer_name].to(
+                            mature.device
+                        )
+                        mean[newly_frozen] = bn.running_mean.detach()[newly_frozen]
+                        var[newly_frozen] = bn.running_var.detach()[newly_frozen]
+                        self._bn_running_mean_frozen[layer_name] = mean
+                        self._bn_running_var_frozen[layer_name] = var
+
+                    self._bn_frozen_units[layer_name] = mature
+                    self._restore_frozen_bn_stats(bn, layer_name)
+
+                if mature.all():
                     bn.eval()
 
     # ========================================================================
