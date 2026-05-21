@@ -612,55 +612,48 @@ def _record_local_round(
     seen_classes: List[int],
     context_detector: ContextDetector = None,
     compute_forgetting: bool = True,
+    evaluate: bool = True,
 ):
-    test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
-    metrics = _evaluate_model(
-        model,
-        {"X_test": test_X, "y_test": test_y},
-        device,
-        context_detector=context_detector,
-        seen_classes=seen_classes,
-    )
-    if compute_forgetting:
-        current_task_accuracies, af = _compute_local_forgetting(
+    if evaluate:
+        test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+        metrics = _evaluate_model(
             model,
+            {"X_test": test_X, "y_test": test_y},
             device,
-            data_loader,
-            task_id,
-            best_acc_per_task,
-            trainer,
             context_detector=context_detector,
             seen_classes=seen_classes,
         )
     else:
-        current_task_accuracies, af = {}, None
+        metrics = {}
+    current_task_accuracies, af = {}, None
 
     round_record = {
         "task": task_id,
         "round": round_id,
         "train_loss": train_loss,
         "round_time": round_time,
-        "test_loss": metrics["loss"],
-        "accuracy": metrics["accuracy"],
-        "precision_macro": metrics["precision_macro"],
-        "recall_macro": metrics["recall_macro"],
-        "f1_macro": metrics["f1_macro"],
+        "test_loss": metrics.get("loss"),
+        "accuracy": metrics.get("accuracy"),
+        "precision_macro": metrics.get("precision_macro"),
+        "recall_macro": metrics.get("recall_macro"),
+        "f1_macro": metrics.get("f1_macro"),
         "f1_weighted": None,
         "avg_forgetting": af,
     }
     history["round_metrics"].append(round_record)
     _write_local_history(output_dir, history)
 
-    af_text = f"{af * 100:.2f}%" if af is not None else "N/A (final round only)"
-    print(
-        "    Metrics -> "
-        f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
-        f"accuracy={metrics['accuracy'] * 100:.2f}%, "
-        f"f1={metrics['f1_macro'] * 100:.2f}%, "
-        f"precision={metrics['precision_macro'] * 100:.2f}%, "
-        f"recall={metrics['recall_macro'] * 100:.2f}%, "
-        f"AF={af_text}"
-    )
+    if evaluate:
+        print(
+            "    Metrics -> "
+            f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
+            f"accuracy={metrics['accuracy'] * 100:.2f}%, "
+            f"f1={metrics['f1_macro'] * 100:.2f}%, "
+            f"precision={metrics['precision_macro'] * 100:.2f}%, "
+            f"recall={metrics['recall_macro'] * 100:.2f}%"
+        )
+    else:
+        print(f"    Metrics skipped -> train_loss={train_loss:.4f} (post-task eval)")
 
     _save_local_round_checkpoint(
         output_dir,
@@ -1098,6 +1091,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 seen_classes,
                 context_detector=nice_context_detector if algo == "nice" else None,
                 compute_forgetting=(round_id == final_round_id),
+                evaluate=(round_id != final_round_id),
             )
 
         _post_task_local(
@@ -1134,16 +1128,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         else:
             print("  Visualization skipped (final task only)")
 
-        current_task_accuracies, af = _compute_local_forgetting(
-            model,
-            device,
-            data_loader,
-            task_id,
-            best_acc_per_task,
-            trainer,
-            context_detector=nice_context_detector if algo == "nice" else None,
-            seen_classes=seen_classes,
-        )
+        current_task_accuracies, af = {}, None
         all_history["task_accuracies"].append(
             {
                 "task": task_id,
@@ -1154,10 +1139,8 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 "recall_macro": metrics["recall_macro"],
                 "f1_macro": metrics["f1_macro"],
                 "f1_weighted": None,
-                "avg_forgetting": af,
             }
         )
-        all_history["task_forgetting"].append({"task": task_id, "avg_forgetting": af})
 
         _save_local_task_checkpoint(
             output_dir,
@@ -1214,7 +1197,6 @@ def run_local_incremental_training(config: Dict[str, Any]):
     if all_history["task_accuracies"]:
         final = all_history["task_accuracies"][-1]
         print(f"Final Accuracy: {final['accuracy'] * 100:.2f}%")
-        print(f"Final Forgetting: {final['avg_forgetting'] * 100:.2f}%")
 
     if all_history["task_accuracies"]:
         _write_local_phase_outputs(

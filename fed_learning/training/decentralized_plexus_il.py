@@ -239,33 +239,7 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 if evaluate
                 else {}
             )
-            if evaluate and is_final_round:
-                per_task_acc = {
-                    tid: (
-                        metrics["accuracy"]
-                        if tid == task_id
-                        else _eval_params(
-                            model_template,
-                            params,
-                            data,
-                            eval_batch_size,
-                            seen_classes,
-                            eval_device,
-                        )["accuracy"]
-                    )
-                    for tid, data in task_tests.items()
-                }
-                for tid, acc in per_task_acc.items():
-                    best_acc[tid] = max(best_acc.get(tid, 0.0), acc)
-                old_tids = [tid for tid in per_task_acc if tid != task_id]
-                af = (
-                    sum(max(0.0, best_acc.get(tid, 0.0) - per_task_acc[tid]) for tid in old_tids)
-                    / max(1, len(old_tids))
-                    if old_tids
-                    else 0.0
-                )
-            else:
-                af = None
+            af = None
 
             round_record = {
                 "task": task_id,
@@ -286,7 +260,6 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 final_round_cache.update(
                     {
                         "metrics": metrics,
-                        "per_task_acc": per_task_acc,
                         "avg_forgetting": af,
                         "round_id": round_id,
                         "round_record": round_record,
@@ -294,7 +267,6 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 )
             _write_training_history(output_dir, history)
             if evaluate:
-                af_text = f"{af * 100:.2f}%" if af is not None else "N/A (final round only)"
                 print(
                     "    Metrics -> "
                     f"train_loss={float(round_metrics.get('train_loss', 0.0) or 0.0):.4f}, "
@@ -302,8 +274,7 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     f"accuracy={metrics['accuracy'] * 100:.2f}%, "
                     f"f1={metrics['f1_macro'] * 100:.2f}%, "
                     f"precision={metrics['precision_macro'] * 100:.2f}%, "
-                    f"recall={metrics['recall_macro'] * 100:.2f}%, "
-                    f"AF={af_text}"
+                    f"recall={metrics['recall_macro'] * 100:.2f}%"
                 )
             else:
                 print(
@@ -340,7 +311,6 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
 
         if final_round_cache:
             final_metrics = final_round_cache["metrics"]
-            per_task_acc = final_round_cache["per_task_acc"]
             af = final_round_cache["avg_forgetting"]
             final_round_id = final_round_cache["round_id"]
         else:
@@ -352,28 +322,7 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 seen_classes,
                 eval_device,
             )
-            per_task_acc = {
-                tid: (
-                    final_metrics["accuracy"]
-                    if tid == task_id
-                    else _eval_params(
-                        model_template,
-                        global_params,
-                        data,
-                        eval_batch_size,
-                        seen_classes,
-                        eval_device,
-                    )["accuracy"]
-                )
-                for tid, data in task_tests.items()
-            }
-            old_tids = [tid for tid in per_task_acc if tid != task_id]
-            af = (
-                sum(max(0.0, best_acc.get(tid, 0.0) - per_task_acc[tid]) for tid in old_tids)
-                / max(1, len(old_tids))
-                if old_tids
-                else 0.0
-            )
+            af = None
             final_round_id = (task_id + 1) * rounds_per_task - 1
         history["task_accuracies"].append(
             {
@@ -407,7 +356,7 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
             seen_classes,
             final_metrics,
             af,
-            per_task_acc,
+            {},
         )
         _write_phase_outputs(
             output_dir,
