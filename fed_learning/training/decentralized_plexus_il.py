@@ -338,14 +338,18 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
         )
         history["task_forgetting"].append({"task": task_id, "avg_forgetting": af})
 
-        viz_model = CNN_GRU_Model(config["input_shape"], config["total_classes"])
-        viz_model.load_state_dict({k: v.cpu() for k, v in global_params.items()})
-        viz_wrapper = type("DecentralizedPlexusEvalWrapper", (), {})()
-        viz_wrapper.global_model = viz_model
-        viz_wrapper.test_data = task_tests[task_id]
-        viz_wrapper.primary_device = "cpu"
-        viz_wrapper.seen_classes = list(seen_classes)
-        _evaluate_and_visualize(viz_wrapper, task_id, output_dir, config)
+        is_final_global_task = task_id == num_tasks - 1
+        if is_final_global_task:
+            viz_model = CNN_GRU_Model(config["input_shape"], config["total_classes"])
+            viz_model.load_state_dict({k: v.cpu() for k, v in global_params.items()})
+            viz_wrapper = type("DecentralizedPlexusEvalWrapper", (), {})()
+            viz_wrapper.global_model = viz_model
+            viz_wrapper.test_data = task_tests[task_id]
+            viz_wrapper.primary_device = "cpu"
+            viz_wrapper.seen_classes = list(seen_classes)
+            _evaluate_and_visualize(viz_wrapper, task_id, output_dir, config)
+        else:
+            print("  Visualization skipped (final task only)")
 
         _save_fed_task_checkpoint(
             output_dir,
@@ -358,7 +362,13 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
             af,
             per_task_acc,
         )
-        _write_phase_outputs(output_dir, history, config, task_id)
+        _write_phase_outputs(
+            output_dir,
+            history,
+            config,
+            task_id,
+            generate_report=is_final_global_task,
+        )
 
     print("\n" + "=" * 80)
     print("DECENTRALIZED PLEXUS-IL COMPLETE")

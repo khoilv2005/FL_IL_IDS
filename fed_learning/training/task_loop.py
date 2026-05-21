@@ -482,6 +482,7 @@ def _write_phase_outputs(
     history: Dict[str, Any],
     config: Dict[str, Any],
     completed_task_id: int,
+    generate_report: bool = True,
 ):
     """
     Persist all aggregate outputs after each split-run phase/task.
@@ -506,7 +507,7 @@ def _write_phase_outputs(
     with open(os.path.join(output_dir, "phase_summary.json"), "w") as f:
         json.dump(phase_summary, f, indent=2, default=str)
 
-    if history.get("task_accuracies"):
+    if generate_report and history.get("task_accuracies"):
         _generate_fcil_report(history, config, output_dir)
 
 
@@ -1645,8 +1646,12 @@ def run_incremental_training(config: Dict[str, Any]):
             f"recall={metrics['recall_macro'] * 100:.2f}%"
         )
 
-        # 5i. Visualization & Debug
-        _evaluate_and_visualize(server, task_id, output_dir, config)
+        # 5i. Visualization & Debug (only on final global task)
+        is_final_global_task = task_id == num_tasks - 1
+        if is_final_global_task:
+            _evaluate_and_visualize(server, task_id, output_dir, config)
+        else:
+            print("  Visualization skipped (final task only)")
 
         # 5j. Forgetting Calculation
         del test_data
@@ -1684,7 +1689,13 @@ def run_incremental_training(config: Dict[str, Any]):
             af,
             current_task_accuracies,
         )
-        _write_phase_outputs(output_dir, all_history, config, task_id)
+        _write_phase_outputs(
+            output_dir,
+            all_history,
+            config,
+            task_id,
+            generate_report=is_final_global_task,
+        )
 
         if config.get("save_resume_after_task") == task_id:
             continuation_state = build_continuation_state(
@@ -1725,4 +1736,5 @@ def run_incremental_training(config: Dict[str, Any]):
         all_history,
         config,
         int(final.get("task", config.get("task_end", 0))),
+        generate_report=int(final.get("task", config.get("task_end", 0))) == num_tasks - 1,
     )

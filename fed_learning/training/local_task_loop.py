@@ -500,6 +500,7 @@ def _write_local_phase_outputs(
     history: Dict[str, Any],
     config: Dict[str, Any],
     completed_task_id: int,
+    generate_report: bool = True,
 ):
     _write_local_history(output_dir, history)
 
@@ -518,7 +519,8 @@ def _write_local_phase_outputs(
     with open(os.path.join(output_dir, "phase_summary.json"), "w") as f:
         json.dump(phase_summary, f, indent=2, default=str)
 
-    _generate_local_fcil_report(history, config, output_dir)
+    if generate_report:
+        _generate_local_fcil_report(history, config, output_dir)
 
 
 def _get_seen_classes(data_loader: IncrementalDataLoader, task_id: int) -> List[int]:
@@ -1117,16 +1119,20 @@ def run_local_incremental_training(config: Dict[str, Any]):
             f"precision={metrics['precision_macro'] * 100:.2f}%, "
             f"recall={metrics['recall_macro'] * 100:.2f}%"
         )
-        _evaluate_and_visualize_local(
-            model,
-            {"X_test": test_X, "y_test": test_y},
-            device,
-            task_id,
-            output_dir,
-            config,
-            context_detector=nice_context_detector if algo == "nice" else None,
-            seen_classes=seen_classes,
-        )
+        is_final_global_task = task_id == num_tasks - 1
+        if is_final_global_task:
+            _evaluate_and_visualize_local(
+                model,
+                {"X_test": test_X, "y_test": test_y},
+                device,
+                task_id,
+                output_dir,
+                config,
+                context_detector=nice_context_detector if algo == "nice" else None,
+                seen_classes=seen_classes,
+            )
+        else:
+            print("  Visualization skipped (final task only)")
 
         current_task_accuracies, af = _compute_local_forgetting(
             model,
@@ -1164,7 +1170,13 @@ def run_local_incremental_training(config: Dict[str, Any]):
             af,
             current_task_accuracies,
         )
-        _write_local_phase_outputs(output_dir, all_history, config, task_id)
+        _write_local_phase_outputs(
+            output_dir,
+            all_history,
+            config,
+            task_id,
+            generate_report=is_final_global_task,
+        )
 
         if config.get("save_resume_after_task") == task_id:
             local_model_state = None
@@ -1210,6 +1222,10 @@ def run_local_incremental_training(config: Dict[str, Any]):
             all_history,
             config,
             int(all_history["task_accuracies"][-1].get("task", config.get("task_end", 0))),
+            generate_report=int(
+                all_history["task_accuracies"][-1].get("task", config.get("task_end", 0))
+            )
+            == num_tasks - 1,
         )
     else:
         _write_local_history(output_dir, all_history)
