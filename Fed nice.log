@@ -1,0 +1,1167 @@
+7.5s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.5s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.5s 3 0.00s - to python to disable frozen modules.
+7.5s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+8.1s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+8.1s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+8.1s 7 0.00s - to python to disable frozen modules.
+8.1s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+9.2s 9 Cloning into '/tmp/FL_IL_IDS'...
+9.4s 10 Cloning from GitHub...
+9.4s 11 Cloning into '/tmp/FL_IL_IDS'...
+9.4s 12 
+9.4s 13 Cloning into '/tmp/FL_IL_IDS'...
+12.5s 14 sys.path[0]: /tmp/FL_IL_IDS
+18.9s 15 INFO:numexpr.utils:NumExpr defaulting to 4 threads.
+18.9s 16 
+18.9s 17 INFO:numexpr.utils:NumExpr defaulting to 4 threads.
+19.9s 18 INFO:fed_learning.data.incremental_loader:Initialized IncrementalLoader from /kaggle/input/datasets/khoilv2005/100-clients/100-clients
+19.9s 19 
+19.9s 20 INFO:fed_learning.data.incremental_loader:Initialized IncrementalLoader from /kaggle/input/datasets/khoilv2005/100-clients/100-clients
+19.9s 21 INFO:fed_learning.data.incremental_loader:Task structure: 6 tasks found
+19.9s 22 
+19.9s 23 INFO:fed_learning.data.incremental_loader:Task structure: 6 tasks found
+20.1s 24 🌱 Seed set to 42
+20.1s 25 
+20.1s 26 ================================================================================
+20.1s 27 🚀 FEDERATED CLASS INCREMENTAL LEARNING - NICE
+20.1s 28 ================================================================================
+20.1s 29 
+20.1s 30 <fed_learning.data.incremental_loader.IncrementalDataLoader object at 0x7b30d5e00e30>
+20.1s 31 ✓ Trainer: NICETrainer
+20.1s 32 ✓ Aggregator: NICEAggregator
+20.1s 33 Task range: 0 -> 2
+20.1s 34 
+20.1s 35 ================================================================================
+20.1s 36 📚 TASK 0/5
+20.1s 37 ================================================================================
+38.8s 38 Clients with data: 50
+46.9s 39 
+46.9s 40 🖥️  Detected 2 GPU(s), primary device: cuda:0
+47.5s 41 📊 Strategy: NICE trainer + NICE aggregator
+47.5s 42 Strategy: NICE (Neurogenesis Inspired Contextual Encoding)
+47.5s 43 
+47.5s 44 📌 Task 0: classes [0, 1, 2, 3, 4, 5]
+47.5s 45 Total seen classes: 6
+47.5s 46 NICE: Task 0 | new classes: [0, 1, 2, 3, 4, 5]
+47.5s 47 NICE: Output neuron ages (fc2): learner=6, mature=0, young=28
+47.5s 48 
+47.5s 49 🎯 Training on 6 new classes...
+47.5s 50 
+47.5s 51 === NICE Training (20 phases) ===
+47.5s 52 NICE local schedule: 20 phases x 1 epochs = 20 local epochs/client
+47.5s 53 🔁 ROUND 0/19 [phase]
+47.5s 54 
+47.5s 55 NICE: Training 50 clients on 2 GPU(s)
+61.4s 56 [GPU 0] NICE: 25 clients done in 13.9s
+66.0s 57 [GPU 1] NICE: 25 clients done in 18.5s
+66.2s 58 NICE loss: 2.0491 (18.7s)
+66.2s 59 conv1: young=0, learner=64, mature=0
+66.2s 60 fc1: young=0, learner=256, mature=0
+66.2s 61 fc2: young=28, learner=6, mature=0
+118.8s 62 
+118.8s 63 NICE context detector debug:
+118.8s 64 route_acc=100.00%
+118.8s 65 true episode counts: {0: 409691}
+118.8s 66 pred episode counts: {0: 409691}
+118.8s 67 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+118.8s 68 true 0 -> pred {0: 409691}
+118.8s 69 Metrics -> train_loss=2.0491, test_loss=0.4931, accuracy=76.99%, f1=14.50%, precision=12.83%, recall=16.67%, AF=N/A (final round only)
+118.8s 70 🔁 ROUND 1/19 [phase]
+118.8s 71 
+118.8s 72 NICE: Training 50 clients on 2 GPU(s)
+133.2s 73 [GPU 0] NICE: 25 clients done in 14.3s
+137.7s 74 [GPU 1] NICE: 25 clients done in 18.8s
+137.7s 75 NICE loss: 2.2803 (18.9s)
+137.7s 76 conv1: young=2, learner=62, mature=0
+137.7s 77 fc1: young=142, learner=114, mature=0
+137.7s 78 fc2: young=28, learner=6, mature=0
+189.4s 79 
+189.4s 80 NICE context detector debug:
+189.4s 81 route_acc=100.00%
+189.4s 82 true episode counts: {0: 409691}
+189.4s 83 pred episode counts: {0: 409691}
+189.4s 84 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+189.4s 85 true 0 -> pred {0: 409691}
+189.4s 86 Metrics -> train_loss=2.2803, test_loss=0.2774, accuracy=93.37%, f1=31.00%, precision=32.01%, recall=30.34%, AF=N/A (final round only)
+189.4s 87 🔁 ROUND 2/19 [phase]
+189.4s 88 
+189.4s 89 NICE: Training 50 clients on 2 GPU(s)
+204.6s 90 [GPU 0] NICE: 25 clients done in 15.1s
+209.3s 91 [GPU 1] NICE: 25 clients done in 19.8s
+209.3s 92 NICE loss: 0.9587 (19.9s)
+209.3s 93 conv1: young=3, learner=61, mature=0
+209.3s 94 fc1: young=146, learner=110, mature=0
+209.3s 95 fc2: young=28, learner=6, mature=0
+260.9s 96 
+260.9s 97 NICE context detector debug:
+260.9s 98 route_acc=100.00%
+260.9s 99 true episode counts: {0: 409691}
+260.9s 100 pred episode counts: {0: 409691}
+260.9s 101 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+260.9s 102 true 0 -> pred {0: 409691}
+260.9s 103 Metrics -> train_loss=0.9587, test_loss=0.1416, accuracy=97.57%, f1=44.68%, precision=49.37%, recall=42.14%, AF=N/A (final round only)
+260.9s 104 🔁 ROUND 3/19 [phase]
+260.9s 105 
+260.9s 106 NICE: Training 50 clients on 2 GPU(s)
+276.4s 107 [GPU 0] NICE: 25 clients done in 15.4s
+281.2s 108 [GPU 1] NICE: 25 clients done in 20.2s
+281.2s 109 NICE loss: 0.7176 (20.3s)
+281.2s 110 conv1: young=3, learner=61, mature=0
+281.2s 111 fc1: young=148, learner=108, mature=0
+281.2s 112 fc2: young=28, learner=6, mature=0
+332.5s 113 
+332.5s 114 NICE context detector debug:
+332.5s 115 route_acc=100.00%
+332.5s 116 true episode counts: {0: 409691}
+332.5s 117 pred episode counts: {0: 409691}
+332.5s 118 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+332.5s 119 true 0 -> pred {0: 409691}
+332.5s 120 Metrics -> train_loss=0.7176, test_loss=0.0922, accuracy=98.54%, f1=48.84%, precision=49.65%, recall=48.11%, AF=N/A (final round only)
+332.5s 121 🔁 ROUND 4/19 [phase]
+332.5s 122 
+332.5s 123 NICE: Training 50 clients on 2 GPU(s)
+348.1s 124 [GPU 0] NICE: 25 clients done in 15.5s
+353.0s 125 [GPU 1] NICE: 25 clients done in 20.4s
+353.0s 126 NICE loss: 0.6152 (20.5s)
+353.0s 127 conv1: young=3, learner=61, mature=0
+353.0s 128 fc1: young=148, learner=108, mature=0
+353.0s 129 fc2: young=28, learner=6, mature=0
+404.2s 130 
+404.2s 131 NICE context detector debug:
+404.2s 132 route_acc=100.00%
+404.2s 133 true episode counts: {0: 409691}
+404.2s 134 pred episode counts: {0: 409691}
+404.2s 135 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+404.2s 136 true 0 -> pred {0: 409691}
+404.2s 137 Metrics -> train_loss=0.6152, test_loss=0.0811, accuracy=98.70%, f1=49.20%, precision=49.64%, recall=48.79%, AF=N/A (final round only)
+404.2s 138 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_0_round_4.pt
+404.2s 139 🔁 ROUND 5/19 [phase]
+404.2s 140 
+404.2s 141 NICE: Training 50 clients on 2 GPU(s)
+420.0s 142 [GPU 0] NICE: 25 clients done in 15.7s
+424.8s 143 [GPU 1] NICE: 25 clients done in 20.5s
+424.8s 144 NICE loss: 0.5913 (20.6s)
+424.8s 145 conv1: young=3, learner=61, mature=0
+424.8s 146 fc1: young=148, learner=108, mature=0
+424.8s 147 fc2: young=28, learner=6, mature=0
+476.0s 148 
+476.0s 149 NICE context detector debug:
+476.0s 150 route_acc=100.00%
+476.0s 151 true episode counts: {0: 409691}
+476.0s 152 pred episode counts: {0: 409691}
+476.0s 153 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+476.0s 154 true 0 -> pred {0: 409691}
+476.0s 155 Metrics -> train_loss=0.5913, test_loss=0.0778, accuracy=98.78%, f1=49.46%, precision=49.53%, recall=49.39%, AF=N/A (final round only)
+476.0s 156 🔁 ROUND 6/19 [phase]
+476.0s 157 
+476.0s 158 NICE: Training 50 clients on 2 GPU(s)
+491.9s 159 [GPU 0] NICE: 25 clients done in 15.8s
+496.8s 160 [GPU 1] NICE: 25 clients done in 20.6s
+496.8s 161 NICE loss: 0.5595 (20.7s)
+496.8s 162 conv1: young=3, learner=61, mature=0
+496.8s 163 fc1: young=148, learner=108, mature=0
+496.8s 164 fc2: young=28, learner=6, mature=0
+547.9s 165 
+547.9s 166 NICE context detector debug:
+547.9s 167 route_acc=100.00%
+547.9s 168 true episode counts: {0: 409691}
+547.9s 169 pred episode counts: {0: 409691}
+547.9s 170 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+547.9s 171 true 0 -> pred {0: 409691}
+547.9s 172 Metrics -> train_loss=0.5595, test_loss=0.0760, accuracy=98.81%, f1=49.52%, precision=49.58%, recall=49.46%, AF=N/A (final round only)
+547.9s 173 🔁 ROUND 7/19 [phase]
+547.9s 174 
+547.9s 175 NICE: Training 50 clients on 2 GPU(s)
+563.2s 176 [GPU 0] NICE: 25 clients done in 15.3s
+568.1s 177 [GPU 1] NICE: 25 clients done in 20.1s
+568.1s 178 NICE loss: 0.5587 (20.2s)
+568.1s 179 conv1: young=3, learner=61, mature=0
+568.1s 180 fc1: young=148, learner=108, mature=0
+568.1s 181 fc2: young=28, learner=6, mature=0
+617.8s 182 
+617.8s 183 NICE context detector debug:
+617.8s 184 route_acc=100.00%
+617.8s 185 true episode counts: {0: 409691}
+617.8s 186 pred episode counts: {0: 409691}
+617.8s 187 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+617.8s 188 true 0 -> pred {0: 409691}
+617.8s 189 Metrics -> train_loss=0.5587, test_loss=0.0752, accuracy=98.83%, f1=49.52%, precision=49.54%, recall=49.51%, AF=N/A (final round only)
+617.8s 190 🔁 ROUND 8/19 [phase]
+617.8s 191 
+617.8s 192 NICE: Training 50 clients on 2 GPU(s)
+633.3s 193 [GPU 0] NICE: 25 clients done in 15.4s
+638.7s 194 [GPU 1] NICE: 25 clients done in 20.8s
+638.7s 195 NICE loss: 0.5550 (20.8s)
+638.7s 196 conv1: young=3, learner=61, mature=0
+638.7s 197 fc1: young=148, learner=108, mature=0
+638.7s 198 fc2: young=28, learner=6, mature=0
+689.9s 199 
+689.9s 200 NICE context detector debug:
+689.9s 201 route_acc=100.00%
+689.9s 202 true episode counts: {0: 409691}
+689.9s 203 pred episode counts: {0: 409691}
+689.9s 204 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+689.9s 205 true 0 -> pred {0: 409691}
+689.9s 206 Metrics -> train_loss=0.5550, test_loss=0.0746, accuracy=98.84%, f1=49.54%, precision=49.53%, recall=49.55%, AF=N/A (final round only)
+689.9s 207 🔁 ROUND 9/19 [phase]
+689.9s 208 
+689.9s 209 NICE: Training 50 clients on 2 GPU(s)
+705.7s 210 [GPU 0] NICE: 25 clients done in 15.7s
+711.2s 211 [GPU 1] NICE: 25 clients done in 21.1s
+711.2s 212 NICE loss: 0.5278 (21.2s)
+711.2s 213 conv1: young=3, learner=61, mature=0
+711.2s 214 fc1: young=149, learner=107, mature=0
+711.2s 215 fc2: young=28, learner=6, mature=0
+763.0s 216 
+763.0s 217 NICE context detector debug:
+763.0s 218 route_acc=100.00%
+763.0s 219 true episode counts: {0: 409691}
+763.0s 220 pred episode counts: {0: 409691}
+763.0s 221 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+763.0s 222 true 0 -> pred {0: 409691}
+763.0s 223 Metrics -> train_loss=0.5278, test_loss=0.0784, accuracy=98.84%, f1=49.58%, precision=49.62%, recall=49.55%, AF=N/A (final round only)
+763.0s 224 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_0_round_9.pt
+763.0s 225 🔁 ROUND 10/19 [phase]
+763.0s 226 
+763.0s 227 NICE: Training 50 clients on 2 GPU(s)
+779.5s 228 [GPU 0] NICE: 25 clients done in 16.4s
+785.0s 229 [GPU 1] NICE: 25 clients done in 21.9s
+785.0s 230 NICE loss: 0.5545 (22.0s)
+785.0s 231 conv1: young=3, learner=61, mature=0
+785.0s 232 fc1: young=149, learner=107, mature=0
+785.0s 233 fc2: young=28, learner=6, mature=0
+837.7s 234 
+837.7s 235 NICE context detector debug:
+837.7s 236 route_acc=100.00%
+837.7s 237 true episode counts: {0: 409691}
+837.7s 238 pred episode counts: {0: 409691}
+837.7s 239 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+837.7s 240 true 0 -> pred {0: 409691}
+837.7s 241 Metrics -> train_loss=0.5545, test_loss=0.0742, accuracy=98.85%, f1=49.57%, precision=49.55%, recall=49.58%, AF=N/A (final round only)
+837.7s 242 🔁 ROUND 11/19 [phase]
+837.7s 243 
+837.7s 244 NICE: Training 50 clients on 2 GPU(s)
+854.1s 245 [GPU 0] NICE: 25 clients done in 16.3s
+859.9s 246 [GPU 1] NICE: 25 clients done in 22.1s
+859.9s 247 NICE loss: 0.5468 (22.1s)
+859.9s 248 conv1: young=3, learner=61, mature=0
+859.9s 249 fc1: young=149, learner=107, mature=0
+859.9s 250 fc2: young=28, learner=6, mature=0
+911.4s 251 
+911.4s 252 NICE context detector debug:
+911.4s 253 route_acc=100.00%
+911.4s 254 true episode counts: {0: 409691}
+911.4s 255 pred episode counts: {0: 409691}
+911.4s 256 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+911.4s 257 true 0 -> pred {0: 409691}
+911.4s 258 Metrics -> train_loss=0.5468, test_loss=0.0756, accuracy=98.86%, f1=49.58%, precision=49.58%, recall=49.58%, AF=N/A (final round only)
+911.4s 259 🔁 ROUND 12/19 [phase]
+911.4s 260 
+911.4s 261 NICE: Training 50 clients on 2 GPU(s)
+927.5s 262 [GPU 0] NICE: 25 clients done in 16.0s
+933.3s 263 [GPU 1] NICE: 25 clients done in 21.9s
+933.3s 264 NICE loss: 0.5444 (21.9s)
+933.3s 265 conv1: young=3, learner=61, mature=0
+933.3s 266 fc1: young=149, learner=107, mature=0
+933.3s 267 fc2: young=28, learner=6, mature=0
+985.0s 268 
+985.0s 269 NICE context detector debug:
+985.0s 270 route_acc=100.00%
+985.0s 271 true episode counts: {0: 409691}
+985.0s 272 pred episode counts: {0: 409691}
+985.0s 273 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+985.0s 274 true 0 -> pred {0: 409691}
+985.0s 275 Metrics -> train_loss=0.5444, test_loss=0.0760, accuracy=98.86%, f1=49.57%, precision=49.54%, recall=49.60%, AF=N/A (final round only)
+985.0s 276 🔁 ROUND 13/19 [phase]
+985.0s 277 
+985.0s 278 NICE: Training 50 clients on 2 GPU(s)
+1000.7s 279 [GPU 0] NICE: 25 clients done in 15.7s
+1006.5s 280 [GPU 1] NICE: 25 clients done in 21.5s
+1006.5s 281 NICE loss: 0.5554 (21.6s)
+1006.5s 282 conv1: young=3, learner=61, mature=0
+1006.5s 283 fc1: young=149, learner=107, mature=0
+1006.5s 284 fc2: young=28, learner=6, mature=0
+1057.3s 285 
+1057.3s 286 NICE context detector debug:
+1057.3s 287 route_acc=100.00%
+1057.3s 288 true episode counts: {0: 409691}
+1057.3s 289 pred episode counts: {0: 409691}
+1057.3s 290 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1057.3s 291 true 0 -> pred {0: 409691}
+1057.3s 292 Metrics -> train_loss=0.5554, test_loss=0.0736, accuracy=98.87%, f1=49.58%, precision=49.56%, recall=49.61%, AF=N/A (final round only)
+1057.3s 293 🔁 ROUND 14/19 [phase]
+1057.3s 294 
+1057.3s 295 NICE: Training 50 clients on 2 GPU(s)
+1072.9s 296 [GPU 0] NICE: 25 clients done in 15.5s
+1078.7s 297 [GPU 1] NICE: 25 clients done in 21.3s
+1078.7s 298 NICE loss: 0.5467 (21.3s)
+1078.7s 299 conv1: young=3, learner=61, mature=0
+1078.7s 300 fc1: young=149, learner=107, mature=0
+1078.7s 301 fc2: young=28, learner=6, mature=0
+1129.9s 302 
+1129.9s 303 NICE context detector debug:
+1129.9s 304 route_acc=100.00%
+1129.9s 305 true episode counts: {0: 409691}
+1129.9s 306 pred episode counts: {0: 409691}
+1129.9s 307 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1129.9s 308 true 0 -> pred {0: 409691}
+1129.9s 309 Metrics -> train_loss=0.5467, test_loss=0.0743, accuracy=98.87%, f1=49.59%, precision=49.57%, recall=49.60%, AF=N/A (final round only)
+1129.9s 310 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_0_round_14.pt
+1129.9s 311 🔁 ROUND 15/19 [phase]
+1129.9s 312 
+1129.9s 313 NICE: Training 50 clients on 2 GPU(s)
+1145.5s 314 [GPU 0] NICE: 25 clients done in 15.5s
+1151.3s 315 [GPU 1] NICE: 25 clients done in 21.2s
+1151.3s 316 NICE loss: 0.5454 (21.3s)
+1151.3s 317 conv1: young=3, learner=61, mature=0
+1151.3s 318 fc1: young=150, learner=106, mature=0
+1151.3s 319 fc2: young=28, learner=6, mature=0
+1202.1s 320 
+1202.1s 321 NICE context detector debug:
+1202.1s 322 route_acc=100.00%
+1202.1s 323 true episode counts: {0: 409691}
+1202.1s 324 pred episode counts: {0: 409691}
+1202.1s 325 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1202.1s 326 true 0 -> pred {0: 409691}
+1202.1s 327 Metrics -> train_loss=0.5454, test_loss=0.0741, accuracy=98.87%, f1=49.56%, precision=49.50%, recall=49.63%, AF=N/A (final round only)
+1202.1s 328 🔁 ROUND 16/19 [phase]
+1202.1s 329 
+1202.1s 330 NICE: Training 50 clients on 2 GPU(s)
+1217.7s 331 [GPU 0] NICE: 25 clients done in 15.6s
+1223.6s 332 [GPU 1] NICE: 25 clients done in 21.5s
+1223.6s 333 NICE loss: 0.5450 (21.6s)
+1223.6s 334 conv1: young=3, learner=61, mature=0
+1223.6s 335 fc1: young=150, learner=106, mature=0
+1223.6s 336 fc2: young=28, learner=6, mature=0
+1274.4s 337 
+1274.4s 338 NICE context detector debug:
+1274.4s 339 route_acc=100.00%
+1274.4s 340 true episode counts: {0: 409691}
+1274.4s 341 pred episode counts: {0: 409691}
+1274.4s 342 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1274.4s 343 true 0 -> pred {0: 409691}
+1274.4s 344 Metrics -> train_loss=0.5450, test_loss=0.0747, accuracy=98.88%, f1=49.59%, precision=49.57%, recall=49.61%, AF=N/A (final round only)
+1274.4s 345 🔁 ROUND 17/19 [phase]
+1274.4s 346 
+1274.4s 347 NICE: Training 50 clients on 2 GPU(s)
+1290.3s 348 [GPU 0] NICE: 25 clients done in 15.9s
+1296.3s 349 [GPU 1] NICE: 25 clients done in 21.8s
+1296.3s 350 NICE loss: 0.5541 (21.9s)
+1296.3s 351 conv1: young=3, learner=61, mature=0
+1296.3s 352 fc1: young=150, learner=106, mature=0
+1296.3s 353 fc2: young=28, learner=6, mature=0
+1347.7s 354 
+1347.7s 355 NICE context detector debug:
+1347.7s 356 route_acc=100.00%
+1347.7s 357 true episode counts: {0: 409691}
+1347.7s 358 pred episode counts: {0: 409691}
+1347.7s 359 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1347.7s 360 true 0 -> pred {0: 409691}
+1347.7s 361 Metrics -> train_loss=0.5541, test_loss=0.0762, accuracy=98.88%, f1=49.60%, precision=49.59%, recall=49.61%, AF=N/A (final round only)
+1347.7s 362 🔁 ROUND 18/19 [phase]
+1347.7s 363 
+1347.7s 364 NICE: Training 50 clients on 2 GPU(s)
+1363.7s 365 [GPU 0] NICE: 25 clients done in 16.0s
+1369.6s 366 [GPU 1] NICE: 25 clients done in 21.9s
+1369.6s 367 NICE loss: 0.5666 (21.9s)
+1369.6s 368 conv1: young=3, learner=61, mature=0
+1369.6s 369 fc1: young=150, learner=106, mature=0
+1369.6s 370 fc2: young=28, learner=6, mature=0
+1420.6s 371 
+1420.6s 372 NICE context detector debug:
+1420.6s 373 route_acc=100.00%
+1420.6s 374 true episode counts: {0: 409691}
+1420.6s 375 pred episode counts: {0: 409691}
+1420.6s 376 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1420.6s 377 true 0 -> pred {0: 409691}
+1420.6s 378 Metrics -> train_loss=0.5666, test_loss=0.0769, accuracy=98.88%, f1=49.59%, precision=49.55%, recall=49.62%, AF=N/A (final round only)
+1420.6s 379 🔁 ROUND 19/19 [phase]
+1420.6s 380 
+1420.6s 381 NICE: Training 50 clients on 2 GPU(s)
+1437.0s 382 [GPU 0] NICE: 25 clients done in 16.4s
+1442.7s 383 [GPU 1] NICE: 25 clients done in 22.1s
+1442.7s 384 NICE loss: 0.5794 (22.1s)
+1442.7s 385 conv1: young=3, learner=61, mature=0
+1442.7s 386 fc1: young=150, learner=106, mature=0
+1442.7s 387 fc2: young=28, learner=6, mature=0
+1493.4s 388 
+1493.4s 389 NICE context detector debug:
+1493.4s 390 route_acc=100.00%
+1493.4s 391 true episode counts: {0: 409691}
+1493.4s 392 pred episode counts: {0: 409691}
+1493.4s 393 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1493.4s 394 true 0 -> pred {0: 409691}
+1493.4s 395 🔍 Computing Forgetting...
+1544.4s 396 
+1544.4s 397 NICE context detector debug:
+1544.4s 398 route_acc=100.00%
+1544.4s 399 true episode counts: {0: 409691}
+1544.4s 400 pred episode counts: {0: 409691}
+1544.4s 401 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1544.4s 402 true 0 -> pred {0: 409691}
+1544.4s 403 Avg Forgetting: 0.00%
+1544.4s 404 Metrics -> train_loss=0.5794, test_loss=0.0747, accuracy=98.89%, f1=49.60%, precision=49.56%, recall=49.64%, AF=0.00%
+1544.4s 405 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_0_round_19.pt
+1544.4s 406 
+1544.4s 407 NICE end_task(0):
+1544.4s 408 Context detector: 0 models trained
+1544.4s 409 conv1: young=3, learner=0, mature=61
+1544.4s 410 conv2: young=24, learner=0, mature=104
+1544.4s 411 conv3: young=27, learner=0, mature=229
+1544.4s 412 gru: young=17, learner=0, mature=83
+1544.4s 413 fc1: young=150, learner=0, mature=106
+1544.4s 414 fc2: young=28, learner=0, mature=6
+1544.4s 415 
+1544.4s 416 📊 Evaluation:
+1595.4s 417 
+1595.4s 418 NICE context detector debug:
+1595.4s 419 route_acc=100.00%
+1595.4s 420 true episode counts: {0: 409691}
+1595.4s 421 pred episode counts: {0: 409691}
+1595.4s 422 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1595.4s 423 true 0 -> pred {0: 409691}
+1595.4s 424 ✅ Task summary -> accuracy=98.89%, f1=49.60%, precision=49.56%, recall=49.64%
+1595.4s 425 
+1595.4s 426 🎨 Visualization & Debugging:
+1595.4s 427 🔍 Unique predicted classes: [np.int64(1), np.int64(4), np.int64(5), np.int64(19)]
+1595.4s 428 DEBUG[2]: Output layer weight norms per class:
+1595.4s 429 Class 0: 0.0811
+1595.4s 430 Class 1: 0.1365
+1595.4s 431 Class 2: 0.0869
+1595.4s 432 Class 3: 0.1131
+1595.4s 433 Class 4: 0.2690
+1595.4s 434 Class 5: 0.3000
+1595.4s 435 DEBUG[7]: Mean prediction probability per class:
+1595.4s 436 Class 0: 0.000352
+1595.4s 437 Class 1: 0.593885
+1595.4s 438 Class 2: 0.000522
+1595.4s 439 Class 3: 0.000050
+1595.4s 440 Class 4: 0.148742
+1595.4s 441 Class 5: 0.013009
+1595.6s 442 /tmp/FL_IL_IDS/fed_learning/visualization/metrics.py:54: RuntimeWarning: invalid value encountered in divide
+1595.6s 443 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+1595.6s 444 
+1595.6s 445 /tmp/FL_IL_IDS/fed_learning/visualization/metrics.py:54: RuntimeWarning: invalid value encountered in divide
+1595.6s 446 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+1597.4s 447 📊 Saved: ./results_incremental_nice_20260520_183039/plots/task_0/confusion_matrix.png & ./results_incremental_nice_20260520_183039/plots/task_0/confusion_matrix.pdf
+1598.1s 448 📊 Saved: ./results_incremental_nice_20260520_183039/plots/task_0/per_class_metrics.png & ./results_incremental_nice_20260520_183039/plots/task_0/per_class_metrics.pdf
+1598.1s 449 📸 Saved plots to ./results_incremental_nice_20260520_183039/plots/task_0
+1598.1s 450 🔍 Computing Forgetting...
+1649.5s 451 
+1649.5s 452 NICE context detector debug:
+1649.5s 453 route_acc=100.00%
+1649.5s 454 true episode counts: {0: 409691}
+1649.5s 455 pred episode counts: {0: 409691}
+1649.5s 456 confidence max(chain_probs): q10=1.0000, q50=1.0000, q90=1.0000
+1649.5s 457 true 0 -> pred {0: 409691}
+1649.5s 458 Avg Forgetting: 0.00%
+1649.5s 459 💾 Checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_0.pt
+1649.5s 460 
+1649.5s 461 📊 Generating FCIL Visualization Report...
+1650.0s 462 📊 Saved: ./results_incremental_nice_20260520_183039/fcil_plots/task_accuracy_heatmap.png & ./results_incremental_nice_20260520_183039/fcil_plots/task_accuracy_heatmap.pdf
+1650.2s 463 📊 Saved: ./results_incremental_nice_20260520_183039/fcil_plots/incremental_accuracy.png & ./results_incremental_nice_20260520_183039/fcil_plots/incremental_accuracy.pdf
+1650.2s 464 
+1650.2s 465 📈 FCIL Metrics:
+1650.2s 466 • Final AIA: 98.89%
+1650.2s 467 • Avg Forgetting: N/A
+1650.2s 468 ✅ FCIL report saved to: ./results_incremental_nice_20260520_183039/fcil_plots
+1650.2s 469 
+1650.2s 470 ================================================================================
+1650.2s 471 📚 TASK 1/5
+1650.2s 472 ================================================================================
+1665.0s 473 Clients with data: 60
+1666.7s 474 Restored neuron ages from previous task
+1666.7s 475 
+1666.7s 476 📌 Task 1: classes [6, 7, 8, 9, 10, 11]
+1666.7s 477 Total seen classes: 12
+1666.7s 478 NICE: Task 1 | new classes: [6, 7, 8, 9, 10, 11]
+1666.7s 479 NICE: Output neuron ages (fc2): learner=6, mature=6, young=22
+1666.7s 480 
+1666.7s 481 🎯 Training on 6 new classes...
+1666.7s 482 
+1666.7s 483 === NICE Training (20 phases) ===
+1666.7s 484 NICE local schedule: 20 phases x 1 epochs = 20 local epochs/client
+1666.7s 485 🔁 ROUND 0/19 [phase]
+1666.7s 486 
+1666.7s 487 NICE: Training 60 clients on 2 GPU(s)
+1804.7s 488 [GPU 0] NICE: 30 clients done in 137.9s
+1827.8s 489 [GPU 1] NICE: 30 clients done in 161.1s
+1827.8s 490 NICE loss: 2.6778 (161.2s)
+1827.8s 491 conv1: young=0, learner=3, mature=61
+1827.8s 492 fc1: young=0, learner=150, mature=106
+1827.8s 493 fc2: young=22, learner=6, mature=6
+2720.2s 494 
+2720.2s 495 NICE context detector debug:
+2720.2s 496 route_acc=99.69%
+2720.2s 497 true episode counts: {0: 409691, 1: 5576297}
+2720.2s 498 pred episode counts: {0: 418281, 1: 5567707}
+2720.2s 499 confidence max(chain_probs): q10=0.9940, q50=0.9992, q90=0.9997
+2720.4s 500 true 0 -> pred {0: 404815, 1: 4876}
+2720.4s 501 true 1 -> pred {0: 13466, 1: 5562831}
+2722.6s 502 Metrics -> train_loss=2.6778, test_loss=1.0617, accuracy=97.37%, f1=60.60%, precision=59.80%, recall=61.94%, AF=N/A (final round only)
+2722.6s 503 🔁 ROUND 1/19 [phase]
+2722.6s 504 
+2722.6s 505 NICE: Training 60 clients on 2 GPU(s)
+2856.3s 506 [GPU 0] NICE: 30 clients done in 133.7s
+2885.9s 507 [GPU 1] NICE: 30 clients done in 163.3s
+2885.9s 508 NICE loss: 0.1177 (163.4s)
+2885.9s 509 conv1: young=0, learner=3, mature=61
+2885.9s 510 fc1: young=129, learner=21, mature=106
+2885.9s 511 fc2: young=22, learner=6, mature=6
+3762.0s 512 
+3762.0s 513 NICE context detector debug:
+3762.0s 514 route_acc=99.78%
+3762.0s 515 true episode counts: {0: 409691, 1: 5576297}
+3762.0s 516 pred episode counts: {0: 405463, 1: 5580525}
+3762.0s 517 confidence max(chain_probs): q10=0.9944, q50=0.9985, q90=0.9998
+3762.2s 518 true 0 -> pred {0: 401081, 1: 8610}
+3762.2s 519 true 1 -> pred {0: 4382, 1: 5571915}
+3764.4s 520 Metrics -> train_loss=0.1177, test_loss=0.3453, accuracy=99.38%, f1=61.74%, precision=63.88%, recall=60.74%, AF=N/A (final round only)
+3764.4s 521 🔁 ROUND 2/19 [phase]
+3764.4s 522 
+3764.4s 523 NICE: Training 60 clients on 2 GPU(s)
+3897.8s 524 [GPU 0] NICE: 30 clients done in 133.4s
+3927.3s 525 [GPU 1] NICE: 30 clients done in 162.9s
+3927.3s 526 NICE loss: 0.0255 (163.0s)
+3927.3s 527 conv1: young=0, learner=3, mature=61
+3927.3s 528 fc1: young=129, learner=21, mature=106
+3927.3s 529 fc2: young=22, learner=6, mature=6
+4798.2s 530 
+4798.2s 531 NICE context detector debug:
+4798.2s 532 route_acc=99.67%
+4798.2s 533 true episode counts: {0: 409691, 1: 5576297}
+4798.2s 534 pred episode counts: {0: 405478, 1: 5580510}
+4798.2s 535 confidence max(chain_probs): q10=0.9951, q50=0.9990, q90=0.9996
+4798.2s 536 true 0 -> pred {0: 397800, 1: 11891}
+4798.5s 537 true 1 -> pred {0: 7678, 1: 5568619}
+4800.6s 538 Metrics -> train_loss=0.0255, test_loss=0.3546, accuracy=99.38%, f1=59.28%, precision=62.60%, recall=58.63%, AF=N/A (final round only)
+4800.6s 539 🔁 ROUND 3/19 [phase]
+4800.6s 540 
+4800.6s 541 NICE: Training 60 clients on 2 GPU(s)
+4936.9s 542 [GPU 0] NICE: 30 clients done in 136.3s
+4963.5s 543 [GPU 1] NICE: 30 clients done in 163.0s
+4963.5s 544 NICE loss: 0.0161 (163.1s)
+4963.5s 545 conv1: young=0, learner=3, mature=61
+4963.5s 546 fc1: young=129, learner=21, mature=106
+4963.5s 547 fc2: young=22, learner=6, mature=6
+5849.4s 548 
+5849.4s 549 NICE context detector debug:
+5849.4s 550 route_acc=98.68%
+5849.4s 551 true episode counts: {0: 409691, 1: 5576297}
+5849.4s 552 pred episode counts: {0: 338626, 1: 5647362}
+5849.4s 553 confidence max(chain_probs): q10=0.9953, q50=0.9983, q90=0.9997
+5849.4s 554 true 0 -> pred {0: 334754, 1: 74937}
+5849.6s 555 true 1 -> pred {0: 3872, 1: 5572425}
+5851.8s 556 Metrics -> train_loss=0.0161, test_loss=0.3343, accuracy=98.40%, f1=52.24%, precision=60.98%, recall=52.32%, AF=N/A (final round only)
+5851.8s 557 🔁 ROUND 4/19 [phase]
+5851.8s 558 
+5851.8s 559 NICE: Training 60 clients on 2 GPU(s)
+5985.3s 560 [GPU 0] NICE: 30 clients done in 133.5s
+6013.6s 561 [GPU 1] NICE: 30 clients done in 161.8s
+6013.6s 562 NICE loss: 0.0129 (161.9s)
+6013.6s 563 conv1: young=0, learner=3, mature=61
+6013.6s 564 fc1: young=129, learner=21, mature=106
+6013.6s 565 fc2: young=22, learner=6, mature=6
+6868.2s 566 
+6868.2s 567 NICE context detector debug:
+6868.2s 568 route_acc=98.99%
+6868.2s 569 true episode counts: {0: 409691, 1: 5576297}
+6868.2s 570 pred episode counts: {0: 359073, 1: 5626915}
+6868.2s 571 confidence max(chain_probs): q10=0.9951, q50=0.9985, q90=0.9997
+6868.2s 572 true 0 -> pred {0: 354274, 1: 55417}
+6868.4s 573 true 1 -> pred {0: 4799, 1: 5571498}
+6870.5s 574 Metrics -> train_loss=0.0129, test_loss=0.3104, accuracy=98.76%, f1=58.79%, precision=64.26%, recall=57.70%, AF=N/A (final round only)
+6870.5s 575 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_1_round_4.pt
+6870.5s 576 🔁 ROUND 5/19 [phase]
+6870.5s 577 
+6870.5s 578 NICE: Training 60 clients on 2 GPU(s)
+7003.3s 579 [GPU 0] NICE: 30 clients done in 132.8s
+7030.8s 580 [GPU 1] NICE: 30 clients done in 160.3s
+7030.8s 581 NICE loss: 0.0109 (160.4s)
+7030.8s 582 conv1: young=0, learner=3, mature=61
+7030.8s 583 fc1: young=129, learner=21, mature=106
+7030.8s 584 fc2: young=22, learner=6, mature=6
+7916.4s 585 
+7916.4s 586 NICE context detector debug:
+7916.4s 587 route_acc=98.43%
+7916.4s 588 true episode counts: {0: 409691, 1: 5576297}
+7916.4s 589 pred episode counts: {0: 328345, 1: 5657643}
+7916.4s 590 confidence max(chain_probs): q10=0.9942, q50=0.9983, q90=0.9996
+7916.7s 591 true 0 -> pred {0: 322114, 1: 87577}
+7916.7s 592 true 1 -> pred {0: 6231, 1: 5570066}
+7918.9s 593 Metrics -> train_loss=0.0109, test_loss=0.2909, accuracy=98.23%, f1=52.19%, precision=55.81%, recall=54.43%, AF=N/A (final round only)
+7918.9s 594 🔁 ROUND 6/19 [phase]
+7918.9s 595 
+7918.9s 596 NICE: Training 60 clients on 2 GPU(s)
+8052.1s 597 [GPU 0] NICE: 30 clients done in 133.2s
+8081.2s 598 [GPU 1] NICE: 30 clients done in 162.3s
+8081.2s 599 NICE loss: 0.0102 (162.5s)
+8081.2s 600 conv1: young=0, learner=3, mature=61
+8081.2s 601 fc1: young=129, learner=21, mature=106
+8081.2s 602 fc2: young=22, learner=6, mature=6
+8927.8s 603 
+8927.8s 604 NICE context detector debug:
+8927.8s 605 route_acc=98.87%
+8927.8s 606 true episode counts: {0: 409691, 1: 5576297}
+8927.8s 607 pred episode counts: {0: 351806, 1: 5634182}
+8927.8s 608 confidence max(chain_probs): q10=0.9914, q50=0.9982, q90=0.9995
+8928.0s 609 true 0 -> pred {0: 346833, 1: 62858}
+8928.0s 610 true 1 -> pred {0: 4973, 1: 5571324}
+8930.1s 611 Metrics -> train_loss=0.0102, test_loss=0.2641, accuracy=98.66%, f1=58.00%, precision=64.90%, recall=57.78%, AF=N/A (final round only)
+8930.1s 612 🔁 ROUND 7/19 [phase]
+8930.1s 613 
+8930.1s 614 NICE: Training 60 clients on 2 GPU(s)
+9068.2s 615 [GPU 0] NICE: 30 clients done in 138.1s
+9092.1s 616 [GPU 1] NICE: 30 clients done in 162.0s
+9092.1s 617 NICE loss: 0.0101 (162.1s)
+9092.1s 618 conv1: young=0, learner=3, mature=61
+9092.1s 619 fc1: young=129, learner=21, mature=106
+9092.1s 620 fc2: young=22, learner=6, mature=6
+9941.1s 621 
+9941.1s 622 NICE context detector debug:
+9941.1s 623 route_acc=98.46%
+9941.1s 624 true episode counts: {0: 409691, 1: 5576297}
+9941.1s 625 pred episode counts: {0: 326464, 1: 5659524}
+9941.1s 626 confidence max(chain_probs): q10=0.9926, q50=0.9982, q90=0.9994
+9941.4s 627 true 0 -> pred {0: 321969, 1: 87722}
+9941.4s 628 true 1 -> pred {0: 4495, 1: 5571802}
+9943.5s 629 Metrics -> train_loss=0.0101, test_loss=0.2411, accuracy=98.25%, f1=53.51%, precision=60.66%, recall=55.19%, AF=N/A (final round only)
+9943.5s 630 🔁 ROUND 8/19 [phase]
+9943.5s 631 
+9943.5s 632 NICE: Training 60 clients on 2 GPU(s)
+10075.8s 633 [GPU 0] NICE: 30 clients done in 132.3s
+10104.8s 634 [GPU 1] NICE: 30 clients done in 161.3s
+10104.8s 635 NICE loss: 0.0097 (161.4s)
+10104.8s 636 conv1: young=0, learner=3, mature=61
+10104.8s 637 fc1: young=129, learner=21, mature=106
+10104.8s 638 fc2: young=22, learner=6, mature=6
+10929.9s 639 
+10929.9s 640 NICE context detector debug:
+10929.9s 641 route_acc=98.47%
+10929.9s 642 true episode counts: {0: 409691, 1: 5576297}
+10929.9s 643 pred episode counts: {0: 336587, 1: 5649401}
+10929.9s 644 confidence max(chain_probs): q10=0.9938, q50=0.9984, q90=0.9993
+10930.1s 645 true 0 -> pred {0: 327487, 1: 82204}
+10930.1s 646 true 1 -> pred {0: 9100, 1: 5567197}
+10932.3s 647 Metrics -> train_loss=0.0097, test_loss=0.2077, accuracy=98.28%, f1=56.89%, precision=62.60%, recall=57.52%, AF=N/A (final round only)
+10932.3s 648 🔁 ROUND 9/19 [phase]
+10932.3s 649 
+10932.3s 650 NICE: Training 60 clients on 2 GPU(s)
+11066.0s 651 [GPU 0] NICE: 30 clients done in 133.7s
+11093.1s 652 [GPU 1] NICE: 30 clients done in 160.8s
+11093.1s 653 NICE loss: 0.0095 (160.9s)
+11093.1s 654 conv1: young=0, learner=3, mature=61
+11093.1s 655 fc1: young=129, learner=21, mature=106
+11093.1s 656 fc2: young=22, learner=6, mature=6
+12003.4s 657 
+12003.4s 658 NICE context detector debug:
+12003.4s 659 route_acc=98.53%
+12003.4s 660 true episode counts: {0: 409691, 1: 5576297}
+12003.4s 661 pred episode counts: {0: 333072, 1: 5652916}
+12003.4s 662 confidence max(chain_probs): q10=0.9935, q50=0.9984, q90=0.9994
+12003.6s 663 true 0 -> pred {0: 327406, 1: 82285}
+12003.6s 664 true 1 -> pred {0: 5666, 1: 5570631}
+12006.1s 665 Metrics -> train_loss=0.0095, test_loss=0.1766, accuracy=98.33%, f1=55.40%, precision=63.34%, recall=56.57%, AF=N/A (final round only)
+12006.1s 666 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_1_round_9.pt
+12006.1s 667 🔁 ROUND 10/19 [phase]
+12006.1s 668 
+12006.1s 669 NICE: Training 60 clients on 2 GPU(s)
+12144.4s 670 [GPU 0] NICE: 30 clients done in 138.2s
+12167.0s 671 [GPU 1] NICE: 30 clients done in 160.8s
+12167.0s 672 NICE loss: 0.0095 (161.0s)
+12167.0s 673 conv1: young=0, learner=3, mature=61
+12167.0s 674 fc1: young=129, learner=21, mature=106
+12167.0s 675 fc2: young=22, learner=6, mature=6
+13106.5s 676 
+13106.5s 677 NICE context detector debug:
+13106.5s 678 route_acc=99.24%
+13106.5s 679 true episode counts: {0: 409691, 1: 5576297}
+13106.5s 680 pred episode counts: {0: 374009, 1: 5611979}
+13106.5s 681 confidence max(chain_probs): q10=0.9928, q50=0.9981, q90=0.9996
+13106.7s 682 true 0 -> pred {0: 369231, 1: 40460}
+13106.7s 683 true 1 -> pred {0: 4778, 1: 5571519}
+13109.1s 684 Metrics -> train_loss=0.0095, test_loss=0.1477, accuracy=99.04%, f1=61.80%, precision=65.98%, recall=61.16%, AF=N/A (final round only)
+13109.1s 685 🔁 ROUND 11/19 [phase]
+13109.1s 686 
+13109.1s 687 NICE: Training 60 clients on 2 GPU(s)
+13246.0s 688 [GPU 0] NICE: 30 clients done in 136.9s
+13268.8s 689 [GPU 1] NICE: 30 clients done in 159.6s
+13268.8s 690 NICE loss: 0.0093 (159.8s)
+13268.8s 691 conv1: young=0, learner=3, mature=61
+13268.8s 692 fc1: young=129, learner=21, mature=106
+13268.8s 693 fc2: young=22, learner=6, mature=6
+14220.0s 694 
+14220.0s 695 NICE context detector debug:
+14220.0s 696 route_acc=99.26%
+14220.0s 697 true episode counts: {0: 409691, 1: 5576297}
+14220.0s 698 pred episode counts: {0: 370792, 1: 5615196}
+14220.0s 699 confidence max(chain_probs): q10=0.9920, q50=0.9980, q90=0.9996
+14220.2s 700 true 0 -> pred {0: 368010, 1: 41681}
+14220.2s 701 true 1 -> pred {0: 2782, 1: 5573515}
+14222.7s 702 Metrics -> train_loss=0.0093, test_loss=0.1389, accuracy=99.06%, f1=61.40%, precision=66.59%, recall=60.97%, AF=N/A (final round only)
+14222.7s 703 🔁 ROUND 12/19 [phase]
+14222.7s 704 
+14222.7s 705 NICE: Training 60 clients on 2 GPU(s)
+14359.9s 706 [GPU 0] NICE: 30 clients done in 137.2s
+14382.7s 707 [GPU 1] NICE: 30 clients done in 160.0s
+14382.7s 708 NICE loss: 0.0093 (160.1s)
+14382.7s 709 conv1: young=0, learner=3, mature=61
+14382.7s 710 fc1: young=130, learner=20, mature=106
+14382.7s 711 fc2: young=22, learner=6, mature=6
+15331.6s 712 
+15331.6s 713 NICE context detector debug:
+15331.6s 714 route_acc=98.79%
+15331.6s 715 true episode counts: {0: 409691, 1: 5576297}
+15331.6s 716 pred episode counts: {0: 353672, 1: 5632316}
+15331.6s 717 confidence max(chain_probs): q10=0.9915, q50=0.9976, q90=0.9997
+15331.9s 718 true 0 -> pred {0: 345544, 1: 64147}
+15331.9s 719 true 1 -> pred {0: 8128, 1: 5568169}
+15334.4s 720 Metrics -> train_loss=0.0093, test_loss=0.1416, accuracy=98.60%, f1=58.64%, precision=63.49%, recall=58.78%, AF=N/A (final round only)
+15334.4s 721 🔁 ROUND 13/19 [phase]
+15334.4s 722 
+15334.4s 723 NICE: Training 60 clients on 2 GPU(s)
+15471.0s 724 [GPU 0] NICE: 30 clients done in 136.6s
+15494.3s 725 [GPU 1] NICE: 30 clients done in 159.9s
+15494.3s 726 NICE loss: 0.0092 (160.0s)
+15494.3s 727 conv1: young=0, learner=3, mature=61
+15494.3s 728 fc1: young=130, learner=20, mature=106
+15494.3s 729 fc2: young=22, learner=6, mature=6
+16367.6s 730 
+16367.6s 731 NICE context detector debug:
+16367.6s 732 route_acc=98.89%
+16367.6s 733 true episode counts: {0: 409691, 1: 5576297}
+16367.6s 734 pred episode counts: {0: 352817, 1: 5633171}
+16367.6s 735 confidence max(chain_probs): q10=0.9927, q50=0.9981, q90=0.9993
+16367.8s 736 true 0 -> pred {0: 348111, 1: 61580}
+16367.8s 737 true 1 -> pred {0: 4706, 1: 5571591}
+16370.0s 738 Metrics -> train_loss=0.0092, test_loss=0.1267, accuracy=98.70%, f1=59.90%, precision=64.93%, recall=59.59%, AF=N/A (final round only)
+16370.0s 739 🔁 ROUND 14/19 [phase]
+16370.0s 740 
+16370.0s 741 NICE: Training 60 clients on 2 GPU(s)
+16503.5s 742 [GPU 0] NICE: 30 clients done in 133.5s
+16529.7s 743 [GPU 1] NICE: 30 clients done in 159.8s
+16529.7s 744 NICE loss: 0.0090 (159.9s)
+16529.7s 745 conv1: young=0, learner=3, mature=61
+16529.7s 746 fc1: young=130, learner=20, mature=106
+16529.7s 747 fc2: young=22, learner=6, mature=6
+17355.6s 748 
+17355.6s 749 NICE context detector debug:
+17355.6s 750 route_acc=98.72%
+17355.6s 751 true episode counts: {0: 409691, 1: 5576297}
+17355.6s 752 pred episode counts: {0: 350752, 1: 5635236}
+17355.6s 753 confidence max(chain_probs): q10=0.9911, q50=0.9980, q90=0.9991
+17355.8s 754 true 0 -> pred {0: 342040, 1: 67651}
+17355.8s 755 true 1 -> pred {0: 8712, 1: 5567585}
+17358.0s 756 Metrics -> train_loss=0.0090, test_loss=0.1068, accuracy=98.53%, f1=58.62%, precision=62.00%, recall=59.12%, AF=N/A (final round only)
+17358.0s 757 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_1_round_14.pt
+17358.0s 758 🔁 ROUND 15/19 [phase]
+17358.0s 759 
+17358.0s 760 NICE: Training 60 clients on 2 GPU(s)
+17491.1s 761 [GPU 0] NICE: 30 clients done in 133.1s
+17519.6s 762 [GPU 1] NICE: 30 clients done in 161.6s
+17519.6s 763 NICE loss: 0.0089 (161.7s)
+17519.6s 764 conv1: young=0, learner=3, mature=61
+17519.6s 765 fc1: young=130, learner=20, mature=106
+17519.6s 766 fc2: young=22, learner=6, mature=6
+18347.5s 767 
+18347.5s 768 NICE context detector debug:
+18347.5s 769 route_acc=98.91%
+18347.5s 770 true episode counts: {0: 409691, 1: 5576297}
+18347.5s 771 pred episode counts: {0: 376205, 1: 5609783}
+18347.5s 772 confidence max(chain_probs): q10=0.9922, q50=0.9979, q90=0.9994
+18347.7s 773 true 0 -> pred {0: 360184, 1: 49507}
+18347.7s 774 true 1 -> pred {0: 16021, 1: 5560276}
+18349.8s 775 Metrics -> train_loss=0.0089, test_loss=0.1038, accuracy=98.71%, f1=62.01%, precision=63.40%, recall=62.45%, AF=N/A (final round only)
+18349.8s 776 🔁 ROUND 16/19 [phase]
+18349.8s 777 
+18349.8s 778 NICE: Training 60 clients on 2 GPU(s)
+18482.4s 779 [GPU 0] NICE: 30 clients done in 132.5s
+18509.3s 780 [GPU 1] NICE: 30 clients done in 159.4s
+18509.3s 781 NICE loss: 0.0089 (159.6s)
+18509.3s 782 conv1: young=0, learner=3, mature=61
+18509.3s 783 fc1: young=130, learner=20, mature=106
+18509.3s 784 fc2: young=22, learner=6, mature=6
+19337.3s 785 
+19337.3s 786 NICE context detector debug:
+19337.3s 787 route_acc=99.03%
+19337.3s 788 true episode counts: {0: 409691, 1: 5576297}
+19337.3s 789 pred episode counts: {0: 377916, 1: 5608072}
+19337.3s 790 confidence max(chain_probs): q10=0.9911, q50=0.9981, q90=0.9993
+19337.5s 791 true 0 -> pred {0: 364695, 1: 44996}
+19337.5s 792 true 1 -> pred {0: 13221, 1: 5563076}
+19339.6s 793 Metrics -> train_loss=0.0089, test_loss=0.0993, accuracy=98.84%, f1=63.15%, precision=64.55%, recall=63.06%, AF=N/A (final round only)
+19339.6s 794 🔁 ROUND 17/19 [phase]
+19339.6s 795 
+19339.6s 796 NICE: Training 60 clients on 2 GPU(s)
+19476.1s 797 [GPU 0] NICE: 30 clients done in 136.5s
+19498.5s 798 [GPU 1] NICE: 30 clients done in 158.9s
+19498.5s 799 NICE loss: 0.0087 (159.0s)
+19498.5s 800 conv1: young=0, learner=3, mature=61
+19498.5s 801 fc1: young=130, learner=20, mature=106
+19498.5s 802 fc2: young=22, learner=6, mature=6
+20382.4s 803 
+20382.4s 804 NICE context detector debug:
+20382.4s 805 route_acc=98.84%
+20382.4s 806 true episode counts: {0: 409691, 1: 5576297}
+20382.4s 807 pred episode counts: {0: 367987, 1: 5618001}
+20382.4s 808 confidence max(chain_probs): q10=0.9917, q50=0.9977, q90=0.9992
+20382.6s 809 true 0 -> pred {0: 354067, 1: 55624}
+20382.6s 810 true 1 -> pred {0: 13920, 1: 5562377}
+20384.8s 811 Metrics -> train_loss=0.0087, test_loss=0.0985, accuracy=98.64%, f1=62.06%, precision=64.50%, recall=61.87%, AF=N/A (final round only)
+20384.8s 812 🔁 ROUND 18/19 [phase]
+20384.8s 813 
+20384.8s 814 NICE: Training 60 clients on 2 GPU(s)
+20519.0s 815 [GPU 0] NICE: 30 clients done in 134.2s
+20540.2s 816 [GPU 1] NICE: 30 clients done in 155.4s
+20540.2s 817 NICE loss: 0.0086 (155.6s)
+20540.2s 818 conv1: young=0, learner=3, mature=61
+20540.2s 819 fc1: young=130, learner=20, mature=106
+20540.2s 820 fc2: young=22, learner=6, mature=6
+21404.1s 821 
+21404.1s 822 NICE context detector debug:
+21404.1s 823 route_acc=99.44%
+21404.1s 824 true episode counts: {0: 409691, 1: 5576297}
+21404.1s 825 pred episode counts: {0: 402267, 1: 5583721}
+21404.1s 826 confidence max(chain_probs): q10=0.9929, q50=0.9978, q90=0.9994
+21404.3s 827 true 0 -> pred {0: 389197, 1: 20494}
+21404.3s 828 true 1 -> pred {0: 13070, 1: 5563227}
+21406.5s 829 Metrics -> train_loss=0.0086, test_loss=0.0971, accuracy=99.25%, f1=65.37%, precision=65.60%, recall=65.41%, AF=N/A (final round only)
+21406.5s 830 🔁 ROUND 19/19 [phase]
+21406.5s 831 
+21406.5s 832 NICE: Training 60 clients on 2 GPU(s)
+21540.1s 833 [GPU 0] NICE: 30 clients done in 133.6s
+21569.0s 834 [GPU 1] NICE: 30 clients done in 162.5s
+21569.0s 835 NICE loss: 0.0085 (162.6s)
+21569.0s 836 conv1: young=0, learner=3, mature=61
+21569.0s 837 fc1: young=130, learner=20, mature=106
+21569.0s 838 fc2: young=22, learner=6, mature=6
+22434.5s 839 
+22434.5s 840 NICE context detector debug:
+22434.5s 841 route_acc=99.45%
+22434.5s 842 true episode counts: {0: 409691, 1: 5576297}
+22434.5s 843 pred episode counts: {0: 412055, 1: 5573933}
+22434.5s 844 confidence max(chain_probs): q10=0.9933, q50=0.9982, q90=0.9998
+22434.7s 845 true 0 -> pred {0: 394298, 1: 15393}
+22434.7s 846 true 1 -> pred {0: 17757, 1: 5558540}
+22437.0s 847 🔍 Computing Forgetting...
+22495.9s 848 
+22495.9s 849 NICE context detector debug:
+22495.9s 850 route_acc=96.24%
+22495.9s 851 true episode counts: {0: 409691}
+22495.9s 852 pred episode counts: {0: 394298, 1: 15393}
+22495.9s 853 confidence max(chain_probs): q10=0.6762, q50=0.9989, q90=1.0000
+22495.9s 854 true 0 -> pred {0: 394298, 1: 15393}
+23357.9s 855 
+23357.9s 856 NICE context detector debug:
+23357.9s 857 route_acc=99.45%
+23357.9s 858 true episode counts: {0: 409691, 1: 5576297}
+23357.9s 859 pred episode counts: {0: 412055, 1: 5573933}
+23357.9s 860 confidence max(chain_probs): q10=0.9933, q50=0.9982, q90=0.9998
+23358.1s 861 true 0 -> pred {0: 394298, 1: 15393}
+23358.1s 862 true 1 -> pred {0: 17757, 1: 5558540}
+23360.4s 863 Per-task old accuracy -> T0: current=95.21%, best=98.89%
+23360.4s 864 Avg Forgetting: 3.69%
+23360.4s 865 Metrics -> train_loss=0.0085, test_loss=0.0775, accuracy=99.26%, f1=65.42%, precision=65.57%, recall=65.34%, AF=3.69%
+23360.4s 866 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_1_round_19.pt
+23360.4s 867 
+23360.4s 868 NICE end_task(1):
+23360.4s 869 Context detector: 1 models trained
+23360.4s 870 conv1: young=0, learner=0, mature=64
+23360.4s 871 conv2: young=1, learner=0, mature=127
+23360.4s 872 conv3: young=0, learner=0, mature=256
+23360.4s 873 gru: young=1, learner=0, mature=99
+23360.4s 874 fc1: young=130, learner=0, mature=126
+23360.4s 875 fc2: young=22, learner=0, mature=12
+23360.4s 876 
+23360.4s 877 📊 Evaluation:
+24235.8s 878 
+24235.8s 879 NICE context detector debug:
+24235.8s 880 route_acc=98.83%
+24235.8s 881 true episode counts: {0: 409691, 1: 5576297}
+24235.8s 882 pred episode counts: {0: 368730, 1: 5617258}
+24235.8s 883 confidence max(chain_probs): q10=0.9912, q50=0.9980, q90=0.9997
+24236.0s 884 true 0 -> pred {0: 354100, 1: 55591}
+24236.0s 885 true 1 -> pred {0: 14630, 1: 5561667}
+24238.2s 886 ✅ Task summary -> accuracy=98.64%, f1=61.99%, precision=64.06%, recall=62.39%
+24238.2s 887 
+24238.2s 888 🎨 Visualization & Debugging:
+24238.6s 889 🔍 Unique predicted classes: [np.int64(4), np.int64(5), np.int64(6), np.int64(7), np.int64(8), np.int64(9), np.int64(11), np.int64(19)]
+24238.6s 890 DEBUG[2]: Output layer weight norms per class:
+24238.6s 891 Class 0: 0.0811
+24238.6s 892 Class 1: 0.1365
+24238.6s 893 Class 3: 0.1131
+24238.6s 894 Class 4: 0.2690
+24238.6s 895 Class 5: 0.3000
+24238.6s 896 Class 6: 0.5737
+24238.6s 897 Class 7: 0.5668
+24238.6s 898 Class 8: 0.7254
+24238.6s 899 Class 9: 0.5756
+24238.6s 900 Class 10: 1.6635
+24238.6s 901 Class 11: 0.7337
+24238.6s 902 DEBUG[7]: Mean prediction probability per class:
+24238.6s 903 Class 0: 0.000014
+24238.6s 904 Class 1: 0.006808
+24238.6s 905 Class 3: 0.000008
+24238.6s 906 Class 4: 0.008793
+24238.6s 907 Class 5: 0.002439
+24238.6s 908 Class 6: 0.343377
+24238.6s 909 Class 7: 0.018475
+24238.6s 910 Class 8: 0.181702
+24238.6s 911 Class 9: 0.190529
+24238.6s 912 Class 10: 0.000121
+24238.6s 913 Class 11: 0.186590
+24238.6s 914 /tmp/FL_IL_IDS/fed_learning/visualization/metrics.py:54: RuntimeWarning: invalid value encountered in divide
+24238.6s 915 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+24238.6s 916 
+24238.6s 917 /tmp/FL_IL_IDS/fed_learning/visualization/metrics.py:54: RuntimeWarning: invalid value encountered in divide
+24238.6s 918 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+24239.9s 919 📊 Saved: ./results_incremental_nice_20260520_183039/plots/task_1/confusion_matrix.png & ./results_incremental_nice_20260520_183039/plots/task_1/confusion_matrix.pdf
+24241.0s 920 📊 Saved: ./results_incremental_nice_20260520_183039/plots/task_1/per_class_metrics.png & ./results_incremental_nice_20260520_183039/plots/task_1/per_class_metrics.pdf
+24241.0s 921 📸 Saved plots to ./results_incremental_nice_20260520_183039/plots/task_1
+24241.0s 922 🔍 Computing Forgetting...
+24299.9s 923 
+24299.9s 924 NICE context detector debug:
+24299.9s 925 route_acc=86.43%
+24299.9s 926 true episode counts: {0: 409691}
+24299.9s 927 pred episode counts: {0: 354100, 1: 55591}
+24299.9s 928 confidence max(chain_probs): q10=0.5691, q50=0.9976, q90=1.0000
+24299.9s 929 true 0 -> pred {0: 354100, 1: 55591}
+25166.8s 930 
+25166.8s 931 NICE context detector debug:
+25166.8s 932 route_acc=98.83%
+25166.8s 933 true episode counts: {0: 409691, 1: 5576297}
+25166.8s 934 pred episode counts: {0: 368730, 1: 5617258}
+25166.8s 935 confidence max(chain_probs): q10=0.9912, q50=0.9980, q90=0.9997
+25167.1s 936 true 0 -> pred {0: 354100, 1: 55591}
+25167.1s 937 true 1 -> pred {0: 14630, 1: 5561667}
+25169.2s 938 Per-task old accuracy -> T0: current=85.40%, best=98.89%
+25169.2s 939 Avg Forgetting: 13.50%
+25169.2s 940 💾 Checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_1.pt
+25169.2s 941 
+25169.2s 942 📊 Generating FCIL Visualization Report...
+25169.7s 943 📊 Saved: ./results_incremental_nice_20260520_183039/fcil_plots/task_accuracy_heatmap.png & ./results_incremental_nice_20260520_183039/fcil_plots/task_accuracy_heatmap.pdf
+25170.0s 944 📊 Saved: ./results_incremental_nice_20260520_183039/fcil_plots/incremental_accuracy.png & ./results_incremental_nice_20260520_183039/fcil_plots/incremental_accuracy.pdf
+25170.0s 945 
+25170.0s 946 📈 FCIL Metrics:
+25170.0s 947 • Final AIA: 98.64%
+25170.0s 948 • Avg Forgetting: 0.26%
+25170.0s 949 ✅ FCIL report saved to: ./results_incremental_nice_20260520_183039/fcil_plots
+25170.2s 950 
+25170.2s 951 ================================================================================
+25170.2s 952 📚 TASK 2/5
+25170.2s 953 ================================================================================
+25184.1s 954 Clients with data: 70
+25186.5s 955 Restored neuron ages from previous task
+25186.5s 956 
+25186.5s 957 📌 Task 2: classes [12, 13, 14, 15, 16, 17]
+25186.5s 958 Total seen classes: 18
+25186.5s 959 NICE: Task 2 | new classes: [12, 13, 14, 15, 16, 17]
+25186.5s 960 NICE: Output neuron ages (fc2): learner=6, mature=12, young=16
+25186.5s 961 
+25186.5s 962 🎯 Training on 6 new classes...
+25186.5s 963 
+25186.5s 964 === NICE Training (20 phases) ===
+25186.5s 965 NICE local schedule: 20 phases x 1 epochs = 20 local epochs/client
+25186.5s 966 🔁 ROUND 0/19 [phase]
+25186.5s 967 
+25186.5s 968 NICE: Training 70 clients on 2 GPU(s)
+25267.8s 969 [GPU 0] NICE: 35 clients done in 81.3s
+25302.8s 970 [GPU 1] NICE: 35 clients done in 116.2s
+25303.0s 971 NICE loss: 4.3706 (116.5s)
+25303.0s 972 conv1: young=0, learner=0, mature=64
+25303.0s 973 fc1: young=0, learner=130, mature=126
+25303.0s 974 fc2: young=16, learner=6, mature=12
+26902.6s 975 
+26902.6s 976 NICE context detector debug:
+26902.6s 977 route_acc=85.69%
+26902.6s 978 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+26902.6s 979 pred episode counts: {0: 60466, 1: 5310684, 2: 4764481}
+26902.9s 980 confidence max(chain_probs): q10=0.6679, q50=0.9957, q90=0.9991
+26902.9s 981 true 0 -> pred {0: 40941, 1: 57662, 2: 311088}
+26902.9s 982 true 1 -> pred {0: 9700, 1: 4878832, 2: 687765}
+26903.1s 983 true 2 -> pred {0: 9825, 1: 374190, 2: 3765628}
+26907.2s 984 Metrics -> train_loss=4.3706, test_loss=0.9069, accuracy=84.28%, f1=44.47%, precision=49.66%, recall=46.06%, AF=N/A (final round only)
+26907.2s 985 🔁 ROUND 1/19 [phase]
+26907.2s 986 
+26907.2s 987 NICE: Training 70 clients on 2 GPU(s)
+26993.8s 988 [GPU 0] NICE: 35 clients done in 86.6s
+27025.4s 989 [GPU 1] NICE: 35 clients done in 118.1s
+27025.6s 990 NICE loss: 1.3848 (118.4s)
+27025.6s 991 conv1: young=0, learner=0, mature=64
+27025.6s 992 fc1: young=119, learner=11, mature=126
+27025.6s 993 fc2: young=16, learner=6, mature=12
+28594.6s 994 
+28594.6s 995 NICE context detector debug:
+28594.6s 996 route_acc=85.62%
+28594.6s 997 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+28594.6s 998 pred episode counts: {0: 76617, 1: 4877668, 2: 5181346}
+28594.9s 999 confidence max(chain_probs): q10=0.7317, q50=0.9952, q90=0.9989
+28594.9s 1000 true 0 -> pred {0: 62333, 1: 69651, 2: 277707}
+28594.9s 1001 true 1 -> pred {0: 5763, 1: 4641304, 2: 929230}
+28595.2s 1002 true 2 -> pred {0: 8521, 1: 166713, 2: 3974409}
+28599.0s 1003 Metrics -> train_loss=1.3848, test_loss=0.3991, accuracy=84.24%, f1=45.31%, precision=52.27%, recall=46.81%, AF=N/A (final round only)
+28599.0s 1004 🔁 ROUND 2/19 [phase]
+28599.0s 1005 
+28599.0s 1006 NICE: Training 70 clients on 2 GPU(s)
+28681.5s 1007 [GPU 0] NICE: 35 clients done in 82.5s
+28716.2s 1008 [GPU 1] NICE: 35 clients done in 117.1s
+28716.2s 1009 NICE loss: 0.6596 (117.3s)
+28716.2s 1010 conv1: young=0, learner=0, mature=64
+28716.2s 1011 fc1: young=119, learner=11, mature=126
+28716.2s 1012 fc2: young=16, learner=6, mature=12
+30238.0s 1013 
+30238.0s 1014 NICE context detector debug:
+30238.0s 1015 route_acc=85.76%
+30238.0s 1016 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+30238.0s 1017 pred episode counts: {0: 119791, 1: 4931205, 2: 5084635}
+30238.3s 1018 confidence max(chain_probs): q10=0.8231, q50=0.9937, q90=0.9983
+30238.3s 1019 true 0 -> pred {0: 103067, 1: 56953, 2: 249671}
+30238.3s 1020 true 1 -> pred {0: 4833, 1: 4662645, 2: 908819}
+30238.5s 1021 true 2 -> pred {0: 11891, 1: 211607, 2: 3926145}
+30242.5s 1022 Metrics -> train_loss=0.6596, test_loss=0.5777, accuracy=85.38%, f1=53.41%, precision=58.20%, recall=55.07%, AF=N/A (final round only)
+30242.5s 1023 🔁 ROUND 3/19 [phase]
+30242.5s 1024 
+30242.5s 1025 NICE: Training 70 clients on 2 GPU(s)
+30326.9s 1026 [GPU 0] NICE: 35 clients done in 84.4s
+30357.5s 1027 [GPU 1] NICE: 35 clients done in 114.9s
+30357.7s 1028 NICE loss: 0.3683 (115.2s)
+30357.7s 1029 conv1: young=0, learner=0, mature=64
+30357.7s 1030 fc1: young=119, learner=11, mature=126
+30357.7s 1031 fc2: young=16, learner=6, mature=12
+31965.6s 1032 
+31965.6s 1033 NICE context detector debug:
+31965.6s 1034 route_acc=85.71%
+31965.6s 1035 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+31965.6s 1036 pred episode counts: {0: 88772, 1: 4925648, 2: 5121211}
+31965.9s 1037 confidence max(chain_probs): q10=0.8578, q50=0.9933, q90=0.9985
+31965.9s 1038 true 0 -> pred {0: 71175, 1: 68441, 2: 270075}
+31965.9s 1039 true 1 -> pred {0: 7667, 1: 4666966, 2: 901664}
+31966.2s 1040 true 2 -> pred {0: 9930, 1: 190241, 2: 3949472}
+31970.3s 1041 Metrics -> train_loss=0.3683, test_loss=0.7967, accuracy=85.44%, f1=51.68%, precision=57.23%, recall=54.81%, AF=N/A (final round only)
+31970.3s 1042 🔁 ROUND 4/19 [phase]
+31970.3s 1043 
+31970.3s 1044 NICE: Training 70 clients on 2 GPU(s)
+32053.2s 1045 [GPU 0] NICE: 35 clients done in 82.9s
+32088.4s 1046 [GPU 1] NICE: 35 clients done in 118.0s
+32088.6s 1047 NICE loss: 0.2580 (118.3s)
+32088.6s 1048 conv1: young=0, learner=0, mature=64
+32088.6s 1049 fc1: young=119, learner=11, mature=126
+32088.6s 1050 fc2: young=16, learner=6, mature=12
+33775.6s 1051 
+33775.6s 1052 NICE context detector debug:
+33775.6s 1053 route_acc=85.38%
+33775.6s 1054 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+33775.6s 1055 pred episode counts: {0: 74498, 1: 5010695, 2: 5050438}
+33775.9s 1056 confidence max(chain_probs): q10=0.8795, q50=0.9938, q90=0.9991
+33775.9s 1057 true 0 -> pred {0: 60172, 1: 70614, 2: 278905}
+33775.9s 1058 true 1 -> pred {0: 5971, 1: 4696152, 2: 874174}
+33776.2s 1059 true 2 -> pred {0: 8355, 1: 243929, 2: 3897359}
+33780.5s 1060 Metrics -> train_loss=0.2580, test_loss=1.0490, accuracy=85.14%, f1=51.26%, precision=57.23%, recall=54.47%, AF=N/A (final round only)
+33780.5s 1061 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_2_round_4.pt
+33780.5s 1062 🔁 ROUND 5/19 [phase]
+33780.5s 1063 
+33780.5s 1064 NICE: Training 70 clients on 2 GPU(s)
+33865.2s 1065 [GPU 0] NICE: 35 clients done in 84.7s
+33893.6s 1066 [GPU 1] NICE: 35 clients done in 113.1s
+33893.6s 1067 NICE loss: 0.2097 (113.3s)
+33893.6s 1068 conv1: young=0, learner=0, mature=64
+33893.6s 1069 fc1: young=119, learner=11, mature=126
+33893.6s 1070 fc2: young=16, learner=6, mature=12
+35545.1s 1071 
+35545.1s 1072 NICE context detector debug:
+35545.1s 1073 route_acc=86.23%
+35545.1s 1074 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+35545.1s 1075 pred episode counts: {0: 127588, 1: 4908256, 2: 5099787}
+35545.4s 1076 confidence max(chain_probs): q10=0.8263, q50=0.9917, q90=0.9991
+35545.4s 1077 true 0 -> pred {0: 110885, 1: 49943, 2: 248863}
+35545.4s 1078 true 1 -> pred {0: 8537, 1: 4673021, 2: 894739}
+35545.7s 1079 true 2 -> pred {0: 8166, 1: 185292, 2: 3956185}
+35549.8s 1080 Metrics -> train_loss=0.2097, test_loss=1.2703, accuracy=86.01%, f1=53.51%, precision=57.72%, recall=56.54%, AF=N/A (final round only)
+35549.8s 1081 🔁 ROUND 6/19 [phase]
+35549.8s 1082 
+35549.8s 1083 NICE: Training 70 clients on 2 GPU(s)
+35632.6s 1084 [GPU 0] NICE: 35 clients done in 82.8s
+35667.7s 1085 [GPU 1] NICE: 35 clients done in 117.9s
+35667.9s 1086 NICE loss: 0.1898 (118.1s)
+35667.9s 1087 conv1: young=0, learner=0, mature=64
+35667.9s 1088 fc1: young=119, learner=11, mature=126
+35667.9s 1089 fc2: young=16, learner=6, mature=12
+37304.5s 1090 
+37304.5s 1091 NICE context detector debug:
+37304.5s 1092 route_acc=86.06%
+37304.5s 1093 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+37304.5s 1094 pred episode counts: {0: 77026, 1: 4903375, 2: 5155230}
+37304.8s 1095 confidence max(chain_probs): q10=0.7785, q50=0.9940, q90=0.9993
+37304.8s 1096 true 0 -> pred {0: 61256, 1: 58330, 2: 290105}
+37305.0s 1097 true 1 -> pred {0: 7874, 1: 4682364, 2: 886059}
+37305.0s 1098 true 2 -> pred {0: 7896, 1: 162681, 2: 3979066}
+37309.3s 1099 Metrics -> train_loss=0.1898, test_loss=1.3917, accuracy=85.84%, f1=51.49%, precision=57.22%, recall=55.17%, AF=N/A (final round only)
+37309.3s 1100 🔁 ROUND 7/19 [phase]
+37309.3s 1101 
+37309.3s 1102 NICE: Training 70 clients on 2 GPU(s)
+37393.8s 1103 [GPU 0] NICE: 35 clients done in 84.5s
+37422.4s 1104 [GPU 1] NICE: 35 clients done in 113.1s
+37422.6s 1105 NICE loss: 0.1693 (113.3s)
+37422.6s 1106 conv1: young=0, learner=0, mature=64
+37422.6s 1107 fc1: young=120, learner=10, mature=126
+37422.6s 1108 fc2: young=16, learner=6, mature=12
+39100.7s 1109 
+39100.7s 1110 NICE context detector debug:
+39100.7s 1111 route_acc=86.59%
+39100.7s 1112 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+39100.7s 1113 pred episode counts: {0: 115489, 1: 5463135, 2: 4557007}
+39101.0s 1114 confidence max(chain_probs): q10=0.6700, q50=0.9934, q90=0.9992
+39101.0s 1115 true 0 -> pred {0: 98779, 1: 57073, 2: 253839}
+39101.0s 1116 true 1 -> pred {0: 8643, 1: 4971168, 2: 596486}
+39101.4s 1117 true 2 -> pred {0: 8067, 1: 434894, 2: 3706682}
+39105.6s 1118 Metrics -> train_loss=0.1693, test_loss=1.5027, accuracy=86.38%, f1=54.10%, precision=58.12%, recall=56.51%, AF=N/A (final round only)
+39105.6s 1119 🔁 ROUND 8/19 [phase]
+39105.6s 1120 
+39105.6s 1121 NICE: Training 70 clients on 2 GPU(s)
+39188.2s 1122 [GPU 0] NICE: 35 clients done in 82.5s
+39222.0s 1123 [GPU 1] NICE: 35 clients done in 116.4s
+39222.0s 1124 NICE loss: 0.1607 (116.6s)
+39222.0s 1125 conv1: young=0, learner=0, mature=64
+39222.0s 1126 fc1: young=120, learner=10, mature=126
+39222.0s 1127 fc2: young=16, learner=6, mature=12
+40828.4s 1128 
+40828.4s 1129 NICE context detector debug:
+40828.4s 1130 route_acc=85.89%
+40828.4s 1131 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+40828.4s 1132 pred episode counts: {0: 66456, 1: 5402661, 2: 4666514}
+40828.7s 1133 confidence max(chain_probs): q10=0.6535, q50=0.9938, q90=0.9993
+40828.7s 1134 true 0 -> pred {0: 52658, 1: 68661, 2: 288372}
+40828.7s 1135 true 1 -> pred {0: 7765, 1: 4921396, 2: 647136}
+40829.0s 1136 true 2 -> pred {0: 6033, 1: 412604, 2: 3731006}
+40833.3s 1137 Metrics -> train_loss=0.1607, test_loss=1.6176, accuracy=85.69%, f1=50.68%, precision=56.23%, recall=54.50%, AF=N/A (final round only)
+40833.3s 1138 🔁 ROUND 9/19 [phase]
+40833.3s 1139 
+40833.3s 1140 NICE: Training 70 clients on 2 GPU(s)
+40916.0s 1141 [GPU 0] NICE: 35 clients done in 82.7s
+40950.4s 1142 [GPU 1] NICE: 35 clients done in 117.1s
+40950.4s 1143 NICE loss: 0.1611 (117.3s)
+40950.4s 1144 conv1: young=0, learner=0, mature=64
+40950.4s 1145 fc1: young=120, learner=10, mature=126
+40950.4s 1146 fc2: young=16, learner=6, mature=12
+42577.5s 1147 
+42577.5s 1148 NICE context detector debug:
+42577.5s 1149 route_acc=85.68%
+42577.5s 1150 true episode counts: {0: 409691, 1: 5576297, 2: 4149643}
+42577.5s 1151 pred episode counts: {0: 86148, 1: 5184708, 2: 4864775}
+42577.8s 1152 confidence max(chain_probs): q10=0.7090, q50=0.9940, q90=0.9996
+42577.8s 1153 true 0 -> pred {0: 57074, 1: 61805, 2: 290812}
+42577.8s 1154 true 1 -> pred {0: 22563, 1: 4803694, 2: 750040}
+42578.1s 1155 true 2 -> pred {0: 6511, 1: 319209, 2: 3823923}
+42582.3s 1156 Metrics -> train_loss=0.1611, test_loss=1.6476, accuracy=85.49%, f1=49.90%, precision=55.19%, recall=54.74%, AF=N/A (final round only)
+42582.3s 1157 💾 Round checkpoint saved: ./results_incremental_nice_20260520_183039/checkpoint_task_2_round_9.pt
+42582.3s 1158 🔁 ROUND 10/19 [phase]
+42582.3s 1159 
+42582.3s 1160 NICE: Training 70 clients on 2 GPU(s)
+42665.8s 1161 [GPU 0] NICE: 35 clients done in 83.5s
+42695.6s 1162 [GPU 1] NICE: 35 clients done in 113.2s
+42695.6s 1163 NICE loss: 0.1502 (113.4s)
+42695.6s 1164 conv1: young=0, learner=0, mature=64
+42695.6s 1165 fc1: young=120, learner=10, mature=126
+42695.6s 1166 fc2: young=16, learner=6, mature=12
+43209.2s 1167 Timeout waiting for execute reply (43200s).

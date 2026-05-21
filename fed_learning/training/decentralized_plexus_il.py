@@ -22,6 +22,7 @@ def _eval_params(
     test_data: Dict[str, torch.Tensor],
     batch_size: int,
     seen_classes: Optional[List[int]],
+    device: torch.device,
 ) -> Dict[str, float]:
     if params is None:
         return {
@@ -33,15 +34,20 @@ def _eval_params(
             "f1_weighted": 0.0,
         }
 
-    model = model_template.__class__(model_template.input_shape, model_template.num_classes)
-    model.load_state_dict({k: v.cpu() for k, v in params.items()})
+    model = model_template.__class__(model_template.input_shape, model_template.num_classes).to(device)
+    model.load_state_dict({k: v.to(device) for k, v in params.items()})
     model.eval()
 
     X_test = test_data["X_test"]
     y_test = test_data["y_test"]
     seen_set = set(int(c) for c in seen_classes) if seen_classes else None
     if seen_set:
-        mask = torch.tensor([int(y.item()) in seen_set for y in y_test])
+        seen_tensor = torch.tensor(
+            sorted(seen_set),
+            dtype=y_test.dtype,
+            device=y_test.device,
+        )
+        mask = torch.isin(y_test, seen_tensor)
         X_test = X_test[mask]
         y_test = y_test[mask]
 
@@ -61,11 +67,12 @@ def _eval_params(
     all_targets = []
     with torch.no_grad():
         for i in range(0, len(y_test), batch_size):
-            X_batch = X_test[i : i + batch_size]
-            y_batch = y_test[i : i + batch_size]
+            X_batch = X_test[i : i + batch_size].to(device, non_blocking=True)
+            y_batch_cpu = y_test[i : i + batch_size]
+            y_batch = y_batch_cpu.to(device, non_blocking=True)
             out = model(X_batch)
             if seen_set:
-                unseen = torch.ones(out.shape[1], dtype=torch.bool)
+                unseen = torch.ones(out.shape[1], dtype=torch.bool, device=device)
                 for cls_id in seen_set:
                     if 0 <= cls_id < out.shape[1]:
                         unseen[cls_id] = False
@@ -74,7 +81,7 @@ def _eval_params(
             loss = criterion(out, y_batch)
             total_loss += loss.item() * len(y_batch)
             all_preds.extend(out.argmax(dim=1).cpu().numpy())
-            all_targets.extend(y_batch.cpu().numpy())
+            all_targets.extend(y_batch_cpu.numpy())
 
     return {
         "loss": total_loss / max(1, len(y_test)),
@@ -117,6 +124,8 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
     task_end = int(config.get("task_end", num_tasks - 1))
     rounds_per_task = int(config.get("rounds_per_task", 5))
     batch_size = int(config.get("batch_size", 32))
+    eval_batch_size = int(config.get("eval_batch_size", 8192))
+    eval_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     eval_every = max(1, int(config.get("eval_every", 1)))
     checkpoint_every = config.get("round_checkpoint_every", 1)
     if checkpoint_every is not None:
@@ -130,6 +139,7 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
     best_acc: Dict[int, float] = {}
     task_tests: Dict[int, Dict[str, torch.Tensor]] = {}
     global_params = None
+    print(f"  Plexus eval device: {eval_device}, eval_batch_size={eval_batch_size}")
 
     for task_id in range(task_start, task_end + 1):
         print(f"\n{'=' * 80}\nTASK {task_id}/{num_tasks - 1} - Decentralized Plexus-IL\n{'=' * 80}")
@@ -160,6 +170,7 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
             "num_rounds": rounds_per_task,
             "num_classes": config["total_classes"],
         }
+        final_round_cache: Dict[str, Any] = {}
 
         def on_round(local_round: int, params, round_metrics: Dict[str, Any]) -> None:
             round_id = task_id * rounds_per_task + local_round
@@ -170,13 +181,31 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
 
             metrics = (
-                _eval_params(model_template, params, task_tests[task_id], batch_size, seen_classes)
+                _eval_params(
+                    model_template,
+                    params,
+                    task_tests[task_id],
+                    eval_batch_size,
+                    seen_classes,
+                    eval_device,
+                )
                 if evaluate
                 else {}
             )
             if evaluate and is_final_round:
                 per_task_acc = {
-                    tid: _eval_params(model_template, params, data, batch_size, seen_classes)["accuracy"]
+                    tid: (
+                        metrics["accuracy"]
+                        if tid == task_id
+                        else _eval_params(
+                            model_template,
+                            params,
+                            data,
+                            eval_batch_size,
+                            seen_classes,
+                            eval_device,
+                        )["accuracy"]
+                    )
                     for tid, data in task_tests.items()
                 }
                 for tid, acc in per_task_acc.items():
@@ -191,22 +220,31 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 af = None
 
-            history["round_metrics"].append(
-                {
-                    "task": task_id,
-                    "round": round_id,
-                    "train_loss": round_metrics.get("train_loss", 0.0),
-                    "round_time": round_metrics.get("round_time", 0.0),
-                    "test_loss": metrics.get("loss"),
-                    "accuracy": metrics.get("accuracy"),
-                    "precision_macro": metrics.get("precision_macro"),
-                    "recall_macro": metrics.get("recall_macro"),
-                    "f1_macro": metrics.get("f1_macro"),
-                    "f1_weighted": metrics.get("f1_weighted"),
-                    "avg_forgetting": af,
-                    "evaluated": evaluate,
-                }
-            )
+            round_record = {
+                "task": task_id,
+                "round": round_id,
+                "train_loss": round_metrics.get("train_loss", 0.0),
+                "round_time": round_metrics.get("round_time", 0.0),
+                "test_loss": metrics.get("loss"),
+                "accuracy": metrics.get("accuracy"),
+                "precision_macro": metrics.get("precision_macro"),
+                "recall_macro": metrics.get("recall_macro"),
+                "f1_macro": metrics.get("f1_macro"),
+                "f1_weighted": metrics.get("f1_weighted"),
+                "avg_forgetting": af,
+                "evaluated": evaluate,
+            }
+            history["round_metrics"].append(round_record)
+            if evaluate and is_final_round:
+                final_round_cache.update(
+                    {
+                        "metrics": metrics,
+                        "per_task_acc": per_task_acc,
+                        "avg_forgetting": af,
+                        "round_id": round_id,
+                        "round_record": round_record,
+                    }
+                )
             _write_training_history(output_dir, history)
             if evaluate:
                 af_text = f"{af * 100:.2f}%" if af is not None else "N/A (final round only)"
@@ -253,24 +291,47 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
         )
         global_params = result["global_params"]
 
-        final_metrics = _eval_params(
-            model_template, global_params, task_tests[task_id], batch_size, seen_classes
-        )
-        per_task_acc = {
-            tid: _eval_params(model_template, global_params, data, batch_size, seen_classes)["accuracy"]
-            for tid, data in task_tests.items()
-        }
-        old_tids = [tid for tid in per_task_acc if tid != task_id]
-        af = (
-            sum(max(0.0, best_acc.get(tid, 0.0) - per_task_acc[tid]) for tid in old_tids)
-            / max(1, len(old_tids))
-            if old_tids
-            else 0.0
-        )
+        if final_round_cache:
+            final_metrics = final_round_cache["metrics"]
+            per_task_acc = final_round_cache["per_task_acc"]
+            af = final_round_cache["avg_forgetting"]
+            final_round_id = final_round_cache["round_id"]
+        else:
+            final_metrics = _eval_params(
+                model_template,
+                global_params,
+                task_tests[task_id],
+                eval_batch_size,
+                seen_classes,
+                eval_device,
+            )
+            per_task_acc = {
+                tid: (
+                    final_metrics["accuracy"]
+                    if tid == task_id
+                    else _eval_params(
+                        model_template,
+                        global_params,
+                        data,
+                        eval_batch_size,
+                        seen_classes,
+                        eval_device,
+                    )["accuracy"]
+                )
+                for tid, data in task_tests.items()
+            }
+            old_tids = [tid for tid in per_task_acc if tid != task_id]
+            af = (
+                sum(max(0.0, best_acc.get(tid, 0.0) - per_task_acc[tid]) for tid in old_tids)
+                / max(1, len(old_tids))
+                if old_tids
+                else 0.0
+            )
+            final_round_id = (task_id + 1) * rounds_per_task - 1
         history["task_accuracies"].append(
             {
                 "task": task_id,
-                "final_round": (task_id + 1) * rounds_per_task - 1,
+                "final_round": final_round_id,
                 **final_metrics,
                 "avg_forgetting": af,
             }
@@ -286,7 +347,6 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
         viz_wrapper.seen_classes = list(seen_classes)
         _evaluate_and_visualize(viz_wrapper, task_id, output_dir, config)
 
-        final_round_id = (task_id + 1) * rounds_per_task - 1
         _save_fed_task_checkpoint(
             output_dir,
             task_id,
