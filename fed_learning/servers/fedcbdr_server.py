@@ -270,7 +270,7 @@ class FedCBDRServer:
 
     def evaluate_global(
         self,
-        batch_size: int = 1024,
+        batch_size: int = 8192,
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:
@@ -329,7 +329,7 @@ class FedCBDRServer:
 
         return metrics
 
-    def evaluate_per_task(self, batch_size: int = 1024) -> Dict[int, float]:
+    def evaluate_per_task(self, batch_size: int = 8192) -> Dict[int, float]:
         """Evaluate accuracy per task."""
         self.global_model.eval()
         task_accuracies = {}

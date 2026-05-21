@@ -27,6 +27,8 @@ from .federated import (
     FedProxAggregator,
     FedPlusTrainer,
     FedPlusAggregator,
+    PlexusTrainer,
+    PlexusAggregator,
     PlexusDERTrainer,
     PlexusDERAggregator,
     PlexusNICETrainer,
@@ -78,6 +80,10 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
     "fedplus": {
         "trainer": FedPlusTrainer,
         "aggregator": FedPlusAggregator,
+    },
+    "plexus": {
+        "trainer": PlexusTrainer,
+        "aggregator": PlexusAggregator,
     },
     # Incremental Learning
     "cgofed": {
@@ -313,7 +319,7 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
                 os.path.join(default_cgofed_tmp, "history"),
             ),
         )
-    elif algo_lower in ("plexus_der", "plexus_nice"):
+    elif algo_lower in ("plexus", "plexus_der", "plexus_nice"):
         aggregator = strategy["aggregator"](
             sample_size=config.get("plexus_sample_size", 13),
             num_aggregators=config.get("plexus_num_aggregators", 1),
@@ -360,6 +366,7 @@ def list_strategies() -> Dict[str, str]:
         "nice": "NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)",
         "glfc": "GLFC - Global-Local Forgetting Compensation (CVPR 2022)",
         "refed": "Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)",
+        "plexus": "Plexus - server-simulated decentralized FL",
         "plexus_der": "PlexusDER - Decentralized DER with Plexus peer sampling",
         "plexus_nice": "PlexusNICE - Decentralized NICE with Plexus peer sampling",
         "dfca_il": "DFCA-IL - Decentralized Federated Clustering Algorithm with Incremental Learning",

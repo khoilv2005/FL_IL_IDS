@@ -193,7 +193,7 @@ class FedLwFServer:
 
     def evaluate_global(
         self,
-        batch_size: int = 1024,
+        batch_size: int = 8192,
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:

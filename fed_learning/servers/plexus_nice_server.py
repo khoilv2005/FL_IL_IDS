@@ -340,7 +340,7 @@ class PlexusNICEServer(PlexusServer):
 
     def evaluate_global(
         self,
-        batch_size: int = 1024,
+        batch_size: int = 8192,
         compute_auc: bool = False,
         seen_classes_only: bool = True,
     ) -> Dict:
@@ -428,7 +428,7 @@ class PlexusNICEServer(PlexusServer):
             return self.trainer.last_af
         return 0.0
 
-    def evaluate_per_task(self, batch_size: int = 1024) -> Dict[int, float]:
+    def evaluate_per_task(self, batch_size: int = 8192) -> Dict[int, float]:
         """Evaluate accuracy per task with output masking."""
         from sklearn.metrics import accuracy_score
 

@@ -178,6 +178,27 @@ class TestNICE:
         assert model.gru.weight_ih_l0.grad[200].abs().sum().item() == 0.0
         assert model.bn1.weight.grad[1].item() == 1.0
 
+    def test_nice_batchnorm_freezes_mature_channels_only(self):
+        """Mature BN channels should use stable running stats during training."""
+        model = NICEModel(input_shape=(32,), num_classes=4)
+        model.train()
+        model.unit_ranks["conv1"][0] = 2
+        model.unit_ranks["conv1"][1] = 1
+        model.bn1.running_mean.zero_()
+        model.bn1.running_var.fill_(1.0)
+        model.freeze_bn_for_mature()
+
+        frozen_mean_before = model.bn1.running_mean[0].clone()
+        frozen_var_before = model.bn1.running_var[0].clone()
+        learner_mean_before = model.bn1.running_mean[1].clone()
+
+        x = torch.randn(16, 32) + 5.0
+        _ = model.forward_output(x)
+
+        assert torch.allclose(model.bn1.running_mean[0], frozen_mean_before)
+        assert torch.allclose(model.bn1.running_var[0], frozen_var_before)
+        assert not torch.allclose(model.bn1.running_mean[1], learner_mean_before)
+
     def test_nice_model_creation(self):
         """NICEModel should be created without errors."""
         model = NICEModel(input_shape=(100, 1), num_classes=34)

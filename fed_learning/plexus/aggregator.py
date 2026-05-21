@@ -12,6 +12,7 @@ This handles:
 """
 
 from collections import OrderedDict
+from math import floor
 from typing import Dict, List, Optional, Callable
 
 import torch.nn as nn
@@ -43,8 +44,9 @@ class PlexusAggregator:
         self.sample_size = sample_size
         self.success_fraction = success_fraction
 
-        # Threshold: minimum models needed before aggregation
-        self.threshold = max(3, int(sample_size * success_fraction))
+        # Paper threshold: floor(K * success_fraction). The "3 models" rule is
+        # only a timeout/liveness fallback in the original source.
+        self.threshold = max(1, floor(sample_size * success_fraction))
 
     def weighted_average(self, results: List[Dict]) -> OrderedDict:
         """

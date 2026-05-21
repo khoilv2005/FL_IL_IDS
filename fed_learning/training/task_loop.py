@@ -1078,9 +1078,12 @@ def run_incremental_training(config: Dict[str, Any]):
 
         return run_local_incremental_training(config)
     elif mode == "decentralized":
-        # Plexus decentralized FL — no server, no incremental learning
-        # Runs Algorithm 1 (DERIVE_SAMPLE) + Algorithm 2 (Push-Based Protocol)
-        return _run_plexus_training(config)
+        # Plexus decentralized IL: no server, class-incremental task loop.
+        from fed_learning.training.decentralized_plexus_il import (
+            run_decentralized_plexus_il,
+        )
+
+        return run_decentralized_plexus_il(config)
     if mode != "fed_il":
         raise ValueError("Unsupported mode. Use 'fed_il', 'il', or 'decentralized'.")
 

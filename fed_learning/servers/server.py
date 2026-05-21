@@ -178,7 +178,7 @@ class FederatedServer:
 
         return {"train_loss": avg_loss, "round_time": round_time}
 
-    def evaluate_global(self, batch_size: int = 1024) -> Dict:
+    def evaluate_global(self, batch_size: int = 8192) -> Dict:
         """Đánh giá global model trên toàn bộ test set và trả về các metric chính."""
         self.global_model.eval()
         criterion = nn.CrossEntropyLoss()

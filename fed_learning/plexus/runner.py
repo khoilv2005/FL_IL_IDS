@@ -51,6 +51,8 @@ def run_plexus_training(
     model_template: nn.Module,
     config: Dict[str, Any],
     test_data: Dict = None,
+    initial_global_params: Optional[OrderedDict] = None,
+    seen_classes: Optional[List[int]] = None,
     verbose: bool = True,
     round_callback: Optional[Callable[[int, OrderedDict, Dict[str, Any]], None]] = None,
 ) -> Dict:
@@ -111,7 +113,7 @@ def run_plexus_training(
 
     # Create PlexusAggregator
     aggregator = PlexusAggregator(
-        sample_size=sample_size,
+        sample_size=sampler.sample_size,
         success_fraction=success_fraction,
     )
 
@@ -130,7 +132,11 @@ def run_plexus_training(
         )
 
     # Global params (initialized from first sample's model)
-    global_params = None
+    global_params = (
+        OrderedDict((k, v.cpu().clone()) for k, v in initial_global_params.items())
+        if initial_global_params is not None
+        else None
+    )
 
     # History
     history = {
@@ -175,9 +181,13 @@ def run_plexus_training(
             bw_info = {a: bandwidths.get(a, 0) for a in [aggregator_id]}
             print(f"→ Round {round_r}: sample={sample_ids}, aggregator={aggregator_id} (bw={bw_info[aggregator_id]:.2f})")
 
-        # Step 2: Each sample node trains locally (Algorithm 2 step 1)
+        threshold = aggregator.get_threshold()
+        train_ids = sample_ids[:threshold]
+
+        # Step 2: Threshold sample nodes train locally. Late participants are
+        # ignored once success_fraction is reached in this synchronous simulation.
         results = []
-        for nid in sample_ids:
+        for nid in train_ids:
             result = nodes[nid].receive_train(
                 round_r=round_r,
                 global_params=global_params,
@@ -191,9 +201,6 @@ def run_plexus_training(
         # Step 3: Route results to aggregator node (Algorithm 2 step 2)
         for result in results:
             nodes[aggregator_id].receive_for_aggregation(round_r, result)
-
-        # Step 4: Aggregator checks threshold and performs FedAvg
-        threshold = aggregator.get_threshold()
 
         if verbose:
             print(f"   Trained {len(results)}/{len(sample_ids)} nodes, threshold={threshold}")
@@ -241,7 +248,11 @@ def run_plexus_training(
         }
         if test_data is not None:
             eval_metrics = _evaluate_metrics(
-                global_params, nodes[sample_ids[0]].model, test_data, batch_size
+                global_params,
+                nodes[sample_ids[0]].model,
+                test_data,
+                batch_size,
+                seen_classes=seen_classes,
             )
             round_metrics.update(eval_metrics)
             history["test_loss"].append(eval_metrics["loss"])
@@ -289,6 +300,7 @@ def _evaluate_metrics(
     model_template: nn.Module,
     test_data: Dict,
     batch_size: int,
+    seen_classes: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     """Evaluate global model on test data."""
     if global_params is None or test_data is None:
@@ -308,6 +320,12 @@ def _evaluate_metrics(
     X_test = test_data["X_test"]
     y_test = test_data["y_test"]
 
+    seen_set = set(int(c) for c in seen_classes) if seen_classes else None
+    if seen_set:
+        mask = torch.tensor([int(y.item()) in seen_set for y in y_test])
+        X_test = X_test[mask]
+        y_test = y_test[mask]
+
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     all_preds = []
@@ -319,6 +337,13 @@ def _evaluate_metrics(
             batch_y = y_test[i:i+batch_size]
 
             output = model(batch_X)
+            if seen_set:
+                unseen_mask = torch.ones(output.shape[1], dtype=torch.bool, device=output.device)
+                for cls_id in seen_set:
+                    if 0 <= cls_id < output.shape[1]:
+                        unseen_mask[cls_id] = False
+                output = output.clone()
+                output[:, unseen_mask] = float("-inf")
             loss = criterion(output, batch_y)
             preds = output.argmax(dim=1)
 

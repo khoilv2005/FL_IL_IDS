@@ -314,7 +314,7 @@ class PlexusDERServer(PlexusServer):
             return self.trainer.last_af
         return 0.0
 
-    def evaluate_per_task(self, batch_size: int = 1024) -> Dict[int, float]:
+    def evaluate_per_task(self, batch_size: int = 8192) -> Dict[int, float]:
         """Evaluate accuracy per task."""
         from sklearn.metrics import accuracy_score
 

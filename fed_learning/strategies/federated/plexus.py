@@ -14,8 +14,8 @@ Paper Algorithm Summary:
 
 2. Sample Manager (Section 3.1):
    - Uses MD5 hash of (peer_id, round) for deterministic, unbiased ordering.
-   - First `num_aggregators` in the ordered list become aggregators.
-   - Next `sample_size` peers form the training sample.
+   - First `sample_size` peers form the training sample.
+   - Aggregators are selected from that same sample.
 
 3. Success Fraction (Section 3.2):
    - Aggregation proceeds when `success_fraction` of sample has submitted.
@@ -38,12 +38,11 @@ Adaptations for this codebase:
 - The decentralized protocol is simulated in PlexusServer, which rotates the
   aggregator role and sub-samples clients per round.
 - PlexusTrainer uses standard CrossEntropyLoss (same local training as vanilla FL).
-- PlexusAggregator performs FedAvg with success-fraction filtering.
+- PlexusAggregator performs FedAvg after the server threshold is met.
 """
 
 import hashlib
 from collections import OrderedDict
-from math import floor
 from typing import Dict, List, Optional, Tuple
 
 import torch
@@ -159,10 +158,11 @@ class SampleManager:
         bandwidths: Optional[Dict[int, float]] = None,
     ) -> List[int]:
         """
-        Return the training sample for this round (excluding aggregators).
+        Return the training sample for this round.
 
-        Uses same hash ordering; aggregators (selected by bandwidth)
-        are removed from the sample.
+        Plexus Algorithm 1 returns the first ``sample_size`` peers from the
+        hash-ordered active population. The aggregator is selected from this
+        same sample, not removed from it.
 
         Args:
             round_num: Current round number.
@@ -173,12 +173,7 @@ class SampleManager:
             List of training participant client IDs.
         """
         ordered = self.get_ordered_sample_list(round_num, peer_ids)
-        aggregator_set = set(
-            self.get_aggregators(round_num, peer_ids, bandwidths)
-        )
-        # Participants = hash-ordered list minus aggregators, capped at sample_size
-        participants = [pid for pid in ordered if pid not in aggregator_set]
-        return participants[: self.sample_size]
+        return ordered[: self.sample_size]
 
 
 # ---------------------------------------------------------------------------
@@ -260,14 +255,11 @@ class PlexusTrainer(BaseTrainer):
 
 class PlexusAggregator(BaseAggregator):
     """
-    Plexus aggregator — FedAvg with success-fraction filtering.
+    Plexus aggregator - FedAvg over models accepted by the protocol.
 
-    In Plexus, aggregation proceeds as soon as ``success_fraction`` of the
-    expected sample has submitted trained models.  This class simulates that
-    behavior by:
-    1. Sorting incoming results by the deterministic sample order.
-    2. Keeping only the first ``ceil(sample_size * success_fraction)`` results.
-    3. Performing weighted FedAvg on the kept results.
+    The server simulation decides when the success-fraction threshold is met.
+    This class only averages the received models to avoid applying the
+    threshold twice.
 
     Args:
         sample_size: Target number of training participants per round.
@@ -341,24 +333,17 @@ class PlexusAggregator(BaseAggregator):
         **kwargs,
     ) -> OrderedDict:
         """
-        Aggregate client results using FedAvg with success-fraction filtering.
-
-        Only the first ``ceil(sample_size * success_fraction)`` results
-        (by the deterministic sample order) contribute to the aggregate.
-        A minimum of 3 is enforced for liveness (paper heuristic).
+        Aggregate client results using weighted FedAvg.
         """
         if not results:
             return global_params
-
-        n_required = max(3, floor(len(results) * self.success_fraction))
-        used = results[:n_required] if len(results) > n_required else results
 
         # Update population view with participating clients
         for r in results:
             cid = r.get("client_id", -1)
             self.population_view.update(cid, self.current_round, is_online=True)
 
-        return self._weighted_average(used)
+        return self._weighted_average(results)
 
     # ------------------------------------------------------------------
     # Sampling helpers (exposed for PlexusServer)
@@ -383,7 +368,4 @@ class PlexusAggregator(BaseAggregator):
         sample = self.sample_manager.get_sample(
             round_num, candidates, self.client_bandwidths
         )
-        # Fallback: if sample is too small, use all active peers
-        if len(sample) < 3:
-            return candidates
         return sample
