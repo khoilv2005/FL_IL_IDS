@@ -100,10 +100,6 @@ if target is not None:
 # =============================================================================#
 
 
-
-
-
-
 """
 Federated Class Incremental Learning - Training Entry Point
 ============================================================
@@ -179,18 +175,19 @@ CONFIG = {
     # Options:
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
-    #   - "decentralized": Plexus decentralized FL (no server),DFCA
+    #   - "decentralized": Plexus decentralized FL (no server), DFCA
     "mode": "decentralized",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "plexus", "plexus_der", "plexus_nice"
     # il:     "ewc", "lwf", "der", "nice"
+    # decentralized: "plexus", "dfca"
     "algorithm": "dfca",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental
-    "output_dir": "/kaggle/working/results_incremental",
+    "output_dir": "/kaggle/working/results_dfca",
 
     # Split-run / continuation state
     # Set TRAIN_PHASE at the top of this file:
@@ -198,15 +195,17 @@ CONFIG = {
     #   2 -> load task_1 state, train task 2, save continuation_state_task_2.pt
     #   3 -> load task_2 state, train task 3, save continuation_state_task_3.pt
     #   4 -> load task_3 state, train tasks 4-5 (done)
+    # These keys are used by IL/non-DFCA modes; pure DFCA ignores task filtering.
     "task_start": phase_config["task_start"],
     "task_end": phase_config["task_end"],
     "save_resume_after_task": phase_config["save_resume_after_task"],
     "resume_state_path": target,
-    # Always output to /kaggle/working/ for persistence (downloadable from Output tab)
+    # Always output IL resume artifacts to /kaggle/working/ for persistence
+    # (downloadable from the Kaggle Output tab).
     "resume_output_dir": "/kaggle/working/results_incremental",
     # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
-    # None = disable; set to 5 for safe recovery without bloating disk
-
+    # None = disable; set to 5 for safe recovery without bloating disk.
+    #
     # If resume_state_path is set and resume_output_dir is omitted,
     # training continues in the same output directory as the saved state.
     #"task_start": 0,
@@ -291,21 +290,25 @@ CONFIG = {
     "plexus_scale_clients": True,    # Enable dynamic client scaling per task
     "plexus_initial_client_ratio": 0.5,  # Initial: 50% of clients participate (task 0)
     "plexus_final_client_ratio": 1.0,   # Final: 100% of clients participate (last task)
-    # DFCA-IL (Decentralized Federated Clustering Algorithm with Incremental Learning)
-    "dfca_num_clusters": 10,          # Number of clusters k (fixed)
-    "dfca_init": "global",           # Initialization: "global" (DFCA-GI) or "local"
-    "dfca_graph": "erdos_renyi",      # Graph type: Erdos-Renyi random graph
-    "dfca_connectivity": 0.15,       # Edge probability for Erdos-Renyi graph
-    "dfca_client_ratios": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],  # Active clients per task
-    "dfca_round_participation": 1.0,  # Fraction of active clients participating per round
-    "dfca_aggregation": "sequential_running_average",  # Aggregation method
-    "dfca_debug_messages": True,          # Enable detailed message passing debug logs
-    "dfca_debug_message_limit": 25,        # Max debug log lines per round (0=unlimited)
-    # ---- Pure DFCA params (used when mode="decentralized" AND algorithm="dfca") ----
-    # Overrides the dfca_il params above when running pure DFCA
-    "dfca_participation_rate": 1.0,   # Fraction of nodes participating per round (pure DFCA)
-    "dfca_debug_assignments": True,   # Log per-node assignment details
-    "dfca_debug_cluster_models": True, # Log cluster collapse / zero-update warnings
+    # DFCA-IL (unused by pure DFCA)
+    "dfca_num_clusters": 10,
+    "dfca_init": "global",
+    "dfca_graph": "erdos_renyi",
+    "dfca_connectivity": 0.15,
+    "dfca_client_ratios": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    "dfca_round_participation": 1.0,
+    "dfca_aggregation": "sequential_running_average",
+    "dfca_debug_messages": False,
+    "dfca_debug_message_limit": 25,
+    # Pure DFCA
+    "dfca_participation_rate": 1.0,
+    "dfca_debug_assignments": False,
+    "dfca_debug_cluster_models": False,
+    # Checkpoint / resume
+    "round_checkpoint_every": 5,
+    "checkpoint_path": None,
+    "auto_resume_latest": False,
+    "num_rounds": 150,
 }
 
 
@@ -313,33 +316,72 @@ CONFIG = {
 # MAIN
 # =============================================================================
 if __name__ == "__main__":
-    mode = CONFIG.get("mode", "fed_il").lower()
-    algo = CONFIG.get("algorithm", "").lower()
+    mode = CONFIG.get("mode", "decentralized").lower()
+    algo = CONFIG.get("algorithm", "dfca").lower()
 
     if mode == "decentralized" and algo == "dfca":
         # ---- Pure DFCA ----
+        import glob as glob_module
+        import json
+        import random as rnd_module
+        import numpy as np
         import torch
+        import collections
         from datetime import datetime
         from fed_learning.data.incremental_loader import IncrementalDataLoader
         from fed_learning.models import CNN_GRU_Model
-        from fed_learning.dfca import run_dfca_training
+        from fed_learning.dfca import (
+            run_dfca_training,
+            build_dfca_checkpoint,
+            find_latest_checkpoint,
+        )
 
         if CONFIG.get("num_gpus", 0) == 0 and torch.cuda.is_available():
             CONFIG["num_gpus"] = torch.cuda.device_count()
-
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = f"{CONFIG.get('output_dir', '/kaggle/working/results_dfca')}_{ts}"
-        import os
-        os.makedirs(output_dir, exist_ok=True)
-
-        with open(os.path.join(output_dir, "config.json"), "w") as f:
-            import json
-            json.dump(CONFIG, f, indent=2)
 
         print("\n" + "=" * 60)
         print("DFCA - Pure Decentralized Federated Clustering Algorithm")
         print("=" * 60)
 
+        # ---- Resolve output directory and checkpoint ----
+        base_output_dir = CONFIG.get("output_dir", "/kaggle/working/results_dfca")
+        explicit_ckpt = CONFIG.get("checkpoint_path")
+        auto_resume = CONFIG.get("auto_resume_latest", False)
+        resume_state = None
+        resume_round = 0
+        output_dir = None
+
+        if explicit_ckpt and os.path.exists(explicit_ckpt):
+            resume_state = torch.load(explicit_ckpt, map_location="cpu", weights_only=False)
+            resume_round = resume_state.get("current_round", 0) + 1
+            output_dir = os.path.dirname(explicit_ckpt)
+            print(f"\n  [Checkpoint Resume] Loading from: {explicit_ckpt}")
+            print(f"  [Checkpoint Resume] Resuming from round {resume_round}")
+            print(f"  [Checkpoint Resume] Writing output to: {output_dir}")
+        elif auto_resume:
+            ckpt_path = find_latest_checkpoint(base_output_dir)
+            if ckpt_path:
+                resume_state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+                resume_round = resume_state.get("current_round", 0) + 1
+                output_dir = os.path.dirname(ckpt_path)
+                print(f"\n  [Auto-Resume] Found checkpoint: {ckpt_path}")
+                print(f"  [Auto-Resume] Resuming from round {resume_round}")
+                print(f"  [Auto-Resume] Writing output to: {output_dir}")
+            else:
+                print(f"\n  [Auto-Resume] No checkpoint found in {base_output_dir} or subdirectories.")
+        else:
+            print("\n  Starting fresh (no checkpoint loaded)")
+
+        # Fresh output dir if no resume
+        if output_dir is None:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = f"{base_output_dir}_{ts}"
+        os.makedirs(output_dir, exist_ok=True)
+
+        with open(os.path.join(output_dir, "config.json"), "w") as f:
+            json.dump(CONFIG, f, indent=2)
+
+        # ---- Prepare data ----
         data_loader = IncrementalDataLoader(data_dir=CONFIG["data_dir"])
         print(f"\n{data_loader}")
 
@@ -347,148 +389,225 @@ if __name__ == "__main__":
         CONFIG["num_classes"] = CONFIG["total_classes"]
 
         node_data = {}
-        for cid in data_loader.get_all_client_ids():
-            X, y = data_loader.get_client_data(cid, task_id=0)
+        all_client_ids = data_loader.get_all_client_ids()
+        actual_classes = set()
+        for cid in all_client_ids:
+            X, y = data_loader.get_client_full_data(cid)
             if len(y) > 0:
                 node_data[cid] = (X, y)
+                actual_classes.update(y.unique().tolist())
+        actual_classes_sorted = sorted(actual_classes)
 
-        print(f"  Nodes with data: {len(node_data)}")
+        print(f"  Total clients in metadata: {len(all_client_ids)}")
+        print(f"  Clients with data: {len(node_data)}")
+        print(f"  Actual classes: {len(actual_classes_sorted)} classes -> {actual_classes_sorted}")
+        print(f"  CONFIG.num_classes: {CONFIG['num_classes']}")
 
         model_template = CNN_GRU_Model(
             input_shape=CONFIG["input_shape"],
             num_classes=CONFIG["num_classes"],
         )
 
-        test_X, test_y = data_loader.get_test_data(task_id=0, cumulative=True)
+        test_X, test_y = data_loader.get_full_test_data()
         test_data = {"X_test": test_X, "y_test": test_y}
-        print(f"  Test samples: {len(test_y)}")
+        print(f"  Full test samples: {len(test_y)}")
 
-        # Collectors for detailed round info
-        round_records_collector = []
-        message_history = []
-        rep_params_history = []
+        # ---- Rounds ----
+        checkpoint_every = int(CONFIG.get("round_checkpoint_every", 5))
+        total_rounds = int(CONFIG.get("num_rounds", 150))
+        remaining_rounds = total_rounds - resume_round
 
-        def round_callback(round_r, history, record):
-            round_records_collector.append(record)
-            if "msg_log" in record:
+        if remaining_rounds <= 0:
+            print(f"\n  All {total_rounds} rounds already completed (checkpoint at round {resume_round - 1}).")
+            print(f"  Writing existing data to {output_dir}...")
+            if resume_state:
+                hist = resume_state.get("history", {})
+                if hist and hist.get("round"):
+                    rms = []
+                    for ri in range(len(hist["round"])):
+                        rm = {
+                            "round": hist["round"][ri],
+                            "train_loss": hist["train_loss"][ri] if ri < len(hist["train_loss"]) else None,
+                            "train_loss_std": hist["train_loss_std"][ri] if ri < len(hist["train_loss_std"]) else None,
+                            "assignment_changes": hist["assignment_changes"][ri] if ri < len(hist["assignment_changes"]) else None,
+                            "assignment_margin_avg": hist["assignment_margin_avg"][ri] if ri < len(hist["assignment_margin_avg"]) else None,
+                            "num_messages": hist["num_messages"][ri] if ri < len(hist["num_messages"]) else None,
+                            "participating_nodes": hist["participating_nodes"][ri] if ri < len(hist["participating_nodes"]) else None,
+                            "cluster_distribution": hist["cluster_distribution"][ri] if ri < len(hist["cluster_distribution"]) else None,
+                            "per_cluster_updates": hist["per_cluster_updates"][ri] if ri < len(hist["per_cluster_updates"]) else None,
+                            "round_time": hist["round_time"][ri] if ri < len(hist["round_time"]) else None,
+                            "test_loss": hist["test_loss"][ri] if ri < len(hist["test_loss"]) else None,
+                            "test_accuracy": hist["test_accuracy"][ri] if ri < len(hist["test_accuracy"]) else None,
+                            "test_precision_macro": hist["test_precision_macro"][ri] if ri < len(hist["test_precision_macro"]) else None,
+                            "test_recall_macro": hist["test_recall_macro"][ri] if ri < len(hist["test_recall_macro"]) else None,
+                            "test_f1_macro": hist["test_f1_macro"][ri] if ri < len(hist["test_f1_macro"]) else None,
+                            "test_f1_weighted": hist["test_f1_weighted"][ri] if ri < len(hist["test_f1_weighted"]) else None,
+                        }
+                        rms.append(rm)
+                    with open(os.path.join(output_dir, "round_metrics.json"), "w") as f:
+                        json.dump(rms, f, indent=2, default=str)
+                with open(os.path.join(output_dir, "message_history.json"), "w") as f:
+                    json.dump(resume_state.get("message_history", []), f, indent=2, default=str)
+                with open(os.path.join(output_dir, "rep_params_history.json"), "w") as f:
+                    json.dump(resume_state.get("rep_params_history", []), f, indent=2, default=str)
+                with open(os.path.join(output_dir, "cluster_history.json"), "w") as f:
+                    json.dump(resume_state.get("cluster_history", []), f, indent=2, default=str)
+                final_assign = resume_state.get("node_assignments", {})
+                with open(os.path.join(output_dir, "final_cluster_assignments.json"), "w") as f:
+                    json.dump(final_assign, f, indent=2)
+                final_dist = collections.Counter(final_assign.values())
+                with open(os.path.join(output_dir, "results.json"), "w") as f:
+                    json.dump({
+                        "algorithm": "dfca",
+                        "total_rounds": total_rounds,
+                        "already_completed": True,
+                        "final_cluster_distribution": dict(sorted(final_dist.items())),
+                    }, f, indent=2)
+            print(f"\n{'=' * 60}")
+            print(f"No training needed — all {total_rounds} rounds completed.")
+            print(f"Output: {output_dir}")
+            print(f"{'=' * 60}")
+        else:
+            print(f"\nStarting DFCA: rounds {resume_round}..{total_rounds - 1} "
+                  f"({remaining_rounds} rounds), "
+                  f"k={CONFIG.get('dfca_num_clusters', 10)}, "
+                  f"lr={CONFIG.get('learning_rate', 0.1)}, "
+                  f"local_epochs={CONFIG.get('local_epochs', 5)}, "
+                  f"init={CONFIG.get('dfca_init', 'global')}, "
+                  f"graph={CONFIG.get('dfca_graph', 'erdos_renyi')}(p={CONFIG.get('dfca_connectivity', 0.15)}), "
+                  f"checkpoint_every={checkpoint_every}")
+
+            message_history = list(resume_state.get("message_history", [])) if resume_state else []
+            rep_params_history = list(resume_state.get("rep_params_history", [])) if resume_state else []
+
+            # ---- Callbacks ----
+            def round_callback(round_r, history, record):
                 message_history.append({
                     "round": round_r,
-                    "nodes": record["msg_log"],
+                    "delivery_log": record.get("msg_log", {}),
                 })
-            if "rep_params_summary" in record:
                 rep_params_history.append({
                     "round": round_r,
-                    "clusters": record["rep_params_summary"],
+                    "clusters": record.get("rep_params_summary", {}),
                 })
-            if checkpoint_every and (round_r + 1) % checkpoint_every == 0:
-                ckpt_path = os.path.join(output_dir, f"checkpoint_round_{round_r}.pt")
-                torch.save({
-                    "round": round_r,
-                    "config": CONFIG,
-                    "history": history,
-                    "message_history": list(message_history),
-                    "rep_params_history": list(rep_params_history),
-                }, ckpt_path)
+
+            def checkpoint_callback(
+                nodes_dict, graph_neighbors_dict, prev_assign_dict,
+                history_dict, cluster_history_list, rep_params_dict,
+                cfg, current_round_int, num_rounds_int,
+            ):
+                should_save = (
+                    checkpoint_every > 0
+                    and (
+                        (current_round_int + 1) % checkpoint_every == 0
+                        or (current_round_int + 1) >= num_rounds_int
+                    )
+                )
+                if not should_save:
+                    return
+                ckpt = build_dfca_checkpoint(
+                    nodes=nodes_dict,
+                    graph_neighbors=graph_neighbors_dict,
+                    prev_assignments=prev_assign_dict,
+                    history=history_dict,
+                    cluster_history=cluster_history_list,
+                    representative_params=rep_params_dict,
+                    config=cfg,
+                    current_round=current_round_int,
+                    num_rounds=num_rounds_int,
+                )
+                ckpt["message_history"] = list(message_history)
+                ckpt["rep_params_history"] = list(rep_params_history)
+                ckpt_path = os.path.join(output_dir, f"checkpoint_round_{current_round_int}.pt")
+                torch.save(ckpt, ckpt_path)
                 print(f"  [Checkpoint] saved to {ckpt_path}")
 
-        print(f"\nStarting DFCA: {CONFIG.get('num_rounds', 150)} rounds, "
-              f"k={CONFIG.get('dfca_num_clusters', 2)}, "
-              f"lr={CONFIG.get('learning_rate', 0.1)}, "
-              f"local_epochs={CONFIG.get('local_epochs', 5)}, "
-              f"init={CONFIG.get('dfca_init', 'global')}, "
-              f"graph={CONFIG.get('dfca_graph', 'erdos_renyi')}(p={CONFIG.get('dfca_connectivity', 0.15)})")
+            result = run_dfca_training(
+                node_ids=sorted(node_data.keys()),
+                node_data=node_data,
+                model_template=model_template,
+                config=CONFIG,
+                test_data=test_data,
+                verbose=True,
+                round_callback=round_callback,
+                checkpoint_callback=checkpoint_callback,
+                resume_state=resume_state,
+            )
 
-        result = run_dfca_training(
-            node_ids=sorted(node_data.keys()),
-            node_data=node_data,
-            model_template=model_template,
-            config=CONFIG,
-            test_data=test_data,
-            verbose=True,
-            round_callback=round_callback,
-        )
+            # ---- Write output files ----
+            hist = result["history"]
+            round_metrics = []
+            for ri in range(len(hist["round"])):
+                rm = {
+                    "round": hist["round"][ri],
+                    "train_loss": hist["train_loss"][ri] if ri < len(hist["train_loss"]) else None,
+                    "train_loss_std": hist["train_loss_std"][ri] if ri < len(hist["train_loss_std"]) else None,
+                    "assignment_changes": hist["assignment_changes"][ri] if ri < len(hist["assignment_changes"]) else None,
+                    "assignment_margin_avg": hist["assignment_margin_avg"][ri] if ri < len(hist["assignment_margin_avg"]) else None,
+                    "num_messages": hist["num_messages"][ri] if ri < len(hist["num_messages"]) else None,
+                    "participating_nodes": hist["participating_nodes"][ri] if ri < len(hist["participating_nodes"]) else None,
+                    "cluster_distribution": hist["cluster_distribution"][ri] if ri < len(hist["cluster_distribution"]) else None,
+                    "per_cluster_updates": hist["per_cluster_updates"][ri] if ri < len(hist["per_cluster_updates"]) else None,
+                    "round_time": hist["round_time"][ri] if ri < len(hist["round_time"]) else None,
+                    "test_loss": hist["test_loss"][ri] if ri < len(hist["test_loss"]) else None,
+                    "test_accuracy": hist["test_accuracy"][ri] if ri < len(hist["test_accuracy"]) else None,
+                    "test_precision_macro": hist["test_precision_macro"][ri] if ri < len(hist["test_precision_macro"]) else None,
+                    "test_recall_macro": hist["test_recall_macro"][ri] if ri < len(hist["test_recall_macro"]) else None,
+                    "test_f1_macro": hist["test_f1_macro"][ri] if ri < len(hist["test_f1_macro"]) else None,
+                    "test_f1_weighted": hist["test_f1_weighted"][ri] if ri < len(hist["test_f1_weighted"]) else None,
+                }
+                round_metrics.append(rm)
 
-        # Build output files
-        round_metrics = []
-        message_history = []
-        rep_params_history = []
-        for r in range(len(result["history"]["round"])):
-            rm = {
-                "round": result["history"]["round"][r],
-                "train_loss": result["history"]["train_loss"][r],
-                "train_loss_std": result["history"]["train_loss_std"][r],
-                "assignment_changes": result["history"]["assignment_changes"][r],
-                "assignment_margin_avg": result["history"]["assignment_margin_avg"][r],
-                "num_messages": result["history"]["num_messages"][r],
-                "participating_nodes": result["history"]["participating_nodes"][r],
-                "cluster_distribution": result["history"]["cluster_distribution"][r],
-                "per_cluster_updates": result["history"]["per_cluster_updates"][r],
-                "round_time": result["history"]["round_time"][r],
-                "test_loss": result["history"]["test_loss"][r],
-                "test_accuracy": result["history"]["test_accuracy"][r],
-                "test_precision_macro": result["history"]["test_precision_macro"][r],
-                "test_recall_macro": result["history"]["test_recall_macro"][r],
-                "test_f1_macro": result["history"]["test_f1_macro"][r],
-                "test_f1_weighted": result["history"]["test_f1_weighted"][r],
+            with open(os.path.join(output_dir, "round_metrics.json"), "w") as f:
+                json.dump(round_metrics, f, indent=2, default=str)
+            with open(os.path.join(output_dir, "message_history.json"), "w") as f:
+                json.dump(message_history, f, indent=2, default=str)
+            with open(os.path.join(output_dir, "rep_params_history.json"), "w") as f:
+                json.dump(rep_params_history, f, indent=2, default=str)
+            with open(os.path.join(output_dir, "final_cluster_assignments.json"), "w") as f:
+                json.dump(result["final_assignments"], f, indent=2)
+            with open(os.path.join(output_dir, "cluster_history.json"), "w") as f:
+                json.dump(result["cluster_history"], f, indent=2, default=str)
+            with open(os.path.join(output_dir, "graph_summary.json"), "w") as f:
+                json.dump(result["graph_summary"], f, indent=2)
+
+            final_dist = collections.Counter(result["final_assignments"].values())
+            last_metrics = round_metrics[-1] if round_metrics else {}
+            results_summary = {
+                "algorithm": "dfca",
+                "total_rounds": len(result["history"]["round"]),
+                "num_clusters": CONFIG.get("dfca_num_clusters", 10),
+                "final_cluster_distribution": dict(sorted(final_dist.items())),
+                "graph_summary": result["graph_summary"],
+                "final_metrics": {
+                    "test_accuracy": last_metrics.get("test_accuracy"),
+                    "test_f1_macro": last_metrics.get("test_f1_macro"),
+                    "test_loss": last_metrics.get("test_loss"),
+                },
             }
-            round_metrics.append(rm)
+            with open(os.path.join(output_dir, "results.json"), "w") as f:
+                json.dump(results_summary, f, indent=2)
 
-        # Use collected data from round_callback
-        with open(os.path.join(output_dir, "round_metrics.json"), "w") as f:
-            json.dump(round_metrics, f, indent=2, default=str)
+            # Save representative models
+            rep_state = {
+                "config": CONFIG,
+                "representative_params": result["representative_params"],
+            }
+            torch.save(rep_state, os.path.join(output_dir, "representative_models.pt"))
 
-        with open(os.path.join(output_dir, "message_history.json"), "w") as f:
-            json.dump(message_history, f, indent=2, default=str)
+            # Save final full checkpoint
+            final_ckpt = dict(result["checkpoint_state"])
+            final_ckpt["message_history"] = list(message_history)
+            final_ckpt["rep_params_history"] = list(rep_params_history)
+            torch.save(final_ckpt, os.path.join(output_dir, "final_dfca_state.pt"))
 
-        with open(os.path.join(output_dir, "rep_params_history.json"), "w") as f:
-            json.dump(rep_params_history, f, indent=2, default=str)
-
-        with open(os.path.join(output_dir, "final_cluster_assignments.json"), "w") as f:
-            json.dump(result["final_assignments"], f, indent=2)
-
-        with open(os.path.join(output_dir, "cluster_history.json"), "w") as f:
-            json.dump(result["cluster_history"], f, indent=2, default=str)
-
-        with open(os.path.join(output_dir, "graph_summary.json"), "w") as f:
-            json.dump(result["graph_summary"], f, indent=2)
-
-        import collections
-        final_dist = collections.Counter(result["final_assignments"].values())
-        results_summary = {
-            "algorithm": "dfca",
-            "total_rounds": len(result["history"]["round"]),
-            "num_clusters": CONFIG.get("dfca_num_clusters", 10),
-            "final_cluster_distribution": dict(sorted(final_dist.items())),
-            "graph_summary": result["graph_summary"],
-            "final_metrics": {
-                "test_accuracy": round_metrics[-1]["test_accuracy"] if round_metrics else None,
-                "test_f1_macro": round_metrics[-1]["test_f1_macro"] if round_metrics else None,
-                "test_loss": round_metrics[-1]["test_loss"] if round_metrics else None,
-            },
-        }
-        with open(os.path.join(output_dir, "results.json"), "w") as f:
-            json.dump(results_summary, f, indent=2)
-
-        # ---- Final representative model params (full tensors) ----
-        rep_state = {
-            "config": CONFIG,
-            "representative_params": result["representative_params"],
-        }
-        torch.save(rep_state, os.path.join(output_dir, "representative_models.pt"))
-
-        torch.save({
-            "config": CONFIG,
-            "final_assignments": result["final_assignments"],
-            "cluster_history": result["cluster_history"],
-            "graph_summary": result["graph_summary"],
-            "round_metrics": round_metrics,
-            "message_history": message_history,
-            "rep_params_history": rep_params_history,
-        }, os.path.join(output_dir, "final_dfca_state.pt"))
-
-        print(f"\n{'=' * 60}")
-        print(f"DFCA Complete — Output: {output_dir}")
-        print(f"{'=' * 60}")
+            print(f"\n{'=' * 60}")
+            print(f"DFCA Complete — Output: {output_dir}")
+            print(f"  Rounds completed: {len(result['history']['round'])}")
+            print(f"  Message history entries: {len(message_history)}")
+            print(f"  Rep params history entries: {len(rep_params_history)}")
+            print(f"  Last test accuracy: {last_metrics.get('test_accuracy')}")
+            print(f"{'=' * 60}")
 
     else:
         from fed_learning.training.task_loop import run_incremental_training

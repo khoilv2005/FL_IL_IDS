@@ -230,3 +230,55 @@ class IncrementalDataLoader:
             except (ValueError, IndexError):
                 continue
         return sorted(client_ids)
+
+    # ===================================================================
+    # Pure FL / full-data methods (no task filtering)
+    # ===================================================================
+
+    def get_client_full_data(self, client_id: Union[int, str]) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get ALL training data for a client (all classes, no task filtering).
+        Used by pure DFCA which needs full federated data, not incremental tasks.
+
+        Args:
+            client_id: ID of the client.
+
+        Returns:
+            (X, y) tensors containing all samples from this client.
+        """
+        client_file = self.data_dir / f"client_{client_id}_train.npz"
+        if not client_file.exists():
+            logger.debug(f"Client file {client_file} not found")
+            return torch.empty(0), torch.empty(0)
+
+        try:
+            data = np.load(client_file)
+            X_train = data['X_train']
+            y_train = data['y_train']
+        except Exception as e:
+            logger.error(f"Error loading {client_file}: {e}")
+            return torch.empty(0), torch.empty(0)
+
+        return torch.from_numpy(X_train).float(), torch.from_numpy(y_train).long()
+
+    def get_full_test_data(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get the FULL test dataset (all classes, no task filtering).
+        Used by pure DFCA which needs the complete test set.
+
+        Returns:
+            (X_test, y_test) tensors with all test samples.
+        """
+        if self._test_data is None:
+            if not self.test_file.exists():
+                logger.error(f"Test file {self.test_file} not found")
+                return torch.empty(0), torch.empty(0)
+            try:
+                data = np.load(self.test_file)
+                self._test_data = (data['X_test'], data['y_test'])
+            except Exception as e:
+                logger.error(f"Error loading test data: {e}")
+                return torch.empty(0), torch.empty(0)
+
+        X_test_all, y_test_all = self._test_data
+        return torch.from_numpy(X_test_all).float(), torch.from_numpy(y_test_all).long()

@@ -10,7 +10,11 @@ NO incremental learning. NO task loop. NO central server.
 
 from .client import DFCANode
 from .aggregator import DFCAAggregator
-from .runner import run_dfca_training
+from .runner import (
+    run_dfca_training,
+    build_dfca_checkpoint,
+    find_latest_checkpoint,
+)
 from .graph import build_erdos_renyi_graph, build_graph_summary
 from .evaluation import evaluate_ensemble_average, evaluate_representative_clusters, evaluate_oracle
 
@@ -18,6 +22,8 @@ __all__ = [
     "DFCANode",
     "DFCAAggregator",
     "run_dfca_training",
+    "build_dfca_checkpoint",
+    "find_latest_checkpoint",
     "build_erdos_renyi_graph",
     "build_graph_summary",
     "evaluate_ensemble_average",

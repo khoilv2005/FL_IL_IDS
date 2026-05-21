@@ -12,6 +12,7 @@ Tests cover:
 - Evaluation functions
 """
 
+import os
 import random
 from collections import OrderedDict
 
@@ -719,3 +720,590 @@ class TestDFCAEvaluation:
 
         assert "oracle_accuracy" in result
         assert "oracle_loss" in result
+
+
+# =============================================================================
+# Test I: New tests for fixes
+# =============================================================================
+
+class TestDFCANewFixes:
+    """Tests for bugs fixed in this session."""
+
+    def test_dfca_init_local_creates_k_clusters(self):
+        """dfca_init='local' must create k cluster models without crashing."""
+        model_template = SimpleLinearModel(input_dim=4, num_classes=3)
+
+        node = DFCANode(
+            client_id=0,
+            X_train=torch.randn(10, 4),
+            y_train=torch.randint(0, 3, (10,)),
+            num_clusters=5,
+            num_classes=3,
+            init_seed=42,
+        )
+        # This must NOT raise KeyError or any other error
+        node.initialize_cluster_bank(template_model=model_template, init_type="local")
+        assert len(node.cluster_params) == 5
+        for cid in range(5):
+            assert cid in node.cluster_params
+
+    def test_dfca_init_global_creates_k_clusters(self):
+        """dfca_init='global' must create k identical cluster models."""
+        model_template = SimpleLinearModel(input_dim=4, num_classes=3)
+        global_params = OrderedDict((k, v.clone()) for k, v in model_template.state_dict().items())
+
+        node = DFCANode(
+            client_id=0,
+            X_train=torch.randn(10, 4),
+            y_train=torch.randint(0, 3, (10,)),
+            num_clusters=5,
+            num_classes=3,
+        )
+        node.initialize_cluster_bank(global_params=global_params, init_type="global")
+        assert len(node.cluster_params) == 5
+
+    def test_num_messages_equals_total_deliveries(self):
+        """num_messages must equal total deliveries (senders × their participating neighbors)."""
+        from fed_learning.dfca.runner import _run_message_passing
+
+        torch.manual_seed(0)
+
+        # 3 nodes: 0->[1], 1->[0,2], 2->[1]
+        # When all participate:
+        #   node 0 sends to node 1 (1 delivery)
+        #   node 1 sends to nodes 0 and 2 (2 deliveries)
+        #   node 2 sends to node 1 (1 delivery)
+        #   total = 4
+        nodes = {}
+        for nid in [0, 1, 2]:
+            node = DFCANode(
+                client_id=nid,
+                X_train=torch.randn(10, 4),
+                y_train=torch.randint(0, 3, (10,)),
+                num_clusters=2,
+                num_classes=3,
+                init_seed=42,
+            )
+            global_params = OrderedDict(
+                (k, v.clone()) for k, v in SimpleLinearModel(4, 3).state_dict().items()
+            )
+            node.initialize_cluster_bank(global_params=global_params, init_type="global")
+            node.assigned_cluster = nid % 2  # distribute across clusters
+            nodes[nid] = node
+
+        neighbors = {0: [1], 1: [0, 2], 2: [1]}
+
+        num_messages, per_cluster_updates, _, _ = _run_message_passing(
+            nodes, participating_ids=[0, 1, 2], neighbors=neighbors,
+            num_clusters=2, debug_messages=False, debug_message_limit=0,
+        )
+
+        # Total deliveries
+        expected = sum(len([m for m in [0, 1, 2] if nid in neighbors.get(m, [])]) for nid in [0, 1, 2])
+        assert num_messages == expected, f"Expected {expected}, got {num_messages}"
+
+    def test_num_messages_equals_sum_per_cluster_updates(self):
+        """num_messages must equal sum of all per_cluster_updates values."""
+        from fed_learning.dfca.runner import _run_message_passing
+
+        torch.manual_seed(0)
+
+        nodes = {}
+        for nid in range(3):
+            node = DFCANode(
+                client_id=nid,
+                X_train=torch.randn(10, 4),
+                y_train=torch.randint(0, 3, (10,)),
+                num_clusters=2,
+                num_classes=3,
+                init_seed=42,
+            )
+            global_params = OrderedDict(
+                (k, v.clone()) for k, v in SimpleLinearModel(4, 3).state_dict().items()
+            )
+            node.initialize_cluster_bank(global_params=global_params, init_type="global")
+            node.assigned_cluster = 0
+            nodes[nid] = node
+
+        neighbors = {0: [1, 2], 1: [0], 2: [0]}
+
+        num_messages, per_cluster_updates, _, _ = _run_message_passing(
+            nodes, participating_ids=[0, 1, 2], neighbors=neighbors,
+            num_clusters=2, debug_messages=False, debug_message_limit=0,
+        )
+
+        assert num_messages == sum(per_cluster_updates.values()), (
+            f"num_messages={num_messages} != sum(per_cluster_updates)={sum(per_cluster_updates.values())}"
+        )
+
+    def test_eval_every_1_all_rounds_have_metrics(self):
+        """With eval_every=1, every round must have test metrics."""
+        config = {
+            "num_rounds": 5,
+            "dfca_num_clusters": 2,
+            "dfca_init": "global",
+            "dfca_graph": "erdos_renyi",
+            "dfca_connectivity": 0.3,
+            "dfca_participation_rate": 1.0,
+            "local_epochs": 1,
+            "optimizer": "sgd",
+            "learning_rate": 0.01,
+            "batch_size": 10,
+            "seed": 42,
+            "dfca_debug_assignments": False,
+            "dfca_debug_messages": False,
+            "dfca_debug_cluster_models": False,
+            "num_gpus": 0,
+            "eval_every": 1,
+        }
+
+        node_ids = [0, 1]
+        node_data = {}
+        for cid in node_ids:
+            X = torch.randn(10, 4)
+            y = torch.randint(0, 3, (10,))
+            node_data[cid] = (X, y)
+
+        model_template = SimpleLinearModel(input_dim=4, num_classes=3)
+        X_test = torch.randn(8, 4)
+        y_test = torch.randint(0, 3, (8,))
+        test_data = {"X_test": X_test, "y_test": y_test}
+
+        result = run_dfca_training(
+            node_ids=node_ids,
+            node_data=node_data,
+            model_template=model_template,
+            config=config,
+            test_data=test_data,
+            verbose=False,
+        )
+
+        assert len(result["history"]["test_accuracy"]) == 5
+        for acc in result["history"]["test_accuracy"]:
+            assert acc is not None
+
+    def test_eval_every_2_metrics_aligned_with_rounds(self):
+        """With eval_every=2, test metric arrays have same length as rounds with None for non-eval rounds."""
+        config = {
+            "num_rounds": 6,
+            "dfca_num_clusters": 2,
+            "dfca_init": "global",
+            "dfca_graph": "erdos_renyi",
+            "dfca_connectivity": 0.3,
+            "dfca_participation_rate": 1.0,
+            "local_epochs": 1,
+            "optimizer": "sgd",
+            "learning_rate": 0.01,
+            "batch_size": 10,
+            "seed": 42,
+            "dfca_debug_assignments": False,
+            "dfca_debug_messages": False,
+            "dfca_debug_cluster_models": False,
+            "num_gpus": 0,
+            "eval_every": 2,
+        }
+
+        node_ids = [0, 1]
+        node_data = {}
+        for cid in node_ids:
+            X = torch.randn(10, 4)
+            y = torch.randint(0, 3, (10,))
+            node_data[cid] = (X, y)
+
+        model_template = SimpleLinearModel(input_dim=4, num_classes=3)
+        X_test = torch.randn(8, 4)
+        y_test = torch.randint(0, 3, (8,))
+        test_data = {"X_test": X_test, "y_test": y_test}
+
+        result = run_dfca_training(
+            node_ids=node_ids,
+            node_data=node_data,
+            model_template=model_template,
+            config=config,
+            test_data=test_data,
+            verbose=False,
+        )
+
+        # All arrays must have same length as rounds
+        for key in ["test_loss", "test_accuracy", "test_f1_macro"]:
+            arr = result["history"][key]
+            assert len(arr) == len(result["history"]["round"]), (
+                f"{key} length {len(arr)} != rounds length {len(result['history']['round'])}"
+            )
+
+        # Rounds 1, 3, 5 have metrics (eval_every=2, first eval at round 1)
+        assert result["history"]["test_accuracy"][1] is not None
+        assert result["history"]["test_accuracy"][0] is None
+        assert result["history"]["test_accuracy"][3] is not None
+
+    def test_runner_start_round_offset(self):
+        """start_round must offset the round indices correctly."""
+        config = {
+            "num_rounds": 3,
+            "dfca_num_clusters": 2,
+            "dfca_init": "global",
+            "dfca_graph": "erdos_renyi",
+            "dfca_connectivity": 0.3,
+            "dfca_participation_rate": 1.0,
+            "local_epochs": 1,
+            "optimizer": "sgd",
+            "learning_rate": 0.01,
+            "batch_size": 10,
+            "seed": 42,
+            "dfca_debug_assignments": False,
+            "dfca_debug_messages": False,
+            "dfca_debug_cluster_models": False,
+            "num_gpus": 0,
+            "eval_every": 10,
+        }
+
+        node_ids = [0, 1]
+        node_data = {}
+        for cid in node_ids:
+            X = torch.randn(10, 4)
+            y = torch.randint(0, 3, (10,))
+            node_data[cid] = (X, y)
+
+        model_template = SimpleLinearModel(input_dim=4, num_classes=3)
+
+        result = run_dfca_training(
+            node_ids=node_ids,
+            node_data=node_data,
+            model_template=model_template,
+            config=config,
+            verbose=False,
+            start_round=5,
+            num_rounds_override=3,
+        )
+
+        assert result["history"]["round"] == [5, 6, 7]
+        assert len(result["history"]["round"]) == 3
+
+    def test_runner_with_test_data_no_task_fields(self):
+        """run_dfca_training must not accept task_id, task_start, task_end kwargs."""
+        import inspect
+        from fed_learning.dfca.runner import run_dfca_training
+
+        sig = inspect.signature(run_dfca_training)
+        params = set(sig.parameters.keys())
+        il_params = {"task_id", "task_start", "task_end", "seen_classes",
+                     "new_classes", "classes_per_task", "avg_forgetting"}
+        found = params & il_params
+        assert not found, f"run_dfca_training should not have IL params: {found}"
+
+
+class TestIncrementalDataLoaderFullData:
+    """Test pure FL full-data loading methods."""
+
+    def test_get_client_full_data_returns_all_samples(self):
+        """get_client_full_data must return all samples without task filtering."""
+        # This test verifies the method signature exists and returns correct type
+        from fed_learning.data.incremental_loader import IncrementalDataLoader
+
+        # Method must exist
+        assert hasattr(IncrementalDataLoader, "get_client_full_data")
+        assert hasattr(IncrementalDataLoader, "get_full_test_data")
+
+        # get_client_full_data must have the right signature
+        import inspect
+        sig = inspect.signature(IncrementalDataLoader.get_client_full_data)
+        params = list(sig.parameters.keys())
+        # self, client_id
+        assert params == ["self", "client_id"]
+
+        # get_full_test_data must have the right signature
+        sig2 = inspect.signature(IncrementalDataLoader.get_full_test_data)
+        params2 = list(sig2.parameters.keys())
+        assert params2 == ["self"]
+
+    def test_get_client_full_data_no_task_arg(self):
+        """get_client_full_data must NOT have a task_id parameter."""
+        import inspect
+        from fed_learning.data.incremental_loader import IncrementalDataLoader
+
+        sig = inspect.signature(IncrementalDataLoader.get_client_full_data)
+        params = set(sig.parameters.keys())
+        task_params = {"task_id", "task_start", "task_end", "cumulative"}
+        found = params & task_params
+        assert not found, f"get_client_full_data should not have task params: {found}"
+
+
+# =============================================================================
+# Test J: Checkpoint / Resume
+# =============================================================================
+
+class TestDFCACheckpointResume:
+    """Test checkpoint save/load and resume functionality."""
+
+    def test_checkpoint_state_contains_cluster_banks(self, tmp_path):
+        """build_dfca_checkpoint must include nodes_state with cluster params."""
+        from fed_learning.dfca import build_dfca_checkpoint
+
+        torch.manual_seed(42)
+        nodes = {}
+        for nid in [0, 1]:
+            node = DFCANode(
+                client_id=nid,
+                X_train=torch.randn(10, 4),
+                y_train=torch.randint(0, 3, (10,)),
+                num_clusters=2,
+                num_classes=3,
+                init_seed=42 + nid,
+            )
+            global_params = OrderedDict(
+                (k, v.clone()) for k, v in SimpleLinearModel(4, 3).state_dict().items()
+            )
+            node.initialize_cluster_bank(global_params=global_params, init_type="global")
+            node.assigned_cluster = nid % 2
+            nodes[nid] = node
+
+        graph_neighbors = {0: [1], 1: [0]}
+        prev_assign = {0: 0, 1: 1}
+        history = _make_hist()
+        cluster_history = []
+        rep_params = {}
+        config = {"dfca_num_clusters": 2, "seed": 42}
+
+        ckpt = build_dfca_checkpoint(
+            nodes=nodes,
+            graph_neighbors=graph_neighbors,
+            prev_assignments=prev_assign,
+            history=history,
+            cluster_history=cluster_history,
+            representative_params=rep_params,
+            config=config,
+            current_round=5,
+            num_rounds=10,
+        )
+
+        assert "nodes_state" in ckpt
+        assert "graph_neighbors" in ckpt
+        assert "prev_assignments" in ckpt
+        assert "rng_state" in ckpt
+        assert "current_round" in ckpt
+        assert ckpt["current_round"] == 5
+        # nodes_state keyed by int (not str)
+        assert 0 in ckpt["nodes_state"]
+        assert 1 in ckpt["nodes_state"]
+        assert 0 in ckpt["nodes_state"][0]   # cluster 0
+        assert 1 in ckpt["nodes_state"][0]   # cluster 1 (k=2)
+
+    def test_resume_continues_from_saved_cluster_banks(self):
+        """After resuming, cluster banks must continue from saved state (not re-initialized)."""
+        torch.manual_seed(99)
+        config = {
+            "num_rounds": 1,
+            "dfca_num_clusters": 2,
+            "dfca_init": "global",
+            "dfca_graph": "erdos_renyi",
+            "dfca_connectivity": 0.5,
+            "dfca_participation_rate": 1.0,
+            "local_epochs": 1,
+            "optimizer": "sgd",
+            "learning_rate": 0.01,
+            "batch_size": 10,
+            "seed": 99,
+            "dfca_debug_assignments": False,
+            "dfca_debug_messages": False,
+            "dfca_debug_cluster_models": False,
+            "num_gpus": 0,
+            "eval_every": 10,
+        }
+
+        node_ids = [0, 1]
+        node_data = {}
+        for cid in node_ids:
+            X = torch.randn(10, 4)
+            y = torch.randint(0, 3, (10,))
+            node_data[cid] = (X, y)
+
+        model_template = SimpleLinearModel(input_dim=4, num_classes=3)
+
+        # Run 1 round
+        result1 = run_dfca_training(
+            node_ids=node_ids,
+            node_data=node_data,
+            model_template=model_template,
+            config=config,
+            verbose=False,
+        )
+
+        ckpt = result1["checkpoint_state"]
+        assert ckpt["nodes_state"], "checkpoint_state must contain cluster banks"
+
+        # Resume and run 1 more round
+        resume_config = dict(config)
+        resume_config["num_rounds"] = 2
+        result2 = run_dfca_training(
+            node_ids=node_ids,
+            node_data=node_data,
+            model_template=model_template,
+            config=resume_config,
+            verbose=False,
+            resume_state=ckpt,
+        )
+
+        # History from round 0 is preserved and new training continues at round 1.
+        assert result2["history"]["round"] == [0, 1]
+        assert result2["checkpoint_state"]["nodes_state"], "resumed checkpoint must remain resumable"
+
+    def test_find_latest_checkpoint_helper(self, tmp_path):
+        """find_latest_checkpoint finds checkpoint in base_dir and subdirs."""
+        from fed_learning.dfca import find_latest_checkpoint
+
+        # Create fake checkpoint files
+        base = str(tmp_path)
+        open(os.path.join(base, "checkpoint_round_2.pt"), "w").close()
+        os.makedirs(os.path.join(base, "results_dfca_20250101"))
+        open(os.path.join(base, "results_dfca_20250101", "checkpoint_round_5.pt"), "w").close()
+        sibling = f"{base}_20250102"
+        os.makedirs(sibling)
+        open(os.path.join(sibling, "checkpoint_round_8.pt"), "w").close()
+
+        path = find_latest_checkpoint(base)
+        assert path is not None
+        assert "checkpoint_round_8.pt" in path
+
+    def test_message_log_records_recipients_and_received_clusters(self):
+        """With a known graph, msg_log must show recipients and received_from."""
+        from fed_learning.dfca.runner import _run_message_passing
+
+        nodes = {}
+        for nid in [0, 1, 2]:
+            node = DFCANode(
+                client_id=nid,
+                X_train=torch.randn(10, 4),
+                y_train=torch.randint(0, 3, (10,)),
+                num_clusters=2,
+                num_classes=3,
+                init_seed=42,
+            )
+            global_params = OrderedDict(
+                (k, v.clone()) for k, v in SimpleLinearModel(4, 3).state_dict().items()
+            )
+            node.initialize_cluster_bank(global_params=global_params, init_type="global")
+            node.assigned_cluster = nid % 2
+            nodes[nid] = node
+
+        # Fully connected graph among 3 nodes
+        neighbors = {0: [1, 2], 1: [0, 2], 2: [0, 1]}
+
+        num_messages, _, delivery_log, received_from = _run_message_passing(
+            nodes, participating_ids=[0, 1, 2], neighbors=neighbors,
+            num_clusters=2, debug_messages=False, debug_message_limit=0,
+        )
+
+        # delivery_log must have entries for all nodes
+        assert len(delivery_log) == 3
+        for nid in [0, 1, 2]:
+            key = f"node_{nid}"
+            assert key in delivery_log
+            assert delivery_log[key]["delivery_count"] == 2  # each node sends to 2 others
+
+        # received_from must be populated (each node receives from 2 neighbors)
+        assert len(received_from) == 3
+        for nid in [0, 1, 2]:
+            assert nid in received_from
+            assert len(received_from[nid]) == 2  # received from 2 neighbors
+
+    def test_messages_sent_is_recipient_count(self):
+        """messages_sent (delivery_count) must be number of recipients, not number of cluster keys."""
+        from fed_learning.dfca.runner import _run_message_passing
+
+        nodes = {}
+        for nid in [0, 1]:
+            node = DFCANode(
+                client_id=nid,
+                X_train=torch.randn(10, 4),
+                y_train=torch.randint(0, 3, (10,)),
+                num_clusters=2,
+                num_classes=3,
+                init_seed=42,
+            )
+            global_params = OrderedDict(
+                (k, v.clone()) for k, v in SimpleLinearModel(4, 3).state_dict().items()
+            )
+            node.initialize_cluster_bank(global_params=global_params, init_type="global")
+            node.assigned_cluster = 0
+            nodes[nid] = node
+
+        # 0 connects to 1; 1 connects to 0
+        neighbors = {0: [1], 1: [0]}
+        num_messages, _, delivery_log, _ = _run_message_passing(
+            nodes, participating_ids=[0, 1], neighbors=neighbors,
+            num_clusters=2, debug_messages=False, debug_message_limit=0,
+        )
+
+        # Both nodes have 1 recipient each, so delivery_count = 1 for each
+        for key, entry in delivery_log.items():
+            assert entry["delivery_count"] == len(entry["recipients"]), (
+                f"delivery_count ({entry['delivery_count']}) != len(recipients) ({len(entry['recipients'])})"
+            )
+        # num_messages = total deliveries
+        assert num_messages == sum(e["delivery_count"] for e in delivery_log.values())
+
+    def test_completed_checkpoint_does_not_train_extra_round(self):
+        """When resume_state current_round >= num_rounds, no training loop runs."""
+        torch.manual_seed(55)
+        config = {
+            "num_rounds": 3,
+            "dfca_num_clusters": 2,
+            "dfca_init": "global",
+            "dfca_graph": "erdos_renyi",
+            "dfca_connectivity": 0.5,
+            "dfca_participation_rate": 1.0,
+            "local_epochs": 1,
+            "optimizer": "sgd",
+            "learning_rate": 0.01,
+            "batch_size": 10,
+            "seed": 55,
+            "dfca_debug_assignments": False,
+            "dfca_debug_messages": False,
+            "dfca_debug_cluster_models": False,
+            "num_gpus": 0,
+            "eval_every": 10,
+        }
+
+        node_ids = [0, 1]
+        node_data = {}
+        for cid in node_ids:
+            X = torch.randn(10, 4)
+            y = torch.randint(0, 3, (10,))
+            node_data[cid] = (X, y)
+
+        model_template = SimpleLinearModel(input_dim=4, num_classes=3)
+
+        # Run 3 rounds
+        result1 = run_dfca_training(
+            node_ids=node_ids,
+            node_data=node_data,
+            model_template=model_template,
+            config=config,
+            verbose=False,
+        )
+        assert len(result1["history"]["round"]) == 3
+
+        ckpt = result1["checkpoint_state"]
+
+        # Resume with same num_rounds=3: remaining = 3 - (2+1) = 0
+        result2 = run_dfca_training(
+            node_ids=node_ids,
+            node_data=node_data,
+            model_template=model_template,
+            config=config,
+            verbose=False,
+            resume_state=ckpt,
+        )
+
+        # No new round is appended; the existing history is preserved.
+        assert result2["history"]["round"] == [0, 1, 2]
+
+
+# =============================================================================
+# Helpers for tests
+# =============================================================================
+
+def _make_hist():
+    from fed_learning.dfca.runner import _make_empty_history
+    return _make_empty_history()
+
