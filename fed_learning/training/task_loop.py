@@ -674,12 +674,7 @@ def _record_fed_round(
     else:
         metrics = {}
 
-    if evaluate and compute_forgetting:
-        current_task_accuracies, af = _compute_forgetting(
-            server, task_id, all_test_data, best_acc_per_task, trainer
-        )
-    else:
-        current_task_accuracies, af = {}, None
+    current_task_accuracies, af = {}, None
 
     round_record = {
         "task": task_id,
@@ -699,15 +694,13 @@ def _record_fed_round(
     _write_training_history(output_dir, history)
 
     if evaluate:
-        af_text = f"{af * 100:.2f}%" if af is not None else "N/A (final round only)"
         print(
             "    Metrics -> "
             f"train_loss={train_loss:.4f}, test_loss={metrics['loss']:.4f}, "
             f"accuracy={metrics['accuracy'] * 100:.2f}%, "
             f"f1={metrics['f1_macro'] * 100:.2f}%, "
             f"precision={metrics['precision_macro'] * 100:.2f}%, "
-            f"recall={metrics['recall_macro'] * 100:.2f}%, "
-            f"AF={af_text}"
+            f"recall={metrics['recall_macro'] * 100:.2f}%"
         )
     else:
         print(
@@ -763,7 +756,7 @@ def _run_tracked_rounds(
         print(f"  🔁 ROUND {round_id}/{round_total_last}{round_suffix}")
         round_result = train_round_fn(local_round) or {}
         is_final_round = round_id == round_total_last
-        evaluate_round = is_final_round or ((round_id + 1) % eval_every == 0)
+        evaluate_round = (not is_final_round) and ((round_id + 1) % eval_every == 0)
         save_round_checkpoint = checkpoint_every is not None and (
             is_final_round or ((round_id + 1) % checkpoint_every == 0)
         )
@@ -1653,13 +1646,10 @@ def run_incremental_training(config: Dict[str, Any]):
         else:
             print("  Visualization skipped (final task only)")
 
-        # 5j. Forgetting Calculation
+        # 5j. Forgetting is intentionally disabled for expensive full-test runs.
         del test_data
         gc.collect()
-
-        current_task_accuracies, af = _compute_forgetting(
-            server, task_id, all_test_data, best_acc_per_task, trainer
-        )
+        current_task_accuracies, af = {}, None
 
         # 5k. Save History
         all_history["task_accuracies"].append(
@@ -1672,10 +1662,8 @@ def run_incremental_training(config: Dict[str, Any]):
                 "recall_macro": metrics["recall_macro"],
                 "f1_macro": metrics["f1_macro"],
                 "f1_weighted": metrics.get("f1_weighted"),
-                "avg_forgetting": af,
             }
         )
-        all_history["task_forgetting"].append({"task": task_id, "avg_forgetting": af})
 
         # 5l. Checkpoint
         _save_fed_task_checkpoint(
@@ -1729,7 +1717,6 @@ def run_incremental_training(config: Dict[str, Any]):
     print("=" * 80)
     final = all_history["task_accuracies"][-1]
     print(f"Final Accuracy: {final['accuracy'] * 100:.2f}%")
-    print(f"Final Forgetting: {final['avg_forgetting'] * 100:.2f}%")
 
     _write_phase_outputs(
         output_dir,
