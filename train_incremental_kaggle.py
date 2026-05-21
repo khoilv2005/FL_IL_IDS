@@ -303,11 +303,11 @@ CONFIG = {
     # Pure DFCA
     "dfca_participation_rate": 1.0,
     "dfca_debug_assignments": False,
-    "dfca_debug_cluster_models": False,
+    "dfca_debug_cluster_models": True,
     # Checkpoint / resume
     "round_checkpoint_every": 5,
     "checkpoint_path": None,
-    "auto_resume_latest": False,
+    "auto_resume_latest": True,
     "num_rounds": 150,
 }
 
