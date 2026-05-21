@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import os
 
 import torch
 
@@ -230,3 +231,89 @@ def test_decentralized_plexus_il_writes_fed_il_output_contract(tmp_path, monkeyp
         "avg_forgetting",
         "evaluated",
     }
+
+def test_decentralized_plexus_il_resumes_second_phase(tmp_path, monkeypatch):
+    class FakeIncrementalDataLoader:
+        input_shape = (16, 1)
+
+        def __init__(self, data_dir):
+            self.data_dir = data_dir
+
+        def get_num_tasks(self):
+            return 2
+
+        def get_task_classes(self, task_id):
+            return [task_id]
+
+        def get_all_client_ids(self):
+            return [0, 1]
+
+        def get_client_data(self, client_id, task_id):
+            torch.manual_seed(20 + client_id + task_id)
+            return torch.randn(4, 16, 1), torch.full((4,), task_id, dtype=torch.long)
+
+        def get_test_data(self, task_id, cumulative=True):
+            X_parts = []
+            y_parts = []
+            for tid in range(task_id + 1):
+                torch.manual_seed(200 + tid)
+                X_parts.append(torch.randn(4, 16, 1))
+                y_parts.append(torch.full((4,), tid, dtype=torch.long))
+            return torch.cat(X_parts), torch.cat(y_parts)
+
+    monkeypatch.setattr(decentralized_il, "IncrementalDataLoader", FakeIncrementalDataLoader)
+    monkeypatch.setattr(
+        "fed_learning.training.task_loop._evaluate_and_visualize",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "fed_learning.training.task_loop._generate_fcil_report",
+        lambda *args, **kwargs: None,
+    )
+
+    base_config = {
+        "mode": "decentralized",
+        "algorithm": "plexus",
+        "data_dir": "unused",
+        "output_dir": str(tmp_path / "phase"),
+        "total_classes": 2,
+        "rounds_per_task": 1,
+        "local_epochs": 1,
+        "batch_size": 4,
+        "eval_batch_size": 4,
+        "learning_rate": 0.001,
+        "plexus_sample_size": 2,
+        "plexus_success_fraction": 0.5,
+        "eval_every": 1,
+        "round_checkpoint_every": 1,
+        "seed": 321,
+        "random_seed": 321,
+    }
+
+    phase1_config = {
+        **base_config,
+        "task_start": 0,
+        "task_end": 0,
+        "save_resume_after_task": 0,
+    }
+    phase1_history = decentralized_il.run_decentralized_plexus_il(phase1_config)
+    output_dir = next(tmp_path.glob("phase_plexus_*"))
+    resume_path = output_dir / "continuation_state_task_0.pt"
+
+    assert resume_path.exists()
+    assert len(phase1_history["task_accuracies"]) == 1
+
+    phase2_config = {
+        **base_config,
+        "task_start": 1,
+        "task_end": 1,
+        "save_resume_after_task": None,
+        "resume_state_path": str(resume_path),
+        "resume_output_dir": str(output_dir),
+    }
+    phase2_history = decentralized_il.run_decentralized_plexus_il(phase2_config)
+
+    assert [entry["task"] for entry in phase2_history["task_accuracies"]] == [0, 1]
+    assert len(phase2_history["round_metrics"]) == 2
+    assert (output_dir / "config_phase_resume.json").exists()
+    assert os.path.exists(output_dir / "checkpoint_task_1.pt")

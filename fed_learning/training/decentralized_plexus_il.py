@@ -12,6 +12,11 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.models.cnn_gru import CNN_GRU_Model
 from fed_learning.plexus import run_plexus_training
+from fed_learning.training.resume_state import (
+    build_continuation_state,
+    load_continuation_state,
+    save_continuation_state,
+)
 from fed_learning.utils.seed import set_seed
 
 
@@ -92,6 +97,17 @@ def _eval_params(
         "f1_weighted": f1_score(all_targets, all_preds, average="weighted", zero_division=0),
     }
 
+def _rebuild_prior_task_tests(
+    data_loader: IncrementalDataLoader,
+    task_tests: Dict[int, Dict[str, torch.Tensor]],
+    completed_task_ids: List[int],
+) -> None:
+    for prev_tid in completed_task_ids:
+        if prev_tid in task_tests:
+            continue
+        test_X, test_y = data_loader.get_test_data(prev_tid, cumulative=True)
+        task_tests[prev_tid] = {"X_test": test_X, "y_test": test_y}
+
 
 def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
     """Run no-server Plexus over incremental tasks with seen-class metrics."""
@@ -106,6 +122,20 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
 
     set_seed(config.get("random_seed", config.get("seed", 42)))
 
+    resume_state = None
+    if config.get("resume_state_path"):
+        resume_state = load_continuation_state(config["resume_state_path"])
+        resume_algo = resume_state["meta"].get("algorithm")
+        resume_mode = resume_state["meta"].get("mode")
+        if resume_algo != config.get("algorithm"):
+            raise ValueError(
+                f"Resume state algorithm mismatch: {resume_algo} != {config.get('algorithm')}"
+            )
+        if resume_mode != "decentralized":
+            raise ValueError(
+                f"Resume state mode mismatch: {resume_mode} != decentralized"
+            )
+
     output_dir = _resolve_output_dir(config, "decentralized", "plexus")
 
     print("\n" + "=" * 80)
@@ -115,12 +145,16 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
     data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
     config["input_shape"] = data_loader.input_shape
     config["num_classes"] = config["total_classes"]
-    with open(os.path.join(output_dir, "config.json"), "w") as f:
+    config_name = "config_phase_resume.json" if resume_state else "config.json"
+    with open(os.path.join(output_dir, config_name), "w") as f:
         json.dump(config, f, indent=2, default=str)
 
     model_template = CNN_GRU_Model(config["input_shape"], config["total_classes"])
     num_tasks = data_loader.get_num_tasks()
-    task_start = int(config.get("task_start", 0))
+    resume_from_task = 0
+    if resume_state is not None:
+        resume_from_task = int(resume_state["meta"].get("resume_from_task", 0))
+    task_start = int(config.get("task_start", resume_from_task))
     task_end = int(config.get("task_end", num_tasks - 1))
     rounds_per_task = int(config.get("rounds_per_task", 5))
     batch_size = int(config.get("batch_size", 32))
@@ -139,6 +173,19 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
     best_acc: Dict[int, float] = {}
     task_tests: Dict[int, Dict[str, torch.Tensor]] = {}
     global_params = None
+    if resume_state is not None:
+        global_params = resume_state.get("model_state_dict")
+        history = resume_state.get("all_history", history)
+        best_acc = {
+            int(tid): float(acc)
+            for tid, acc in resume_state.get("best_acc_per_task", {}).items()
+        }
+        completed_task_ids = sorted(
+            int(entry["task"]) for entry in history.get("task_accuracies", [])
+        )
+        _rebuild_prior_task_tests(data_loader, task_tests, completed_task_ids)
+        print(f"  Resumed from {config['resume_state_path']}")
+        print(f"  Completed tasks restored: {completed_task_ids}")
     print(f"  Plexus eval device: {eval_device}, eval_batch_size={eval_batch_size}")
 
     for task_id in range(task_start, task_end + 1):
@@ -369,6 +416,25 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
             task_id,
             generate_report=is_final_global_task,
         )
+
+        if config.get("save_resume_after_task") == task_id:
+            continuation_state = build_continuation_state(
+                mode="decentralized",
+                algorithm=config["algorithm"],
+                task_id=task_id,
+                config=config,
+                output_dir=output_dir,
+                model_state_dict=global_params,
+                all_history=history,
+                best_acc_per_task=best_acc,
+                seen_classes=seen_classes,
+            )
+            continuation_path = save_continuation_state(
+                output_dir,
+                task_id,
+                continuation_state,
+            )
+            print(f"  Continuation state saved: {continuation_path}")
 
     print("\n" + "=" * 80)
     print("DECENTRALIZED PLEXUS-IL COMPLETE")
