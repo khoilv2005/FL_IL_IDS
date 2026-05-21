@@ -19,6 +19,7 @@ temp_svd_storage/
 temp_ewc_storage/
 temp_fedlwf_storage/
 temp_test_data/
+tmp_f1
 
 # ===========================================
 # Python

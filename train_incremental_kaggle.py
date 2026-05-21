@@ -321,6 +321,7 @@ if __name__ == "__main__":
 
     if mode == "decentralized" and algo == "dfca":
         # ---- Pure DFCA ----
+        import csv
         import glob as glob_module
         import json
         import random as rnd_module
@@ -481,6 +482,54 @@ if __name__ == "__main__":
             rep_params_history = list(resume_state.get("rep_params_history", [])) if resume_state else []
 
             # ---- Callbacks ----
+            def _round_metrics_from_history(hist):
+                rows = []
+                for ri in range(len(hist.get("round", []))):
+                    rows.append({
+                        "round": hist["round"][ri],
+                        "train_loss": hist["train_loss"][ri] if ri < len(hist["train_loss"]) else None,
+                        "train_loss_std": hist["train_loss_std"][ri] if ri < len(hist["train_loss_std"]) else None,
+                        "assignment_changes": hist["assignment_changes"][ri] if ri < len(hist["assignment_changes"]) else None,
+                        "assignment_margin_avg": hist["assignment_margin_avg"][ri] if ri < len(hist["assignment_margin_avg"]) else None,
+                        "num_messages": hist["num_messages"][ri] if ri < len(hist["num_messages"]) else None,
+                        "participating_nodes": hist["participating_nodes"][ri] if ri < len(hist["participating_nodes"]) else None,
+                        "cluster_distribution": hist["cluster_distribution"][ri] if ri < len(hist["cluster_distribution"]) else None,
+                        "per_cluster_updates": hist["per_cluster_updates"][ri] if ri < len(hist["per_cluster_updates"]) else None,
+                        "round_time": hist["round_time"][ri] if ri < len(hist["round_time"]) else None,
+                        "test_loss": hist["test_loss"][ri] if ri < len(hist["test_loss"]) else None,
+                        "test_accuracy": hist["test_accuracy"][ri] if ri < len(hist["test_accuracy"]) else None,
+                        "test_precision_macro": hist["test_precision_macro"][ri] if ri < len(hist["test_precision_macro"]) else None,
+                        "test_recall_macro": hist["test_recall_macro"][ri] if ri < len(hist["test_recall_macro"]) else None,
+                        "test_f1_macro": hist["test_f1_macro"][ri] if ri < len(hist["test_f1_macro"]) else None,
+                        "test_f1_weighted": hist["test_f1_weighted"][ri] if ri < len(hist["test_f1_weighted"]) else None,
+                    })
+                return rows
+
+            def _write_round_metrics_artifacts(hist, current_round=None):
+                rows = _round_metrics_from_history(hist)
+                json_path = os.path.join(output_dir, "round_metrics.json")
+                csv_path = os.path.join(output_dir, "round_metrics.csv")
+                with open(json_path, "w") as f:
+                    json.dump(rows, f, indent=2, default=str)
+                if rows:
+                    with open(csv_path, "w", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+                        writer.writeheader()
+                        writer.writerows(rows)
+                with open(os.path.join(output_dir, "message_history.json"), "w") as f:
+                    json.dump(message_history, f, indent=2, default=str)
+                with open(os.path.join(output_dir, "rep_params_history.json"), "w") as f:
+                    json.dump(rep_params_history, f, indent=2, default=str)
+                if current_round is not None:
+                    with open(os.path.join(output_dir, "live_status.json"), "w") as f:
+                        json.dump({
+                            "status": "running",
+                            "latest_completed_round": current_round,
+                            "num_round_metric_rows": len(rows),
+                            "note": "Updated during training; final files are rewritten when training completes.",
+                        }, f, indent=2)
+                return rows
+
             def round_callback(round_r, history, record):
                 message_history.append({
                     "round": round_r,
@@ -490,6 +539,7 @@ if __name__ == "__main__":
                     "round": round_r,
                     "clusters": record.get("rep_params_summary", {}),
                 })
+                _write_round_metrics_artifacts(history, current_round=round_r)
 
             def checkpoint_callback(
                 nodes_dict, graph_neighbors_dict, prev_assign_dict,
@@ -520,6 +570,7 @@ if __name__ == "__main__":
                 ckpt["rep_params_history"] = list(rep_params_history)
                 ckpt_path = os.path.join(output_dir, f"checkpoint_round_{current_round_int}.pt")
                 torch.save(ckpt, ckpt_path)
+                _write_round_metrics_artifacts(history_dict, current_round=current_round_int)
                 print(f"  [Checkpoint] saved to {ckpt_path}")
 
             result = run_dfca_training(
@@ -536,34 +587,7 @@ if __name__ == "__main__":
 
             # ---- Write output files ----
             hist = result["history"]
-            round_metrics = []
-            for ri in range(len(hist["round"])):
-                rm = {
-                    "round": hist["round"][ri],
-                    "train_loss": hist["train_loss"][ri] if ri < len(hist["train_loss"]) else None,
-                    "train_loss_std": hist["train_loss_std"][ri] if ri < len(hist["train_loss_std"]) else None,
-                    "assignment_changes": hist["assignment_changes"][ri] if ri < len(hist["assignment_changes"]) else None,
-                    "assignment_margin_avg": hist["assignment_margin_avg"][ri] if ri < len(hist["assignment_margin_avg"]) else None,
-                    "num_messages": hist["num_messages"][ri] if ri < len(hist["num_messages"]) else None,
-                    "participating_nodes": hist["participating_nodes"][ri] if ri < len(hist["participating_nodes"]) else None,
-                    "cluster_distribution": hist["cluster_distribution"][ri] if ri < len(hist["cluster_distribution"]) else None,
-                    "per_cluster_updates": hist["per_cluster_updates"][ri] if ri < len(hist["per_cluster_updates"]) else None,
-                    "round_time": hist["round_time"][ri] if ri < len(hist["round_time"]) else None,
-                    "test_loss": hist["test_loss"][ri] if ri < len(hist["test_loss"]) else None,
-                    "test_accuracy": hist["test_accuracy"][ri] if ri < len(hist["test_accuracy"]) else None,
-                    "test_precision_macro": hist["test_precision_macro"][ri] if ri < len(hist["test_precision_macro"]) else None,
-                    "test_recall_macro": hist["test_recall_macro"][ri] if ri < len(hist["test_recall_macro"]) else None,
-                    "test_f1_macro": hist["test_f1_macro"][ri] if ri < len(hist["test_f1_macro"]) else None,
-                    "test_f1_weighted": hist["test_f1_weighted"][ri] if ri < len(hist["test_f1_weighted"]) else None,
-                }
-                round_metrics.append(rm)
-
-            with open(os.path.join(output_dir, "round_metrics.json"), "w") as f:
-                json.dump(round_metrics, f, indent=2, default=str)
-            with open(os.path.join(output_dir, "message_history.json"), "w") as f:
-                json.dump(message_history, f, indent=2, default=str)
-            with open(os.path.join(output_dir, "rep_params_history.json"), "w") as f:
-                json.dump(rep_params_history, f, indent=2, default=str)
+            round_metrics = _write_round_metrics_artifacts(hist, current_round=hist["round"][-1] if hist["round"] else None)
             with open(os.path.join(output_dir, "final_cluster_assignments.json"), "w") as f:
                 json.dump(result["final_assignments"], f, indent=2)
             with open(os.path.join(output_dir, "cluster_history.json"), "w") as f:
