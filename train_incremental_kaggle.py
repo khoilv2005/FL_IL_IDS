@@ -305,7 +305,7 @@ CONFIG = {
     "dfca_debug_assignments": False,
     "dfca_debug_cluster_models": True,
     # Checkpoint / resume
-    "round_checkpoint_every": 5,
+    "round_checkpoint_every": 1,
     "checkpoint_path": None,
     "auto_resume_latest": True,
     "num_rounds": 150,
@@ -485,9 +485,26 @@ if __name__ == "__main__":
             def _round_metrics_from_history(hist):
                 rows = []
                 for ri in range(len(hist.get("round", []))):
+                    test_loss = hist["test_loss"][ri] if ri < len(hist["test_loss"]) else None
+                    accuracy = hist["test_accuracy"][ri] if ri < len(hist["test_accuracy"]) else None
+                    precision_macro = hist["test_precision_macro"][ri] if ri < len(hist["test_precision_macro"]) else None
+                    recall_macro = hist["test_recall_macro"][ri] if ri < len(hist["test_recall_macro"]) else None
+                    f1_macro = hist["test_f1_macro"][ri] if ri < len(hist["test_f1_macro"]) else None
+                    f1_weighted = hist["test_f1_weighted"][ri] if ri < len(hist["test_f1_weighted"]) else None
                     rows.append({
+                        # Spreadsheet-compatible columns. Pure DFCA is FL-only,
+                        # so task is fixed to 0 and forgetting is not applicable.
+                        "task": 0,
                         "round": hist["round"][ri],
                         "train_loss": hist["train_loss"][ri] if ri < len(hist["train_loss"]) else None,
+                        "test_loss": test_loss,
+                        "accuracy": accuracy,
+                        "precision_macro": precision_macro,
+                        "recall_macro": recall_macro,
+                        "f1_macro": f1_macro,
+                        "avg_forgetting": None,
+                        "f1_weighted": f1_weighted,
+                        # DFCA debug/diagnostic columns.
                         "train_loss_std": hist["train_loss_std"][ri] if ri < len(hist["train_loss_std"]) else None,
                         "assignment_changes": hist["assignment_changes"][ri] if ri < len(hist["assignment_changes"]) else None,
                         "assignment_margin_avg": hist["assignment_margin_avg"][ri] if ri < len(hist["assignment_margin_avg"]) else None,
@@ -496,12 +513,11 @@ if __name__ == "__main__":
                         "cluster_distribution": hist["cluster_distribution"][ri] if ri < len(hist["cluster_distribution"]) else None,
                         "per_cluster_updates": hist["per_cluster_updates"][ri] if ri < len(hist["per_cluster_updates"]) else None,
                         "round_time": hist["round_time"][ri] if ri < len(hist["round_time"]) else None,
-                        "test_loss": hist["test_loss"][ri] if ri < len(hist["test_loss"]) else None,
-                        "test_accuracy": hist["test_accuracy"][ri] if ri < len(hist["test_accuracy"]) else None,
-                        "test_precision_macro": hist["test_precision_macro"][ri] if ri < len(hist["test_precision_macro"]) else None,
-                        "test_recall_macro": hist["test_recall_macro"][ri] if ri < len(hist["test_recall_macro"]) else None,
-                        "test_f1_macro": hist["test_f1_macro"][ri] if ri < len(hist["test_f1_macro"]) else None,
-                        "test_f1_weighted": hist["test_f1_weighted"][ri] if ri < len(hist["test_f1_weighted"]) else None,
+                        "test_accuracy": accuracy,
+                        "test_precision_macro": precision_macro,
+                        "test_recall_macro": recall_macro,
+                        "test_f1_macro": f1_macro,
+                        "test_f1_weighted": f1_weighted,
                     })
                 return rows
 
