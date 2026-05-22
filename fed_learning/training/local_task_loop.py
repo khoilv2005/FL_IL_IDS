@@ -29,6 +29,10 @@ from fed_learning.training.resume_state import (
     restore_trainer_state,
     save_continuation_state,
 )
+from fed_learning.training.checkpoint_state import (
+    CHECKPOINT_SCHEMA_VERSION,
+    build_algorithm_state,
+)
 from fed_learning.utils.cleanup import cleanup_temp_folders
 from fed_learning.utils.seed import set_seed
 
@@ -544,10 +548,14 @@ def _save_local_round_checkpoint(
     round_time: float,
     metrics: Dict[str, Any],
     avg_forgetting: float,
+    algorithm_state: Optional[Dict[str, Any]] = None,
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}_round_{round_id}.pt")
     torch.save(
         {
+            "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "mode": config.get("mode", "il"),
+            "algorithm": config.get("algorithm"),
             "task_id": task_id,
             "round_id": round_id,
             "model_state_dict": OrderedDict(
@@ -555,6 +563,7 @@ def _save_local_round_checkpoint(
             ),
             "config": config,
             "seen_classes": list(seen_classes),
+            "algorithm_state": algorithm_state or {},
             "metrics": {
                 "train_loss": train_loss,
                 "round_time": round_time,
@@ -577,10 +586,14 @@ def _save_local_task_checkpoint(
     metrics: Dict[str, Any],
     avg_forgetting: float,
     current_task_accuracies: Optional[Dict[int, float]] = None,
+    algorithm_state: Optional[Dict[str, Any]] = None,
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
     torch.save(
         {
+            "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "mode": config.get("mode", "il"),
+            "algorithm": config.get("algorithm"),
             "task_id": task_id,
             "final_round_id": final_round_id,
             "model_state_dict": OrderedDict(
@@ -588,6 +601,7 @@ def _save_local_task_checkpoint(
             ),
             "config": config,
             "seen_classes": list(seen_classes),
+            "algorithm_state": algorithm_state or {},
             "metrics": {**metrics, "avg_forgetting": avg_forgetting},
             "task_accuracies": current_task_accuracies or {},
         },
@@ -611,6 +625,7 @@ def _record_local_round(
     config: Dict[str, Any],
     seen_classes: List[int],
     context_detector: ContextDetector = None,
+    task_classes_history: Optional[Dict[int, List[int]]] = None,
     compute_forgetting: bool = True,
     evaluate: bool = True,
 ):
@@ -666,6 +681,13 @@ def _record_local_round(
         round_time,
         metrics,
         af,
+        build_algorithm_state(
+            config.get("algorithm", ""),
+            model=model,
+            context_detector=context_detector,
+            task_classes_history=task_classes_history,
+            config=config,
+        ),
     )
     return round_record
 
@@ -699,9 +721,18 @@ def _resolve_der_round_split(config: Dict[str, Any]) -> tuple[int, int]:
     return stage1_rounds, stage2_rounds
 
 
-def _run_local_der(model, client, trainer, config, device, new_classes):
+def _run_local_der(
+    model,
+    client,
+    trainer,
+    config,
+    device,
+    new_classes,
+    round_callback=None,
+):
     local_epochs = max(1, int(config.get("local_epochs", 1)))
     stage1_rounds, stage2_rounds = _resolve_der_round_split(config)
+    final_round_id = stage1_rounds + stage2_rounds - 1
     round_records: List[Dict[str, float]] = []
 
     trainer.set_stage(1)
@@ -716,13 +747,14 @@ def _run_local_der(model, client, trainer, config, device, new_classes):
             global_params=None,
             stage=1,
         )
-        round_records.append(
-            {
-                "round": stage_round,
-                "train_loss": float((result or {}).get("loss", 0.0)),
-                "round_time": time.time() - start_time,
-            }
-        )
+        record = {
+            "round": stage_round,
+            "train_loss": float((result or {}).get("loss", 0.0)),
+            "round_time": time.time() - start_time,
+        }
+        round_records.append(record)
+        if round_callback is not None:
+            round_callback(record, final_round_id)
 
     trainer.set_stage(2)
     if hasattr(model, "reset_classifier"):
@@ -739,13 +771,14 @@ def _run_local_der(model, client, trainer, config, device, new_classes):
             global_params=None,
             stage=2,
         )
-        round_records.append(
-            {
-                "round": round_id,
-                "train_loss": float((result or {}).get("loss", 0.0)),
-                "round_time": time.time() - start_time,
-            }
-        )
+        record = {
+            "round": round_id,
+            "train_loss": float((result or {}).get("loss", 0.0)),
+            "round_time": time.time() - start_time,
+        }
+        round_records.append(record)
+        if round_callback is not None:
+            round_callback(record, final_round_id)
 
     if hasattr(client, "update_exemplars"):
         client.update_exemplars(model)
@@ -764,6 +797,7 @@ def _run_local_nice(
     num_tasks,
     new_classes,
     context_detector: ContextDetector,
+    round_callback=None,
 ):
     trainer.max_phases = max(1, int(config.get("nice_max_phases", 5)))
     trainer.phase_epochs = max(1, int(config.get("nice_phase_epochs", 5)))
@@ -783,6 +817,7 @@ def _run_local_nice(
 
     client.setup_for_gpu(model, device)
     round_records: List[Dict[str, float]] = []
+    final_round_id = total_phase_rounds - 1
     for round_id in range(total_phase_rounds):
         print(f"    Round {round_id}/{total_phase_rounds - 1} [phase]")
         start_time = time.time()
@@ -805,13 +840,14 @@ def _run_local_nice(
             new_classes,
             device,
         )
-        round_records.append(
-            {
-                "round": round_id,
-                "train_loss": float((result or {}).get("loss", 0.0)),
-                "round_time": time.time() - start_time,
-            }
-        )
+        record = {
+            "round": round_id,
+            "train_loss": float((result or {}).get("loss", 0.0)),
+            "round_time": time.time() - start_time,
+        }
+        round_records.append(record)
+        if round_callback is not None:
+            round_callback(record, final_round_id)
 
     increase_unit_ranks(model)
     update_freeze_masks(model)
@@ -854,13 +890,16 @@ def _update_local_nice_context_memory(
     context_detector.train_models(task_id)
 
 
-def _run_local_generic(model, client, trainer, config, device, task_id, algorithm):
+def _run_local_generic(
+    model, client, trainer, config, device, task_id, algorithm, round_callback=None
+):
     local_epochs = max(1, int(config.get("local_epochs", 1)))
     num_rounds = max(1, int(config.get("rounds_per_task", 1)))
     client.setup_for_gpu(model, device)
     round_records: List[Dict[str, float]] = []
 
     print(f"  Local schedule: {num_rounds} rounds x {local_epochs} epochs")
+    final_round_id = num_rounds - 1
     for round_id in range(num_rounds):
         print(f"    Round {round_id}/{num_rounds - 1}")
         start_time = time.time()
@@ -871,13 +910,14 @@ def _run_local_generic(model, client, trainer, config, device, task_id, algorith
             lr=config["learning_rate"],
             global_params=None,
         )
-        round_records.append(
-            {
-                "round": round_id,
-                "train_loss": float((result or {}).get("loss", 0.0)),
-                "round_time": time.time() - start_time,
-            }
-        )
+        record = {
+            "round": round_id,
+            "train_loss": float((result or {}).get("loss", 0.0)),
+            "round_time": time.time() - start_time,
+        }
+        round_records.append(record)
+        if round_callback is not None:
+            round_callback(record, final_round_id)
     return round_records
 
 
@@ -973,6 +1013,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
     model = _create_local_model(config["algorithm"], config, device)
     all_history = {"task_accuracies": [], "task_forgetting": [], "round_metrics": []}
     best_acc_per_task: Dict[int, float] = {}
+    der_task_classes_history: Dict[int, List[int]] = {}
     persistent_client = None
     pending_client_state = None
     nice_context_detector = (
@@ -994,10 +1035,9 @@ def run_local_incremental_training(config: Dict[str, Any]):
         )
         if config["algorithm"].lower() == "der":
             for prev_tid in completed_task_ids:
-                model.add_task(
-                    data_loader.get_task_classes(prev_tid),
-                    s_max=config.get("s_max", 15.0),
-                )
+                prev_classes = data_loader.get_task_classes(prev_tid)
+                der_task_classes_history[prev_tid] = list(prev_classes)
+                model.add_task(prev_classes, s_max=config.get("s_max", 15.0))
 
         saved_model_state = resume_state.get("model_state_dict", {})
         if saved_model_state:
@@ -1044,39 +1084,22 @@ def run_local_incremental_training(config: Dict[str, Any]):
             trainer.set_task(task_id, new_classes)
 
         if config["algorithm"].lower() == "der" and hasattr(model, "add_task"):
+            der_task_classes_history[task_id] = list(new_classes)
             model.add_task(new_classes, s_max=config.get("s_max", 15.0))
 
         print(f"\n🎯 Local training on {len(new_classes)} new classes...")
         algo = config["algorithm"].lower()
         seen_classes = _get_seen_classes(data_loader, task_id)
         last_round_record = None
-        if algo == "der":
-            round_records = _run_local_der(
-                model, persistent_client, trainer, config, device, new_classes
-            )
-        elif algo == "nice":
-            round_records = _run_local_nice(
-                model,
-                persistent_client,
-                trainer,
-                config,
-                device,
-                task_id,
-                data_loader.get_num_tasks(),
-                new_classes,
-                nice_context_detector,
-            )
-        else:
-            round_records = _run_local_generic(
-                model, persistent_client, trainer, config, device, task_id, algo
-            )
 
-        final_round_id = int(round_records[-1]["round"]) if round_records else 0
-        eval_every = max(1, int(config.get("eval_every", 1)))
-        for round_summary in round_records:
+        def record_round_now(round_summary, final_round_id):
+            nonlocal last_round_record
             round_id = int(round_summary["round"])
-            is_final_round = round_id == final_round_id
-            evaluate_this_round = ((round_id + 1) % eval_every == 0) and not is_final_round
+            eval_every = max(1, int(config.get("eval_every", 1)))
+            is_final_round = round_id == int(final_round_id)
+            evaluate_this_round = (
+                ((round_id + 1) % eval_every == 0) and not is_final_round
+            )
             last_round_record = _record_local_round(
                 model,
                 device,
@@ -1092,8 +1115,46 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 config,
                 seen_classes,
                 context_detector=nice_context_detector if algo == "nice" else None,
+                task_classes_history=(
+                    der_task_classes_history if algo == "der" else None
+                ),
                 compute_forgetting=False,
                 evaluate=evaluate_this_round,
+            )
+
+        if algo == "der":
+            round_records = _run_local_der(
+                model,
+                persistent_client,
+                trainer,
+                config,
+                device,
+                new_classes,
+                round_callback=record_round_now,
+            )
+        elif algo == "nice":
+            round_records = _run_local_nice(
+                model,
+                persistent_client,
+                trainer,
+                config,
+                device,
+                task_id,
+                data_loader.get_num_tasks(),
+                new_classes,
+                nice_context_detector,
+                round_callback=record_round_now,
+            )
+        else:
+            round_records = _run_local_generic(
+                model,
+                persistent_client,
+                trainer,
+                config,
+                device,
+                task_id,
+                algo,
+                round_callback=record_round_now,
             )
 
         _post_task_local(
@@ -1154,6 +1215,15 @@ def run_local_incremental_training(config: Dict[str, Any]):
             metrics,
             af,
             current_task_accuracies,
+            build_algorithm_state(
+                config.get("algorithm", ""),
+                model=model,
+                context_detector=nice_context_detector if algo == "nice" else None,
+                task_classes_history=(
+                    der_task_classes_history if algo == "der" else None
+                ),
+                config=config,
+            ),
         )
         _write_local_phase_outputs(
             output_dir,

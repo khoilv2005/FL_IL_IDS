@@ -27,12 +27,6 @@ from .federated import (
     FedProxAggregator,
     FedPlusTrainer,
     FedPlusAggregator,
-    PlexusTrainer,
-    PlexusAggregator,
-    PlexusDERTrainer,
-    PlexusDERAggregator,
-    PlexusNICETrainer,
-    PlexusNICEAggregator,
     DFCATrainer,
     DFCAAggregator,
 )
@@ -80,10 +74,6 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
     "fedplus": {
         "trainer": FedPlusTrainer,
         "aggregator": FedPlusAggregator,
-    },
-    "plexus": {
-        "trainer": PlexusTrainer,
-        "aggregator": PlexusAggregator,
     },
     # Incremental Learning
     "cgofed": {
@@ -135,16 +125,6 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
     "refed": {
         "trainer": ReFedTrainer,
         "aggregator": ReFedAggregator,
-    },
-    # PlexusDER (Decentralized DER) - DER + Plexus
-    "plexus_der": {
-        "trainer": PlexusDERTrainer,
-        "aggregator": PlexusDERAggregator,
-    },
-    # PlexusNICE (Decentralized NICE) - NICE + Plexus
-    "plexus_nice": {
-        "trainer": PlexusNICETrainer,
-        "aggregator": PlexusNICEAggregator,
     },
     # DFCA (Decentralized Federated Clustering Algorithm) - Incremental Learning
     "dfca_il": {
@@ -273,22 +253,6 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             lambda_pim=config.get("refed_lambda_pim", 0.5),
             pim_iterations=config.get("refed_pim_iterations", 5),
         )
-    elif algo_lower == "plexus_der":
-        trainer = strategy["trainer"](
-            lambda_aux=config.get("lambda_aux", 1.0),
-            lambda_sparsity=config.get("lambda_sparsity", 0.5),
-            s_max=config.get("s_max", 15.0),
-            temperature=config.get("der_temperature", 2.0),
-            buffer_size=config.get("buffer_size", 500),
-        )
-    elif algo_lower == "plexus_nice":
-        trainer = strategy["trainer"](
-            tau=config.get("tau", 0.95),
-            max_phases=config.get("nice_max_phases", 5),
-            phase_epochs=config.get("nice_phase_epochs", 5),
-            memo_per_class=config.get("memo_per_class", 50),
-            rounds_per_task=config.get("rounds_per_task", 5),
-        )
     elif algo_lower == "dfca_il":
         trainer = strategy["trainer"](
             local_epochs=config.get("local_epochs", 1),
@@ -318,13 +282,6 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
                 "cgofed_history_dir",
                 os.path.join(default_cgofed_tmp, "history"),
             ),
-        )
-    elif algo_lower in ("plexus", "plexus_der", "plexus_nice"):
-        aggregator = strategy["aggregator"](
-            sample_size=config.get("plexus_sample_size", 13),
-            num_aggregators=config.get("plexus_num_aggregators", 1),
-            success_fraction=config.get("plexus_success_fraction", 0.8),
-            inactivity_threshold=config.get("plexus_inactivity_threshold", 50),
         )
     elif algo_lower == "dfca_il":
         aggregator = strategy["aggregator"](
@@ -366,9 +323,6 @@ def list_strategies() -> Dict[str, str]:
         "nice": "NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)",
         "glfc": "GLFC - Global-Local Forgetting Compensation (CVPR 2022)",
         "refed": "Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)",
-        "plexus": "Plexus - server-simulated decentralized FL",
-        "plexus_der": "PlexusDER - Decentralized DER with Plexus peer sampling",
-        "plexus_nice": "PlexusNICE - Decentralized NICE with Plexus peer sampling",
         "dfca_il": "DFCA-IL - Decentralized Federated Clustering Algorithm with Incremental Learning",
     }
 

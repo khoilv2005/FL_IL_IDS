@@ -38,7 +38,10 @@ from fed_learning.training.resume_state import (
     restore_trainer_state,
     save_continuation_state,
 )
-from fed_learning.plexus import run_plexus_training
+from fed_learning.training.checkpoint_state import (
+    CHECKPOINT_SCHEMA_VERSION,
+    build_algorithm_state,
+)
 
 # Visualization imports (optional)
 try:
@@ -257,96 +260,6 @@ def _train_refed(server, participating_clients, config, task_id):
             eval_metrics = server.evaluate_global()
             print(
                 f"    Round {r + 1}/{refed_rounds} -> "
-                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
-            )
-
-
-def _train_plexus(server, participating_clients, config):
-    """Plexus: Decentralized FL with rotating aggregator and hash-based sampling."""
-    plexus_rounds = config.get("rounds_per_task", 5)
-    print(f"\n  === Plexus Decentralized Training ({plexus_rounds} rounds) ===")
-
-    for r in range(plexus_rounds):
-        server.train_round(
-            participating_clients=participating_clients,
-            verbose=True,
-        )
-        if (r + 1) % config.get("eval_every", 1) == 0:
-            eval_metrics = server.evaluate_global()
-            print(
-                f"    Round {r + 1}/{plexus_rounds} -> "
-                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
-            )
-
-
-def _train_plexus_der(server, participating_clients, config, trainer):
-    """PlexusDER: Decentralized DER with two-stage training."""
-    stage1_rounds, stage2_rounds = _resolve_der_round_split(config)
-
-    # Stage 1: Representation learning
-    if hasattr(trainer, "set_stage"):
-        trainer.set_stage(1)
-
-    print(f"\n  === PlexusDER Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
-    for r in range(stage1_rounds):
-        server.train_round(
-            participating_clients=participating_clients,
-            stage=1,
-            verbose=True,
-        )
-        if (r + 1) % config.get("eval_every", 1) == 0:
-            eval_metrics = server.evaluate_global()
-            print(
-                f"    Round {r + 1}/{stage1_rounds} → "
-                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
-            )
-
-    # Stage 2: Classifier learning
-    if hasattr(trainer, "set_stage"):
-        trainer.set_stage(2)
-
-    if hasattr(server.global_model, "reset_classifier"):
-        server.global_model.reset_classifier()
-        print("  → Classifier H_t re-initialized (paper Section 3.2)")
-
-    print(f"\n  === PlexusDER Stage 2: Classifier Learning ({stage2_rounds} rounds) ===")
-    for r in range(stage2_rounds):
-        server.train_round(
-            participating_clients=participating_clients,
-            stage=2,
-            verbose=True,
-        )
-        if (r + 1) % config.get("eval_every", 1) == 0:
-            eval_metrics = server.evaluate_global()
-            print(
-                f"    Round {r + 1}/{stage2_rounds} → "
-                f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
-            )
-
-
-def _train_plexus_nice(server, participating_clients, config, data_loader, task_id):
-    """PlexusNICE: Decentralized NICE with phase-based training."""
-    max_phases, phase_epochs, effective_local_epochs = _resolve_nice_schedule(config)
-    nice_rounds = max_phases
-    is_last_task = task_id == data_loader.get_num_tasks() - 1
-
-    print(
-        f"\n  === PlexusNICE Training ({nice_rounds} phases) ==="
-        f"\n  PlexusNICE local schedule: {max_phases} phases x {phase_epochs} epochs"
-        f" = {effective_local_epochs} local epochs/client"
-        f"{' [LAST EPISODE: tau=100%]' if is_last_task else ''}"
-    )
-
-    for r in range(nice_rounds):
-        server.train_round(
-            participating_clients=participating_clients,
-            is_last_task=is_last_task,
-            verbose=True,
-        )
-        if (r + 1) % config.get("eval_every", 1) == 0:
-            eval_metrics = server.evaluate_global()
-            print(
-                f"    Phase {r + 1}/{nice_rounds} -> "
                 f"Acc: {eval_metrics['accuracy'] * 100:.2f}%"
             )
 
@@ -603,15 +516,20 @@ def _save_fed_round_checkpoint(
     round_time: float,
     metrics: Dict[str, Any],
     avg_forgetting: float,
+    algorithm_state: Optional[Dict[str, Any]] = None,
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}_round_{round_id}.pt")
     torch.save(
         {
+            "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "mode": config.get("mode", "fed_il"),
+            "algorithm": config.get("algorithm"),
             "task_id": task_id,
             "round_id": round_id,
             "model_state_dict": global_params,
             "config": config,
             "seen_classes": list(seen_classes),
+            "algorithm_state": algorithm_state or {},
             "metrics": {
                 "train_loss": train_loss,
                 "round_time": round_time,
@@ -634,15 +552,20 @@ def _save_fed_task_checkpoint(
     metrics: Dict[str, Any],
     avg_forgetting: float,
     task_accuracies: Optional[Dict[int, float]] = None,
+    algorithm_state: Optional[Dict[str, Any]] = None,
 ):
     ckpt_path = os.path.join(output_dir, f"checkpoint_task_{task_id}.pt")
     torch.save(
         {
+            "schema_version": CHECKPOINT_SCHEMA_VERSION,
+            "mode": config.get("mode", "fed_il"),
+            "algorithm": config.get("algorithm"),
             "task_id": task_id,
             "final_round_id": final_round_id,
             "model_state_dict": global_params,
             "config": config,
             "seen_classes": list(seen_classes),
+            "algorithm_state": algorithm_state or {},
             "metrics": {**metrics, "avg_forgetting": avg_forgetting},
             "task_accuracies": task_accuracies or {},
         },
@@ -720,6 +643,11 @@ def _record_fed_round(
             round_time,
             metrics,
             af,
+            build_algorithm_state(
+                config.get("algorithm", ""),
+                server=server,
+                config=config,
+            ),
         )
     return round_record
 
@@ -849,207 +777,6 @@ def _generate_fcil_report(all_history, config, output_dir):
 # =============================================================================
 
 
-def _run_plexus_training(config: Dict[str, Any]) -> Dict:
-    """
-    Run pure Plexus decentralized training (Algorithm 1 & 2, no server, no incremental).
-
-    This is the entry point when mode="decentralized".
-    Plexus paper: Dhasade et al., EuroMLSys 2025
-
-    Args:
-        config: Training configuration dict. Required keys:
-            - "data_dir": Path to data
-            - "output_dir": Output directory
-            - "total_classes": Total number of classes
-            - "input_shape": Input shape for model
-            - "num_rounds": Number of Plexus rounds
-            - "plexus_sample_size": K (default 13)
-            - "plexus_success_fraction": s_f (default 0.8)
-            - "local_epochs", "learning_rate", "batch_size"
-
-    Returns:
-        Dict with task_accuracies (Plexus has 1 "task", no incremental)
-    """
-    # 1. Setup
-    set_seed(config.get("random_seed", 42))
-
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = f"{config['output_dir']}_plexus_{ts}"
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Save Config
-    with open(f"{output_dir}/config.json", "w") as f:
-        json.dump(config, f, indent=2, default=str)
-
-    print("\n" + "=" * 80)
-    print("🚀 PURE PLEXUS — Decentralized FL (No Server, No Incremental)")
-    print("=" * 80)
-
-    # 2. Load Data
-    data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
-    print(f"\n{data_loader}")
-
-    config["input_shape"] = data_loader.input_shape
-    config["num_classes"] = config["total_classes"]
-
-    # 3. Create model template
-    from fed_learning.models.cnn_gru import CNN_GRU_Model
-    model_template = CNN_GRU_Model(
-        input_shape=config["input_shape"],
-        num_classes=config["total_classes"],
-    )
-
-    # 4. Prepare node data (all clients, all data)
-    node_data = {}
-    for cid in data_loader.get_all_client_ids():
-        X, y = data_loader.get_client_data(cid, task_id=0)  # Single task, no incremental
-        if len(y) > 0:
-            node_data[cid] = (X, y)
-
-    print(f"  Nodes: {len(node_data)}")
-
-    # 5. Prepare test data (all classes)
-    test_X, test_y = data_loader.get_test_data(task_id=0, cumulative=True)
-    test_data = {"X_test": test_X, "y_test": test_y}
-
-    all_history = {
-        "task_accuracies": [],
-        "task_forgetting": [],
-        "round_metrics": [],
-        "plexus_history": {},
-    }
-
-    def _plexus_round_callback(round_id: int, global_params, round_metrics: Dict[str, Any]):
-        round_record = {
-            "task": 0,
-            "round": round_id,
-            "train_loss": round_metrics.get("train_loss", 0.0),
-            "round_time": round_metrics.get("round_time", 0.0),
-            "test_loss": round_metrics.get("loss"),
-            "accuracy": round_metrics.get("accuracy"),
-            "precision_macro": round_metrics.get("precision_macro"),
-            "recall_macro": round_metrics.get("recall_macro"),
-            "f1_macro": round_metrics.get("f1_macro"),
-            "f1_weighted": round_metrics.get("f1_weighted"),
-            "avg_forgetting": 0.0,
-        }
-        all_history["round_metrics"].append(round_record)
-        _save_fed_round_checkpoint(
-            output_dir,
-            0,
-            round_id,
-            global_params,
-            config,
-            list(range(config["total_classes"])),
-            float(round_metrics.get("train_loss", 0.0) or 0.0),
-            float(round_metrics.get("round_time", 0.0) or 0.0),
-            {
-                "loss": round_metrics.get("loss", 0.0) or 0.0,
-                "accuracy": round_metrics.get("accuracy", 0.0) or 0.0,
-                "precision_macro": round_metrics.get("precision_macro", 0.0) or 0.0,
-                "recall_macro": round_metrics.get("recall_macro", 0.0) or 0.0,
-                "f1_macro": round_metrics.get("f1_macro", 0.0) or 0.0,
-                "f1_weighted": round_metrics.get("f1_weighted", 0.0) or 0.0,
-            },
-            0.0,
-        )
-        _write_phase_outputs(output_dir, all_history, config, 0)
-
-    # 6. Run Plexus
-    result = run_plexus_training(
-        node_ids=list(node_data.keys()),
-        node_data=node_data,
-        model_template=model_template,
-        config=config,
-        test_data=test_data,
-        verbose=True,
-        round_callback=_plexus_round_callback,
-    )
-
-    # 7. Format return (compatible with run_incremental_training format)
-    history = result["history"]
-    global_params = result["global_params"]
-
-    # Compute metrics on test data
-    model = CNN_GRU_Model(
-        input_shape=config["input_shape"],
-        num_classes=config["total_classes"],
-    )
-    model.load_state_dict({k: v.cpu() for k, v in global_params.items()})
-    model.eval()
-
-    X_test = test_data["X_test"]
-    y_test = test_data["y_test"]
-
-    all_preds = []
-    all_targets = []
-    with torch.no_grad():
-        batch_size = config.get("batch_size", 32)
-        for i in range(0, len(X_test), batch_size):
-            batch_X = X_test[i:i+batch_size]
-            batch_y = y_test[i:i+batch_size]
-            output = model(batch_X)
-            preds = output.argmax(dim=1)
-            all_preds.extend(preds.cpu().numpy())
-            all_targets.extend(batch_y.cpu().numpy())
-
-    from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-    acc = accuracy_score(all_targets, all_preds)
-    f1 = f1_score(all_targets, all_preds, average="macro", zero_division=0)
-    precision = precision_score(all_targets, all_preds, average="macro", zero_division=0)
-    recall = recall_score(all_targets, all_preds, average="macro", zero_division=0)
-
-    print("\n" + "=" * 80)
-    print("🏁 PURE PLEXUS COMPLETE")
-    print(f"Final Accuracy: {acc*100:.2f}%")
-    print(f"Final F1: {f1*100:.2f}%")
-    print("=" * 80)
-
-    final_metrics = {
-        "loss": history["test_loss"][-1] if history.get("test_loss") else 0.0,
-        "accuracy": acc,
-        "precision_macro": precision,
-        "recall_macro": recall,
-        "f1_macro": f1,
-        "f1_weighted": history["test_f1_weighted"][-1] if history.get("test_f1_weighted") else None,
-    }
-    all_history["task_accuracies"] = [
-        {
-            "task": 0,
-            "final_round": history["round"][-1] if history.get("round") else 0,
-            "loss": final_metrics["loss"],
-            "accuracy": acc,
-            "precision_macro": precision,
-            "recall_macro": recall,
-            "f1_macro": f1,
-            "f1_weighted": final_metrics["f1_weighted"],
-            "avg_forgetting": 0.0,
-        }
-    ]
-    all_history["task_forgetting"] = [{"task": 0, "avg_forgetting": 0.0}]
-    all_history["plexus_history"] = {k: v for k, v in history.items() if k != "sample"}
-
-    _save_fed_task_checkpoint(
-        output_dir,
-        0,
-        history["round"][-1] if history.get("round") else 0,
-        global_params,
-        config,
-        list(range(config["total_classes"])),
-        final_metrics,
-        0.0,
-        {0: acc},
-    )
-    _write_phase_outputs(output_dir, all_history, config, 0)
-
-    return {
-        "task_accuracies": all_history["task_accuracies"],
-        "task_forgetting": all_history["task_forgetting"],
-        "round_metrics": all_history["round_metrics"],
-        "plexus_history": all_history["plexus_history"],
-    }
-
-
 def run_incremental_training(config: Dict[str, Any]):
     """
     Run the complete Federated Class Incremental Learning pipeline.
@@ -1067,6 +794,10 @@ def run_incremental_training(config: Dict[str, Any]):
             - Algorithm-specific parameters (see CONFIG in training script)
     """
     mode = config.get("mode", "fed_il").lower()
+    algorithm = config.get("algorithm", "").lower()
+    if algorithm == "plexus" and mode != "decentralized":
+        raise ValueError("algorithm='plexus' is only supported with mode='decentralized'.")
+
     if mode == "il":
         from fed_learning.training.local_task_loop import run_local_incremental_training
 
@@ -1122,7 +853,7 @@ def run_incremental_training(config: Dict[str, Any]):
 
     # 4. State Variables
     global_model = None
-    global_neuron_ages = None  # NICE/PlexusNICE: preserve neuron ages across tasks
+    global_neuron_ages = None  # NICE: preserve neuron ages across tasks
     all_history = {"task_accuracies": [], "task_forgetting": [], "round_metrics": []}
     all_test_data = {}
     best_acc_per_task = {}
@@ -1219,7 +950,7 @@ def run_incremental_training(config: Dict[str, Any]):
             **config,
             "num_classes": config["total_classes"],
             "num_rounds": config["rounds_per_task"],
-            "num_tasks": num_tasks,  # For Plexus dynamic client scaling
+            "num_tasks": num_tasks,
         }
 
         # Dynamic param adjustment (e.g., LwF alpha decay)
@@ -1237,11 +968,6 @@ def run_incremental_training(config: Dict[str, Any]):
 
         # NICE: pass is_last_task flag
         if config["algorithm"].lower() == "nice":
-            is_last_task = task_id == num_tasks - 1
-            task_config["is_last_task"] = is_last_task
-
-        # PlexusNICE: pass is_last_task flag
-        if config["algorithm"].lower() == "plexus_nice":
             is_last_task = task_id == num_tasks - 1
             task_config["is_last_task"] = is_last_task
 
@@ -1267,7 +993,7 @@ def run_incremental_training(config: Dict[str, Any]):
             server.set_global_params(global_model)
             # Restore neuron ages for NICE-based algorithms (unit_ranks NOT in state_dict)
             algo = config["algorithm"].lower()
-            if global_neuron_ages is not None and algo in ("nice", "plexus_nice"):
+            if global_neuron_ages is not None and algo == "nice":
                 server.global_model.set_neuron_ages_state(global_neuron_ages)
                 print(f"  Restored neuron ages from previous task")
 
@@ -1433,188 +1159,6 @@ def run_incremental_training(config: Dict[str, Any]):
                 seen_classes,
                 is_last_task,
             )
-        elif algo == "plexus":
-            plexus_rounds = config.get("rounds_per_task", 5)
-            
-            # Set num_tasks for dynamic client scaling in PlexusServer
-            if hasattr(server, '_num_tasks'):
-                server._num_tasks = num_tasks
-            
-            print(f"\n  === Plexus Decentralized Training ({plexus_rounds} rounds) ===")
-            if hasattr(server, 'scale_clients') and server.scale_clients:
-                print(f"  📈 Dynamic scaling: {server.initial_client_ratio*100:.0f}% → {server.final_client_ratio*100:.0f}%")
-            
-            last_round_record = _run_tracked_rounds(
-                server,
-                lambda _r: server.train_round(
-                    participating_clients=participating_clients,
-                    task_id=task_id,
-                    verbose=True,
-                ),
-                plexus_rounds,
-                task_id,
-                output_dir,
-                all_history,
-                all_test_data,
-                best_acc_per_task,
-                trainer,
-                config,
-                seen_classes,
-                is_last_task,
-            )
-        elif algo == "plexus_der":
-            stage1_rounds, stage2_rounds = _resolve_der_round_split(config)
-            total_rounds = stage1_rounds + stage2_rounds
-
-            # Set num_tasks for dynamic client scaling in PlexusServer
-            if hasattr(server, '_num_tasks'):
-                server._num_tasks = num_tasks
-
-            if hasattr(trainer, "set_stage"):
-                trainer.set_stage(1)
-            print(f"\n  === PlexusDER Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
-            if hasattr(server, 'scale_clients') and server.scale_clients:
-                print(f"  📈 Dynamic scaling: {server.initial_client_ratio*100:.0f}% → {server.final_client_ratio*100:.0f}%")
-            _run_tracked_rounds(
-                server,
-                lambda _r: server.train_round(
-                    participating_clients=participating_clients,
-                    task_id=task_id,
-                    stage=1,
-                    verbose=True,
-                ),
-                stage1_rounds,
-                task_id,
-                output_dir,
-                all_history,
-                all_test_data,
-                best_acc_per_task,
-                trainer,
-                config,
-                seen_classes,
-                is_last_task,
-                round_start=0,
-                round_total_last=total_rounds - 1,
-                label="[stage=1]",
-            )
-
-            if hasattr(trainer, "set_stage"):
-                trainer.set_stage(2)
-            if hasattr(server.global_model, "reset_classifier"):
-                server.global_model.reset_classifier()
-                print("  → Classifier H_t re-initialized (paper Section 3.2)")
-
-            print(f"\n  === PlexusDER Stage 2: Classifier Learning ({stage2_rounds} rounds) ===")
-            last_round_record = _run_tracked_rounds(
-                server,
-                lambda _r: server.train_round(
-                    participating_clients=participating_clients,
-                    task_id=task_id,
-                    stage=2,
-                    verbose=True,
-                ),
-                stage2_rounds,
-                task_id,
-                output_dir,
-                all_history,
-                all_test_data,
-                best_acc_per_task,
-                trainer,
-                config,
-                seen_classes,
-                is_last_task,
-                round_start=stage1_rounds,
-                round_total_last=total_rounds - 1,
-                label="[stage=2]",
-            )
-            # Weight Alignment after Stage 2
-            if task_id > 0 and hasattr(server.global_model, "weight_align"):
-                server.global_model.weight_align(len(new_classes))
-        elif algo == "plexus_nice":
-            max_phases, phase_epochs, effective_local_epochs = _resolve_nice_schedule(
-                config
-            )
-            nice_rounds = max_phases
-            
-            # Set num_tasks for dynamic client scaling in PlexusServer
-            if hasattr(server, '_num_tasks'):
-                server._num_tasks = num_tasks
-            
-            if is_last_task:
-                print(
-                    f"\n  === PlexusNICE Training ({nice_rounds} phases) ==="
-                    f"\n  PlexusNICE local schedule: {max_phases} phases x {phase_epochs} epochs"
-                    f" = {effective_local_epochs} local epochs/client"
-                    "\n  [LAST EPISODE: tau=100%]"
-                )
-            else:
-                print(
-                    f"\n  === PlexusNICE Training ({nice_rounds} phases) ==="
-                    f"\n  PlexusNICE local schedule: {max_phases} phases x {phase_epochs} epochs"
-                    f" = {effective_local_epochs} local epochs/client"
-                )
-            if hasattr(server, 'scale_clients') and server.scale_clients:
-                print(f"  📈 Dynamic scaling: {server.initial_client_ratio*100:.0f}% → {server.final_client_ratio*100:.0f}%")
-            
-            last_round_record = _run_tracked_rounds(
-                server,
-                lambda _r: server.train_round(
-                    participating_clients=participating_clients,
-                    task_id=task_id,
-                    is_last_task=is_last_task,
-                    verbose=True,
-                ),
-                nice_rounds,
-                task_id,
-                output_dir,
-                all_history,
-                all_test_data,
-                best_acc_per_task,
-                trainer,
-                config,
-                seen_classes,
-                is_last_task,
-                label="[phase]",
-            )
-        elif algo == "dfca_il":
-            dfca_rounds = config.get("rounds_per_task", 5)
-            print(f"\n  === DFCA-IL Training ({dfca_rounds} rounds) ===")
-            print(f"  Active clients: {server.client_ratios[task_id]:.0%} of total")
-            last_round_record = _run_tracked_rounds(
-                server,
-                lambda _r: server.train_round(
-                    participating_clients=None,
-                    task_id=task_id,
-                    verbose=True,
-                ),
-                dfca_rounds,
-                task_id,
-                output_dir,
-                all_history,
-                all_test_data,
-                best_acc_per_task,
-                trainer,
-                config,
-                seen_classes,
-                is_last_task,
-            )
-        else:
-            total_rounds = config["rounds_per_task"]
-            print(f"\n  === Standard Federated Training ({total_rounds} rounds) ===")
-            last_round_record = _run_tracked_rounds(
-                server,
-                lambda _r: server.train_round(verbose=True),
-                total_rounds,
-                task_id,
-                output_dir,
-                all_history,
-                all_test_data,
-                best_acc_per_task,
-                trainer,
-                config,
-                seen_classes,
-                is_last_task,
-            )
 
         # 5f. Post-Task Processing
         post_task_processing(
@@ -1625,7 +1169,7 @@ def run_incremental_training(config: Dict[str, Any]):
         global_model = server.get_global_params()
         # Save neuron ages for NICE-based algorithms (unit_ranks NOT in state_dict)
         algo = config["algorithm"].lower()
-        if algo in ("nice", "plexus_nice"):
+        if algo == "nice":
             global_neuron_ages = server.global_model.get_neuron_ages_state()
 
         # 5h. Evaluate
@@ -1676,6 +1220,11 @@ def run_incremental_training(config: Dict[str, Any]):
             metrics,
             af,
             current_task_accuracies,
+            build_algorithm_state(
+                config.get("algorithm", ""),
+                server=server,
+                config=config,
+            ),
         )
         _write_phase_outputs(
             output_dir,

@@ -16,8 +16,6 @@ from fed_learning.clients import (
     NICEClient,
     GLFCClient,
     ReFedClient,
-    PlexusDERClient,
-    PlexusNICEClient,
 )
 from fed_learning.clients.dfca_client import DFCAClient
 from fed_learning.clients.fedcbdr_client import FedCBDRClient
@@ -73,20 +71,6 @@ _CLIENT_REGISTRY = {
             "memory_size": ("refed_memory_size", 2000),
             "lambda_pim": ("refed_lambda_pim", 0.5),
             "pim_iterations": ("refed_pim_iterations", 5),
-        },
-    ),
-    "plexus_der": (
-        PlexusDERClient,
-        {
-            "buffer_size": ("buffer_size", 500),
-        },
-    ),
-    "plexus_nice": (
-        PlexusNICEClient,
-        {
-            "max_phases": ("nice_max_phases", 5),
-            "phase_epochs": ("nice_phase_epochs", 5),
-            "tau": ("tau", 0.95),
         },
     ),
     "dfca_il": (

@@ -122,6 +122,9 @@ def run_decentralized_plexus_il(config: Dict[str, Any]) -> Dict[str, Any]:
 
     set_seed(config.get("random_seed", config.get("seed", 42)))
 
+    if config.get("algorithm", "plexus").lower() != "plexus":
+        raise ValueError("mode='decentralized' supports only algorithm='plexus'.")
+
     resume_state = None
     if config.get("resume_state_path"):
         resume_state = load_continuation_state(config["resume_state_path"])

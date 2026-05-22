@@ -109,13 +109,13 @@ Usage:
     Chọn mode trong CONFIG["mode"]:
     - "fed_il": federated incremental learning
     - "il": local incremental learning
-    - "decentralized": decentralized FL (Plexus or pure DFCA)
+    - "decentralized": decentralized Plexus-IL (no server)
 
     Sau đó chọn thuật toán qua CONFIG["algorithm"]:
     - fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
               "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
-              "plexus", "plexus_der", "plexus_nice", "dfca_il"
-    - decentralized: "plexus" (Plexus), "dfca" (pure DFCA paper)
+              "dfca_il"
+    - decentralized: "plexus"
     - il: "ewc", "lwf", "der", "nice"
 
     Upload fed_learning folder to Kaggle dataset, then run this script.
@@ -175,15 +175,15 @@ CONFIG = {
     # Options:
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
-    #   - "decentralized": Plexus decentralized FL (no server), DFCA
+    #   - "decentralized": Plexus decentralized IL (no server)
     "mode": "decentralized",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
-    #         "plexus", "plexus_der", "plexus_nice"
+    #         "dfca_il"
     # il:     "ewc", "lwf", "der", "nice"
-    # decentralized: "plexus", "dfca"
-    "algorithm": "dfca",
+    # decentralized: "plexus"
+    "algorithm": "plexus",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental

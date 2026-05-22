@@ -1,6 +1,7 @@
+import pytest
 import torch
 
-from fed_learning.training.task_loop import _run_tracked_rounds
+from fed_learning.training.task_loop import _run_tracked_rounds, run_incremental_training
 
 
 class _FakeServer:
@@ -44,11 +45,15 @@ def test_run_tracked_rounds_respects_eval_every(tmp_path):
         is_last_task=False,
     )
 
-    assert server.evaluate_calls == 1
+    assert server.evaluate_calls == 0
     assert [record["evaluated"] for record in history["round_metrics"]] == [
         False,
         False,
-        True,
+        False,
     ]
     assert history["round_metrics"][0]["accuracy"] is None
-    assert history["round_metrics"][-1]["accuracy"] == 0.25
+    assert history["round_metrics"][-1]["accuracy"] is None
+
+def test_plexus_rejected_outside_decentralized_mode():
+    with pytest.raises(ValueError, match="mode='decentralized'"):
+        run_incremental_training({"mode": "fed_il", "algorithm": "plexus"})
