@@ -1053,14 +1053,15 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 if hasattr(model, "freeze_bn_for_mature"):
                     model.freeze_bn_for_mature()
 
+    num_tasks = data_loader.get_num_tasks()
     task_start, task_end = _resolve_local_task_bounds(
-        config, data_loader.get_num_tasks(), resume_state
+        config, num_tasks, resume_state
     )
     print(f"Task range: {task_start} -> {task_end}")
 
     for task_id in range(task_start, task_end + 1):
         print(
-            f"\n{'=' * 80}\nTASK {task_id}/{data_loader.get_num_tasks() - 1}\n{'=' * 80}"
+            f"\n{'=' * 80}\nTASK {task_id}/{num_tasks - 1}\n{'=' * 80}"
         )
         new_classes = data_loader.get_task_classes(task_id)
         _, combined_data = _build_single_client_dataset(data_loader, task_id)
