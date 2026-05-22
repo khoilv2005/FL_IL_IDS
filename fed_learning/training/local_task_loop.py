@@ -1072,8 +1072,11 @@ def run_local_incremental_training(config: Dict[str, Any]):
             )
 
         final_round_id = int(round_records[-1]["round"]) if round_records else 0
+        eval_every = max(1, int(config.get("eval_every", 1)))
         for round_summary in round_records:
             round_id = int(round_summary["round"])
+            is_final_round = round_id == final_round_id
+            evaluate_this_round = ((round_id + 1) % eval_every == 0) and not is_final_round
             last_round_record = _record_local_round(
                 model,
                 device,
@@ -1089,8 +1092,8 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 config,
                 seen_classes,
                 context_detector=nice_context_detector if algo == "nice" else None,
-                compute_forgetting=(round_id == final_round_id),
-                evaluate=(round_id != final_round_id),
+                compute_forgetting=False,
+                evaluate=evaluate_this_round,
             )
 
         _post_task_local(
