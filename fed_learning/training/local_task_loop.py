@@ -765,10 +765,9 @@ def _run_local_nice(
     new_classes,
     context_detector: ContextDetector,
 ):
-    num_rounds = max(1, int(config.get("rounds_per_task", 1)))
     trainer.max_phases = max(1, int(config.get("nice_max_phases", 5)))
     trainer.phase_epochs = max(1, int(config.get("nice_phase_epochs", 5)))
-    total_phase_rounds = num_rounds * trainer.max_phases
+    total_phase_rounds = trainer.max_phases
 
     for cls_id in new_classes:
         if cls_id < model.num_classes:
@@ -777,7 +776,7 @@ def _run_local_nice(
 
     print(
         "  NICE local schedule: "
-        f"{num_rounds} episode(s) x {trainer.max_phases} phases x "
+        f"{trainer.max_phases} phases x "
         f"{trainer.phase_epochs} epochs = "
         f"{total_phase_rounds * trainer.phase_epochs} total local epochs"
     )
