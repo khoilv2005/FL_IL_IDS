@@ -229,7 +229,7 @@ CONFIG = {
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
     "batch_size": 2048,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
     "eval_every": 1,
-    "round_checkpoint_every": 5,
+    "round_checkpoint_every": 1,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
     "mu_cgofed": 1.0,  # Paper Eq. 9: full gradient projection
@@ -306,9 +306,9 @@ CONFIG = {
     "dfca_debug_cluster_models": True,
     # Checkpoint / resume
     "round_checkpoint_every": 1,
-    "checkpoint_path": None,
+    "checkpoint_path": "/kaggle/input/datasets/phungvannamanh/dfca-outputs/results_dfca_20260521_051917/checkpoint_round_9.pt",
     "auto_resume_latest": True,
-    "num_rounds": 150,
+    "num_rounds": 15,
 }
 
 
@@ -355,7 +355,7 @@ if __name__ == "__main__":
         if explicit_ckpt and os.path.exists(explicit_ckpt):
             resume_state = torch.load(explicit_ckpt, map_location="cpu", weights_only=False)
             resume_round = resume_state.get("current_round", 0) + 1
-            output_dir = os.path.dirname(explicit_ckpt)
+            output_dir = base_output_dir
             print(f"\n  [Checkpoint Resume] Loading from: {explicit_ckpt}")
             print(f"  [Checkpoint Resume] Resuming from round {resume_round}")
             print(f"  [Checkpoint Resume] Writing output to: {output_dir}")
@@ -414,7 +414,7 @@ if __name__ == "__main__":
         print(f"  Full test samples: {len(test_y)}")
 
         # ---- Rounds ----
-        checkpoint_every = int(CONFIG.get("round_checkpoint_every", 5))
+        checkpoint_every = int(CONFIG.get("round_checkpoint_every", 1))
         total_rounds = int(CONFIG.get("num_rounds", 150))
         remaining_rounds = total_rounds - resume_round
 
