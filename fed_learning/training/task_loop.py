@@ -1070,6 +1070,8 @@ def run_incremental_training(config: Dict[str, Any]):
                     participating_clients=participating_clients,
                     stage=1,
                     verbose=True,
+                    refresh_feature_stats=algo in ("rne", "rne_compress")
+                    and _r == stage1_rounds - 1,
                 ),
                 stage1_rounds,
                 task_id,

@@ -295,7 +295,7 @@ class RNEModel(DERModel):
     def _new_backbone(self) -> RNECNNGRUBackbone:
         return RNECNNGRUBackbone(self.input_shape).to(self._get_device())
 
-    def add_task(self, new_classes: List[int], s_max: float = 15.0):
+    def add_task(self, new_classes: List[int], s_max: float = 15.0, verbose: bool = True):
         self.current_task += 1
         self._s_max = s_max
         new_classes = [int(c) for c in new_classes]
@@ -331,12 +331,13 @@ class RNEModel(DERModel):
         self.aux_classifier = nn.Linear(self.feat_dim, n_aux_classes).to(self._get_device())
         _reset_simple_linear(self.aux_classifier)
 
-        print(
-            f"  RNEModel: Task {self.current_task} | "
-            f"experts={self.num_extractors} | "
-            f"head_in={self.num_extractors * self.feat_dim} | "
-            f"head_out={len(new_classes)} | aux_classes={n_aux_classes}"
-        )
+        if verbose:
+            print(
+                f"  RNEModel: Task {self.current_task} | "
+                f"experts={self.num_extractors} | "
+                f"head_in={self.num_extractors * self.feat_dim} | "
+                f"head_out={len(new_classes)} | aux_classes={n_aux_classes}"
+            )
 
     def train(self, mode: bool = True):
         super().train(mode)
@@ -516,8 +517,8 @@ class RNECompressModel(RNEModel):
             gru_hidden=self.compressed_channels[3],
         ).to(self._get_device())
 
-    def add_task(self, new_classes: List[int], s_max: float = 15.0):
-        super().add_task(new_classes, s_max=s_max)
+    def add_task(self, new_classes: List[int], s_max: float = 15.0, verbose: bool = True):
+        super().add_task(new_classes, s_max=s_max, verbose=verbose)
         if self.current_task > 0:
             for param in self.shared_backbone.parameters():
                 param.requires_grad = False

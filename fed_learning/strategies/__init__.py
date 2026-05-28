@@ -253,6 +253,11 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
                         "rne_kd_weight",
                         2.0 if algo_lower == "rne_compress" else 1.0,
                     ),
+                    "weight_decay": config.get("rne_weight_decay", config.get("weight_decay", 5e-4)),
+                    "fc_weight_decay": config.get(
+                        "rne_fc_weight_decay",
+                        config.get("rne_weight_decay", config.get("weight_decay", 5e-4)),
+                    ),
                 }
                 if algo_lower in ("rne", "rne_compress")
                 else {}

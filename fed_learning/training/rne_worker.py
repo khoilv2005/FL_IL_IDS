@@ -37,6 +37,7 @@ class RNEWorker(DERWorker):
             self.config.get("rne_pseudo_per_class", 400),
         )
         kwargs["rne_pseudo_new_per_class"] = self.config.get("rne_pseudo_new_per_class", 100)
+        kwargs["rne_refresh_feature_stats"] = self.config.get("rne_refresh_feature_stats", False)
         return kwargs
 
     def run(self):
@@ -133,4 +134,4 @@ def _reconstruct_model_structure(
                 new_classes = list(range(global_params[head_key].shape[0]))
             else:
                 new_classes = [0]
-        model.add_task(new_classes, s_max=s_max)
+        model.add_task(new_classes, s_max=s_max, verbose=False)

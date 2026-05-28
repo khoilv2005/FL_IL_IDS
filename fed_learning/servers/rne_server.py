@@ -56,6 +56,7 @@ class RNEServer(DERServer):
         participating_clients=None,
         stage: int = 1,
         verbose: bool = True,
+        refresh_feature_stats: bool = False,
     ) -> Dict:
         from ..training.rne_worker import train_rne_clients_on_gpu
 
@@ -73,6 +74,7 @@ class RNEServer(DERServer):
         global_params = self.get_global_params()
         worker_config = {**self.config}
         worker_config["task_classes_history"] = self._task_classes_history
+        worker_config["rne_refresh_feature_stats"] = bool(refresh_feature_stats)
 
         clients_per_gpu = [[] for _ in range(self.num_gpus)]
         for idx, client in enumerate(clients):
@@ -127,6 +129,29 @@ class RNEServer(DERServer):
                     print(f"  → {key}: {value:.2%}")
 
         return {"train_loss": avg_loss, "round_time": round_time}
+
+    def coordinate_exemplar_update(
+        self,
+        participating_clients=None,
+        verbose: bool = True,
+    ):
+        clients = participating_clients or self.clients
+        if verbose:
+            label = "RNE-compress" if self.config.get("algorithm", "").lower() == "rne_compress" else "RNE"
+            print(f"\n{label}: Updating memory buffers for {len(clients)} clients")
+
+        for client in clients:
+            if not hasattr(client, "update_exemplars") or client.num_samples == 0:
+                continue
+            client.update_exemplars(self.global_model)
+
+        if verbose:
+            total_buffer = sum(
+                c.replay_buffer.total_samples
+                for c in clients
+                if hasattr(c, "replay_buffer")
+            )
+            print(f"   Memory update complete. Total buffer: {total_buffer}")
 
 def _create_rne_model(config: Dict):
     if config.get("algorithm", "").lower() == "rne_compress":

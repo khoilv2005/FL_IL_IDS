@@ -81,7 +81,8 @@ def post_task_processing(
 
     if algo in ("der", "rne", "rne_compress") and hasattr(server, "coordinate_exemplar_update"):
         label = "RNE-compress" if algo == "rne_compress" else ("RNE" if algo == "rne" else "DER")
-        print(f"\n{label}: Updating exemplar buffers...")
+        buffer_name = "memory buffers" if algo in ("rne", "rne_compress") else "exemplar buffers"
+        print(f"\n{label}: Updating {buffer_name}...")
         server.coordinate_exemplar_update(participating_clients, verbose=True)
 
     if algo == "nice" and hasattr(server, "end_task"):

@@ -28,6 +28,8 @@ class RNETrainer(DERTrainer):
         buffer_size: int = 500,
         old_head_lr_scale: float = 1.0,
         kd_weight: float = 1.0,
+        weight_decay: float = 5e-4,
+        fc_weight_decay: Optional[float] = None,
     ):
         super().__init__(
             lambda_aux=lambda_aux,
@@ -38,14 +40,17 @@ class RNETrainer(DERTrainer):
         )
         self.old_head_lr_scale = old_head_lr_scale
         self.kd_weight = kd_weight
+        self.weight_decay = float(weight_decay)
+        self.fc_weight_decay = float(weight_decay if fc_weight_decay is None else fc_weight_decay)
         self.current_epoch = 0
         self.total_epochs = 1
 
     def set_task(self, task_id: int, new_classes: List[int]):
-        self.old_classes = list(self.seen_classes)
+        new_set = set(int(c) for c in new_classes)
+        self.old_classes = sorted(int(c) for c in self.seen_classes if int(c) not in new_set)
         self.new_classes = list(new_classes)
         self.current_task = task_id
-        self.seen_classes.update(new_classes)
+        self.seen_classes = set(self.old_classes) | new_set
         self.current_batch = 0
         print(
             f"  RNETrainer Task {task_id}: "
@@ -151,6 +156,27 @@ class RNETrainer(DERTrainer):
                 old_model=kwargs.get("old_model"),
             )
         return self._stage2_loss(output, target)
+
+    def get_optimizer_class(self) -> type:
+        return torch.optim.SGD
+
+    def get_optimizer_kwargs(self, stage: Optional[int] = None) -> dict:
+        stage = self.training_stage if stage is None else int(stage)
+        if stage == 1:
+            return {"momentum": 0.9, "weight_decay": self.weight_decay}
+        return {"momentum": 0.0, "weight_decay": self.fc_weight_decay}
+
+    def create_scheduler(self, optimizer, stage: int, epochs: int):
+        if stage == 1:
+            return torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer,
+                T_max=max(1, epochs),
+            )
+        return torch.optim.lr_scheduler.MultiStepLR(
+            optimizer,
+            milestones=[3, 6],
+            gamma=0.1,
+        )
 
     def pre_step(
         self,

@@ -157,13 +157,19 @@ class DERClient(FederatedClient):
                 ),
             }
 
-        optimizer_cls = trainer.get_optimizer_class()
-        optimizer = optimizer_cls(opt_params, lr=lr)
-        scaler = GradScaler(enabled=self.use_amp)
-
         # Notify trainer of stage
         if hasattr(trainer, 'set_stage'):
             trainer.set_stage(stage)
+
+        optimizer_cls = trainer.get_optimizer_class()
+        optimizer_kwargs = {}
+        if hasattr(trainer, "get_optimizer_kwargs"):
+            optimizer_kwargs = trainer.get_optimizer_kwargs(stage=stage)
+        optimizer = optimizer_cls(opt_params, lr=lr, **optimizer_kwargs)
+        scheduler = None
+        if hasattr(trainer, "create_scheduler"):
+            scheduler = trainer.create_scheduler(optimizer, stage=stage, epochs=epochs)
+        scaler = GradScaler(enabled=self.use_amp)
 
         # Pre-train hook
         trainer.pre_train(self.model, global_params, lr=lr, **kwargs)
@@ -232,6 +238,8 @@ class DERClient(FederatedClient):
                 bs = len(y_batch)
                 total_loss += loss.item() * bs
                 total_samples += bs
+            if scheduler is not None:
+                scheduler.step()
 
         # Post-train hook
         trainer.post_train(self.model, global_params, **kwargs)

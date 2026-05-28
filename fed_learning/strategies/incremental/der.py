@@ -94,10 +94,11 @@ class DERTrainer(BaseTrainer):
         Được gọi khi bắt đầu task mới để cập nhật class cũ/mới,
         reset batch counter và đồng bộ trạng thái trainer.
         """
-        self.old_classes = list(self.seen_classes)
+        new_set = set(int(c) for c in new_classes)
+        self.old_classes = sorted(int(c) for c in self.seen_classes if int(c) not in new_set)
         self.new_classes = list(new_classes)
         self.current_task = task_id
-        self.seen_classes.update(new_classes)
+        self.seen_classes = set(self.old_classes) | new_set
         self.current_batch = 0
 
         print(

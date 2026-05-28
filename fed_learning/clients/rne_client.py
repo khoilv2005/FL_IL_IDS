@@ -27,6 +27,16 @@ class RNEClient(DERClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.rne_feature_means = {}
+        self._rne_feature_stats_task = None
+        self._rne_pseudo_task = None
+        self._rne_pseudo_cache = None
+
+    def set_task_data(self, X_train, y_train, task_id: int, task_classes):
+        if int(task_id) != int(getattr(self, "current_task", -1)):
+            self._rne_feature_stats_task = None
+            self._rne_pseudo_task = None
+            self._rne_pseudo_cache = None
+        super().set_task_data(X_train, y_train, task_id, task_classes)
 
     def train(
         self,
@@ -55,8 +65,15 @@ class RNEClient(DERClient):
                 replay_ratio=replay_ratio,
                 **kwargs,
             )
-            if stage == 1 and hasattr(self.model, "extract_vector"):
+            if (
+                stage == 1
+                and kwargs.get("rne_refresh_feature_stats", True)
+                and hasattr(self.model, "extract_vector")
+            ):
                 self._refresh_feature_stats(batch_size=batch_size)
+                self._rne_feature_stats_task = self.current_task
+                self._rne_pseudo_task = None
+                self._rne_pseudo_cache = None
             return result
         return self._train_pseudo_feature_stage(
             trainer=trainer,
@@ -85,6 +102,11 @@ class RNEClient(DERClient):
 
     def update_exemplars(self, model, batch_size: int = 128):
         super().update_exemplars(model, batch_size=batch_size)
+        if hasattr(model, "extract_vector"):
+            self._refresh_feature_stats(batch_size=batch_size, model=model)
+            self._rne_feature_stats_task = self.current_task
+            self._rne_pseudo_task = None
+            self._rne_pseudo_cache = None
         self.save_model_snapshot(model)
 
     def _load_old_model(self, device: str):
@@ -97,7 +119,11 @@ class RNEClient(DERClient):
 
         old_model = self.model.clone_empty_like().to(device)
         for classes in getattr(self, "old_model_task_classes_history", []):
-            old_model.add_task(classes, s_max=getattr(self.model, "_s_max", 15.0))
+            old_model.add_task(
+                classes,
+                s_max=getattr(self.model, "_s_max", 15.0),
+                verbose=False,
+            )
         old_model.load_state_dict({k: v.to(device) for k, v in state.items()})
         old_model.eval()
         for param in old_model.parameters():
@@ -120,7 +146,7 @@ class RNEClient(DERClient):
         if not opt_params:
             return self._empty_result()
 
-        features, labels = self._build_pseudo_feature_set(
+        features, labels = self._get_pseudo_feature_set(
             batch_size=batch_size,
             pseudo_old_per_class=pseudo_old_per_class,
             pseudo_new_per_class=pseudo_new_per_class,
@@ -135,10 +161,16 @@ class RNEClient(DERClient):
                 stage=2,
             )
 
-        optimizer = trainer.get_optimizer_class()(opt_params, lr=lr)
-        scaler = GradScaler(enabled=self.use_amp)
         if hasattr(trainer, "set_stage"):
             trainer.set_stage(2)
+        optimizer_kwargs = {}
+        if hasattr(trainer, "get_optimizer_kwargs"):
+            optimizer_kwargs = trainer.get_optimizer_kwargs(stage=2)
+        optimizer = trainer.get_optimizer_class()(opt_params, lr=lr, **optimizer_kwargs)
+        scheduler = None
+        if hasattr(trainer, "create_scheduler"):
+            scheduler = trainer.create_scheduler(optimizer, stage=2, epochs=epochs)
+        scaler = GradScaler(enabled=self.use_amp)
         trainer.pre_train(self.model, global_params, lr=lr)
 
         total_loss = 0.0
@@ -185,6 +217,8 @@ class RNEClient(DERClient):
                 bs = len(y_batch)
                 total_loss += loss.item() * bs
                 total_samples += bs
+            if scheduler is not None:
+                scheduler.step()
 
         trainer.post_train(self.model, global_params)
         self.model.unfreeze_current_extractor()
@@ -221,10 +255,11 @@ class RNEClient(DERClient):
             all_y.append(y_replay)
         return torch.cat(all_X, dim=0), torch.cat(all_y, dim=0)
 
-    def _extract_features_by_class(self, batch_size: int):
+    def _extract_features_by_class(self, batch_size: int, model=None):
         X_all, y_all = self._available_training_data()
-        device = self.device
-        self.model.eval()
+        active_model = model if model is not None else self.model
+        device = next(active_model.parameters()).device
+        active_model.eval()
         by_class = {}
         with torch.no_grad():
             for cls_id in sorted(int(c) for c in self.seen_classes):
@@ -235,13 +270,13 @@ class RNEClient(DERClient):
                 chunks = []
                 for start in range(0, len(X_cls), batch_size):
                     X_batch = X_cls[start : start + batch_size].to(device, non_blocking=True)
-                    chunks.append(self.model.extract_vector(X_batch).detach().cpu())
+                    chunks.append(active_model.extract_vector(X_batch).detach().cpu())
                 if chunks:
                     by_class[cls_id] = torch.cat(chunks, dim=0)
         return by_class
 
-    def _refresh_feature_stats(self, batch_size: int):
-        by_class = self._extract_features_by_class(batch_size)
+    def _refresh_feature_stats(self, batch_size: int, model=None):
+        by_class = self._extract_features_by_class(batch_size, model=model)
         if not by_class:
             return
 
@@ -327,6 +362,30 @@ class RNEClient(DERClient):
         features = torch.cat(feature_chunks, dim=0)
         labels = torch.cat(label_chunks, dim=0)
         gc.collect()
+        return features, labels
+
+    def _get_pseudo_feature_set(
+        self,
+        batch_size: int,
+        pseudo_old_per_class: int,
+        pseudo_new_per_class: int,
+    ):
+        if self._rne_pseudo_task == self.current_task and self._rne_pseudo_cache is not None:
+            features, labels = self._rne_pseudo_cache
+            return features.clone(), labels.clone()
+
+        if self._rne_feature_stats_task != self.current_task:
+            self._refresh_feature_stats(batch_size=batch_size)
+            self._rne_feature_stats_task = self.current_task
+
+        features, labels = self._build_pseudo_feature_set(
+            batch_size=batch_size,
+            pseudo_old_per_class=pseudo_old_per_class,
+            pseudo_new_per_class=pseudo_new_per_class,
+        )
+        if features is not None and labels is not None:
+            self._rne_pseudo_task = self.current_task
+            self._rne_pseudo_cache = (features.detach().cpu(), labels.detach().cpu())
         return features, labels
 
     @staticmethod
