@@ -128,8 +128,29 @@ class RNEClient(DERClient):
         old_model.eval()
         for param in old_model.parameters():
             param.requires_grad = False
-        self.old_model = old_model
+            self.old_model = old_model
         return old_model
+
+    def _create_combined_batches(self, batch_size: int, replay_ratio: float = 0.5):
+        """
+        RNE Stage 1 uses one epoch over D_t plus replay memory.
+
+        replay_ratio is ignored here; DER keeps ratio-based replay in parent.
+        """
+        X_replay, y_replay = self.replay_buffer.get_all_samples()
+        if X_replay is None or len(y_replay) == 0:
+            yield from self._create_batches(batch_size)
+            return
+
+        X_all = torch.cat([self.X_train, X_replay], dim=0)
+        y_all = torch.cat([self.y_train, y_replay], dim=0)
+        indices = torch.randperm(len(y_all))
+        for start in range(0, len(indices), batch_size):
+            idx = indices[start : start + batch_size]
+            yield (
+                X_all[idx].to(self.device, non_blocking=True),
+                y_all[idx].to(self.device, non_blocking=True),
+            )
 
     def _train_pseudo_feature_stage(
         self,

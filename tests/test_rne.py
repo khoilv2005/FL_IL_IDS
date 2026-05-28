@@ -151,6 +151,29 @@ def test_rne_client_stage2_uses_pseudo_features():
     assert result["pseudo_features"] == 16
     assert result["loss"] > 0
 
+def test_rne_stage1_concats_replay_once():
+    client = RNEClient(
+        0,
+        torch.arange(24, dtype=torch.float32).view(6, 4),
+        torch.tensor([2, 2, 3, 3, 4, 4]),
+        buffer_size=20,
+    )
+    client.current_task = 1
+    client.current_classes = {2, 3, 4}
+    client.seen_classes = {0, 1, 2, 3, 4}
+    client.replay_buffer.add_samples(
+        torch.arange(8, dtype=torch.float32).view(2, 4) + 100,
+        torch.tensor([0, 1]),
+    )
+    client.device = "cpu"
+
+    batches = list(client._create_combined_batches(batch_size=4, replay_ratio=0.5))
+    seen_labels = torch.cat([y for _, y in batches])
+
+    assert len(seen_labels) == 8
+    assert int((seen_labels < 2).sum().item()) == 2
+    assert int((seen_labels >= 2).sum().item()) == 6
+
 def test_rne_client_feature_mean_cache_extends_old_classes():
     model = RNEModel(input_shape=(40,), num_classes=4)
     model.add_task([0, 1], s_max=15.0)
