@@ -12,6 +12,7 @@ from fed_learning.servers import (
     FedCBDRServer,
     FedLwFServer,
     DERServer,
+    RNEServer,
     NICEServer,
     GLFCServer,
     ReFedServer,
@@ -23,6 +24,7 @@ from fed_learning.servers.dfca_server import DFCAServer
 _SERVER_REGISTRY = {
     "fedcbdr": FedCBDRServer,
     "der": DERServer,
+    "rne": RNEServer,
     "cgofed": CGoFedServer,
     "nice": NICEServer,
     "glfc": GLFCServer,

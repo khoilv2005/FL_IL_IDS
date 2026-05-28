@@ -39,6 +39,8 @@ from .fed_incremental import (
     FedCBDRAggregator,
     DERTrainer,
     DERAggregator,
+    RNETrainer,
+    RNEAggregator,
     NICETrainer,
     NICEAggregator,
     GLFCTrainer,
@@ -110,6 +112,10 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
     "der": {
         "trainer": DERTrainer,
         "aggregator": DERAggregator,
+    },
+    "rne": {
+        "trainer": RNETrainer,
+        "aggregator": RNEAggregator,
     },
     # NICE (Neurogenesis Inspired Contextual Encoding) - Replay-free
     "nice": {
@@ -226,12 +232,12 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             omega_old=config.get("omega_old", 1.1),
             omega_new=config.get("omega_new", 0.9),
         )
-    elif algo_lower == "der":
+    elif algo_lower in ("der", "rne"):
         trainer = strategy["trainer"](
             lambda_aux=config.get("lambda_aux", 1.0),
             lambda_sparsity=config.get("lambda_sparsity", 0.5),
             s_max=config.get("s_max", 15.0),
-            temperature=config.get("der_temperature", 2.0),
+            temperature=config.get("der_temperature", config.get("rne_temperature", 2.0)),
             buffer_size=config.get("buffer_size", 500),
         )
     elif algo_lower == "nice":
@@ -320,6 +326,7 @@ def list_strategies() -> Dict[str, str]:
         "fedavg_lwf": "FedAvg + LwF - Learning without Forgetting on FedAvg",
         "fedprox_lwf": "FedProx + LwF - Learning without Forgetting on FedProx",
         "der": "DER - Dynamically Expandable Representation for FCIL",
+        "rne": "RNE - Recurrent Network Expansion for FCIL",
         "nice": "NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)",
         "glfc": "GLFC - Global-Local Forgetting Compensation (CVPR 2022)",
         "refed": "Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)",

@@ -1052,13 +1052,14 @@ def run_incremental_training(config: Dict[str, Any]):
                 is_last_task,
                 label="[phase]",
             )
-        elif algo == "der":
+        elif algo in ("der", "rne"):
             stage1_rounds, stage2_rounds = _resolve_der_round_split(config)
             total_rounds = stage1_rounds + stage2_rounds
+            algo_label = "RNE" if algo == "rne" else "DER"
 
             if hasattr(trainer, "set_stage"):
                 trainer.set_stage(1)
-            print(f"\n  === DER Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
+            print(f"\n  === {algo_label} Stage 1: Representation Learning ({stage1_rounds} rounds) ===")
             _run_tracked_rounds(
                 server,
                 lambda _r: server.train_round(
@@ -1087,7 +1088,7 @@ def run_incremental_training(config: Dict[str, Any]):
                 server.global_model.reset_classifier()
                 print("  → Classifier H_t re-initialized (paper Section 3.2)")
 
-            print(f"\n  === DER Stage 2: Classifier Learning ({stage2_rounds} rounds) ===")
+            print(f"\n  === {algo_label} Stage 2: Classifier Learning ({stage2_rounds} rounds) ===")
             last_round_record = _run_tracked_rounds(
                 server,
                 lambda _r: server.train_round(

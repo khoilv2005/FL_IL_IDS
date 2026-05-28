@@ -13,6 +13,7 @@ from fed_learning.clients import (
     FederatedClient,
     CGoFedClient,
     DERClient,
+    RNEClient,
     NICEClient,
     GLFCClient,
     ReFedClient,
@@ -47,6 +48,12 @@ _CLIENT_REGISTRY = {
     ),
     "der": (
         DERClient,
+        {
+            "buffer_size": ("buffer_size", 500),
+        },
+    ),
+    "rne": (
+        RNEClient,
         {
             "buffer_size": ("buffer_size", 500),
         },

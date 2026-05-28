@@ -6,6 +6,7 @@ from .cgofed_server import CGoFedServer
 from .fedcbdr_server import FedCBDRServer
 from .fedlwf_server import FedLwFServer
 from .der_server import DERServer
+from .rne_server import RNEServer
 from .nice_server import NICEServer
 from .glfc_server import GLFCServer
 from .refed_server import ReFedServer
@@ -18,6 +19,7 @@ __all__ = [
     "FedCBDRServer",
     "FedLwFServer",
     "DERServer",
+    "RNEServer",
     "NICEServer",
     "GLFCServer",
     "ReFedServer",

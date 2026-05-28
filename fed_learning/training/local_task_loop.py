@@ -69,6 +69,14 @@ def _create_local_model(
         from fed_learning.models.der_model import DERModel
 
         return DERModel(config["input_shape"], config["num_classes"]).to(device)
+    if algo == "rne":
+        from fed_learning.models.rne_model import RNEModel
+
+        return RNEModel(
+            config["input_shape"],
+            config["num_classes"],
+            recurrent_scale=config.get("rne_recurrent_scale", 1.0),
+        ).to(device)
     if algo == "nice":
         from fed_learning.models.nice_model import NICEModel
 
@@ -1007,7 +1015,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         **{k: v for k, v in config.items() if k != "algorithm"},
     )
     print(f"✓ Trainer: {trainer.__class__.__name__}")
-    print("✓ Local IL algorithms supported: ewc, lwf, der, nice")
+    print("✓ Local IL algorithms supported: ewc, lwf, der, rne, nice")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _create_local_model(config["algorithm"], config, device)
@@ -1033,7 +1041,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         completed_task_ids = sorted(
             int(entry["task"]) for entry in all_history.get("task_accuracies", [])
         )
-        if config["algorithm"].lower() == "der":
+        if config["algorithm"].lower() in ("der", "rne"):
             for prev_tid in completed_task_ids:
                 prev_classes = data_loader.get_task_classes(prev_tid)
                 der_task_classes_history[prev_tid] = list(prev_classes)
@@ -1084,7 +1092,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         if hasattr(trainer, "set_task"):
             trainer.set_task(task_id, new_classes)
 
-        if config["algorithm"].lower() == "der" and hasattr(model, "add_task"):
+        if config["algorithm"].lower() in ("der", "rne") and hasattr(model, "add_task"):
             der_task_classes_history[task_id] = list(new_classes)
             model.add_task(new_classes, s_max=config.get("s_max", 15.0))
 
@@ -1117,13 +1125,13 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 seen_classes,
                 context_detector=nice_context_detector if algo == "nice" else None,
                 task_classes_history=(
-                    der_task_classes_history if algo == "der" else None
+                    der_task_classes_history if algo in ("der", "rne") else None
                 ),
                 compute_forgetting=False,
                 evaluate=evaluate_this_round,
             )
 
-        if algo == "der":
+        if algo in ("der", "rne"):
             round_records = _run_local_der(
                 model,
                 persistent_client,
@@ -1221,7 +1229,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 model=model,
                 context_detector=nice_context_detector if algo == "nice" else None,
                 task_classes_history=(
-                    der_task_classes_history if algo == "der" else None
+                    der_task_classes_history if algo in ("der", "rne") else None
                 ),
                 config=config,
             ),

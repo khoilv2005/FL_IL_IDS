@@ -79,8 +79,9 @@ def post_task_processing(
         print("\nUpdating Replay Buffers (GDR)...")
         server.coordinate_gdr(participating_clients, verbose=True)
 
-    if algo == "der" and hasattr(server, "coordinate_exemplar_update"):
-        print("\nDER: Updating exemplar buffers...")
+    if algo in ("der", "rne") and hasattr(server, "coordinate_exemplar_update"):
+        label = "RNE" if algo == "rne" else "DER"
+        print(f"\n{label}: Updating exemplar buffers...")
         server.coordinate_exemplar_update(participating_clients, verbose=True)
 
     if algo == "nice" and hasattr(server, "end_task"):

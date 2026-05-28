@@ -14,6 +14,7 @@ cho những thuật toán FCIL chính:
 from .cgofed import CGoFedTrainer, CGoFedAggregator
 from .fedcbdr import FedCBDRTrainer, FedCBDRAggregator
 from .der import DERTrainer, DERAggregator
+from .rne import RNETrainer, RNEAggregator
 from .nice import NICETrainer, NICEAggregator
 from .glfc import GLFCTrainer, GLFCAggregator
 from .refed import ReFedTrainer, ReFedAggregator
@@ -25,6 +26,8 @@ __all__ = [
     "FedCBDRAggregator",
     "DERTrainer",
     "DERAggregator",
+    "RNETrainer",
+    "RNEAggregator",
     "NICETrainer",
     "NICEAggregator",
     "GLFCTrainer",

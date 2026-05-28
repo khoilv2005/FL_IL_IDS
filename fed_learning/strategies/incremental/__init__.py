@@ -9,6 +9,7 @@ Các wrapper dành cho federated learning nằm ở
 from .ewc import EWCTrainer
 from .lwf import LwFTrainer
 from .der import DERTrainer
+from .rne import RNETrainer
 from .nice import NICETrainer
 
 
@@ -16,6 +17,7 @@ INCREMENTAL_STRATEGIES = {
     "ewc": EWCTrainer,
     "lwf": LwFTrainer,
     "der": DERTrainer,
+    "rne": RNETrainer,
     "nice": NICETrainer,
 }
 
@@ -44,12 +46,12 @@ def get_incremental_strategy(algorithm: str, **config):
             temperature=config.get("temperature", 2.0),
             distill_old_classes_only=config.get("distill_old_classes_only", False),
         )
-    if algo == "der":
+    if algo in ("der", "rne"):
         return trainer_cls(
             lambda_aux=config.get("lambda_aux", 1.0),
             lambda_sparsity=config.get("lambda_sparsity", 0.5),
             s_max=config.get("s_max", 15.0),
-            temperature=config.get("der_temperature", 2.0),
+            temperature=config.get("der_temperature", config.get("rne_temperature", 2.0)),
             buffer_size=config.get("buffer_size", 500),
         )
     if algo == "nice":
@@ -68,6 +70,7 @@ def list_incremental_strategies():
         "ewc": "Elastic Weight Consolidation (local IL)",
         "lwf": "Learning without Forgetting (local IL)",
         "der": "Dynamically Expandable Representation (local IL)",
+        "rne": "Recurrent Network Expansion (local IL)",
         "nice": "NICE replay-free incremental learning",
     }
 
@@ -76,6 +79,7 @@ __all__ = [
     "EWCTrainer",
     "LwFTrainer",
     "DERTrainer",
+    "RNETrainer",
     "NICETrainer",
     "INCREMENTAL_STRATEGIES",
     "get_incremental_strategy",
