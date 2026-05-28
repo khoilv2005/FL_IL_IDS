@@ -1,5 +1,6 @@
 """Multi-GPU worker for RNE clients."""
 
+import traceback
 from collections import OrderedDict
 from typing import Dict
 
@@ -43,33 +44,41 @@ class RNEWorker(DERWorker):
         import torch
 
         gpu_start = time.time()
-        model = self.create_model()
-        self.prepare_model(model)
+        model = None
+        try:
+            model = self.create_model()
+            self.prepare_model(model)
 
-        for idx, client in enumerate(self.clients):
-            init_params = self.get_init_params(client)
-            self.load_params(model, init_params)
-            client.setup_for_gpu(model, self.device)
-            self.prepare_client(client, model, idx)
+            for idx, client in enumerate(self.clients):
+                init_params = self.get_init_params(client)
+                self.load_params(model, init_params)
+                client.setup_for_gpu(model, self.device)
+                self.prepare_client(client, model, idx)
 
-            result = client.train(
-                trainer=self.trainer,
-                epochs=self.epochs,
-                batch_size=self.batch_size,
-                lr=self.lr,
-                **self.get_train_kwargs(client, idx),
+                result = client.train(
+                    trainer=self.trainer,
+                    epochs=self.epochs,
+                    batch_size=self.batch_size,
+                    lr=self.lr,
+                    **self.get_train_kwargs(client, idx),
+                )
+                self.results_dict[client.client_id] = result
+
+            gpu_time = time.time() - gpu_start
+            print(
+                f"      [{self.device_name}] RNE Stage {self.stage}: "
+                f"{len(self.clients)} clients done in {gpu_time:.1f}s"
             )
-            self.results_dict[client.client_id] = result
-
-        gpu_time = time.time() - gpu_start
-        print(
-            f"      [{self.device_name}] RNE Stage {self.stage}: "
-            f"{len(self.clients)} clients done in {gpu_time:.1f}s"
-        )
-
-        del model
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        except Exception as exc:
+            self.results_dict[f"__error__{self.gpu_id}"] = {
+                "error": repr(exc),
+                "traceback": traceback.format_exc(),
+            }
+        finally:
+            if model is not None:
+                del model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
 
 def train_rne_clients_on_gpu(

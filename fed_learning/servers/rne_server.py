@@ -101,6 +101,15 @@ class RNEServer(DERServer):
         for thread in threads:
             thread.join()
 
+        errors = [value for key, value in results_dict.items() if str(key).startswith("__error__")]
+        if errors:
+            first = errors[0]
+            raise RuntimeError(
+                "RNE worker failed:\n"
+                f"{first.get('error', 'unknown error')}\n"
+                f"{first.get('traceback', '')}"
+            )
+
         results = list(results_dict.values())
         new_params = self.aggregator.aggregate(results, global_params)
         self.set_global_params(new_params)

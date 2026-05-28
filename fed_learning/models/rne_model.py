@@ -384,7 +384,8 @@ class RNEModel(DERModel):
             raise RuntimeError("RNEModel has no classifier heads. Call add_task() first.")
 
         batch_size = features[0].shape[0]
-        logits = features[0].new_full((batch_size, self.num_classes), -1e9)
+        fill_value = -1e4 if features[0].dtype in (torch.float16, torch.bfloat16) else -1e9
+        logits = features[0].new_full((batch_size, self.num_classes), fill_value)
         for task_idx, head in enumerate(self.classifier_heads):
             head_input = torch.cat(features[: task_idx + 1], dim=1)
             head_logits = head(head_input)
@@ -392,6 +393,9 @@ class RNEModel(DERModel):
                 if 0 <= class_id < self.num_classes:
                     logits[:, class_id] = head_logits[:, col_idx]
         return logits
+
+    def get_mask_stats(self) -> dict:
+        return {}
 
     def classify_features(self, super_features: torch.Tensor) -> torch.Tensor:
         features = [
