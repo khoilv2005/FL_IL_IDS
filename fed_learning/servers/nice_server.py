@@ -72,7 +72,7 @@ class ContextDetector:
         """
         model.eval()
         layer_acts = {
-            name: act.cpu().numpy()
+            name: np.asarray(act.detach().cpu().tolist())
             for name, act in model.get_context_activations_per_sample(data).items()
         }
         return self.binarize_layer_activations(layer_acts)
@@ -726,7 +726,7 @@ class NICEServer(IncrementalServer):
                         if context_activations is not None:
                             binary_acts = self.context_detector.binarize_layer_activations(
                                 {
-                                    name: act.detach().cpu().numpy()
+                                    name: np.asarray(act.detach().cpu().tolist())
                                     for name, act in context_activations.items()
                                 }
                             )
@@ -739,7 +739,7 @@ class NICEServer(IncrementalServer):
                             self.context_detector.predict_episodes_with_scores(binary_acts)
                         )
                         true_episodes = self._labels_to_episodes(
-                            y_batch.detach().cpu().numpy()
+                            np.asarray(y_batch.detach().cpu().tolist())
                         )
                         all_true_episodes.extend(true_episodes.tolist())
                         all_pred_episodes.extend(pred_episodes.tolist())
@@ -756,8 +756,8 @@ class NICEServer(IncrementalServer):
                 else:
                     pred_out = loss_out
                 preds = pred_out.argmax(dim=1)
-                all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(y_batch.cpu().numpy())
+                all_preds.extend(preds.detach().cpu().tolist())
+                all_targets.extend(y_batch.detach().cpu().tolist())
 
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)
@@ -898,8 +898,8 @@ class NICEServer(IncrementalServer):
             if context_activations is not None:
                 binary_acts = self.context_detector.binarize_layer_activations(
                     {
-                        name: act.detach().cpu().numpy()
-                        for name, act in context_activations.items()
+                                name: np.asarray(act.detach().cpu().tolist())
+                                for name, act in context_activations.items()
                     }
                 )
             else:
@@ -982,8 +982,8 @@ class NICEServer(IncrementalServer):
                         pred_out = out.clone()
                         pred_out[:, unseen_mask] = float("-inf")
                     preds = pred_out.argmax(dim=1)
-                    all_preds.extend(preds.cpu().numpy())
-                    all_targets.extend(y_batch.numpy())
+            all_preds.extend(preds.detach().cpu().tolist())
+            all_targets.extend(y_batch.detach().cpu().tolist())
 
             task_accuracies[task_id] = accuracy_score(all_targets, all_preds)
 

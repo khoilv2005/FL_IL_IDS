@@ -202,8 +202,8 @@ class FederatedServer:
 
                 preds = out.argmax(dim=1)
 
-                all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(y_batch.cpu().numpy())
+                all_preds.extend(preds.detach().cpu().tolist())
+                all_targets.extend(y_batch.detach().cpu().tolist())
 
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)

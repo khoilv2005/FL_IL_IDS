@@ -3,7 +3,7 @@
 from collections import OrderedDict
 from typing import Dict
 
-from ..models.rne_model import RNEModel
+from ..models.rne_model import RNECompressModel, RNEModel
 from .der_worker import DERWorker
 
 
@@ -11,6 +11,13 @@ class RNEWorker(DERWorker):
     """Worker for RNE with dynamic model reconstruction."""
 
     def create_model(self):
+        if self.config.get("algorithm", "").lower() == "rne_compress":
+            return RNECompressModel(
+                self.config["input_shape"],
+                self.config["num_classes"],
+                recurrent_scale=self.config.get("rne_recurrent_scale", 1.0),
+                compressed_channels=self.config.get("rne_compress_channels", (16, 32, 64, 25)),
+            ).to(self.device)
         return RNEModel(
             self.config["input_shape"],
             self.config["num_classes"],
@@ -20,6 +27,16 @@ class RNEWorker(DERWorker):
     def prepare_model(self, model):
         _reconstruct_model_structure(model, self.global_params, self.config)
         model.to(self.device)
+
+    def get_train_kwargs(self, client, idx: int) -> Dict:
+        kwargs = super().get_train_kwargs(client, idx)
+        kwargs["rne_pseudo_per_class"] = self.config.get("rne_pseudo_per_class", 400)
+        kwargs["rne_pseudo_old_per_class"] = self.config.get(
+            "rne_pseudo_old_per_class",
+            self.config.get("rne_pseudo_per_class", 400),
+        )
+        kwargs["rne_pseudo_new_per_class"] = self.config.get("rne_pseudo_new_per_class", 100)
+        return kwargs
 
     def run(self):
         import time

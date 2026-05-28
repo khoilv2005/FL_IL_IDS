@@ -334,8 +334,10 @@ class NICEModel(nn.Module):
         z = self.relu(self._apply_masked_linear(features, self.fc1, "fc1"))
 
         # MaskedOut_Young on penultimate (fc1) activations
-        young_fc1 = torch.tensor(
-            self.unit_ranks["fc1"] == 0, dtype=torch.bool, device=z.device
+        young_fc1 = torch.as_tensor(
+            (self.unit_ranks["fc1"] == 0).tolist(),
+            dtype=torch.bool,
+            device=z.device,
         )
         if young_fc1.any():
             z = MaskedOutYoung.apply(z, young_fc1)
@@ -344,8 +346,10 @@ class NICEModel(nn.Module):
         z = self._apply_masked_linear(z, self.fc2, "fc2")
 
         # Let_Learner on output logits
-        learner_fc2 = torch.tensor(
-            self.unit_ranks["fc2"] == 1, dtype=torch.bool, device=z.device
+        learner_fc2 = torch.as_tensor(
+            (self.unit_ranks["fc2"] == 1).tolist(),
+            dtype=torch.bool,
+            device=z.device,
         )
         if learner_fc2.any():
             z = LetLearner.apply(z, learner_fc2)
@@ -540,8 +544,10 @@ class NICEModel(nn.Module):
                     continue
                 hidden = int(self._layer_dims["gru"])
                 if param.dim() >= 1 and param.shape[0] == 3 * hidden:
-                    gate_mask = torch.tensor(
-                        np.tile(freeze, 3), dtype=torch.bool, device=param.device
+                    gate_mask = torch.as_tensor(
+                        np.tile(freeze, 3).tolist(),
+                        dtype=torch.bool,
+                        device=param.device,
                     )
                     param.grad.data[gate_mask] = 0.0
                 continue
@@ -556,7 +562,9 @@ class NICEModel(nn.Module):
                 if freeze is None or not np.any(freeze):
                     continue
                 if len(freeze) == param.shape[0]:
-                    mask = torch.tensor(freeze, dtype=torch.bool, device=param.device)
+                    mask = torch.as_tensor(
+                        freeze.tolist(), dtype=torch.bool, device=param.device
+                    )
                     param.grad.data[mask] = 0.0
                 continue
 
@@ -570,11 +578,15 @@ class NICEModel(nn.Module):
                     # Conv1d: [out_channels, in_channels, kernel_size]
                     # Linear: [out_features, in_features]
                     if len(freeze) == param.shape[0]:
-                        mask = torch.tensor(freeze, dtype=torch.bool, device=param.device)
+                        mask = torch.as_tensor(
+                            freeze.tolist(), dtype=torch.bool, device=param.device
+                        )
                         param.grad.data[mask] = 0.0
             elif "bias" in name:
                 if len(freeze) == param.shape[0]:
-                    mask = torch.tensor(freeze, dtype=torch.bool, device=param.device)
+                    mask = torch.as_tensor(
+                        freeze.tolist(), dtype=torch.bool, device=param.device
+                    )
                     param.grad.data[mask] = 0.0
 
     def freeze_bn_for_mature(self):
@@ -583,8 +595,10 @@ class NICEModel(nn.Module):
         for layer_name, bn in bn_map.items():
             if layer_name in self.unit_ranks:
                 ranks = self.unit_ranks[layer_name]
-                mature = torch.tensor(
-                    ranks >= 2, dtype=torch.bool, device=bn.running_mean.device
+                mature = torch.as_tensor(
+                    (ranks >= 2).tolist(),
+                    dtype=torch.bool,
+                    device=bn.running_mean.device,
                 )
                 if mature.any():
                     prev = self._bn_frozen_units.get(layer_name)

@@ -348,8 +348,8 @@ def _evaluate_metrics(
             preds = output.argmax(dim=1)
 
             total_loss += loss.item() * len(batch_y)
-            all_preds.extend(preds.cpu().numpy())
-            all_targets.extend(batch_y.cpu().numpy())
+            all_preds.extend(preds.detach().cpu().tolist())
+            all_targets.extend(batch_y.detach().cpu().tolist())
 
     y_true = np.array(all_targets)
     y_pred = np.array(all_preds)

@@ -297,8 +297,8 @@ class DERServer(IncrementalServer):
 
                     out = self.global_model(X_batch)
                     preds = out.argmax(dim=1)
-                    all_preds.extend(preds.cpu().numpy())
-                    all_targets.extend(y_batch.numpy())
+                    all_preds.extend(preds.detach().cpu().tolist())
+                    all_targets.extend(y_batch.detach().cpu().tolist())
 
             task_accuracies[task_id] = accuracy_score(all_targets, all_preds)
 

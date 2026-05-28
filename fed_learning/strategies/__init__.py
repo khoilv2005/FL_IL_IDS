@@ -117,6 +117,10 @@ STRATEGIES: Dict[str, Dict[str, type]] = {
         "trainer": RNETrainer,
         "aggregator": RNEAggregator,
     },
+    "rne_compress": {
+        "trainer": RNETrainer,
+        "aggregator": RNEAggregator,
+    },
     # NICE (Neurogenesis Inspired Contextual Encoding) - Replay-free
     "nice": {
         "trainer": NICETrainer,
@@ -232,13 +236,27 @@ def get_strategy(algorithm: str, **config) -> Tuple[BaseTrainer, BaseAggregator]
             omega_old=config.get("omega_old", 1.1),
             omega_new=config.get("omega_new", 0.9),
         )
-    elif algo_lower in ("der", "rne"):
+    elif algo_lower in ("der", "rne", "rne_compress"):
         trainer = strategy["trainer"](
             lambda_aux=config.get("lambda_aux", 1.0),
-            lambda_sparsity=config.get("lambda_sparsity", 0.5),
+            lambda_sparsity=config.get(
+                "lambda_sparsity",
+                0.0 if algo_lower in ("rne", "rne_compress") else 0.5,
+            ),
             s_max=config.get("s_max", 15.0),
             temperature=config.get("der_temperature", config.get("rne_temperature", 2.0)),
             buffer_size=config.get("buffer_size", 500),
+            **(
+                {
+                    "old_head_lr_scale": config.get("rne_old_head_lr_scale", 1.0),
+                    "kd_weight": config.get(
+                        "rne_kd_weight",
+                        2.0 if algo_lower == "rne_compress" else 1.0,
+                    ),
+                }
+                if algo_lower in ("rne", "rne_compress")
+                else {}
+            ),
         )
     elif algo_lower == "nice":
         trainer = strategy["trainer"](
@@ -327,6 +345,7 @@ def list_strategies() -> Dict[str, str]:
         "fedprox_lwf": "FedProx + LwF - Learning without Forgetting on FedProx",
         "der": "DER - Dynamically Expandable Representation for FCIL",
         "rne": "RNE - Recurrent Network Expansion for FCIL",
+        "rne_compress": "RNE-compress - compressed Recurrent Network Expansion for FCIL",
         "nice": "NICE - Neurogenesis Inspired Contextual Encoding (Replay-free)",
         "glfc": "GLFC - Global-Local Forgetting Compensation (CVPR 2022)",
         "refed": "Re-Fed - Retrieval-Enhanced Federated Incremental Learning (CVPR 2024)",

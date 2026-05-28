@@ -84,7 +84,7 @@ def select_learner_units(model, tau: float, data: torch.Tensor):
             continue
 
         # Get activation scores for young (candidate) neurons
-        act = activations[name].cpu().numpy()
+        act = np.asarray(activations[name].detach().cpu().tolist())
         candidate_scores = act[candidate_mask]
 
         # Pick top neurons among candidates

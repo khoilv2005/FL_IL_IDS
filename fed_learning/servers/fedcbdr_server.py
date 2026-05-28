@@ -306,8 +306,8 @@ class FedCBDRServer:
                 total_loss += loss.item() * len(y_batch)
 
                 preds = out.argmax(dim=1)
-                all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(y_batch.cpu().numpy())
+            all_preds.extend(preds.detach().cpu().tolist())
+            all_targets.extend(y_batch.detach().cpu().tolist())
 
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)
@@ -360,8 +360,8 @@ class FedCBDRServer:
 
                     out = self.global_model(X_batch)
                     preds = out.argmax(dim=1)
-                    all_preds.extend(preds.cpu().numpy())
-                    all_targets.extend(y_batch.numpy())
+            all_preds.extend(preds.detach().cpu().tolist())
+            all_targets.extend(y_batch.detach().cpu().tolist())
 
             task_accuracies[task_id] = accuracy_score(all_targets, all_preds)
 

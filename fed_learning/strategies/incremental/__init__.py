@@ -18,6 +18,7 @@ INCREMENTAL_STRATEGIES = {
     "lwf": LwFTrainer,
     "der": DERTrainer,
     "rne": RNETrainer,
+    "rne_compress": RNETrainer,
     "nice": NICETrainer,
 }
 
@@ -46,13 +47,27 @@ def get_incremental_strategy(algorithm: str, **config):
             temperature=config.get("temperature", 2.0),
             distill_old_classes_only=config.get("distill_old_classes_only", False),
         )
-    if algo in ("der", "rne"):
+    if algo in ("der", "rne", "rne_compress"):
         return trainer_cls(
             lambda_aux=config.get("lambda_aux", 1.0),
-            lambda_sparsity=config.get("lambda_sparsity", 0.5),
+            lambda_sparsity=config.get(
+                "lambda_sparsity",
+                0.0 if algo in ("rne", "rne_compress") else 0.5,
+            ),
             s_max=config.get("s_max", 15.0),
             temperature=config.get("der_temperature", config.get("rne_temperature", 2.0)),
             buffer_size=config.get("buffer_size", 500),
+            **(
+                {
+                    "old_head_lr_scale": config.get("rne_old_head_lr_scale", 1.0),
+                    "kd_weight": config.get(
+                        "rne_kd_weight",
+                        2.0 if algo == "rne_compress" else 1.0,
+                    ),
+                }
+                if algo in ("rne", "rne_compress")
+                else {}
+            ),
         )
     if algo == "nice":
         return trainer_cls(
@@ -71,6 +86,7 @@ def list_incremental_strategies():
         "lwf": "Learning without Forgetting (local IL)",
         "der": "Dynamically Expandable Representation (local IL)",
         "rne": "Recurrent Network Expansion (local IL)",
+        "rne_compress": "RNE-compress recurrent network expansion (local IL)",
         "nice": "NICE replay-free incremental learning",
     }
 

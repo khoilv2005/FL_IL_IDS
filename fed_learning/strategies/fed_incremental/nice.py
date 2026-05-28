@@ -56,7 +56,7 @@ class NICEAggregator(BaseAggregator):
         tensor = averaged[key]
         if tensor.dim() == 0 or tensor.shape[0] != len(freeze):
             return
-        mask = torch.tensor(freeze, dtype=torch.bool, device=tensor.device)
+        mask = torch.as_tensor(freeze.tolist(), dtype=torch.bool, device=tensor.device)
         averaged[key][mask] = global_params[key].to(tensor.device)[mask].clone()
 
     @staticmethod
@@ -72,8 +72,8 @@ class NICEAggregator(BaseAggregator):
         hidden = len(freeze)
         if tensor.dim() == 0 or tensor.shape[0] != 3 * hidden:
             return
-        gate_mask = torch.tensor(
-            np.tile(freeze, 3), dtype=torch.bool, device=tensor.device
+        gate_mask = torch.as_tensor(
+            np.tile(freeze, 3).tolist(), dtype=torch.bool, device=tensor.device
         )
         averaged[key][gate_mask] = global_params[key].to(tensor.device)[
             gate_mask
@@ -142,7 +142,9 @@ class NICEAggregator(BaseAggregator):
                     if not np.any(freeze):
                         continue
 
-                    mask = torch.tensor(freeze, dtype=torch.bool)
+                    mask = torch.as_tensor(
+                        freeze.tolist(), dtype=torch.bool, device=averaged[key].device
+                    )
 
                     if "weight" in key and averaged[key].dim() >= 2:
                         if len(freeze) == averaged[key].shape[0]:

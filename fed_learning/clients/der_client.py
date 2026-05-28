@@ -175,6 +175,8 @@ class DERClient(FederatedClient):
         has_replay = self.replay_buffer.total_samples > 0 and self.current_task > 0
 
         for ep in range(epochs):
+            trainer.current_epoch = ep
+            trainer.total_epochs = epochs
             # Paper Eq.8: annealing schedule resets at the beginning of EACH epoch.
             # b goes from 1 to B within each epoch (not monotonically across epochs).
             if stage == 1 and hasattr(trainer, 'current_batch'):

@@ -254,7 +254,7 @@ class GLFCClient(FederatedClient):
                 feat = F.normalize(feat, dim=1)
                 features.append(feat.cpu())
 
-        features = torch.cat(features, dim=0).numpy()
+        features = np.asarray(torch.cat(features, dim=0).tolist())
         class_mean = np.mean(features, axis=0)
 
         # Herding selection

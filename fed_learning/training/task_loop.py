@@ -285,8 +285,8 @@ def _evaluate_and_visualize(server, task_id, output_dir, config):
 
         with torch.no_grad():
             out_cm = server.global_model(X_test_cm.to(server.primary_device))
-            preds_cm = out_cm.argmax(dim=1).cpu().numpy()
-            y_true_cm = y_test_cm.numpy()
+            preds_cm = out_cm.argmax(dim=1).detach().cpu().tolist()
+            y_true_cm = y_test_cm.detach().cpu().tolist()
 
         # Check for collapse
         unique_preds = set(preds_cm)
@@ -1052,10 +1052,14 @@ def run_incremental_training(config: Dict[str, Any]):
                 is_last_task,
                 label="[phase]",
             )
-        elif algo in ("der", "rne"):
+        elif algo in ("der", "rne", "rne_compress"):
             stage1_rounds, stage2_rounds = _resolve_der_round_split(config)
             total_rounds = stage1_rounds + stage2_rounds
-            algo_label = "RNE" if algo == "rne" else "DER"
+            algo_label = (
+                "RNE-compress"
+                if algo == "rne_compress"
+                else ("RNE" if algo == "rne" else "DER")
+            )
 
             if hasattr(trainer, "set_stage"):
                 trainer.set_stage(1)
@@ -1084,7 +1088,7 @@ def run_incremental_training(config: Dict[str, Any]):
 
             if hasattr(trainer, "set_stage"):
                 trainer.set_stage(2)
-            if hasattr(server.global_model, "reset_classifier"):
+            if algo == "der" and hasattr(server.global_model, "reset_classifier"):
                 server.global_model.reset_classifier()
                 print("  → Classifier H_t re-initialized (paper Section 3.2)")
 
@@ -1111,7 +1115,7 @@ def run_incremental_training(config: Dict[str, Any]):
                 label="[stage=2]",
             )
             # Weight Alignment after Stage 2
-            if task_id > 0 and hasattr(server.global_model, "weight_align"):
+            if algo == "der" and task_id > 0 and hasattr(server.global_model, "weight_align"):
                 server.global_model.weight_align(len(new_classes))
         elif algo == "glfc":
             glfc_rounds = config.get("rounds_per_task", 5)

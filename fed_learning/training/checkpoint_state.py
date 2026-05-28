@@ -109,7 +109,7 @@ def build_algorithm_state(
     state: Dict[str, Any] = {}
     if algo == "nice":
         state["nice"] = snapshot_nice_state(source_model, context_detector)
-    elif algo in ("der", "rne"):
+    elif algo in ("der", "rne", "rne_compress"):
         if task_classes_history is None and server is not None:
             task_classes_history = getattr(server, "_task_classes_history", {})
         state[algo] = snapshot_der_state(

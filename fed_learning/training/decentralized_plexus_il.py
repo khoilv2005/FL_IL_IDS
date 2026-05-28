@@ -85,8 +85,8 @@ def _eval_params(
                 out[:, unseen] = float("-inf")
             loss = criterion(out, y_batch)
             total_loss += loss.item() * len(y_batch)
-            all_preds.extend(out.argmax(dim=1).cpu().numpy())
-            all_targets.extend(y_batch_cpu.numpy())
+            all_preds.extend(out.argmax(dim=1).detach().cpu().tolist())
+            all_targets.extend(y_batch_cpu.detach().cpu().tolist())
 
     return {
         "loss": total_loss / max(1, len(y_test)),

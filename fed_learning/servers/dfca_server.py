@@ -798,8 +798,8 @@ class DFCAServer(IncrementalServer):
                 ).sum()
                 total_ce_loss += ce_loss.item()
 
-                all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(y_batch.cpu().numpy())
+                all_preds.extend(preds.detach().cpu().tolist())
+                all_targets.extend(y_batch.detach().cpu().tolist())
 
         from sklearn.metrics import (
             accuracy_score, precision_score,

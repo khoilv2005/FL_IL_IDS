@@ -25,6 +25,7 @@ _SERVER_REGISTRY = {
     "fedcbdr": FedCBDRServer,
     "der": DERServer,
     "rne": RNEServer,
+    "rne_compress": RNEServer,
     "cgofed": CGoFedServer,
     "nice": NICEServer,
     "glfc": GLFCServer,

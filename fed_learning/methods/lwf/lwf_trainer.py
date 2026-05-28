@@ -610,7 +610,7 @@ class CNN_GRU_LwF:
             temperature: Distillation temperature
             **kwargs: Additional arguments for trainer
         """
-        from ..models.cnn_gru import CNN_GRU_Model
+        from fed_learning.models.cnn_gru import CNN_GRU_Model
         
         # Create model
         self.model = CNN_GRU_Model(input_shape, num_classes=num_classes)

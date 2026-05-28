@@ -69,14 +69,18 @@ def _create_local_model(
         from fed_learning.models.der_model import DERModel
 
         return DERModel(config["input_shape"], config["num_classes"]).to(device)
-    if algo == "rne":
-        from fed_learning.models.rne_model import RNEModel
+    if algo in ("rne", "rne_compress"):
+        from fed_learning.models.rne_model import RNECompressModel, RNEModel
 
-        return RNEModel(
-            config["input_shape"],
-            config["num_classes"],
-            recurrent_scale=config.get("rne_recurrent_scale", 1.0),
-        ).to(device)
+        model_cls = RNECompressModel if algo == "rne_compress" else RNEModel
+        kwargs = {
+            "recurrent_scale": config.get("rne_recurrent_scale", 1.0),
+        }
+        if algo == "rne_compress":
+            kwargs["compressed_channels"] = config.get(
+                "rne_compress_channels", (16, 32, 64, 25)
+            )
+        return model_cls(config["input_shape"], config["num_classes"], **kwargs).to(device)
     if algo == "nice":
         from fed_learning.models.nice_model import NICEModel
 
@@ -164,7 +168,7 @@ def _apply_local_nice_context_mask(
         if context_activations is not None:
             binary_acts = context_detector.binarize_layer_activations(
                 {
-                    name: act.detach().cpu().numpy()
+                    name: np.asarray(act.detach().cpu().tolist())
                     for name, act in context_activations.items()
                 }
             )
@@ -239,12 +243,12 @@ def _predict_labels(
             else:
                 prob_sum += probs.sum(dim=0)
             prob_count += len(y_batch)
-            preds.append(out.argmax(dim=1).cpu().numpy())
-            targets.append(y_batch.cpu().numpy())
+            preds.extend(out.argmax(dim=1).detach().cpu().tolist())
+            targets.extend(y_batch.detach().cpu().tolist())
             del X_batch, y_batch, out, probs
 
     mean_probs = prob_sum / max(1, prob_count) if prob_sum is not None else None
-    return np.concatenate(targets), np.concatenate(preds), mean_probs
+    return np.asarray(targets), np.asarray(preds), mean_probs
 
 
 def _evaluate_model(
@@ -307,11 +311,11 @@ def _evaluate_model(
                 pred_out = out
             loss = criterion(loss_out, y_batch)
             total_loss += loss.item() * len(y_batch)
-            preds.append(pred_out.argmax(dim=1).cpu().numpy())
-            targets.append(y_batch.cpu().numpy())
+            preds.extend(pred_out.argmax(dim=1).detach().cpu().tolist())
+            targets.extend(y_batch.detach().cpu().tolist())
 
-    y_true = np.concatenate(targets)
-    y_pred = np.concatenate(preds)
+    y_true = np.asarray(targets)
+    y_pred = np.asarray(preds)
     zero_division: Any = 0
     return {
         "loss": total_loss / max(1, len(y_test)),
@@ -765,7 +769,7 @@ def _run_local_der(
             round_callback(record, final_round_id)
 
     trainer.set_stage(2)
-    if hasattr(model, "reset_classifier"):
+    if config.get("algorithm", "").lower() == "der" and hasattr(model, "reset_classifier"):
         model.reset_classifier()
     client.setup_for_gpu(model, device)
     for stage_round in range(stage2_rounds):
@@ -778,6 +782,12 @@ def _run_local_der(
             lr=config["learning_rate"],
             global_params=None,
             stage=2,
+            rne_pseudo_per_class=config.get("rne_pseudo_per_class", 400),
+            rne_pseudo_old_per_class=config.get(
+                "rne_pseudo_old_per_class",
+                config.get("rne_pseudo_per_class", 400),
+            ),
+            rne_pseudo_new_per_class=config.get("rne_pseudo_new_per_class", 100),
         )
         record = {
             "round": round_id,
@@ -788,10 +798,14 @@ def _run_local_der(
         if round_callback is not None:
             round_callback(record, final_round_id)
 
+    if (
+        config.get("algorithm", "").lower() == "der"
+        and getattr(model, "current_task", -1) > 0
+        and hasattr(model, "weight_align")
+    ):
+        model.weight_align(len(new_classes))
     if hasattr(client, "update_exemplars"):
         client.update_exemplars(model)
-    if getattr(model, "current_task", -1) > 0 and hasattr(model, "weight_align"):
-        model.weight_align(len(new_classes))
     return round_records
 
 
@@ -1015,7 +1029,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         **{k: v for k, v in config.items() if k != "algorithm"},
     )
     print(f"✓ Trainer: {trainer.__class__.__name__}")
-    print("✓ Local IL algorithms supported: ewc, lwf, der, rne, nice")
+    print("✓ Local IL algorithms supported: ewc, lwf, der, rne, rne_compress, nice")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _create_local_model(config["algorithm"], config, device)
@@ -1041,7 +1055,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         completed_task_ids = sorted(
             int(entry["task"]) for entry in all_history.get("task_accuracies", [])
         )
-        if config["algorithm"].lower() in ("der", "rne"):
+        if config["algorithm"].lower() in ("der", "rne", "rne_compress"):
             for prev_tid in completed_task_ids:
                 prev_classes = data_loader.get_task_classes(prev_tid)
                 der_task_classes_history[prev_tid] = list(prev_classes)
@@ -1092,7 +1106,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         if hasattr(trainer, "set_task"):
             trainer.set_task(task_id, new_classes)
 
-        if config["algorithm"].lower() in ("der", "rne") and hasattr(model, "add_task"):
+        if config["algorithm"].lower() in ("der", "rne", "rne_compress") and hasattr(model, "add_task"):
             der_task_classes_history[task_id] = list(new_classes)
             model.add_task(new_classes, s_max=config.get("s_max", 15.0))
 
@@ -1125,13 +1139,13 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 seen_classes,
                 context_detector=nice_context_detector if algo == "nice" else None,
                 task_classes_history=(
-                    der_task_classes_history if algo in ("der", "rne") else None
+                    der_task_classes_history if algo in ("der", "rne", "rne_compress") else None
                 ),
                 compute_forgetting=False,
                 evaluate=evaluate_this_round,
             )
 
-        if algo in ("der", "rne"):
+        if algo in ("der", "rne", "rne_compress"):
             round_records = _run_local_der(
                 model,
                 persistent_client,
@@ -1229,7 +1243,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 model=model,
                 context_detector=nice_context_detector if algo == "nice" else None,
                 task_classes_history=(
-                    der_task_classes_history if algo in ("der", "rne") else None
+                    der_task_classes_history if algo in ("der", "rne", "rne_compress") else None
                 ),
                 config=config,
             ),

@@ -26,7 +26,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from ..models.cnn_gru import CNN_GRU_Model
+from fed_learning.models.cnn_gru import CNN_GRU_Model
 from .lwf_trainer import MultiClassCrossEntropy, kaiming_normal_init
 
 
@@ -93,10 +93,11 @@ class LwFModel(nn.Module):
         self.backbone = CNN_GRU_Model(input_shape, num_classes=num_classes)
         
         # Incremental learning state
-        self.n_classes = 0
-        self.n_known = 0
-        self.classes_map: Dict[int, int] = {}
-        self.reverse_map: Dict[int, int] = {}
+        self.n_classes = num_classes
+        self.n_known = num_classes
+        self.n_old_classes_for_kd = 0
+        self.classes_map: Dict[int, int] = {i: i for i in range(num_classes)}
+        self.reverse_map: Dict[int, int] = {i: i for i in range(num_classes)}
         
         # Old model snapshot for distillation
         self.prev_model: Optional[nn.Module] = None
@@ -147,8 +148,9 @@ class LwFModel(nn.Module):
         Args:
             new_classes: List of new class IDs for this task
         """
-        # Save current model as teacher for distillation
-        self._save_prev_model()
+        self.n_old_classes_for_kd = self.n_classes if self.current_task > 0 else 0
+        if self.current_task > 0:
+            self._save_prev_model()
         
         # Expand classifier for new classes
         self._increment_classes(new_classes)
@@ -183,7 +185,8 @@ class LwFModel(nn.Module):
         Args:
             new_classes: List of new class IDs to add
         """
-        n_new = len(new_classes)
+        unseen_classes = [cls for cls in new_classes if cls not in self.classes_map]
+        n_new = len(unseen_classes)
         
         # Get current classifier
         old_fc = self.backbone.fc2
@@ -192,10 +195,17 @@ class LwFModel(nn.Module):
         old_weight = old_fc.weight.data.clone()
         
         # Calculate new output size
-        if self.n_known == 0:
-            new_out_features = n_new
-        else:
-            new_out_features = out_features + n_new
+        required_outputs = max(new_classes) + 1 if new_classes else out_features
+        new_out_features = max(out_features + n_new, required_outputs, out_features)
+        if new_out_features == out_features:
+            for cls in new_classes:
+                if cls not in self.classes_map and cls < out_features:
+                    self.classes_map[cls] = cls
+            self.reverse_map = {v: k for k, v in self.classes_map.items()}
+            self.n_classes = out_features
+            self.n_known = self.n_classes
+            print(f"[LwFModel] Expanded classifier: {out_features} -> {new_out_features}")
+            return
         
         # Create new classifier
         new_fc = nn.Linear(in_features, new_out_features, bias=False)
@@ -211,16 +221,13 @@ class LwFModel(nn.Module):
         # Update class tracking
         for cls in new_classes:
             if cls not in self.classes_map:
-                self.classes_map[cls] = len(self.classes_map)
+                self.classes_map[cls] = cls if cls < new_out_features else len(self.classes_map)
         
         # Update reverse map
         self.reverse_map = {v: k for k, v in self.classes_map.items()}
         
         # Update counters
-        if self.n_classes == 0:
-            self.n_classes = n_new
-        else:
-            self.n_classes = new_out_features
+        self.n_classes = new_out_features
         self.n_known = self.n_classes
         
         print(f"[LwFModel] Expanded classifier: {out_features} -> {new_out_features}")
@@ -256,12 +263,12 @@ class LwFModel(nn.Module):
         total_loss = ce_loss
         
         # Knowledge distillation loss (if not first task)
-        if self.prev_model is not None and self.n_known > 0:
+        if self.prev_model is not None and self.n_old_classes_for_kd > 0:
             with torch.no_grad():
                 old_logits = self.prev_model(inputs)
             
             # Distill on old class logits only
-            num_old_classes = self.n_known
+            num_old_classes = self.n_old_classes_for_kd
             if num_old_classes > 0:
                 kd_loss = MultiClassCrossEntropy(
                     logits[:, :num_old_classes],
@@ -297,6 +304,12 @@ class LwFModel(nn.Module):
         loss, loss_dict = self._compute_loss(logits, labels, inputs)
         loss.backward()
         optimizer.step()
+
+        if self.prev_model is None:
+            self.prev_model = copy.deepcopy(self.backbone)
+            self.prev_model.eval()
+            for param in self.prev_model.parameters():
+                param.requires_grad = False
         
         return loss_dict
     

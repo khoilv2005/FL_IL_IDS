@@ -58,6 +58,12 @@ _CLIENT_REGISTRY = {
             "buffer_size": ("buffer_size", 500),
         },
     ),
+    "rne_compress": (
+        RNEClient,
+        {
+            "buffer_size": ("buffer_size", 500),
+        },
+    ),
     "nice": (
         NICEClient,
         {
@@ -92,7 +98,7 @@ _CLIENT_REGISTRY = {
 # These algorithms use FedLwFClient (federated LwF with task management)
 _FEDLWF_ALGORITHMS = {"fedavg_lwf", "fedprox_lwf"}
 
-# Standalone "lwf" uses LwFLocalClient (passes inputs to compute_loss for KD)
+# Standalone "lwf" also needs FedLwFClient's task/model snapshot management.
 _LOCAL_LWF_ALGORITHMS = {"lwf"}
 
 
@@ -109,7 +115,7 @@ def _resolve_client_class(algo: str):
     if algo in _FEDLWF_ALGORITHMS:
         return (FedLwFClient, {})
     if algo in _LOCAL_LWF_ALGORITHMS:
-        return (LwFLocalClient, {})
+        return (FedLwFClient, {})
     # Default: CGoFedClient (works for cgofed, fedavg, fedprox, fedavg_ewc, etc.)
     return (CGoFedClient, {})
 
@@ -173,7 +179,7 @@ def create_clients(
         X, y = data["X_train"], data["y_train"]
 
         # Debug: Data distribution per client
-        unique, counts = np.unique(y.numpy(), return_counts=True)
+        unique, counts = np.unique(y.detach().cpu().tolist(), return_counts=True)
         dist_str = ", ".join([f"cls{c}:{n}" for c, n in zip(unique, counts)])
         print(
             f"  DEBUG[3]: Client {cid} | n_samples={len(y)} | distribution: {dist_str}"

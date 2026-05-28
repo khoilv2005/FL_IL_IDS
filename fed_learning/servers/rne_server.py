@@ -8,7 +8,7 @@ from typing import Dict, List
 import numpy as np
 import torch
 
-from ..models.rne_model import RNEModel
+from ..models.rne_model import RNECompressModel, RNEModel
 from ..training.rne_worker import _reconstruct_model_structure
 from .der_server import DERServer
 from .incremental_server import IncrementalServer
@@ -20,11 +20,7 @@ class RNEServer(DERServer):
     def __init__(self, clients, test_data: Dict, config: Dict):
         IncrementalServer.__init__(self, clients, test_data, config)
         del self.global_model
-        self.global_model = RNEModel(
-            config["input_shape"],
-            config["num_classes"],
-            recurrent_scale=config.get("rne_recurrent_scale", 1.0),
-        ).to(self.primary_device)
+        self.global_model = _create_rne_model(config).to(self.primary_device)
         self._task_classes_history: Dict[int, List[int]] = {}
         print("📊 Strategy: RNE (Recurrent Network Expansion)")
 
@@ -39,8 +35,10 @@ class RNEServer(DERServer):
             recon_config = {
                 "input_shape": self.config["input_shape"],
                 "num_classes": self.config["num_classes"],
+                "algorithm": self.config.get("algorithm", "rne"),
                 "s_max": self.config.get("s_max", 15.0),
                 "rne_recurrent_scale": self.config.get("rne_recurrent_scale", 1.0),
+                "rne_compress_channels": self.config.get("rne_compress_channels", (16, 32, 64, 25)),
                 "task_classes_history": self._task_classes_history,
             }
             _reconstruct_model_structure(self.global_model, OrderedDict(params), recon_config)
@@ -120,3 +118,17 @@ class RNEServer(DERServer):
                     print(f"  → {key}: {value:.2%}")
 
         return {"train_loss": avg_loss, "round_time": round_time}
+
+def _create_rne_model(config: Dict):
+    if config.get("algorithm", "").lower() == "rne_compress":
+        return RNECompressModel(
+            config["input_shape"],
+            config["num_classes"],
+            recurrent_scale=config.get("rne_recurrent_scale", 1.0),
+            compressed_channels=config.get("rne_compress_channels", (16, 32, 64, 25)),
+        )
+    return RNEModel(
+        config["input_shape"],
+        config["num_classes"],
+        recurrent_scale=config.get("rne_recurrent_scale", 1.0),
+    )

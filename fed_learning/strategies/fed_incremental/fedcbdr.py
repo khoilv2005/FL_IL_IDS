@@ -173,7 +173,7 @@ class FedCBDRTrainer(BaseTrainer):
         old_class_set = set(old_class_indices)
         new_class_set = set(new_class_indices)
 
-        target_np = target.cpu().numpy()
+        target_np = target.detach().cpu().tolist()
         old_mask = torch.tensor([t in old_class_set for t in target_np], device=device)
         new_mask = torch.tensor([t in new_class_set for t in target_np], device=device)
 
