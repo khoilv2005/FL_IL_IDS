@@ -33,6 +33,7 @@ from fed_learning.training.checkpoint_state import (
     CHECKPOINT_SCHEMA_VERSION,
     build_algorithm_state,
 )
+from fed_learning.training.nice_neuron_usage import append_nice_neuron_usage
 from fed_learning.utils.cleanup import cleanup_temp_folders
 from fed_learning.utils.seed import set_seed
 
@@ -758,6 +759,10 @@ def _run_local_der(
             lr=config["learning_rate"],
             global_params=None,
             stage=1,
+            rne_feature_batch_size=config.get(
+                "rne_feature_batch_size",
+                min(config["batch_size"], 1024),
+            ),
         )
         record = {
             "round": stage_round,
@@ -788,6 +793,10 @@ def _run_local_der(
                 config.get("rne_pseudo_per_class", 400),
             ),
             rne_pseudo_new_per_class=config.get("rne_pseudo_new_per_class", 100),
+            rne_feature_batch_size=config.get(
+                "rne_feature_batch_size",
+                min(config["batch_size"], 1024),
+            ),
         )
         record = {
             "round": round_id,
@@ -1038,6 +1047,8 @@ def run_local_incremental_training(config: Dict[str, Any]):
     der_task_classes_history: Dict[int, List[int]] = {}
     persistent_client = None
     pending_client_state = None
+    local_model_state = None
+    nice_previous_ages = None
     nice_context_detector = (
         ContextDetector(memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))))
         if config["algorithm"].lower() == "nice"
@@ -1070,6 +1081,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         local_model_state = resume_state.get("global_neuron_ages")
         if local_model_state is not None and hasattr(model, "set_neuron_ages_state"):
             model.set_neuron_ages_state(local_model_state)
+            nice_previous_ages = local_model_state
             if config["algorithm"].lower() == "nice":
                 update_freeze_masks(model)
                 if hasattr(model, "freeze_bn_for_mature"):
@@ -1183,6 +1195,16 @@ def run_local_incremental_training(config: Dict[str, Any]):
         _post_task_local(
             algo, trainer, model, persistent_client, combined_data, config, device
         )
+        if algo == "nice":
+            summary_path = append_nice_neuron_usage(
+                output_dir,
+                task_id,
+                model,
+                previous_state=nice_previous_ages,
+            )
+            print(f"  NICE neuron usage saved: {summary_path}")
+            if hasattr(model, "get_neuron_ages_state"):
+                nice_previous_ages = model.get_neuron_ages_state()
 
         test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
         metrics = _evaluate_model(

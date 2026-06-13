@@ -70,7 +70,9 @@ class RNEClient(DERClient):
                 and kwargs.get("rne_refresh_feature_stats", True)
                 and hasattr(self.model, "extract_vector")
             ):
-                self._refresh_feature_stats(batch_size=batch_size)
+                self._refresh_feature_stats(
+                    batch_size=int(kwargs.get("rne_feature_batch_size", min(batch_size, 1024)))
+                )
                 self._rne_feature_stats_task = self.current_task
                 self._rne_pseudo_task = None
                 self._rne_pseudo_cache = None
@@ -88,6 +90,7 @@ class RNEClient(DERClient):
                 )
             ),
             pseudo_new_per_class=int(kwargs.get("rne_pseudo_new_per_class", 100)),
+            feature_batch_size=int(kwargs.get("rne_feature_batch_size", min(batch_size, 1024))),
         )
 
     def save_model_snapshot(self, model) -> None:
@@ -161,6 +164,7 @@ class RNEClient(DERClient):
         global_params: Optional[OrderedDict],
         pseudo_old_per_class: int,
         pseudo_new_per_class: int,
+        feature_batch_size: int,
     ) -> Dict[str, Any]:
         self.model.freeze_all_extractors()
         opt_params = self.model.get_classifier_params()
@@ -168,7 +172,7 @@ class RNEClient(DERClient):
             return self._empty_result()
 
         features, labels = self._get_pseudo_feature_set(
-            batch_size=batch_size,
+            batch_size=feature_batch_size,
             pseudo_old_per_class=pseudo_old_per_class,
             pseudo_new_per_class=pseudo_new_per_class,
         )
@@ -203,6 +207,7 @@ class RNEClient(DERClient):
             trainer.current_epoch = epoch
             trainer.total_epochs = epochs
             indices = torch.randperm(len(labels))
+            epoch_stepped = False
             for start in range(0, len(labels), batch_size):
                 idx = indices[start : start + batch_size]
                 X_batch = features[idx].to(self.device, non_blocking=True)
@@ -225,20 +230,23 @@ class RNEClient(DERClient):
                     scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(opt_params, max_norm=1.0)
                     trainer.pre_step(self.model, global_params)
+                    old_scale = scaler.get_scale()
                     scaler.step(optimizer)
                     scaler.update()
+                    epoch_stepped = epoch_stepped or scaler.get_scale() >= old_scale
                     trainer.post_step(self.model, global_params)
                 else:
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(opt_params, max_norm=1.0)
                     trainer.pre_step(self.model, global_params)
                     optimizer.step()
+                    epoch_stepped = True
                     trainer.post_step(self.model, global_params)
 
                 bs = len(y_batch)
                 total_loss += loss.item() * bs
                 total_samples += bs
-            if scheduler is not None:
+            if scheduler is not None and epoch_stepped:
                 scheduler.step()
 
         trainer.post_train(self.model, global_params)
@@ -281,6 +289,8 @@ class RNEClient(DERClient):
         active_model = model if model is not None else self.model
         device = next(active_model.parameters()).device
         active_model.eval()
+        device_type = "cuda" if str(device).startswith("cuda") else "cpu"
+        use_amp = bool(getattr(self, "use_amp", False)) and device_type == "cuda"
         by_class = {}
         with torch.no_grad():
             for cls_id in sorted(int(c) for c in self.seen_classes):
@@ -291,7 +301,10 @@ class RNEClient(DERClient):
                 chunks = []
                 for start in range(0, len(X_cls), batch_size):
                     X_batch = X_cls[start : start + batch_size].to(device, non_blocking=True)
-                    chunks.append(active_model.extract_vector(X_batch).detach().cpu())
+                    with torch.autocast(device_type=device_type, enabled=use_amp):
+                        vec = active_model.extract_vector(X_batch)
+                    chunks.append(vec.detach().cpu())
+                    del X_batch, vec
                 if chunks:
                     by_class[cls_id] = torch.cat(chunks, dim=0)
         return by_class

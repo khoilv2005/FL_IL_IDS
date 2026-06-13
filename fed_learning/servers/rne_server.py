@@ -77,8 +77,21 @@ class RNEServer(DERServer):
         worker_config["rne_refresh_feature_stats"] = bool(refresh_feature_stats)
 
         clients_per_gpu = [[] for _ in range(self.num_gpus)]
-        for idx, client in enumerate(clients):
-            clients_per_gpu[idx % self.num_gpus].append(client)
+        gpu_loads = [0 for _ in range(self.num_gpus)]
+        for client in sorted(
+            clients,
+            key=lambda c: int(getattr(c, "num_samples", 0)),
+            reverse=True,
+        ):
+            gpu_id = min(range(self.num_gpus), key=lambda idx: gpu_loads[idx])
+            clients_per_gpu[gpu_id].append(client)
+            gpu_loads[gpu_id] += int(getattr(client, "num_samples", 0))
+        if verbose and not self.use_cpu and self.num_gpus > 1:
+            load_msg = ", ".join(
+                f"GPU {idx}: {len(part)} clients/{load:,} samples"
+                for idx, (part, load) in enumerate(zip(clients_per_gpu, gpu_loads))
+            )
+            print(f"  → RNE GPU load balance: {load_msg}")
 
         results_dict = {}
         threads = []

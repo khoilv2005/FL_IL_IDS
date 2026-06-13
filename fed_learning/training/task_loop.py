@@ -29,6 +29,7 @@ from fed_learning.factories.client_factory import (
 )
 from fed_learning.factories.server_factory import create_server
 from fed_learning.training.post_task import post_task_processing
+from fed_learning.training.nice_neuron_usage import append_nice_neuron_usage
 from fed_learning.training.resume_state import (
     build_continuation_state,
     load_continuation_state,
@@ -1172,11 +1173,20 @@ def run_incremental_training(config: Dict[str, Any]):
             trainer, server, client_data_map, config, participating_clients
         )
 
+        previous_nice_ages = global_neuron_ages
+
         # 5g. Update Global Model
         global_model = server.get_global_params()
         # Save neuron ages for NICE-based algorithms (unit_ranks NOT in state_dict)
         algo = config["algorithm"].lower()
         if algo == "nice":
+            summary_path = append_nice_neuron_usage(
+                output_dir,
+                task_id,
+                server.global_model,
+                previous_state=previous_nice_ages,
+            )
+            print(f"  NICE neuron usage saved: {summary_path}")
             global_neuron_ages = server.global_model.get_neuron_ages_state()
 
         # 5h. Evaluate

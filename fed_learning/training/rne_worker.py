@@ -38,6 +38,10 @@ class RNEWorker(DERWorker):
         )
         kwargs["rne_pseudo_new_per_class"] = self.config.get("rne_pseudo_new_per_class", 100)
         kwargs["rne_refresh_feature_stats"] = self.config.get("rne_refresh_feature_stats", False)
+        kwargs["rne_feature_batch_size"] = self.config.get(
+            "rne_feature_batch_size",
+            min(self.batch_size, 1024),
+        )
         return kwargs
 
     def run(self):
