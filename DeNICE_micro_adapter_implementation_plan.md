@@ -36,8 +36,16 @@ fed_learning/models/denice_model.py
 Kế thừa `NICEModel`, thêm adapter registry:
 
 ```text
-adapter_id = (task_id, layer_name, rank)
+adapter_id = (context_id, layer_name, rank, architecture_version)
 ```
+
+Trong MVP chưa có `context_id` ổn định thì dùng tạm:
+
+```text
+adapter_id = (task_id, layer_name, rank, architecture_version)
+```
+
+Nhưng khi viết paper phải mô tả bản đầy đủ là context-based adapter matching, vì trong decentralized FL hai client có thể cùng context nhưng khác `task_id`, hoặc cùng `task_id` nhưng context dữ liệu khác nhau.
 
 Adapter dạng:
 
@@ -77,10 +85,18 @@ rho0_i,l = free_neurons / total_neurons
 rhom_i,l = mature_neurons / total_neurons
 u_i,l    = selected_learner_neurons / candidate_learner_neurons
 nu_i,t   = novelty của task mới
-dL_i,t   = validation loss tăng sau khi học task mới
 ```
 
-Áp lực capacity:
+Áp lực capacity cho MVP:
+
+```text
+kappa_i,l,t =
+  alpha * (1 - rho0_i,l)
++ beta  * u_i,l
++ delta * nu_i,t
+```
+
+Không dùng `dL_i,t` trong MVP vì continual learning thường không có old validation set đầy đủ. Khi có proxy validation hoặc prototype validation ổn định, có thể mở rộng:
 
 ```text
 kappa_i,l,t =
@@ -98,6 +114,30 @@ HIGH_LAYER_ONLY
 ADD_ADAPTER
 EMERGENCY_LOW_ADAPTER
 GRACEFUL_RECYCLING
+```
+
+Config mặc định cho MVP:
+
+```text
+epsilon_free = 0.30
+epsilon_adapter = 0.10
+xi_novelty = 0.35
+xi_high_novelty = 0.55
+xi_consume = 0.80
+kappa_mid = 0.45
+kappa_high = 0.75
+kappa_adapter = 0.60
+
+alpha = 0.45
+beta = 0.25
+delta = 0.30
+```
+
+Các ngưỡng này là heuristic defaults. Cần sensitivity nhỏ cho:
+
+```text
+xi_novelty in {0.25, 0.35, 0.45}
+epsilon_adapter in {0.05, 0.10, 0.20}
 ```
 
 ### 2.3. Context Capsule
@@ -272,7 +312,7 @@ hoặc:
 ```text
 rho0_i,l < epsilon_adapter
 and
-(nu_i,t >= xi_novelty or dL_i,t >= xi_loss or u_i,l >= xi_consume)
+(nu_i,t >= xi_novelty or u_i,l >= xi_consume)
 ```
 
 Thì:
@@ -296,8 +336,6 @@ Nếu:
 rho0_i,l_low < epsilon_adapter
 and
 nu_i,t >= xi_high_novelty
-and
-dL_i,t >= xi_loss
 ```
 
 Thì bật adapter theo thứ tự:
@@ -309,6 +347,8 @@ fc1 -> gru -> conv3 -> conv2 -> conv1
 `conv1/conv2` là fallback cuối vì thay đổi layer thấp dễ làm lệch toàn backbone.
 
 ### Rule 5: Graceful recycling
+
+Không làm trong MVP. Chỉ đưa vào phase cuối nếu adapter và CANC đã chạy ổn.
 
 Chỉ dùng khi:
 
@@ -342,15 +382,58 @@ age = 0
 
 Novelty đo task mới khác task cũ bao nhiêu.
 
-Quy trình:
+MVP dùng prototype theo từng layer, sau đó tính trung bình có trọng số. Không gộp thẳng toàn bộ vector 548 chiều ngay từ đầu, vì layer nhiều neuron hơn có thể chi phối novelty.
+
+Quy trình theo layer:
 
 ```text
 1. Cho data task mới đi qua model.
 2. Lấy activation conv1/conv2/conv3/gru.
-3. Biến activation thành binary vector 548 chiều.
-4. Lấy trung bình các vector -> prototype P_new.
-5. So P_new với prototype cũ bằng cosine similarity.
-6. novelty = 1 - max_similarity.
+3. Với mỗi layer, biến activation thành binary vector.
+4. Với mỗi layer, lấy trung bình các binary vector -> P_new,l.
+5. So P_new,l với P_old,e,l bằng cosine similarity.
+6. Tính novelty theo layer rồi lấy weighted average.
+```
+
+Công thức:
+
+```text
+novelty_l = 1 - max_e cosine(P_new,l, P_old,e,l)
+novelty = sum_l w_l * novelty_l
+```
+
+MVP weight:
+
+```text
+w_conv1 = 0.15
+w_conv2 = 0.20
+w_conv3 = 0.25
+w_gru   = 0.25
+w_fc1   = 0.15 optional, nếu lưu fc1 prototype
+```
+
+Nếu chỉ dùng context activation giống NICE thì dùng:
+
+```text
+conv1, conv2, conv3, gru
+```
+
+Threshold binary:
+
+```text
+threshold_l = mean_l + std_l
+```
+
+Threshold lấy từ task 0 của từng client, giống context detector NICE. Sample để tính prototype:
+
+```text
+min(nice_memo_per_class, số mẫu class hiện có) mỗi class
+```
+
+Prototype lưu theo:
+
+```text
+client_id, task_id/context_id, layer_name
 ```
 
 Ví dụ:
@@ -413,10 +496,12 @@ Client.prepare_task(t):
 
 Client.compute_novelty():
   X_ref <- sample subset of D_i^t
-  B_new <- binary_context_activation(X_ref)
-  P_new <- mean(B_new)
-  sim_best <- max_e cosine(P_new, P_i^e)
-  novelty <- 1 - sim_best
+  For each layer l in {conv1, conv2, conv3, gru}:
+    B_new,l <- binary_context_activation_layer(X_ref, l)
+    P_new,l <- mean(B_new,l)
+    sim_best,l <- max_e cosine(P_new,l, P_i,e,l)
+    novelty_l <- 1 - sim_best,l
+  novelty <- weighted_average(novelty_l)
   return novelty
 
 Client.run_CANC():
@@ -424,8 +509,8 @@ Client.run_CANC():
     rho0 <- free_l / total_l
     rhom <- mature_l / total_l
     u <- selected_learner_l / candidate_learner_l
-    kappa <- alpha*(1-rho0) + beta*u + gamma*dL + delta*novelty
-    action_l <- decide_action(rho0, novelty, dL, u, kappa)
+    kappa <- alpha*(1-rho0) + beta*u + delta*novelty
+    action_l <- decide_action(rho0, novelty, u, kappa)
   return actions
 
 Client.activate_neurons_or_adapters():
@@ -467,7 +552,7 @@ Client.age_aware_aggregate():
     mask_ij <- compatible_age_context_mask(i, j)
     theta_i <- theta_i + eta * alpha_ij * mask_ij * Delta_theta_j
   For each adapter_id:
-    aggregate only matching adapter_id and shape
+    aggregate only matching adapter_id, shape, architecture_version
 
 Client.end_task():
   learner neurons kept by activation -> mature
@@ -540,7 +625,7 @@ nu = 1 - cosine(P_i^1, P_i^0)
 run CANC
 if early layer cạn nhưng nu thấp:
   Rule 2: học tầng cao
-if nu cao hoặc loss xấu:
+if nu cao hoặc consumption cao:
   Rule 3: thêm adapter fc1/gru
 ```
 
@@ -570,7 +655,7 @@ nu = 1 - max(cos(P_i^2, P_i^0), cos(P_i^2, P_i^1))
 run CANC per layer
 if rho0_fc1 thấp hoặc kappa_fc1 cao:
   add fc1 adapter
-if rho0_gru thấp và novelty/loss cao:
+if rho0_gru thấp và novelty cao hoặc consumption cao:
   add gru adapter
 ```
 
@@ -654,7 +739,7 @@ P_i^5 <- prototype
 run CANC
 if fc1/gru exhausted:
   activate existing adapters
-  add conv3 adapter nếu novelty/loss cao
+  add conv3 adapter nếu novelty cao hoặc consumption cao
 if still failing:
   graceful recycling only if old prototype check safe
 end task:
@@ -868,7 +953,33 @@ sequenceDiagram
     C1->>M: end_task freeze/prune/context detector
 ```
 
-## 10. Output cần lưu
+## 10. Context-aware inference với adapter
+
+MVP dùng top-1 context và top-1 adapter để dễ debug.
+
+Quy trình test cho một sample `x`:
+
+```text
+1. Forward x qua backbone để lấy context activation.
+2. Binarize activation theo threshold từng layer.
+3. Context detector dự đoán context/task e_hat.
+4. Chọn adapter active theo e_hat:
+   adapter_id = (e_hat hoặc task_id, layer_name, rank, architecture_version)
+5. Forward lại hoặc forward có cache với adapter đã bật.
+6. Mask logits theo context/seen classes.
+7. Predict class có logit cao nhất.
+```
+
+Nếu một layer có nhiều adapter phù hợp:
+
+```text
+MVP: chọn top-1 theo context probability.
+Future: weighted sum adapter theo context probability.
+```
+
+Không dùng task-id thật lúc inference. Task/context chỉ đến từ context detector.
+
+## 11. Output cần lưu
 
 Mỗi task/round:
 
@@ -896,7 +1007,7 @@ all_adapter_metrics.json
 final_report.json
 ```
 
-## 11. Ablation cần chạy
+## 12. Ablation cần chạy
 
 ```text
 1. NICE gốc
@@ -922,25 +1033,70 @@ active FLOPs
 communication bytes
 ```
 
-## 12. Implementation order khuyến nghị
+## 13. Implementation order khuyến nghị
+
+### Phase 1: Local DeNICE MVP
+
+Làm trước, bắt buộc chạy ổn trước khi động vào decentralized.
 
 ```text
-Step 1: CANC metrics + novelty prototype.
-Step 2: Micro-adapter ở fc1.
-Step 3: Adapter registry + checkpoint save/load.
-Step 4: Context capsule.
-Step 5: Decentralized clustering bằng threshold similarity.
-Step 6: Age-aware aggregation mask.
-Step 7: Adapter aggregation.
-Step 8: GRU/conv3 adapter.
-Step 9: Graceful recycling.
-Step 10: Full logging + ablation.
+1. Kế thừa NICEModel -> DeNICEModel.
+2. Thêm fc1 micro-adapter.
+3. Thêm AdapterRegistry.
+4. Tính novelty prototype theo layer.
+5. Tính capacity state.
+6. CANC quyết định NICE_ONLY / ADD_ADAPTER.
+7. Train local 6 tasks.
+8. Log accuracy, macro F1, forgetting, neuron usage, adapter params.
+```
+
+Ablation phase 1:
+
+```text
+NICE gốc
+NICE + CANC không adapter
+NICE + CANC + fc1 adapter
+```
+
+Nếu phase 1 không thắng hoặc ít nhất không ổn hơn NICE gốc ở capacity/forgetting, chưa làm phase 2.
+
+### Phase 2: Adapter mở rộng
+
+```text
+fc1 adapter
+fc1 + gru adapter
+fc1 + gru + conv3 adapter
+```
+
+Mục tiêu:
+
+```text
+đo adapter layer nào giúp nhiều nhất
+đo tăng params/FLOPs
+đo neuron depletion có giảm không
+```
+
+### Phase 3: Decentralized
+
+```text
+1. Context capsule.
+2. Threshold-based neighbor clustering.
+3. Age-aware aggregation.
+4. Adapter aggregation theo context_id/adapter_id.
+```
+
+Chỉ làm sau khi Local DeNICE chạy ổn.
+
+### Phase 4: Graceful recycling
+
+```text
+để cuối cùng hoặc bỏ khỏi paper đầu tiên
 ```
 
 Không nên làm ngay tất cả trong một commit. MVP tốt nhất:
 
 ```text
-NICE + CANC + fc1 micro-adapter + capsule logging
+NICE + CANC + fc1 micro-adapter + novelty prototype + logging
 ```
 
-Sau khi ổn mới thêm clustering và age-aware aggregation.
+Sau khi ổn mới thêm capsule, clustering và age-aware aggregation.
