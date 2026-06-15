@@ -302,12 +302,22 @@ class FedCBDRServer:
                 y_batch = y_test[i : i + batch_size].to(self.primary_device)
 
                 out = self.global_model(X_batch)
+                if seen_classes_only and self.seen_classes:
+                    seen_mask = torch.ones(
+                        out.shape[1], dtype=torch.bool, device=out.device
+                    )
+                    for cls_id in self.seen_classes:
+                        if 0 <= int(cls_id) < out.shape[1]:
+                            seen_mask[int(cls_id)] = False
+                    out = out.clone()
+                    out[:, seen_mask] = float("-inf")
+
                 loss = criterion(out, y_batch)
                 total_loss += loss.item() * len(y_batch)
 
                 preds = out.argmax(dim=1)
-            all_preds.extend(preds.detach().cpu().tolist())
-            all_targets.extend(y_batch.detach().cpu().tolist())
+                all_preds.extend(preds.detach().cpu().tolist())
+                all_targets.extend(y_batch.detach().cpu().tolist())
 
         y_true = np.array(all_targets)
         y_pred = np.array(all_preds)

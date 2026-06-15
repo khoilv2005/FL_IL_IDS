@@ -135,6 +135,7 @@ class DERServer(IncrementalServer):
         participating_clients=None,
         stage: int = 1,
         verbose: bool = True,
+        refresh_feature_stats: bool = False,
     ) -> Dict:
         """
         Chạy một federated round của DER.
@@ -142,6 +143,9 @@ class DERServer(IncrementalServer):
         DER cần biết đang ở stage nào để worker và client train đúng nhánh:
         - stage 1: học representation mới
         - stage 2: fine-tune classifier
+
+        `refresh_feature_stats` chỉ được RNE/RNE-compress sử dụng. DER nhận
+        tham số này để dùng chung call path trong task loop và bỏ qua nó.
         """
         from ..training.der_worker import train_der_clients_on_gpu
 
