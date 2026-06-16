@@ -176,18 +176,18 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus decentralized IL (no server)
-    "mode": "decentralized",
+    "mode": "il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "dfca_il"
     # il:     "ewc", "lwf", "der", "nice"
     # decentralized: "plexus"
-    "algorithm": "plexus",
+    "algorithm": "denice",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental
-    "output_dir": "/kaggle/working/results_dfca",
+    "output_dir": "/kaggle/working/results_denice",
 
     # Split-run / continuation state
     # Set TRAIN_PHASE at the top of this file:

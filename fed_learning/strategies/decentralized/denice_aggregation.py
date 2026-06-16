@@ -1,0 +1,208 @@
+"""
+Age-aware decentralized aggregation for DeNICE (plan section 2.5, Alg. 2 phase 6).
+
+Neighbor weight (plan)::
+
+    alpha_ij = s_ij * n_j * R_j / sum_k (s_ik * n_k * R_k)
+
+Update (masked by NICE-compatible mask)::
+
+    theta_i <- theta_i + eta * sum_j alpha_ij * (M_ij o Delta theta_j)
+
+The aggregation mask ``M_ij`` only enables a parameter when it is plastic on the
+receiver side (receiver neuron not mature), so a neighbor update can never
+overwrite the receiver's mature (frozen) knowledge. Adapters are aggregated
+separately and only when ``adapter_id`` / shape / architecture match.
+"""
+
+from __future__ import annotations
+
+from collections import OrderedDict
+from dataclasses import dataclass
+from typing import Dict, List, Optional
+
+import numpy as np
+import torch
+
+
+@dataclass
+class AggregationConfig:
+    eta: float = 1.0           # aggregation step size (eta_agg)
+    epsilon: float = 1e-8
+    protect_mature: bool = True
+
+
+# Layer name -> mapping helpers (mirror NICEModel.reset_frozen_gradients).
+_BN_LAYER_MAP = {"bn1": "conv1", "bn2": "conv2", "bn3": "conv3"}
+
+
+def aggregation_weights(
+    similarities: List[float],
+    counts: List[float],
+    reliabilities: List[float],
+    self_index: Optional[int] = None,
+    epsilon: float = 1e-8,
+) -> np.ndarray:
+    """Normalized alpha_ij over a collaboration group (plan section 2.5).
+
+    If the total weight collapses, the receiver keeps its own update
+    (``alpha_ii = 1``) following Algorithm 2 phase 6.
+    """
+    s = np.maximum(np.asarray(similarities, dtype=np.float64), 0.0)
+    n = np.asarray(counts, dtype=np.float64)
+    r = np.maximum(np.asarray(reliabilities, dtype=np.float64), 0.0)
+    raw = s * n * r
+    total = float(raw.sum())
+    if total < epsilon:
+        alpha = np.zeros_like(raw)
+        if self_index is not None and 0 <= self_index < len(alpha):
+            alpha[self_index] = 1.0
+        return alpha
+    return raw / total
+
+
+def _mature_mask_for_param(
+    param_name: str,
+    param_shape: torch.Size,
+    ages: Dict[str, np.ndarray],
+    gru_hidden: int = 100,
+) -> Optional[np.ndarray]:
+    """Return a boolean mask (True = mature, must NOT be updated) for a param.
+
+    Returns ``None`` when the parameter has no age-tracked output dimension
+    (then it is treated as fully plastic).
+    """
+    layer = param_name.split(".")[0]
+
+    if layer in _BN_LAYER_MAP:
+        layer = _BN_LAYER_MAP[layer]
+    if layer not in ages:
+        return None
+
+    ranks = np.asarray(ages[layer])
+    mature = ranks >= 2
+
+    if layer == "gru":
+        # GRU gate params have first dim 3*hidden.
+        if len(param_shape) >= 1 and param_shape[0] == 3 * gru_hidden:
+            return np.tile(mature, 3)
+        if len(param_shape) >= 1 and param_shape[0] == len(mature):
+            return mature
+        return None
+
+    if len(param_shape) >= 1 and param_shape[0] == len(mature):
+        return mature
+    return None
+
+
+def build_compatible_mask(
+    target_params: "OrderedDict[str, torch.Tensor]",
+    target_ages: Dict[str, np.ndarray],
+    gru_hidden: int = 100,
+) -> Dict[str, torch.Tensor]:
+    """Per-parameter keep-mask (1 = may receive update, 0 = protected mature)."""
+    masks: Dict[str, torch.Tensor] = {}
+    for name, param in target_params.items():
+        mature = _mature_mask_for_param(name, param.shape, target_ages, gru_hidden)
+        if mature is None:
+            masks[name] = torch.ones_like(param)
+            continue
+        keep = torch.ones_like(param)
+        mature_idx = torch.as_tensor(mature.tolist(), dtype=torch.bool)
+        # Zero the rows (dim 0) belonging to mature receiver neurons.
+        keep[mature_idx] = 0.0
+        masks[name] = keep
+    return masks
+
+
+def age_aware_aggregate(
+    target_params: "OrderedDict[str, torch.Tensor]",
+    target_ages: Dict[str, np.ndarray],
+    neighbor_deltas: List["OrderedDict[str, torch.Tensor]"],
+    alphas: np.ndarray,
+    config: Optional[AggregationConfig] = None,
+    gru_hidden: int = 100,
+) -> "OrderedDict[str, torch.Tensor]":
+    """Apply masked, weighted neighbor deltas to the receiver params.
+
+    ``neighbor_deltas[j]`` is ``theta_j_after - reference`` for neighbor j.
+    """
+    config = config or AggregationConfig()
+    masks = (
+        build_compatible_mask(target_params, target_ages, gru_hidden)
+        if config.protect_mature
+        else {name: torch.ones_like(p) for name, p in target_params.items()}
+    )
+
+    new_params = OrderedDict()
+    for name, param in target_params.items():
+        agg = torch.zeros_like(param)
+        for j, delta in enumerate(neighbor_deltas):
+            if name not in delta:
+                continue
+            d = delta[name]
+            if d.shape != param.shape:
+                continue
+            agg = agg + float(alphas[j]) * d.to(param.device)
+        mask = masks.get(name, torch.ones_like(param)).to(param.device)
+        new_params[name] = param + config.eta * (mask * agg)
+    return new_params
+
+
+def merge_neuron_ages(
+    target_ages: Dict[str, np.ndarray],
+    neighbor_ages: List[Dict[str, np.ndarray]],
+) -> Dict[str, np.ndarray]:
+    """Conservative max-merge of neuron ages (plan section 2.5 / denice_protocol).
+
+    A neuron stays mature if any peer considers it mature.
+    """
+    merged = {k: np.asarray(v).copy() for k, v in target_ages.items()}
+    for ages in neighbor_ages:
+        for layer, arr in ages.items():
+            arr = np.asarray(arr)
+            if layer not in merged or merged[layer].shape != arr.shape:
+                continue
+            merged[layer] = np.maximum(merged[layer], arr)
+    return merged
+
+
+def aggregate_adapters(
+    target_adapter_states: Dict[str, "OrderedDict[str, torch.Tensor]"],
+    neighbor_adapter_states: List[Dict[str, "OrderedDict[str, torch.Tensor]"]],
+    neighbor_weights: List[float],
+) -> Dict[str, "OrderedDict[str, torch.Tensor]"]:
+    """FedAvg adapters, matched strictly by adapter key (plan section 2.5).
+
+    A neighbor only contributes to an adapter it actually owns (same key ->
+    same context_id / layer / rank / architecture_version). Clients without the
+    adapter are skipped for that adapter's average.
+    """
+    merged: Dict[str, OrderedDict] = {}
+    for key, target_state in target_adapter_states.items():
+        contributors = [(target_state, 1.0)]
+        for nb_states, w in zip(neighbor_adapter_states, neighbor_weights):
+            nb = nb_states.get(key)
+            if nb is None:
+                continue
+            # Shape compatibility check.
+            if any(
+                p not in nb or nb[p].shape != target_state[p].shape
+                for p in target_state
+            ):
+                continue
+            contributors.append((nb, float(w)))
+
+        total_w = sum(w for _, w in contributors)
+        if total_w <= 0:
+            merged[key] = target_state
+            continue
+
+        avg = OrderedDict()
+        for p_name, p_val in target_state.items():
+            acc = torch.zeros_like(p_val)
+            for state, w in contributors:
+                acc = acc + w * state[p_name].to(p_val.device)
+            avg[p_name] = acc / total_w
+        merged[key] = avg
+    return merged

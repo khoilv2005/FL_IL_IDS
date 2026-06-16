@@ -2,7 +2,7 @@
 
 ## 1. Phạm vi thiết kế
 
-Kế hoạch này lấy toàn bộ ý tưởng chính từ `Đề xuất.md`:
+Kế hoạch này lấy toàn bộ ý tưởng chính từ `Đề xuất.pdf`:
 
 - Local continual learning dựa trên NICE.
 - NICE Context Capsule.
@@ -167,8 +167,8 @@ Psi_i^t = {
 
 Không gửi raw data.
 
-### 2.4. Decentralized clustering
-
+### 2.4. Decentralized clustering nnn     
+File tham khảo chính `ap_nice_fl_pseudocode.md`
 File đề xuất:
 
 ```text

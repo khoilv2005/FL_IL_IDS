@@ -87,6 +87,11 @@ def _create_local_model(
 
         return NICEModel(config["input_shape"], config["num_classes"]).to(device)
 
+    if algo == "denice":
+        from fed_learning.models.denice_model import DeNICEModel
+
+        return DeNICEModel(config["input_shape"], config["num_classes"]).to(device)
+
     from fed_learning.models.cnn_gru import CNN_GRU_Model
 
     return CNN_GRU_Model(config["input_shape"], config["num_classes"]).to(device)
@@ -207,12 +212,33 @@ def _predict_labels(
     if len(y_data) == 0:
         return np.array([], dtype=np.int64), np.array([], dtype=np.int64), None
 
+    model.eval()
+    # DeNICE: context-routed adapter prediction (no probability aggregation).
+    if (
+        context_detector is not None
+        and seen_classes is not None
+        and hasattr(model, "adapter_registry")
+    ):
+        from fed_learning.training.denice_eval import denice_predict_batch
+
+        denice_preds: List[int] = []
+        denice_targets: List[int] = []
+        with torch.no_grad():
+            for i in range(0, len(y_data), batch_size):
+                X_batch = X_data[i : i + batch_size].to(device)
+                y_batch = y_data[i : i + batch_size]
+                batch_preds = denice_predict_batch(
+                    model, X_batch, context_detector, seen_classes, device
+                )
+                denice_preds.extend(batch_preds.detach().cpu().tolist())
+                denice_targets.extend(y_batch.detach().cpu().tolist())
+        return np.asarray(denice_targets), np.asarray(denice_preds), None
+
     preds: List[np.ndarray] = []
     targets: List[np.ndarray] = []
     prob_sum: torch.Tensor | None = None
     prob_count = 0
 
-    model.eval()
     with torch.no_grad():
         for i in range(0, len(y_data), batch_size):
             X_batch = X_data[i : i + batch_size].to(device)
@@ -260,6 +286,18 @@ def _evaluate_model(
     seen_classes: List[int] = None,
 ) -> Dict[str, float]:
     model.eval()
+    # DeNICE: route evaluation through context-aware micro-adapters.
+    if context_detector is not None and hasattr(model, "adapter_registry"):
+        from fed_learning.training.denice_eval import evaluate_denice_model
+
+        return evaluate_denice_model(
+            model,
+            test_data,
+            device,
+            context_detector,
+            seen_classes or [],
+        )
+
     criterion = nn.CrossEntropyLoss()
     X_test = test_data["X_test"]
     y_test = test_data["y_test"]
@@ -921,6 +959,172 @@ def _update_local_nice_context_memory(
     context_detector.train_models(task_id)
 
 
+def _sample_denice_reference(
+    X_train: torch.Tensor,
+    y_train: torch.Tensor,
+    classes: List[int],
+    per_class: int,
+    device: str,
+) -> torch.Tensor:
+    """Sample min(per_class, available) examples per class for prototypes/novelty."""
+    if X_train is None or y_train is None or len(y_train) == 0:
+        return torch.empty(0)
+    y_cpu = y_train.detach().cpu()
+    chunks = []
+    for cls_id in classes:
+        idx = torch.nonzero(y_cpu == int(cls_id), as_tuple=False).flatten()
+        if len(idx) == 0:
+            continue
+        take = min(per_class, len(idx))
+        selected = idx[torch.randperm(len(idx))[:take]]
+        chunks.append(X_train[selected].detach().cpu())
+    if not chunks:
+        return torch.empty(0)
+    return torch.cat(chunks, dim=0).to(device)
+
+
+def _run_local_denice(
+    model,
+    client,
+    trainer,
+    config,
+    device,
+    task_id,
+    num_tasks,
+    new_classes,
+    context_detector: ContextDetector,
+    novelty_estimator,
+    prev_ages,
+    round_callback=None,
+):
+    """DeNICE local training: novelty -> CANC -> adapters -> NICE phases.
+
+    Follows plan section 5.2 (Client.prepare_task / compute_novelty / run_CANC /
+    activate_neurons_or_adapters / local_train) and section 6 (task 0..5).
+    Returns ``(round_records, canc_plan)``.
+    """
+    from fed_learning.strategies.incremental.denice_capacity import (
+        CANCConfig,
+        CapacityController,
+        compute_capacity_state,
+        compute_consumption,
+    )
+
+    trainer.max_phases = max(1, int(config.get("nice_max_phases", 5)))
+    trainer.phase_epochs = max(1, int(config.get("nice_phase_epochs", 5)))
+    total_phase_rounds = trainer.max_phases
+
+    # prepare_task: mark new output neurons as learner, register episode classes.
+    for cls_id in new_classes:
+        if cls_id < model.num_classes:
+            model.unit_ranks["fc2"][cls_id] = 1
+    context_detector.episode_classes[task_id] = list(new_classes)
+
+    # Reference subset for thresholds / novelty / prototype (train data only).
+    per_class = max(1, int(getattr(context_detector, "memo_per_class", 50)))
+    ref_data = _sample_denice_reference(
+        client.X_train, client.y_train, list(new_classes), per_class, device
+    )
+
+    canc_config = getattr(trainer, "canc_config", None) or CANCConfig.from_dict(config)
+    controller = CapacityController(canc_config)
+
+    is_first_task = not novelty_estimator.has_history()
+
+    # compute_novelty (plan section 4).
+    novelty_info = {"novelty": 0.0}
+    if ref_data.numel() > 0:
+        model.eval()
+        if novelty_estimator.thresholds is None:
+            novelty_estimator.calibrate_thresholds(model, ref_data)
+        if not is_first_task:
+            novelty_info = novelty_estimator.compute_novelty(model, ref_data)
+    novelty = float(novelty_info.get("novelty", 0.0))
+
+    # run_CANC (plan section 2.2 / 3). Consumption compares the previous task's
+    # start ages against this task's start ages (== previous task's end ages).
+    start_ages = model.get_neuron_ages_state()
+    capacity_state = compute_capacity_state(model)
+    consumption = compute_consumption(prev_ages, start_ages)
+    canc_plan = controller.plan_task(
+        capacity_state, novelty, consumption, is_first_task=is_first_task
+    )
+    canc_plan["novelty"] = novelty
+    canc_plan["start_ages"] = start_ages
+
+    # activate_neurons_or_adapters (plan section 5.2).
+    model.clear_active_adapters()
+    for layer in canc_plan["adapters_to_add"]:
+        key = model.add_adapter(task_id, layer, set_active=True)
+        print(f"  DeNICE CANC: added adapter on '{layer}' (key={key})")
+
+    # HIGH_LAYER_ONLY: temporarily freeze low conv layers (rebuilt at end_task).
+    if canc_plan["freeze_low_layers"]:
+        for low in ("conv1", "conv2"):
+            ranks = model.unit_ranks.get(low)
+            if ranks is not None:
+                model.freeze_masks[low] = np.ones(len(ranks), dtype=bool)
+        print("  DeNICE CANC: freezing low layers conv1/conv2 (HIGH_LAYER_ONLY)")
+
+    action_summary = {name: info["action"] for name, info in canc_plan["layers"].items()}
+    print(
+        f"  DeNICE: task {task_id} | novelty={novelty:.3f} | "
+        f"actions={action_summary} | adapters={canc_plan['adapters_to_add']}"
+    )
+
+    print(
+        "  DeNICE local schedule: "
+        f"{trainer.max_phases} phases x {trainer.phase_epochs} epochs"
+    )
+
+    client.setup_for_gpu(model, device)
+    round_records: List[Dict[str, float]] = []
+    final_round_id = total_phase_rounds - 1
+    for round_id in range(total_phase_rounds):
+        print(f"    Round {round_id}/{total_phase_rounds - 1} [phase]")
+        start_time = time.time()
+        result = client.train(
+            trainer=trainer,
+            epochs=trainer.phase_epochs,
+            batch_size=config["batch_size"],
+            lr=config["learning_rate"],
+            global_params=None,
+            is_last_task=(task_id == num_tasks - 1),
+            phase_offset=round_id,
+            max_phases_override=1,
+        )
+        _update_local_nice_context_memory(
+            context_detector,
+            model,
+            client.X_train,
+            client.y_train,
+            task_id,
+            new_classes,
+            device,
+        )
+        record = {
+            "round": round_id,
+            "train_loss": float((result or {}).get("loss", 0.0)),
+            "round_time": time.time() - start_time,
+        }
+        round_records.append(record)
+        if round_callback is not None:
+            round_callback(record, final_round_id)
+
+    # end_task: mature learner neurons, rebuild freeze masks, store prototype.
+    increase_unit_ranks(model)
+    update_freeze_masks(model)
+    if hasattr(model, "freeze_bn_for_mature"):
+        model.freeze_bn_for_mature()
+
+    if ref_data.numel() > 0:
+        proto = novelty_estimator.compute_prototype(model, ref_data)
+        novelty_estimator.store_prototype(task_id, proto)
+
+    model.clear_active_adapters()
+    return round_records, canc_plan
+
+
 def _run_local_generic(
     model, client, trainer, config, device, task_id, algorithm, round_callback=None
 ):
@@ -1038,7 +1242,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         **{k: v for k, v in config.items() if k != "algorithm"},
     )
     print(f"✓ Trainer: {trainer.__class__.__name__}")
-    print("✓ Local IL algorithms supported: ewc, lwf, der, rne, rne_compress, nice")
+    print("✓ Local IL algorithms supported: ewc, lwf, der, rne, rne_compress, nice, denice")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _create_local_model(config["algorithm"], config, device)
@@ -1049,11 +1253,22 @@ def run_local_incremental_training(config: Dict[str, Any]):
     pending_client_state = None
     local_model_state = None
     nice_previous_ages = None
+    _algo_lower = config["algorithm"].lower()
+    _is_nice_like = _algo_lower in ("nice", "denice")
     nice_context_detector = (
         ContextDetector(memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))))
-        if config["algorithm"].lower() == "nice"
+        if _is_nice_like
         else None
     )
+    # DeNICE: novelty estimator + per-layer consumption tracking for CANC.
+    denice_novelty_estimator = None
+    denice_prev_ages = None
+    if _algo_lower == "denice":
+        from fed_learning.strategies.incremental.denice_novelty import NoveltyEstimator
+
+        denice_novelty_estimator = NoveltyEstimator(
+            layer_weights=getattr(trainer, "novelty_layer_weights", None)
+        )
 
     if resume_state is not None:
         all_history = resume_state.get("all_history", all_history)
@@ -1082,7 +1297,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         if local_model_state is not None and hasattr(model, "set_neuron_ages_state"):
             model.set_neuron_ages_state(local_model_state)
             nice_previous_ages = local_model_state
-            if config["algorithm"].lower() == "nice":
+            if _is_nice_like:
                 update_freeze_masks(model)
                 if hasattr(model, "freeze_bn_for_mature"):
                     model.freeze_bn_for_mature()
@@ -1126,6 +1341,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         algo = config["algorithm"].lower()
         seen_classes = _get_seen_classes(data_loader, task_id)
         last_round_record = None
+        denice_canc_plan = None
 
         def record_round_now(round_summary, final_round_id):
             nonlocal last_round_record
@@ -1149,7 +1365,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 trainer,
                 config,
                 seen_classes,
-                context_detector=nice_context_detector if algo == "nice" else None,
+                context_detector=nice_context_detector if algo in ("nice", "denice") else None,
                 task_classes_history=(
                     der_task_classes_history if algo in ("der", "rne", "rne_compress") else None
                 ),
@@ -1180,6 +1396,21 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 nice_context_detector,
                 round_callback=record_round_now,
             )
+        elif algo == "denice":
+            round_records, denice_canc_plan = _run_local_denice(
+                model,
+                persistent_client,
+                trainer,
+                config,
+                device,
+                task_id,
+                data_loader.get_num_tasks(),
+                new_classes,
+                nice_context_detector,
+                denice_novelty_estimator,
+                denice_prev_ages,
+                round_callback=record_round_now,
+            )
         else:
             round_records = _run_local_generic(
                 model,
@@ -1195,7 +1426,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
         _post_task_local(
             algo, trainer, model, persistent_client, combined_data, config, device
         )
-        if algo == "nice":
+        if algo in ("nice", "denice"):
             summary_path = append_nice_neuron_usage(
                 output_dir,
                 task_id,
@@ -1203,6 +1434,23 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 previous_state=nice_previous_ages,
             )
             print(f"  NICE neuron usage saved: {summary_path}")
+            if algo == "denice":
+                from fed_learning.training.denice_usage import append_adapter_usage
+
+                adapter_path = append_adapter_usage(
+                    output_dir,
+                    task_id,
+                    model,
+                    canc_plan=denice_canc_plan,
+                    novelty=(denice_canc_plan or {}).get("novelty"),
+                )
+                print(f"  DeNICE adapter usage saved: {adapter_path}")
+                # Track this task's START ages so the next task can measure the
+                # consumption that happened during this task.
+                if denice_canc_plan is not None and denice_canc_plan.get("start_ages"):
+                    denice_prev_ages = denice_canc_plan["start_ages"]
+                elif hasattr(model, "get_neuron_ages_state"):
+                    denice_prev_ages = model.get_neuron_ages_state()
             if hasattr(model, "get_neuron_ages_state"):
                 nice_previous_ages = model.get_neuron_ages_state()
 
@@ -1211,7 +1459,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
             model,
             {"X_test": test_X, "y_test": test_y},
             device,
-            context_detector=nice_context_detector if algo == "nice" else None,
+            context_detector=nice_context_detector if algo in ("nice", "denice") else None,
             seen_classes=seen_classes,
         )
         print(
@@ -1230,7 +1478,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 task_id,
                 output_dir,
                 config,
-                context_detector=nice_context_detector if algo == "nice" else None,
+                context_detector=nice_context_detector if algo in ("nice", "denice") else None,
                 seen_classes=seen_classes,
             )
         else:
@@ -1263,7 +1511,7 @@ def run_local_incremental_training(config: Dict[str, Any]):
             build_algorithm_state(
                 config.get("algorithm", ""),
                 model=model,
-                context_detector=nice_context_detector if algo == "nice" else None,
+                context_detector=nice_context_detector if algo in ("nice", "denice") else None,
                 task_classes_history=(
                     der_task_classes_history if algo in ("der", "rne", "rne_compress") else None
                 ),

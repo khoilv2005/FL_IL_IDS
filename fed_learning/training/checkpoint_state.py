@@ -76,6 +76,15 @@ def snapshot_nice_state(model: Any, context_detector: Any = None) -> Dict[str, A
     return state
 
 
+def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str, Any]:
+    """Snapshot NICE state plus the DeNICE adapter registry metadata."""
+    state = snapshot_nice_state(model, context_detector)
+    if model is not None and hasattr(model, "get_adapter_registry_state"):
+        state["adapter_registry"] = _clone_value(model.get_adapter_registry_state())
+        state["architecture_version"] = int(getattr(model, "architecture_version", 1))
+    return state
+
+
 def snapshot_der_state(
     model: Any,
     task_classes_history: Optional[Dict[int, list]] = None,
@@ -109,6 +118,8 @@ def build_algorithm_state(
     state: Dict[str, Any] = {}
     if algo == "nice":
         state["nice"] = snapshot_nice_state(source_model, context_detector)
+    elif algo == "denice":
+        state["denice"] = snapshot_denice_state(source_model, context_detector)
     elif algo in ("der", "rne", "rne_compress"):
         if task_classes_history is None and server is not None:
             task_classes_history = getattr(server, "_task_classes_history", {})

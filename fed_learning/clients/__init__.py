@@ -5,6 +5,7 @@ from .cgofed_client import CGoFedClient
 from .der_client import DERClient
 from .rne_client import RNEClient
 from .nice_client import NICEClient
+from .denice_client import DeNICEClient
 from .glfc_client import GLFCClient
 from .refed_client import ReFedClient
 from .dfca_client import DFCAClient
@@ -15,6 +16,7 @@ __all__ = [
     "DERClient",
     "RNEClient",
     "NICEClient",
+    "DeNICEClient",
     "GLFCClient",
     "ReFedClient",
     "DFCAClient",

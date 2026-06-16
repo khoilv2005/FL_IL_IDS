@@ -15,6 +15,7 @@ from fed_learning.clients import (
     DERClient,
     RNEClient,
     NICEClient,
+    DeNICEClient,
     GLFCClient,
     ReFedClient,
 )
@@ -66,6 +67,14 @@ _CLIENT_REGISTRY = {
     ),
     "nice": (
         NICEClient,
+        {
+            "max_phases": ("nice_max_phases", 5),
+            "phase_epochs": ("nice_phase_epochs", 5),
+            "tau": ("tau", 0.95),
+        },
+    ),
+    "denice": (
+        DeNICEClient,
         {
             "max_phases": ("nice_max_phases", 5),
             "phase_epochs": ("nice_phase_epochs", 5),

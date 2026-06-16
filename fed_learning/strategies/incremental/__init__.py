@@ -11,6 +11,7 @@ from .lwf import LwFTrainer
 from .der import DERTrainer
 from .rne import RNETrainer
 from .nice import NICETrainer
+from .denice import DeNICETrainer
 
 
 INCREMENTAL_STRATEGIES = {
@@ -20,6 +21,7 @@ INCREMENTAL_STRATEGIES = {
     "rne": RNETrainer,
     "rne_compress": RNETrainer,
     "nice": NICETrainer,
+    "denice": DeNICETrainer,
 }
 
 
@@ -76,6 +78,16 @@ def get_incremental_strategy(algorithm: str, **config):
             phase_epochs=config.get("nice_phase_epochs", 5),
             memo_per_class=config.get("memo_per_class", 50),
         )
+    if algo == "denice":
+        from .denice_capacity import CANCConfig
+
+        return trainer_cls(
+            tau=config.get("tau", 0.95),
+            max_phases=config.get("nice_max_phases", 5),
+            phase_epochs=config.get("nice_phase_epochs", 5),
+            memo_per_class=config.get("memo_per_class", 50),
+            canc_config=CANCConfig.from_dict(config),
+        )
     return trainer_cls()
 
 
@@ -88,6 +100,7 @@ def list_incremental_strategies():
         "rne": "Recurrent Network Expansion (local IL)",
         "rne_compress": "RNE-compress recurrent network expansion (local IL)",
         "nice": "NICE replay-free incremental learning",
+        "denice": "DeNICE = NICE + CANC + capacity-aware micro-adapters",
     }
 
 
@@ -97,6 +110,7 @@ __all__ = [
     "DERTrainer",
     "RNETrainer",
     "NICETrainer",
+    "DeNICETrainer",
     "INCREMENTAL_STRATEGIES",
     "get_incremental_strategy",
     "list_incremental_strategies",
