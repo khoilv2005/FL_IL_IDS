@@ -82,6 +82,8 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
     if model is not None and hasattr(model, "get_adapter_registry_state"):
         state["adapter_registry"] = _clone_value(model.get_adapter_registry_state())
         state["architecture_version"] = int(getattr(model, "architecture_version", 1))
+    if model is not None and hasattr(model, "get_recycling_state"):
+        state["recycling_registry"] = _clone_value(model.get_recycling_state())
     return state
 
 

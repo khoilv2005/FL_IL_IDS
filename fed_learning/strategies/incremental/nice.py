@@ -59,12 +59,13 @@ def select_learner_units(model, tau: float, data: torch.Tensor):
     sau đó dựa vào activation để chọn ra nhóm learner mới.
     """
     if tau >= 1.0:
-        # tau=100%: promote ALL young to learner (no pruning)
+        # tau=100%: promote all active young/learner units, but keep retired
+        # DeNICE units (age=-1) out of training.
         for name in model.LAYER_NAMES:
             if name == "fc2":
                 continue
             ranks = model.unit_ranks[name]
-            ranks[ranks < 2] = 1
+            ranks[(ranks >= 0) & (ranks < 2)] = 1
         return
 
     # Step 2: Compute activations
@@ -92,7 +93,7 @@ def select_learner_units(model, tau: float, data: torch.Tensor):
 
         # Set selected neurons to learner (age=1)
         new_ranks = ranks.copy()
-        new_ranks[new_ranks < 2] = 0
+        new_ranks[(new_ranks >= 0) & (new_ranks < 2)] = 0
         candidate_indices = np.where(candidate_mask)[0]
         for i, idx in enumerate(candidate_indices):
             if selected[i]:

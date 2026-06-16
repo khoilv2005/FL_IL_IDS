@@ -7,7 +7,7 @@ Tracks per-layer capacity and decides, before training a new task, whether to:
     HIGH_LAYER_ONLY        freeze low conv layers, train high layers only
     ADD_ADAPTER            instantiate / enable a micro-adapter for the layer
     EMERGENCY_LOW_ADAPTER  enable an adapter on a low layer (last resort)
-    GRACEFUL_RECYCLING     not used in MVP (kept for completeness)
+    GRACEFUL_RECYCLING     retire low-importance mature neurons, revive later
 
 Capacity pressure (MVP form, plan section 2.2)::
 
@@ -20,7 +20,7 @@ continual learning rarely has a full old validation set.)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 
@@ -50,6 +50,8 @@ class CANCConfig:
     kappa_mid: float = 0.45
     kappa_high: float = 0.75
     kappa_adapter: float = 0.60
+    kappa_recycle: float = 0.85
+    epsilon_recycle_free: float = 0.0
 
     alpha: float = 0.45
     beta: float = 0.25
@@ -57,11 +59,19 @@ class CANCConfig:
 
     # Which layers may receive an adapter. MVP = fc1 only.
     enabled_adapter_layers: List[str] = field(default_factory=lambda: ["fc1"])
+    enable_recycling: bool = False
+    recycle_ratio: float = 0.02
+    recycle_min: int = 1
+    recycle_max_per_layer: int = 8
+    recycle_grace_tasks: int = 1
 
     @classmethod
     def from_dict(cls, config: Optional[Dict]) -> "CANCConfig":
         config = config or {}
         defaults = cls()
+        adapter_layers = _parse_adapter_layers(
+            config.get("denice_adapter_layers", defaults.enabled_adapter_layers)
+        )
         return cls(
             epsilon_free=float(config.get("denice_epsilon_free", defaults.epsilon_free)),
             epsilon_adapter=float(config.get("denice_epsilon_adapter", defaults.epsilon_adapter)),
@@ -71,17 +81,54 @@ class CANCConfig:
             kappa_mid=float(config.get("denice_kappa_mid", defaults.kappa_mid)),
             kappa_high=float(config.get("denice_kappa_high", defaults.kappa_high)),
             kappa_adapter=float(config.get("denice_kappa_adapter", defaults.kappa_adapter)),
+            kappa_recycle=float(config.get("denice_kappa_recycle", defaults.kappa_recycle)),
+            epsilon_recycle_free=float(
+                config.get("denice_epsilon_recycle_free", defaults.epsilon_recycle_free)
+            ),
             alpha=float(config.get("denice_alpha", defaults.alpha)),
             beta=float(config.get("denice_beta", defaults.beta)),
             delta=float(config.get("denice_delta", defaults.delta)),
-            enabled_adapter_layers=list(
-                config.get("denice_adapter_layers", defaults.enabled_adapter_layers)
+            enabled_adapter_layers=adapter_layers,
+            enable_recycling=bool(config.get("denice_enable_recycling", defaults.enable_recycling)),
+            recycle_ratio=float(config.get("denice_recycle_ratio", defaults.recycle_ratio)),
+            recycle_min=int(config.get("denice_recycle_min", defaults.recycle_min)),
+            recycle_max_per_layer=int(
+                config.get("denice_recycle_max_per_layer", defaults.recycle_max_per_layer)
+            ),
+            recycle_grace_tasks=int(
+                config.get("denice_recycle_grace_tasks", defaults.recycle_grace_tasks)
             ),
         )
 
 
 # Layers that have an age-tracked neuron pool we care about for capacity.
 CAPACITY_LAYERS: List[str] = ["conv1", "conv2", "conv3", "gru", "fc1"]
+
+
+def _parse_adapter_layers(value) -> List[str]:
+    """Parse adapter layer config from sequence or comma-separated string."""
+    if value is None:
+        return ["fc1"]
+    if isinstance(value, str):
+        raw = [part.strip() for part in value.split(",")]
+    elif isinstance(value, Iterable):
+        raw = [str(part).strip() for part in value]
+    else:
+        raw = [str(value).strip()]
+
+    valid = set(ADAPTER_PRIORITY)
+    parsed: List[str] = []
+    for layer in raw:
+        if not layer:
+            continue
+        if layer not in valid:
+            raise ValueError(
+                f"Unsupported DeNICE adapter layer '{layer}'. "
+                f"Supported layers: {ADAPTER_PRIORITY}"
+            )
+        if layer not in parsed:
+            parsed.append(layer)
+    return parsed or ["fc1"]
 
 
 def compute_capacity_state(model) -> Dict[str, Dict[str, float]]:
@@ -103,12 +150,14 @@ def compute_capacity_state(model) -> Dict[str, Dict[str, float]]:
         free = int((ranks == 0).sum())
         learner = int((ranks == 1).sum())
         mature = int((ranks >= 2).sum())
+        retired = int((ranks < 0).sum())
         state[name] = {
             "rho0": free / total,
             "rhom": mature / total,
             "free": float(free),
             "learner": float(learner),
             "mature": float(mature),
+            "retired": float(retired),
             "total": float(total),
         }
     return state
@@ -206,6 +255,7 @@ class CapacityController:
                     "kappa": self.pressure(st["rho0"], 0.0, 0.0),
                     "rho0": st["rho0"],
                     "rhom": st["rhom"],
+                    "retired": st.get("retired", 0.0),
                     "u": 0.0,
                     "novelty": 0.0,
                 }
@@ -213,6 +263,7 @@ class CapacityController:
                 "layers": layers,
                 "adapters_to_add": [],
                 "freeze_low_layers": False,
+                "recycle_layers": [],
                 "novelty": 0.0,
             }
 
@@ -223,6 +274,7 @@ class CapacityController:
                 **decision,
                 "rho0": st["rho0"],
                 "rhom": st["rhom"],
+                "retired": st.get("retired", 0.0),
                 "u": u,
                 "novelty": novelty,
             }
@@ -233,10 +285,12 @@ class CapacityController:
         )
 
         adapters_to_add = self._resolve_adapters(layers)
+        recycle_layers = self._resolve_recycling(layers, adapters_to_add)
 
         return {
             "layers": layers,
             "adapters_to_add": adapters_to_add,
+            "recycle_layers": recycle_layers,
             "freeze_low_layers": freeze_low,
             "novelty": novelty,
         }
@@ -264,3 +318,28 @@ class CapacityController:
         # Order by priority for deterministic behavior.
         to_add.sort(key=lambda l: ADAPTER_PRIORITY.index(l))
         return to_add
+
+    def _resolve_recycling(
+        self, layers: Dict[str, Dict[str, float]], adapters_to_add: List[str]
+    ) -> List[str]:
+        """Resolve Phase-4 recycling layers after adapter fallback is exhausted."""
+        c = self.config
+        if not c.enable_recycling:
+            return []
+        if adapters_to_add:
+            return []
+
+        recycle_layers: List[str] = []
+        for layer in ADAPTER_PRIORITY:
+            info = layers.get(layer)
+            if not info:
+                continue
+            if float(info.get("rho0", 1.0)) > c.epsilon_recycle_free:
+                continue
+            if float(info.get("kappa", 0.0)) < c.kappa_recycle:
+                continue
+            if float(info.get("rhom", 0.0)) <= 0.0:
+                continue
+            info["action"] = GRACEFUL_RECYCLING
+            recycle_layers.append(layer)
+        return recycle_layers

@@ -109,14 +109,14 @@ Usage:
     Chọn mode trong CONFIG["mode"]:
     - "fed_il": federated incremental learning
     - "il": local incremental learning
-    - "decentralized": decentralized Plexus-IL (no server)
+    - "decentralized": decentralized Plexus-IL or DeNICE-IL (no server)
 
     Sau đó chọn thuật toán qua CONFIG["algorithm"]:
     - fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
               "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
               "dfca_il"
-    - decentralized: "plexus"
-    - il: "ewc", "lwf", "der", "nice"
+    - decentralized: "plexus", "denice"
+    - il: "ewc", "lwf", "der", "nice", "denice"
 
     Upload fed_learning folder to Kaggle dataset, then run this script.
 """
@@ -175,14 +175,14 @@ CONFIG = {
     # Options:
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
-    #   - "decentralized": Plexus decentralized IL (no server)
+    #   - "decentralized": Plexus or DeNICE decentralized IL (no server)
     "mode": "il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "dfca_il"
-    # il:     "ewc", "lwf", "der", "nice"
-    # decentralized: "plexus"
+    # il:     "ewc", "lwf", "der", "nice", "denice"
+    # decentralized: "plexus", "denice"
     "algorithm": "denice",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
@@ -271,6 +271,19 @@ CONFIG = {
     "nice_context_eval": True,
     "nice_debug_context_detector": True,
     "memo_per_class": 50,
+    # DeNICE Phase 2 adapter expansion.
+    # Options:
+    #   ["fc1"]                 -> Phase 1 MVP
+    #   ["fc1", "gru"]          -> Phase 2a
+    #   ["fc1", "gru", "conv3"] -> Phase 2b
+    "denice_adapter_layers": ["fc1", "gru", "conv3"],
+    # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless
+    # ablation explicitly tests retired-neuron reuse.
+    "denice_enable_recycling": False,
+    "denice_recycle_ratio": 0.02,
+    "denice_recycle_min": 1,
+    "denice_recycle_max_per_layer": 8,
+    "denice_recycle_grace_tasks": 1,
     # GLFC (Global-Local Forgetting Compensation)
     "glfc_memory_size": 2000,
     "glfc_entropy_threshold": 1.2,

@@ -21,6 +21,7 @@ from .denice_clustering import (
     build_similarity_matrix,
     affinity_propagation,
     dynamic_ap_cluster,
+    collaboration_group,
     silhouette_score,
 )
 from .denice_aggregation import (
@@ -29,6 +30,7 @@ from .denice_aggregation import (
     age_aware_aggregate,
     aggregate_adapters,
     build_compatible_mask,
+    merge_neuron_ages,
 )
 
 __all__ = [
@@ -40,10 +42,12 @@ __all__ = [
     "build_similarity_matrix",
     "affinity_propagation",
     "dynamic_ap_cluster",
+    "collaboration_group",
     "silhouette_score",
     "AggregationConfig",
     "aggregation_weights",
     "age_aware_aggregate",
     "aggregate_adapters",
     "build_compatible_mask",
+    "merge_neuron_ages",
 ]

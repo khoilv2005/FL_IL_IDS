@@ -25,8 +25,11 @@ from fed_learning.strategies.incremental.denice_capacity import (
     NICE_ONLY,
     ADD_ADAPTER,
     EMERGENCY_LOW_ADAPTER,
+    GRACEFUL_RECYCLING,
 )
+from fed_learning.strategies.incremental.denice_recycling import apply_graceful_recycling
 from fed_learning.strategies.incremental.denice_novelty import NoveltyEstimator
+from fed_learning.strategies.incremental.nice import select_learner_units
 from fed_learning.strategies.incremental import get_incremental_strategy
 
 
@@ -127,6 +130,46 @@ class TestDeNICEModel:
         sd = model.state_dict()
         assert any("adapters" in k for k in sd)
 
+    def test_retire_and_revive_recycled_neurons(self):
+        model = _make_model()
+        model.unit_ranks["fc1"][:3] = 2
+        retired = model.retire_neurons("fc1", [0, 1], task_id=2)
+        assert retired == [0, 1]
+        assert model.unit_ranks["fc1"][0] == -1
+        assert model.weight_masks["fc1"][0].sum().item() == 0
+
+        revived = model.revive_retired_neurons(task_id=3, grace_tasks=1)
+        assert revived == {"fc1": [0, 1]}
+        assert model.unit_ranks["fc1"][0] == 0
+        assert model.weight_masks["fc1"][0].sum().item() == model.weight_masks["fc1"].shape[1]
+
+    def test_select_learner_units_does_not_select_retired(self):
+        model = _make_model()
+        model.unit_ranks["fc1"][:] = 0
+        model.unit_ranks["fc1"][0] = -1
+        select_learner_units(model, tau=1.0, data=_dummy_batch(8))
+        assert model.unit_ranks["fc1"][0] == -1
+        assert np.all(model.unit_ranks["fc1"][1:] == 1)
+
+    def test_apply_graceful_recycling_retires_low_importance_mature(self):
+        model = _make_model()
+        model.unit_ranks["fc1"][:] = 2
+        plan = {"recycle_layers": ["fc1"]}
+        summary = apply_graceful_recycling(
+            model,
+            _dummy_batch(12),
+            task_id=1,
+            canc_plan=plan,
+            config={
+                "denice_enable_recycling": True,
+                "denice_recycle_ratio": 0.01,
+                "denice_recycle_min": 2,
+                "denice_recycle_max_per_layer": 3,
+            },
+        )
+        assert summary["total_retired"] == 3
+        assert int((model.unit_ranks["fc1"] == -1).sum()) == 3
+
 
 # ---------------------------------------------------------------------------
 # Novelty
@@ -192,12 +235,66 @@ class TestCANC:
         adapters = ctrl._resolve_adapters(layers)
         assert adapters == ["fc1"]  # gru not enabled in MVP
 
+    def test_config_parses_phase2_adapter_layers_from_string(self):
+        cfg = CANCConfig.from_dict({"denice_adapter_layers": "fc1,gru,conv3"})
+        assert cfg.enabled_adapter_layers == ["fc1", "gru", "conv3"]
+
+    def test_phase2_plan_resolves_fc1_gru_conv3(self):
+        ctrl = CapacityController(CANCConfig(enabled_adapter_layers=["fc1", "gru", "conv3"]))
+        layers = {
+            "fc1": {"action": ADD_ADAPTER},
+            "gru": {"action": ADD_ADAPTER},
+            "conv3": {"action": ADD_ADAPTER},
+            "conv1": {"action": EMERGENCY_LOW_ADAPTER},
+        }
+        adapters = ctrl._resolve_adapters(layers)
+        assert adapters == ["fc1", "gru", "conv3"]
+
     def test_consumption(self):
         prev = {"fc1": np.zeros(256, dtype=np.int32)}
         cur = {"fc1": np.zeros(256, dtype=np.int32)}
         cur["fc1"][:128] = 1  # half consumed
         u = compute_consumption(prev, cur)
         assert abs(u["fc1"] - 0.5) < 1e-6
+
+    def test_phase4_recycling_requires_enable_flag_and_no_adapter(self):
+        ctrl = CapacityController(
+            CANCConfig(
+                enable_recycling=True,
+                enabled_adapter_layers=[],
+                kappa_recycle=0.7,
+            )
+        )
+        state = {
+            "fc1": {
+                "rho0": 0.0,
+                "rhom": 1.0,
+                "free": 0,
+                "learner": 0,
+                "mature": 256,
+                "retired": 0,
+                "total": 256,
+            }
+        }
+        plan = ctrl.plan_task(state, novelty=1.0, consumption={"fc1": 0.0})
+        assert plan["recycle_layers"] == ["fc1"]
+        assert plan["layers"]["fc1"]["action"] == GRACEFUL_RECYCLING
+
+    def test_phase4_recycling_is_off_by_default(self):
+        ctrl = CapacityController(CANCConfig(enabled_adapter_layers=[]))
+        state = {
+            "fc1": {
+                "rho0": 0.0,
+                "rhom": 1.0,
+                "free": 0,
+                "learner": 0,
+                "mature": 256,
+                "retired": 0,
+                "total": 256,
+            }
+        }
+        plan = ctrl.plan_task(state, novelty=1.0, consumption={"fc1": 0.0})
+        assert plan["recycle_layers"] == []
 
 
 # ---------------------------------------------------------------------------

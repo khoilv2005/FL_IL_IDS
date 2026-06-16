@@ -1,7 +1,11 @@
 import pytest
 import torch
 
-from fed_learning.training.task_loop import _run_tracked_rounds, run_incremental_training
+from fed_learning.training.task_loop import (
+    _resolve_output_dir,
+    _run_tracked_rounds,
+    run_incremental_training,
+)
 
 
 class _FakeServer:
@@ -57,3 +61,13 @@ def test_run_tracked_rounds_respects_eval_every(tmp_path):
 def test_plexus_rejected_outside_decentralized_mode():
     with pytest.raises(ValueError, match="mode='decentralized'"):
         run_incremental_training({"mode": "fed_il", "algorithm": "plexus"})
+
+def test_decentralized_denice_output_dir_uses_algorithm_name(tmp_path):
+    output_dir = _resolve_output_dir(
+        {"output_dir": str(tmp_path / "run")},
+        "decentralized",
+        "denice",
+    )
+
+    assert "_denice_" in output_dir
+    assert "_plexus_" not in output_dir

@@ -14,12 +14,15 @@ def compute_adapter_usage(model: Any) -> Dict[str, Any]:
     """Summarize the adapter registry of a :class:`DeNICEModel`."""
     registry = getattr(model, "adapter_registry", None)
     if not registry:
-        return {
+        usage = {
             "num_adapters": 0,
             "total_adapter_params": 0,
             "per_layer": {},
             "adapters": [],
         }
+        if hasattr(model, "get_recycling_state"):
+            usage["recycling"] = model.get_recycling_state()
+        return usage
 
     per_layer: Dict[str, Dict[str, int]] = defaultdict(lambda: {"count": 0, "params": 0})
     adapters: List[Dict[str, Any]] = []
@@ -42,12 +45,15 @@ def compute_adapter_usage(model: Any) -> Dict[str, Any]:
             }
         )
 
-    return {
+    usage = {
         "num_adapters": len(registry),
         "total_adapter_params": int(total_params),
         "per_layer": {k: dict(v) for k, v in per_layer.items()},
         "adapters": adapters,
     }
+    if hasattr(model, "get_recycling_state"):
+        usage["recycling"] = model.get_recycling_state()
+    return usage
 
 
 def append_adapter_usage(
@@ -76,9 +82,11 @@ def append_adapter_usage(
                     "rho0": round(float(info.get("rho0", 0.0)), 4),
                     "rhom": round(float(info.get("rhom", 0.0)), 4),
                     "u": round(float(info.get("u", 0.0)), 4),
+                    "retired": round(float(info.get("retired", 0.0)), 4),
                 }
                 for name, info in canc_plan.get("layers", {}).items()
             },
+            "recycling": canc_plan.get("recycling", {}),
         }
 
     if os.path.exists(path):

@@ -442,7 +442,7 @@ def _resolve_output_dir(config: Dict[str, Any], mode: str, algorithm: str) -> st
     if mode == "il":
         output_dir = f"{config['output_dir']}_{algorithm}_{mode}_{ts}"
     elif mode == "decentralized":
-        output_dir = f"{config['output_dir']}_plexus_{ts}"
+        output_dir = f"{config['output_dir']}_{algorithm}_{ts}"
     else:
         output_dir = f"{config['output_dir']}_{algorithm}_{ts}"
     os.makedirs(output_dir, exist_ok=True)
@@ -798,18 +798,28 @@ def run_incremental_training(config: Dict[str, Any]):
     algorithm = config.get("algorithm", "").lower()
     if algorithm == "plexus" and mode != "decentralized":
         raise ValueError("algorithm='plexus' is only supported with mode='decentralized'.")
+    if algorithm == "denice" and mode not in ("il", "decentralized"):
+        raise ValueError("algorithm='denice' is supported with mode='il' or mode='decentralized'.")
 
     if mode == "il":
         from fed_learning.training.local_task_loop import run_local_incremental_training
 
         return run_local_incremental_training(config)
     elif mode == "decentralized":
-        # Plexus decentralized IL: no server, class-incremental task loop.
-        from fed_learning.training.decentralized_plexus_il import (
-            run_decentralized_plexus_il,
-        )
+        if algorithm == "plexus":
+            # Plexus decentralized IL: no server, class-incremental task loop.
+            from fed_learning.training.decentralized_plexus_il import (
+                run_decentralized_plexus_il,
+            )
 
-        return run_decentralized_plexus_il(config)
+            return run_decentralized_plexus_il(config)
+        if algorithm == "denice":
+            from fed_learning.training.decentralized_denice_il import (
+                run_decentralized_denice_il,
+            )
+
+            return run_decentralized_denice_il(config)
+        raise ValueError("mode='decentralized' supports algorithm='plexus' or algorithm='denice'.")
     if mode != "fed_il":
         raise ValueError("Unsupported mode. Use 'fed_il', 'il', or 'decentralized'.")
 

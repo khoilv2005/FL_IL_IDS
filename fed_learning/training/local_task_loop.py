@@ -1009,6 +1009,10 @@ def _run_local_denice(
         compute_capacity_state,
         compute_consumption,
     )
+    from fed_learning.strategies.incremental.denice_recycling import (
+        apply_graceful_recycling,
+        revive_due_recycled_neurons,
+    )
 
     trainer.max_phases = max(1, int(config.get("nice_max_phases", 5)))
     trainer.phase_epochs = max(1, int(config.get("nice_phase_epochs", 5)))
@@ -1025,6 +1029,9 @@ def _run_local_denice(
     ref_data = _sample_denice_reference(
         client.X_train, client.y_train, list(new_classes), per_class, device
     )
+    revived = revive_due_recycled_neurons(model, task_id, config)
+    if revived:
+        print(f"  DeNICE recycle: revived retired neurons {revived}")
 
     canc_config = getattr(trainer, "canc_config", None) or CANCConfig.from_dict(config)
     controller = CapacityController(canc_config)
@@ -1057,6 +1064,12 @@ def _run_local_denice(
     for layer in canc_plan["adapters_to_add"]:
         key = model.add_adapter(task_id, layer, set_active=True)
         print(f"  DeNICE CANC: added adapter on '{layer}' (key={key})")
+
+    recycle_summary = apply_graceful_recycling(
+        model, ref_data, task_id, canc_plan, config
+    )
+    if recycle_summary.get("total_retired", 0):
+        print(f"  DeNICE recycle: retired neurons {recycle_summary['retired']}")
 
     # HIGH_LAYER_ONLY: temporarily freeze low conv layers (rebuilt at end_task).
     if canc_plan["freeze_low_layers"]:

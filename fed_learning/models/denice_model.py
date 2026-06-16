@@ -113,6 +113,7 @@ class DeNICEModel(NICEModel):
         self.adapters = nn.ModuleDict()
         self.adapter_registry: Dict[str, Dict] = {}
         self.active_adapters: Dict[str, str] = {}
+        self.recycling_registry: Dict[str, Dict[int, Dict[str, int]]] = {}
 
         # Dimension used by each adapter (the residual operates on these dims).
         self._adapter_dims = {
@@ -205,7 +206,9 @@ class DeNICEModel(NICEModel):
         key = self.active_adapters.get(layer_name)
         if key is None:
             return None
-        return self.adapters.get(key)
+        if key not in self.adapters:
+            return None
+        return self.adapters[key]
 
     def has_adapter(self, context_id: int, layer_name: str, rank: Optional[int] = None) -> bool:
         dim = self._adapter_dims[layer_name]
@@ -218,6 +221,101 @@ class DeNICEModel(NICEModel):
 
     def get_adapter_registry_state(self) -> Dict[str, Dict]:
         return {k: dict(v) for k, v in self.adapter_registry.items()}
+
+    # ========================================================================
+    # Graceful recycling (Phase 4)
+    # ========================================================================
+
+    def retire_neurons(
+        self, layer_name: str, indices: List[int], task_id: int
+    ) -> List[int]:
+        """Move mature neurons to age=-1 retired state without deleting weights.
+
+        Retired units are masked out of forward/training and can be revived as
+        young units after a grace period. This implements the conservative
+        Phase-4 recycling rule: mature -> retired -> young, never mature -> young
+        directly.
+        """
+        if layer_name not in self.unit_ranks:
+            return []
+        ranks = self.unit_ranks[layer_name]
+        valid = sorted(
+            {
+                int(idx)
+                for idx in indices
+                if 0 <= int(idx) < len(ranks) and int(ranks[int(idx)]) >= 2
+            }
+        )
+        if not valid:
+            return []
+
+        layer_state = self.recycling_registry.setdefault(layer_name, {})
+        for idx in valid:
+            layer_state[idx] = {
+                "retired_at_task": int(task_id),
+                "previous_age": int(ranks[idx]),
+            }
+            ranks[idx] = -1
+        self._set_recycled_mask(layer_name, valid, enabled=False)
+        return valid
+
+    def revive_retired_neurons(self, task_id: int, grace_tasks: int = 1) -> Dict[str, List[int]]:
+        """Revive retired neurons as young when the grace period has passed."""
+        revived: Dict[str, List[int]] = {}
+        for layer_name, layer_state in list(self.recycling_registry.items()):
+            ready = []
+            for idx, meta in list(layer_state.items()):
+                retired_at = int(meta.get("retired_at_task", task_id))
+                if int(task_id) - retired_at >= int(grace_tasks):
+                    ready.append(int(idx))
+            if not ready:
+                continue
+            ranks = self.unit_ranks.get(layer_name)
+            if ranks is None:
+                continue
+            for idx in ready:
+                if 0 <= idx < len(ranks) and ranks[idx] == -1:
+                    ranks[idx] = 0
+                    layer_state.pop(idx, None)
+            self._set_recycled_mask(layer_name, ready, enabled=True)
+            revived[layer_name] = sorted(ready)
+            if not layer_state:
+                self.recycling_registry.pop(layer_name, None)
+        return revived
+
+    def get_recycling_state(self) -> Dict[str, Dict[int, Dict[str, int]]]:
+        return {
+            layer: {int(idx): dict(meta) for idx, meta in state.items()}
+            for layer, state in self.recycling_registry.items()
+        }
+
+    def set_recycling_state(self, state: Dict[str, Dict[int, Dict[str, int]]]) -> None:
+        self.recycling_registry = {
+            str(layer): {int(idx): dict(meta) for idx, meta in entries.items()}
+            for layer, entries in (state or {}).items()
+        }
+
+    def _set_recycled_mask(
+        self, layer_name: str, indices: List[int], enabled: bool
+    ) -> None:
+        if not indices:
+            return
+        value = 1.0 if enabled else 0.0
+        if layer_name == "gru":
+            self.weight_masks[layer_name][indices] = value
+            self.bias_masks[layer_name][indices] = value
+            return
+        if layer_name not in self.weight_masks:
+            return
+        mask = self.weight_masks[layer_name]
+        for idx in indices:
+            if 0 <= int(idx) < mask.shape[0]:
+                mask[int(idx)] = value
+        self.bias_masks[layer_name][indices] = value
+        if not enabled and layer_name in self.BN_LAYER_MAP:
+            frozen = self._bn_frozen_units.get(layer_name)
+            if frozen is not None:
+                frozen[indices] = False
 
     # ========================================================================
     # Adapter-aware forward

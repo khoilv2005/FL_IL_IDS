@@ -125,6 +125,7 @@ def evaluate_denice_model(
             "precision_macro": 0.0,
             "recall_macro": 0.0,
             "f1_macro": 0.0,
+            "f1_weighted": 0.0,
         }
 
     criterion = nn.CrossEntropyLoss()
@@ -159,4 +160,5 @@ def evaluate_denice_model(
         "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
         "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
         "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
+        "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
     }
