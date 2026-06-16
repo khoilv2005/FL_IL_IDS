@@ -101,6 +101,39 @@ def _write_json(path: str, payload: Any) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(_json_safe(payload), f, indent=2, default=str)
 
+def _count_histogram(y: torch.Tensor) -> Dict[int, int]:
+    if y is None or len(y) == 0:
+        return {}
+    labels, counts = torch.unique(y.detach().cpu(), return_counts=True)
+    return {int(c): int(n.item()) for c, n in zip(labels, counts)}
+
+def _param_max_abs_diff(
+    left: "OrderedDict[str, torch.Tensor]",
+    right: "OrderedDict[str, torch.Tensor]",
+) -> float:
+    max_diff = 0.0
+    for key, value in left.items():
+        other = right.get(key)
+        if other is None or other.shape != value.shape:
+            continue
+        diff = (value.detach().cpu() - other.detach().cpu()).abs().max().item()
+        max_diff = max(max_diff, float(diff))
+    return max_diff
+
+def _capacity_debug(model: DeNICEModel) -> Dict[str, Dict[str, float]]:
+    return compute_capacity_state(model)
+
+def _round_float_stats(values: List[float]) -> Dict[str, Optional[float]]:
+    clean = [float(v) for v in values if np.isfinite(float(v))]
+    if not clean:
+        return {"min": None, "mean": None, "max": None}
+    arr = np.asarray(clean, dtype=np.float64)
+    return {
+        "min": float(arr.min()),
+        "mean": float(arr.mean()),
+        "max": float(arr.max()),
+    }
+
 
 def _delta_to_target(
     target: "OrderedDict[str, torch.Tensor]",
@@ -218,6 +251,7 @@ def _write_phase_outputs(
     history: Dict[str, Any],
     cluster_history: List[Dict[str, Any]],
     adapter_history: List[Dict[str, Any]],
+    debug_history: List[Dict[str, Any]],
     config: Dict[str, Any],
     completed_task_id: int,
 ) -> None:
@@ -226,6 +260,7 @@ def _write_phase_outputs(
     _write_json(os.path.join(output_dir, "round_metrics.json"), history.get("round_metrics", []))
     _write_json(os.path.join(output_dir, "task_metrics.json"), history.get("task_accuracies", []))
     _write_json(os.path.join(output_dir, "cluster_history.json"), cluster_history)
+    _write_json(os.path.join(output_dir, "denice_debug_history.json"), debug_history)
     _write_json(os.path.join(output_dir, "denice_adapter_usage_summary.json"), {"clients": adapter_history})
     _write_json(os.path.join(output_dir, "all_task_metrics.json"), history.get("task_accuracies", []))
     _write_json(os.path.join(output_dir, "all_cluster_metrics.json"), cluster_history)
@@ -242,6 +277,7 @@ def _write_phase_outputs(
             "num_round_records": len(history.get("round_metrics", [])),
             "num_cluster_records": len(cluster_history),
             "num_adapter_records": len(adapter_history),
+            "num_debug_records": len(debug_history),
         },
     )
     _write_json(
@@ -387,11 +423,15 @@ def _aggregate_round(
     new_states: Dict[int, OrderedDict] = {}
     new_ages: Dict[int, Dict[str, np.ndarray]] = {}
     groups: Dict[int, List[int]] = {}
+    alpha_debug: Dict[int, Dict[str, Any]] = {}
+    group_sizes: List[int] = []
+    alpha_values: List[float] = []
 
     for idx, cid in enumerate(client_ids):
         group_indices = collaboration_group(idx, labels)
         group_ids = [client_ids[g] for g in group_indices]
         groups[int(cid)] = [int(x) for x in group_ids]
+        group_sizes.append(len(group_ids))
 
         sims = []
         counts = []
@@ -405,6 +445,14 @@ def _aggregate_round(
             rels.append(float(capsules[gid].reliability))
         self_index = group_ids.index(cid)
         alphas = aggregation_weights(sims, counts, rels, self_index=self_index)
+        alpha_values.extend(float(a) for a in alphas)
+        alpha_debug[int(cid)] = {
+            "group_ids": [int(x) for x in group_ids],
+            "similarities": [float(x) for x in sims],
+            "sample_counts": [float(x) for x in counts],
+            "reliabilities": [float(x) for x in rels],
+            "alphas": [float(x) for x in alphas],
+        }
 
         target_state = old_states[cid]
         deltas = [_delta_to_target(target_state, old_states[gid]) for gid in group_ids]
@@ -442,6 +490,12 @@ def _aggregate_round(
         models[cid].to(device)
 
     label_map = {int(cid): int(labels[i]) for i, cid in enumerate(client_ids)}
+    cluster_sizes = {
+        int(label): int((labels == label).sum())
+        for label in sorted(set(int(x) for x in labels.tolist()))
+    }
+    sim_matrix = np.asarray(cluster_result.get("similarity", np.zeros((0, 0))))
+    finite_sim = sim_matrix[(sim_matrix > -1e8) & np.isfinite(sim_matrix)]
     return {
         "K_t": int(cluster_result["K_t"]),
         "silhouette": (
@@ -452,6 +506,11 @@ def _aggregate_round(
         "valid": bool(cluster_result["valid"]),
         "labels": label_map,
         "groups": groups,
+        "cluster_sizes": cluster_sizes,
+        "similarity_stats": _round_float_stats(finite_sim.tolist()),
+        "group_size_stats": _round_float_stats([float(x) for x in group_sizes]),
+        "alpha_stats": _round_float_stats(alpha_values),
+        "alpha_debug": alpha_debug,
     }
 
 
@@ -466,17 +525,18 @@ def _evaluate_clients(
     device: torch.device,
 ) -> Dict[str, float]:
     metrics = []
+    per_client = {}
     for cid in client_ids:
-        metrics.append(
-            evaluate_denice_model(
-                models[cid],
-                test_data,
-                device=str(device),
-                context_detector=context_detectors[cid],
-                seen_classes=seen_classes,
-                batch_size=batch_size,
-            )
+        client_metrics = evaluate_denice_model(
+            models[cid],
+            test_data,
+            device=str(device),
+            context_detector=context_detectors[cid],
+            seen_classes=seen_classes,
+            batch_size=batch_size,
         )
+        metrics.append(client_metrics)
+        per_client[int(cid)] = client_metrics
     if not metrics:
         return {
             "loss": 0.0,
@@ -485,9 +545,16 @@ def _evaluate_clients(
             "recall_macro": 0.0,
             "f1_macro": 0.0,
             "f1_weighted": 0.0,
+            "per_client": {},
+            "per_client_accuracy_stats": {"min": None, "mean": None, "max": None},
         }
     keys = metrics[0].keys()
-    return {key: float(np.mean([m[key] for m in metrics])) for key in keys}
+    averaged = {key: float(np.mean([m[key] for m in metrics])) for key in keys}
+    averaged["per_client"] = per_client
+    averaged["per_client_accuracy_stats"] = _round_float_stats(
+        [float(m.get("accuracy", 0.0)) for m in metrics]
+    )
+    return averaged
 
 
 def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -517,8 +584,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         checkpoint_every = max(1, int(checkpoint_every))
     batch_size = int(config.get("batch_size", 128))
     eval_batch_size = int(config.get("eval_batch_size", 8192))
+    denice_debug = bool(config.get("denice_debug", False))
     max_clients = config.get("denice_max_clients")
     max_clients = None if max_clients is None else int(max_clients)
+    initial_template = _make_model(config, device)
+    initial_model_state = _cpu_state_dict(initial_template)
+    del initial_template
 
     models: Dict[int, DeNICEModel] = {}
     clients: Dict[int, Any] = {}
@@ -531,6 +602,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     history = {"task_accuracies": [], "task_forgetting": [], "round_metrics": []}
     cluster_history: List[Dict[str, Any]] = []
     adapter_history: List[Dict[str, Any]] = []
+    debug_history: List[Dict[str, Any]] = []
 
     num_tasks = data_loader.get_num_tasks()
     task_start = int(config.get("task_start", 0))
@@ -540,10 +612,22 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         print(f"\n{'=' * 80}\nTASK {task_id}/{num_tasks - 1} - Decentralized DeNICE-IL\n{'=' * 80}")
         new_classes = data_loader.get_task_classes(task_id)
         active_ids = []
+        new_model_init_diffs: List[float] = []
+        task_debug = {
+            "type": "task_start",
+            "task": int(task_id),
+            "new_classes": [int(c) for c in new_classes],
+            "client_data": {},
+        }
         for cid in data_loader.get_all_client_ids():
             X, y = data_loader.get_client_data(cid, task_id)
             if len(y) > 0:
                 active_ids.append(int(cid))
+                task_debug["client_data"][int(cid)] = {
+                    "num_samples": int(len(y)),
+                    "class_hist": _count_histogram(y),
+                    "labels": sorted(int(c) for c in set(y.detach().cpu().tolist())),
+                }
                 data = {"X_train": X, "y_train": y}
                 if cid not in clients:
                     clients[cid] = create_client(cid, X, y, {**config, "algorithm": "denice"})
@@ -551,6 +635,13 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     update_client_data(clients[cid], data, task_id, new_classes)
                 if cid not in models:
                     models[cid] = _make_model(config, device)
+                    models[cid].load_state_dict(
+                        {k: v.to(device) for k, v in initial_model_state.items()},
+                        strict=False,
+                    )
+                    new_model_init_diffs.append(
+                        _param_max_abs_diff(_cpu_state_dict(models[cid]), initial_model_state)
+                    )
                     context_detectors[cid] = ContextDetector(
                         memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50)))
                     )
@@ -565,6 +656,25 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         print(f"  Active DeNICE clients: {len(active_ids)}")
         if not active_ids:
             continue
+        task_debug["new_model_count"] = len(new_model_init_diffs)
+        task_debug["new_model_shared_init"] = bool(
+            not new_model_init_diffs or max(new_model_init_diffs) <= 1e-12
+        )
+        task_debug["new_model_max_init_param_diff"] = (
+            max(new_model_init_diffs) if new_model_init_diffs else None
+        )
+        task_debug["active_client_count"] = len(active_ids)
+        task_debug["total_samples"] = int(
+            sum(v["num_samples"] for v in task_debug["client_data"].values())
+        )
+        debug_history.append(task_debug)
+        if denice_debug:
+            print(
+                "  DeNICE debug: "
+                f"new_model_shared_init={task_debug['new_model_shared_init']}, "
+                f"new_model_max_init_param_diff={task_debug['new_model_max_init_param_diff']}, "
+                f"samples={task_debug['total_samples']}"
+            )
 
         for cid in active_ids:
             prep = _prepare_client_task(
@@ -583,15 +693,48 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             canc_plans[cid] = prep["plan"]
             ref_data[cid] = prep["ref_data"]
+        if denice_debug:
+            debug_history.append(
+                {
+                    "type": "canc_plan",
+                    "task": int(task_id),
+                    "clients": {
+                        int(cid): {
+                            "novelty": float(canc_plans[cid].get("novelty", 0.0)),
+                            "actions": {
+                                name: info.get("action")
+                                for name, info in canc_plans[cid].get("layers", {}).items()
+                            },
+                            "capacity": {
+                                name: {
+                                    "rho0": float(info.get("rho0", 0.0)),
+                                    "rhom": float(info.get("rhom", 0.0)),
+                                    "retired": float(info.get("retired", 0.0)),
+                                    "u": float(info.get("u", 0.0)),
+                                    "kappa": float(info.get("kappa", 0.0)),
+                                }
+                                for name, info in canc_plans[cid].get("layers", {}).items()
+                            },
+                            "adapters_to_add": list(canc_plans[cid].get("adapters_to_add", [])),
+                            "recycling": canc_plans[cid].get("recycling", {}),
+                        }
+                        for cid in active_ids
+                    },
+                }
+            )
 
         for round_id in range(rounds_per_task):
             print(f"  Round {round_id}/{rounds_per_task - 1}")
             start = time.time()
             losses: Dict[int, float] = {}
+            client_round_debug: Dict[int, Dict[str, Any]] = {}
+            train_time_total = 0.0
+            context_time_total = 0.0
             for cid in active_ids:
                 model = models[cid]
                 client = clients[cid]
                 client.setup_for_gpu(model, str(device))
+                client_train_start = time.time()
                 result = client.train(
                     trainer=trainer,
                     epochs=max(1, int(config.get("nice_phase_epochs", 1))),
@@ -602,7 +745,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     phase_offset=round_id,
                     max_phases_override=1,
                 )
+                client_train_time = time.time() - client_train_start
+                train_time_total += client_train_time
                 losses[cid] = float((result or {}).get("loss", 0.0))
+                context_start = time.time()
                 _update_local_nice_context_memory(
                     context_detectors[cid],
                     model,
@@ -612,7 +758,19 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     new_classes,
                     str(device),
                 )
+                context_time = time.time() - context_start
+                context_time_total += context_time
+                client_round_debug[int(cid)] = {
+                    "loss": losses[cid],
+                    "train_time": client_train_time,
+                    "context_update_time": context_time,
+                    "num_samples": int(len(client.y_train)),
+                    "class_hist": _count_histogram(client.y_train),
+                    "adapter_usage": compute_adapter_usage(model),
+                    "capacity_after_train": _capacity_debug(model),
+                }
 
+            capsule_start = time.time()
             capsules = {
                 cid: _build_round_capsule(
                     cid=cid,
@@ -626,6 +784,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 )
                 for cid in active_ids
             }
+            capsule_time = time.time() - capsule_start
+            aggregation_start = time.time()
             cluster_summary = _aggregate_round(
                 client_ids=active_ids,
                 models=models,
@@ -633,6 +793,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 config=config,
                 device=device,
             )
+            aggregation_time = time.time() - aggregation_start
             cluster_summary.update({"task": task_id, "round": round_id})
             cluster_history.append(cluster_summary)
 
@@ -641,6 +802,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "round": round_id,
                 "train_loss": float(np.mean(list(losses.values()))),
                 "round_time": time.time() - start,
+                "train_time": train_time_total,
+                "context_update_time": context_time_total,
+                "capsule_time": capsule_time,
+                "aggregation_time": aggregation_time,
+                "checkpoint_time": None,
                 "test_loss": None,
                 "accuracy": None,
                 "precision_macro": None,
@@ -690,6 +856,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             save_round_checkpoint = checkpoint_every is not None and (
                 round_id == rounds_per_task - 1 or ((round_id + 1) % checkpoint_every == 0)
             )
+            checkpoint_start = time.time()
             _save_round_artifacts(
                 output_dir=output_dir,
                 task_id=task_id,
@@ -707,6 +874,37 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 round_record=round_record,
                 save_checkpoint=save_round_checkpoint,
             )
+            round_record["checkpoint_time"] = time.time() - checkpoint_start
+            round_record["round_time"] = time.time() - start
+            debug_round = {
+                "type": "round",
+                "task": int(task_id),
+                "round": int(round_id),
+                "timing": {
+                    "round_time": round_record["round_time"],
+                    "train_time": train_time_total,
+                    "context_update_time": context_time_total,
+                    "capsule_time": capsule_time,
+                    "aggregation_time": aggregation_time,
+                    "checkpoint_time": round_record["checkpoint_time"],
+                },
+                "loss_stats": _round_float_stats(list(losses.values())),
+                "clients": client_round_debug if denice_debug else {},
+                "cluster": cluster_summary,
+            }
+            debug_history.append(debug_round)
+            if denice_debug:
+                _write_json(
+                    os.path.join(output_dir, "denice_debug_history.json"),
+                    debug_history,
+                )
+                print(
+                    "    DeNICE debug: "
+                    f"train={train_time_total:.1f}s, ctx={context_time_total:.1f}s, "
+                    f"capsule={capsule_time:.1f}s, agg={aggregation_time:.1f}s, "
+                    f"ckpt={round_record['checkpoint_time']:.1f}s, "
+                    f"K={cluster_summary['K_t']}, clusters={cluster_summary.get('cluster_sizes')}"
+                )
 
         for cid in active_ids:
             model = models[cid]
@@ -737,6 +935,19 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             seen_classes=_seen_classes(data_loader, task_id),
             batch_size=eval_batch_size,
             device=device,
+        )
+        debug_history.append(
+            {
+                "type": "task_summary",
+                "task": int(task_id),
+                "metrics": metrics,
+                "adapter_usage": {
+                    int(cid): compute_adapter_usage(models[cid]) for cid in active_ids
+                },
+                "capacity_end": {
+                    int(cid): _capacity_debug(models[cid]) for cid in active_ids
+                },
+            }
         )
         final_round_id = rounds_per_task - 1
         history["task_accuracies"].append(
@@ -774,7 +985,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             os.path.join(output_dir, f"checkpoint_task_{task_id}.pt"),
         )
         _write_phase_outputs(
-            output_dir, history, cluster_history, adapter_history, config, task_id
+            output_dir, history, cluster_history, adapter_history, debug_history, config, task_id
         )
 
     return {

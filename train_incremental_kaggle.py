@@ -277,6 +277,7 @@ CONFIG = {
     #   ["fc1", "gru"]          -> Phase 2a
     #   ["fc1", "gru", "conv3"] -> Phase 2b
     "denice_adapter_layers": ["fc1", "gru", "conv3"],
+    "denice_debug": True,
     # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless
     # ablation explicitly tests retired-neuron reuse.
     "denice_enable_recycling": False,
