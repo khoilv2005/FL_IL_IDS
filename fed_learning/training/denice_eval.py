@@ -17,6 +17,7 @@ predicting on the same signal it was trained on.
 
 from __future__ import annotations
 
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -112,6 +113,8 @@ def evaluate_denice_model(
     context_detector,
     seen_classes: List[int],
     batch_size: int = 1024,
+    progress_label: Optional[str] = None,
+    progress_every_batches: int = 0,
 ) -> Dict[str, float]:
     """Evaluate a DeNICE model with context-routed micro-adapters."""
     model.eval()
@@ -133,8 +136,10 @@ def evaluate_denice_model(
     all_preds: List[int] = []
     all_targets: List[int] = []
     total_loss = 0.0
+    n_batches = int(np.ceil(len(y_test) / max(1, batch_size)))
+    start_time = time.time()
 
-    for i in range(0, len(y_test), batch_size):
+    for batch_idx, i in enumerate(range(0, len(y_test), batch_size), start=1):
         X_batch = X_test[i : i + batch_size].to(device)
         y_batch = y_test[i : i + batch_size].to(device)
 
@@ -151,6 +156,21 @@ def evaluate_denice_model(
         )
         all_preds.extend(preds.detach().cpu().tolist())
         all_targets.extend(y_batch.detach().cpu().tolist())
+
+        if progress_label and progress_every_batches > 0:
+            should_print = (
+                batch_idx == 1
+                or batch_idx == n_batches
+                or batch_idx % progress_every_batches == 0
+            )
+            if should_print:
+                elapsed = time.time() - start_time
+                print(
+                    f"      {progress_label}: batch {batch_idx}/{n_batches} "
+                    f"({min(i + batch_size, len(y_test))}/{len(y_test)} samples), "
+                    f"elapsed={elapsed:.1f}s",
+                    flush=True,
+                )
 
     y_true = np.asarray(all_targets)
     y_pred = np.asarray(all_preds)

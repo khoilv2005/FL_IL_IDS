@@ -523,10 +523,26 @@ def _evaluate_clients(
     seen_classes: List[int],
     batch_size: int,
     device: torch.device,
+    label: str = "eval",
+    progress_every_clients: int = 1,
+    progress_every_batches: int = 0,
 ) -> Dict[str, float]:
     metrics = []
     per_client = {}
-    for cid in client_ids:
+    total_samples = int(len(test_data.get("y_test", [])))
+    eval_start = time.time()
+    print(
+        f"  DeNICE eval start [{label}]: clients={len(client_ids)}, "
+        f"test_samples={total_samples}, batch_size={batch_size}, "
+        f"seen_classes={list(seen_classes)}",
+        flush=True,
+    )
+    for pos, cid in enumerate(client_ids, start=1):
+        client_start = time.time()
+        print(
+            f"    Eval client {pos}/{len(client_ids)} cid={cid} start",
+            flush=True,
+        )
         client_metrics = evaluate_denice_model(
             models[cid],
             test_data,
@@ -534,9 +550,25 @@ def _evaluate_clients(
             context_detector=context_detectors[cid],
             seen_classes=seen_classes,
             batch_size=batch_size,
+            progress_label=f"eval cid={cid}",
+            progress_every_batches=progress_every_batches,
         )
         metrics.append(client_metrics)
         per_client[int(cid)] = client_metrics
+        client_elapsed = time.time() - client_start
+        should_print = (
+            pos == 1
+            or pos == len(client_ids)
+            or (progress_every_clients > 0 and pos % progress_every_clients == 0)
+        )
+        if should_print:
+            print(
+                f"    Eval client {pos}/{len(client_ids)} cid={cid} done: "
+                f"acc={client_metrics['accuracy'] * 100:.2f}%, "
+                f"f1={client_metrics['f1_macro'] * 100:.2f}%, "
+                f"time={client_elapsed:.1f}s, total_elapsed={time.time() - eval_start:.1f}s",
+                flush=True,
+            )
     if not metrics:
         return {
             "loss": 0.0,
@@ -553,6 +585,13 @@ def _evaluate_clients(
     averaged["per_client"] = per_client
     averaged["per_client_accuracy_stats"] = _round_float_stats(
         [float(m.get("accuracy", 0.0)) for m in metrics]
+    )
+    print(
+        f"  DeNICE eval done [{label}]: "
+        f"accuracy={averaged['accuracy'] * 100:.2f}%, "
+        f"f1={averaged['f1_macro'] * 100:.2f}%, "
+        f"elapsed={time.time() - eval_start:.1f}s",
+        flush=True,
     )
     return averaged
 
@@ -585,6 +624,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     batch_size = int(config.get("batch_size", 128))
     eval_batch_size = int(config.get("eval_batch_size", 8192))
     denice_debug = bool(config.get("denice_debug", False))
+    eval_progress_every_clients = max(
+        1, int(config.get("denice_eval_progress_every_clients", 1))
+    )
+    eval_progress_every_batches = max(
+        0, int(config.get("denice_eval_progress_every_batches", 10))
+    )
     max_clients = config.get("denice_max_clients")
     max_clients = None if max_clients is None else int(max_clients)
     initial_template = _make_model(config, device)
@@ -831,6 +876,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     seen_classes=_seen_classes(data_loader, task_id),
                     batch_size=eval_batch_size,
                     device=device,
+                    label=f"task={task_id},round={round_id}",
+                    progress_every_clients=eval_progress_every_clients,
+                    progress_every_batches=eval_progress_every_batches,
                 )
                 round_record.update(
                     {
@@ -927,6 +975,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             model.clear_active_adapters()
 
         test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+        print(
+            f"  Starting post-task DeNICE eval: task={task_id}, "
+            f"clients={len(active_ids)}, test_samples={len(test_y)}, "
+            f"batch_size={eval_batch_size}",
+            flush=True,
+        )
         metrics = _evaluate_clients(
             client_ids=active_ids,
             models=models,
@@ -935,6 +989,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             seen_classes=_seen_classes(data_loader, task_id),
             batch_size=eval_batch_size,
             device=device,
+            label=f"task={task_id},post_task",
+            progress_every_clients=eval_progress_every_clients,
+            progress_every_batches=eval_progress_every_batches,
         )
         debug_history.append(
             {
