@@ -35,7 +35,7 @@ def _route_episodes(model, X_batch: torch.Tensor, context_detector) -> np.ndarra
     """Predict the episode of every sample using adapter-free activations."""
     acts = model.get_context_activations_per_sample(X_batch)
     binary = context_detector.binarize_layer_activations(
-        {name: np.asarray(act.detach().cpu().tolist()) for name, act in acts.items()}
+        {name: act.detach().cpu().numpy() for name, act in acts.items()}
     )
     return context_detector.predict_episodes_batch(binary)
 

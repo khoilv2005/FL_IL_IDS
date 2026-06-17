@@ -278,6 +278,9 @@ CONFIG = {
     #   ["fc1", "gru", "conv3"] -> Phase 2b
     "denice_adapter_layers": ["fc1", "gru", "conv3"],
     "denice_debug": True,
+    # Debug eval workload guard. Set both to None for full final evaluation.
+    "denice_eval_max_clients": 1,
+    "denice_eval_max_samples": 500000,
     "denice_eval_progress_every_clients": 1,
     "denice_eval_progress_every_batches": 10,
     # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless

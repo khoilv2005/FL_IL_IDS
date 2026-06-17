@@ -134,6 +134,28 @@ def _round_float_stats(values: List[float]) -> Dict[str, Optional[float]]:
         "max": float(arr.max()),
     }
 
+def _select_eval_clients(
+    client_ids: List[int],
+    max_clients: Optional[int],
+) -> List[int]:
+    if max_clients is None or int(max_clients) <= 0:
+        return list(client_ids)
+    return list(client_ids)[: int(max_clients)]
+
+def _limit_eval_samples(
+    X: torch.Tensor,
+    y: torch.Tensor,
+    max_samples: Optional[int],
+    seed: int,
+) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, Any]]:
+    total = int(len(y))
+    if max_samples is None or int(max_samples) <= 0 or total <= int(max_samples):
+        return X, y, {"limited": False, "total": total, "used": total}
+    used = int(max_samples)
+    generator = torch.Generator().manual_seed(int(seed))
+    idx = torch.randperm(total, generator=generator)[:used]
+    return X[idx], y[idx], {"limited": True, "total": total, "used": used}
+
 
 def _delta_to_target(
     target: "OrderedDict[str, torch.Tensor]",
@@ -630,6 +652,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     eval_progress_every_batches = max(
         0, int(config.get("denice_eval_progress_every_batches", 10))
     )
+    eval_max_clients_raw = config.get("denice_eval_max_clients")
+    denice_eval_max_clients = (
+        None if eval_max_clients_raw is None else int(eval_max_clients_raw)
+    )
+    eval_max_samples_raw = config.get("denice_eval_max_samples")
+    denice_eval_max_samples = (
+        None if eval_max_samples_raw is None else int(eval_max_samples_raw)
+    )
     max_clients = config.get("denice_max_clients")
     max_clients = None if max_clients is None else int(max_clients)
     initial_template = _make_model(config, device)
@@ -868,8 +898,22 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
 
             if (round_id + 1) % eval_every == 0 and round_id != rounds_per_task - 1:
                 test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+                test_X, test_y, sample_info = _limit_eval_samples(
+                    test_X,
+                    test_y,
+                    denice_eval_max_samples,
+                    seed=int(config.get("random_seed", config.get("seed", 42))) + task_id,
+                )
+                eval_ids = _select_eval_clients(active_ids, denice_eval_max_clients)
+                print(
+                    f"  DeNICE eval workload [{task_id}:{round_id}]: "
+                    f"clients={len(eval_ids)}/{len(active_ids)}, "
+                    f"samples={sample_info['used']}/{sample_info['total']}, "
+                    f"sample_limited={sample_info['limited']}",
+                    flush=True,
+                )
                 metrics = _evaluate_clients(
-                    client_ids=active_ids,
+                    client_ids=eval_ids,
                     models=models,
                     context_detectors=context_detectors,
                     test_data={"X_test": test_X, "y_test": test_y},
@@ -880,6 +924,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     progress_every_clients=eval_progress_every_clients,
                     progress_every_batches=eval_progress_every_batches,
                 )
+                metrics["eval_client_count"] = len(eval_ids)
+                metrics["eval_total_client_count"] = len(active_ids)
+                metrics["eval_sample_count"] = int(len(test_y))
+                metrics["eval_total_sample_count"] = int(sample_info["total"])
+                metrics["eval_sample_limited"] = bool(sample_info["limited"])
                 round_record.update(
                     {
                         "test_loss": metrics.get("loss"),
@@ -975,14 +1024,22 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             model.clear_active_adapters()
 
         test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+        test_X, test_y, sample_info = _limit_eval_samples(
+            test_X,
+            test_y,
+            denice_eval_max_samples,
+            seed=int(config.get("random_seed", config.get("seed", 42))) + task_id,
+        )
+        eval_ids = _select_eval_clients(active_ids, denice_eval_max_clients)
         print(
             f"  Starting post-task DeNICE eval: task={task_id}, "
-            f"clients={len(active_ids)}, test_samples={len(test_y)}, "
-            f"batch_size={eval_batch_size}",
+            f"clients={len(eval_ids)}/{len(active_ids)}, "
+            f"test_samples={len(test_y)}/{sample_info['total']}, "
+            f"sample_limited={sample_info['limited']}, batch_size={eval_batch_size}",
             flush=True,
         )
         metrics = _evaluate_clients(
-            client_ids=active_ids,
+            client_ids=eval_ids,
             models=models,
             context_detectors=context_detectors,
             test_data={"X_test": test_X, "y_test": test_y},
@@ -993,12 +1050,17 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             progress_every_clients=eval_progress_every_clients,
             progress_every_batches=eval_progress_every_batches,
         )
+        metrics["eval_client_count"] = len(eval_ids)
+        metrics["eval_total_client_count"] = len(active_ids)
+        metrics["eval_sample_count"] = int(len(test_y))
+        metrics["eval_total_sample_count"] = int(sample_info["total"])
+        metrics["eval_sample_limited"] = bool(sample_info["limited"])
         debug_history.append(
             {
                 "type": "task_summary",
                 "task": int(task_id),
                 "metrics": metrics,
-                "adapter_usage": {
+            "adapter_usage": {
                     int(cid): compute_adapter_usage(models[cid]) for cid in active_ids
                 },
                 "capacity_end": {
