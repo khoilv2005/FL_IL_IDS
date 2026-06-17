@@ -31,6 +31,12 @@ from fed_learning.strategies.incremental.denice_recycling import apply_graceful_
 from fed_learning.strategies.incremental.denice_novelty import NoveltyEstimator
 from fed_learning.strategies.incremental.nice import select_learner_units
 from fed_learning.strategies.incremental import get_incremental_strategy
+from fed_learning.training.denice_delta_checkpoint import (
+    cpu_client_model_states,
+    load_denice_checkpoint,
+    save_delta_round_checkpoint,
+    save_task_base_checkpoint,
+)
 
 
 INPUT_SHAPE = (16, 1)
@@ -84,6 +90,59 @@ class TestDeNICEModel:
         # Idempotent.
         assert model.add_adapter(context_id=0, layer_name="fc1") == key
         assert len(model.adapters) == 1
+
+    def test_delta_checkpoint_reconstructs_round_state(self, tmp_path):
+        model = _make_model()
+        models = {7: model}
+        client_ids = [7]
+        config = {
+            "input_shape": INPUT_SHAPE,
+            "num_classes": NUM_CLASSES,
+            "total_classes": NUM_CLASSES,
+            "algorithm": "denice",
+            "mode": "decentralized",
+        }
+        base_path = tmp_path / "checkpoint_task_0_base.pt"
+        round_path = tmp_path / "checkpoint_task_0_round_0.pt"
+        save_task_base_checkpoint(
+            str(base_path),
+            task_id=0,
+            client_ids=client_ids,
+            models=models,
+            client_algorithm_states={7: {"denice": {}}},
+            config=config,
+            seen_classes=list(range(NUM_CLASSES)),
+        )
+        previous = cpu_client_model_states(client_ids, models)
+        with torch.no_grad():
+            first_param = next(model.parameters())
+            first_param.add_(0.25)
+        expected = cpu_client_model_states(client_ids, models)[7]
+        save_delta_round_checkpoint(
+            str(round_path),
+            task_id=0,
+            round_id=0,
+            base_path=str(base_path),
+            previous_round_path=None,
+            client_ids=client_ids,
+            models=models,
+            previous_model_states=previous,
+            client_algorithm_states={7: {"denice": {}}},
+            config=config,
+            seen_classes=list(range(NUM_CLASSES)),
+            cluster={},
+            metrics={},
+        )
+
+        reconstructed = load_denice_checkpoint(str(round_path))
+        actual = reconstructed["client_model_states"][7]
+        assert reconstructed["checkpoint_type"] == "denice_reconstructed_round"
+        assert actual.keys() == expected.keys()
+        for key in expected:
+            if torch.is_floating_point(expected[key]):
+                assert torch.allclose(actual[key].float(), expected[key].float(), atol=2e-3)
+            else:
+                assert torch.equal(actual[key], expected[key])
 
     def test_adapter_zero_residual_keeps_output(self):
         model = _make_model()

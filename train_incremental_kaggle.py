@@ -7,7 +7,7 @@ import subprocess
 import sys
 import zipfile
 
-TRAIN_PHASE = 1  # 1: task 0-1, 2: task 2, 3: task 3, 4: task 4-5
+TRAIN_PHASE = 5  # 1: task 0-1, 2: task 2, 3: task 3, 4: task 4-5, 5: task 0-5
 
 PHASE_CONFIG = {
     1: {
@@ -176,7 +176,7 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus or DeNICE decentralized IL (no server)
-    "mode": "il",
+    "mode": "decentralized",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
@@ -229,7 +229,7 @@ CONFIG = {
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
     "batch_size": 2048,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
     "eval_every": 1,
-    "round_checkpoint_every": None,
+    "round_checkpoint_every": 1,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
     "mu_cgofed": 1.0,  # Paper Eq. 9: full gradient projection
@@ -279,6 +279,7 @@ CONFIG = {
     "denice_adapter_layers": ["fc1", "gru", "conv3"],
     "denice_debug": True,
     "denice_save_round_artifacts": False,
+    "denice_checkpoint_format": "delta",
     # Debug eval workload guard. Set both to None for full final evaluation.
     "denice_eval_max_clients": 1,
     "denice_eval_max_samples": 500000,
@@ -325,7 +326,7 @@ CONFIG = {
     "dfca_debug_assignments": False,
     "dfca_debug_cluster_models": True,
     # Checkpoint / resume
-    "round_checkpoint_every": None,
+    "round_checkpoint_every": 1,
     "checkpoint_path": "/kaggle/input/datasets/phungvannamanh/dfca-outputs/results_dfca_20260521_051917/checkpoint_round_9.pt",
     "auto_resume_latest": True,
     "num_rounds": 15,

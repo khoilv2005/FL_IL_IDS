@@ -59,6 +59,12 @@ from fed_learning.strategies.incremental.denice_recycling import (
     revive_due_recycled_neurons,
 )
 from fed_learning.training.denice_eval import evaluate_denice_model
+from fed_learning.training.denice_delta_checkpoint import (
+    cpu_client_model_states,
+    save_delta_round_checkpoint,
+    save_task_base_checkpoint,
+    update_checkpoint_index,
+)
 from fed_learning.training.denice_usage import compute_adapter_usage
 from fed_learning.training.checkpoint_state import (
     CHECKPOINT_SCHEMA_VERSION,
@@ -188,6 +194,9 @@ def _seen_classes(data_loader: IncrementalDataLoader, task_id: int) -> List[int]
 
 def _round_checkpoint_path(output_dir: str, task_id: int, round_id: int) -> str:
     return os.path.join(output_dir, f"checkpoint_task_{task_id}_round_{round_id}.pt")
+
+def _base_checkpoint_path(output_dir: str, task_id: int) -> str:
+    return os.path.join(output_dir, f"checkpoint_task_{task_id}_base.pt")
 
 def _client_algorithm_states(
     client_ids: List[int],
@@ -640,6 +649,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     if checkpoint_every is not None:
         checkpoint_every = max(1, int(checkpoint_every))
     save_round_artifacts = bool(config.get("denice_save_round_artifacts", False))
+    checkpoint_format = str(config.get("denice_checkpoint_format", "full")).lower()
+    if checkpoint_format not in {"full", "delta"}:
+        raise ValueError("denice_checkpoint_format must be 'full' or 'delta'.")
     batch_size = int(config.get("batch_size", 128))
     eval_batch_size = int(config.get("eval_batch_size", 8192))
     denice_debug = bool(config.get("denice_debug", False))
@@ -794,6 +806,35 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     },
                 }
             )
+
+        delta_base_path: Optional[str] = None
+        previous_round_checkpoint_path: Optional[str] = None
+        previous_model_states: Dict[int, OrderedDict[str, torch.Tensor]] = {}
+        if checkpoint_every is not None and checkpoint_format == "delta":
+            delta_base_path = _base_checkpoint_path(output_dir, task_id)
+            save_task_base_checkpoint(
+                delta_base_path,
+                task_id=task_id,
+                client_ids=active_ids,
+                models=models,
+                client_algorithm_states=_client_algorithm_states(
+                    active_ids, models, context_detectors
+                ),
+                config=config,
+                seen_classes=_seen_classes(data_loader, task_id),
+            )
+            update_checkpoint_index(
+                output_dir,
+                {
+                    "kind": "base",
+                    "task_id": int(task_id),
+                    "round_id": -1,
+                    "path": os.path.basename(delta_base_path),
+                    "checkpoint_type": "denice_delta_base",
+                },
+            )
+            previous_model_states = cpu_client_model_states(active_ids, models)
+            print(f"   Task base checkpoint saved: {delta_base_path}")
 
         for round_id in range(rounds_per_task):
             print(f"  Round {round_id}/{rounds_per_task - 1}")
@@ -951,7 +992,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 round_id == rounds_per_task - 1 or ((round_id + 1) % checkpoint_every == 0)
             )
             checkpoint_start = time.time()
-            if save_round_artifacts or save_round_checkpoint:
+            if save_round_artifacts or (
+                save_round_checkpoint and checkpoint_format == "full"
+            ):
                 _save_round_artifacts(
                     output_dir=output_dir,
                     task_id=task_id,
@@ -967,8 +1010,48 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     config=config,
                     seen_classes=_seen_classes(data_loader, task_id),
                     round_record=round_record,
-                    save_checkpoint=save_round_checkpoint,
+                    save_checkpoint=save_round_checkpoint and checkpoint_format == "full",
                 )
+            if save_round_checkpoint and checkpoint_format == "delta":
+                if delta_base_path is None:
+                    raise RuntimeError("Delta checkpoint base was not initialized.")
+                round_ckpt_path = _round_checkpoint_path(output_dir, task_id, round_id)
+                save_delta_round_checkpoint(
+                    round_ckpt_path,
+                    task_id=task_id,
+                    round_id=round_id,
+                    base_path=delta_base_path,
+                    previous_round_path=previous_round_checkpoint_path,
+                    client_ids=active_ids,
+                    models=models,
+                    previous_model_states=previous_model_states,
+                    client_algorithm_states=_client_algorithm_states(
+                        active_ids, models, context_detectors
+                    ),
+                    config=config,
+                    seen_classes=_seen_classes(data_loader, task_id),
+                    cluster=_json_safe(cluster_summary),
+                    metrics=_json_safe(round_record),
+                )
+                update_checkpoint_index(
+                    output_dir,
+                    {
+                        "kind": "round",
+                        "task_id": int(task_id),
+                        "round_id": int(round_id),
+                        "path": os.path.basename(round_ckpt_path),
+                        "base": os.path.basename(delta_base_path),
+                        "previous": (
+                            os.path.basename(previous_round_checkpoint_path)
+                            if previous_round_checkpoint_path
+                            else None
+                        ),
+                        "checkpoint_type": "denice_delta_round",
+                    },
+                )
+                previous_model_states = cpu_client_model_states(active_ids, models)
+                previous_round_checkpoint_path = round_ckpt_path
+                print(f"   Delta round checkpoint saved: {round_ckpt_path}")
             round_record["checkpoint_time"] = time.time() - checkpoint_start
             round_record["round_time"] = time.time() - start
             debug_round = {
