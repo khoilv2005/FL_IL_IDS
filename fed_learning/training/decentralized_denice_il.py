@@ -639,6 +639,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     checkpoint_every = config.get("round_checkpoint_every", 1)
     if checkpoint_every is not None:
         checkpoint_every = max(1, int(checkpoint_every))
+    save_round_artifacts = bool(config.get("denice_save_round_artifacts", False))
     batch_size = int(config.get("batch_size", 128))
     eval_batch_size = int(config.get("eval_batch_size", 8192))
     denice_debug = bool(config.get("denice_debug", False))
@@ -950,23 +951,24 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 round_id == rounds_per_task - 1 or ((round_id + 1) % checkpoint_every == 0)
             )
             checkpoint_start = time.time()
-            _save_round_artifacts(
-                output_dir=output_dir,
-                task_id=task_id,
-                round_id=round_id,
-                client_ids=active_ids,
-                models=models,
-                context_detectors=context_detectors,
-                capsules=capsules,
-                cluster_summary=cluster_summary,
-                adapter_usage={
-                    int(cid): compute_adapter_usage(models[cid]) for cid in active_ids
-                },
-                config=config,
-                seen_classes=_seen_classes(data_loader, task_id),
-                round_record=round_record,
-                save_checkpoint=save_round_checkpoint,
-            )
+            if save_round_artifacts or save_round_checkpoint:
+                _save_round_artifacts(
+                    output_dir=output_dir,
+                    task_id=task_id,
+                    round_id=round_id,
+                    client_ids=active_ids,
+                    models=models,
+                    context_detectors=context_detectors,
+                    capsules=capsules,
+                    cluster_summary=cluster_summary,
+                    adapter_usage={
+                        int(cid): compute_adapter_usage(models[cid]) for cid in active_ids
+                    },
+                    config=config,
+                    seen_classes=_seen_classes(data_loader, task_id),
+                    round_record=round_record,
+                    save_checkpoint=save_round_checkpoint,
+                )
             round_record["checkpoint_time"] = time.time() - checkpoint_start
             round_record["round_time"] = time.time() - start
             debug_round = {
