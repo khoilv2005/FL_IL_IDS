@@ -282,7 +282,7 @@ CONFIG = {
     "denice_eval_max_clients": 1,
     "denice_eval_max_samples": 500000,
     "denice_eval_progress_every_clients": 1,
-    "denice_eval_progress_every_batches": 10,
+    "denice_eval_progress_every_batches": 0,
     # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless
     # ablation explicitly tests retired-neuron reuse.
     "denice_enable_recycling": False,

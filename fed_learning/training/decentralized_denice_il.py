@@ -561,10 +561,6 @@ def _evaluate_clients(
     )
     for pos, cid in enumerate(client_ids, start=1):
         client_start = time.time()
-        print(
-            f"    Eval client {pos}/{len(client_ids)} cid={cid} start",
-            flush=True,
-        )
         client_metrics = evaluate_denice_model(
             models[cid],
             test_data,
@@ -650,7 +646,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         1, int(config.get("denice_eval_progress_every_clients", 1))
     )
     eval_progress_every_batches = max(
-        0, int(config.get("denice_eval_progress_every_batches", 10))
+        0, int(config.get("denice_eval_progress_every_batches", 0))
     )
     eval_max_clients_raw = config.get("denice_eval_max_clients")
     denice_eval_max_clients = (
