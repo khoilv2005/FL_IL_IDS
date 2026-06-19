@@ -29,7 +29,10 @@ import torch
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.factories.client_factory import create_client, update_client_data
 from fed_learning.models.denice_model import DeNICEModel
-from fed_learning.servers.nice_server import ContextDetector
+from fed_learning.servers.nice_server import (
+    ContextDetector,
+    build_pooled_context_detector,
+)
 from fed_learning.strategies.decentralized import (
     AggregationConfig,
     SimilarityWeights,
@@ -545,6 +548,35 @@ def _aggregate_round(
     }
 
 
+def _build_shared_context_detector(
+    context_detectors: Dict[int, ContextDetector],
+    memo_per_class: int,
+    max_per_episode: Optional[int],
+    seed: int,
+) -> Optional[ContextDetector]:
+    """Pool every client's per-episode sketches into one shared detector.
+
+    Returns ``None`` when there is nothing to pool (falls back to per-client
+    detectors). See plan/protocol section 15 (Level 2) + 23.3.
+    """
+    detectors = [
+        det
+        for det in context_detectors.values()
+        if getattr(det, "activation_memory", None)
+    ]
+    if not detectors:
+        return None
+    shared = build_pooled_context_detector(
+        detectors,
+        memo_per_class=memo_per_class,
+        max_per_episode=max_per_episode,
+        seed=seed,
+    )
+    if not shared.activation_memory:
+        return None
+    return shared
+
+
 def _evaluate_clients(
     *,
     client_ids: List[int],
@@ -557,24 +589,45 @@ def _evaluate_clients(
     label: str = "eval",
     progress_every_clients: int = 1,
     progress_every_batches: int = 0,
+    use_shared_context: bool = True,
+    shared_context_max_per_episode: Optional[int] = None,
+    shared_context_memo_per_class: int = 50,
+    shared_context_seed: int = 0,
 ) -> Dict[str, float]:
     metrics = []
     per_client = {}
     total_samples = int(len(test_data.get("y_test", [])))
     eval_start = time.time()
+
+    # Shared/global context detector: pool the binary episode sketches of ALL
+    # clients so every client can route every episode (fixes missing-episode
+    # misrouting in decentralized global eval). Built once per eval call.
+    shared_detector: Optional[ContextDetector] = None
+    if use_shared_context:
+        shared_detector = _build_shared_context_detector(
+            context_detectors,
+            memo_per_class=shared_context_memo_per_class,
+            max_per_episode=shared_context_max_per_episode,
+            seed=shared_context_seed,
+        )
+    routing_mode = "shared" if shared_detector is not None else "per-client"
+
     print(
         f"  DeNICE eval start [{label}]: clients={len(client_ids)}, "
         f"test_samples={total_samples}, batch_size={batch_size}, "
+        f"routing={routing_mode}, "
+        f"episodes={sorted(shared_detector.episode_classes) if shared_detector else 'local'}, "
         f"seen_classes={list(seen_classes)}",
         flush=True,
     )
     for pos, cid in enumerate(client_ids, start=1):
         client_start = time.time()
+        detector = shared_detector if shared_detector is not None else context_detectors[cid]
         client_metrics = evaluate_denice_model(
             models[cid],
             test_data,
             device=str(device),
-            context_detector=context_detectors[cid],
+            context_detector=detector,
             seen_classes=seen_classes,
             batch_size=batch_size,
             progress_label=f"eval cid={cid}",
@@ -593,6 +646,7 @@ def _evaluate_clients(
                 f"    Eval client {pos}/{len(client_ids)} cid={cid} done: "
                 f"acc={client_metrics['accuracy'] * 100:.2f}%, "
                 f"f1={client_metrics['f1_macro'] * 100:.2f}%, "
+                f"route_acc={client_metrics.get('route_accuracy', 0.0) * 100:.2f}%, "
                 f"time={client_elapsed:.1f}s, total_elapsed={time.time() - eval_start:.1f}s",
                 flush=True,
             )
@@ -604,19 +658,28 @@ def _evaluate_clients(
             "recall_macro": 0.0,
             "f1_macro": 0.0,
             "f1_weighted": 0.0,
+            "route_accuracy": 0.0,
+            "route_coverage": 0.0,
+            "routing_mode": routing_mode,
             "per_client": {},
             "per_client_accuracy_stats": {"min": None, "mean": None, "max": None},
         }
     keys = metrics[0].keys()
     averaged = {key: float(np.mean([m[key] for m in metrics])) for key in keys}
     averaged["per_client"] = per_client
+    averaged["routing_mode"] = routing_mode
     averaged["per_client_accuracy_stats"] = _round_float_stats(
         [float(m.get("accuracy", 0.0)) for m in metrics]
+    )
+    averaged["per_client_route_accuracy_stats"] = _round_float_stats(
+        [float(m.get("route_accuracy", 0.0)) for m in metrics]
     )
     print(
         f"  DeNICE eval done [{label}]: "
         f"accuracy={averaged['accuracy'] * 100:.2f}%, "
         f"f1={averaged['f1_macro'] * 100:.2f}%, "
+        f"route_acc={averaged.get('route_accuracy', 0.0) * 100:.2f}% "
+        f"(routing={routing_mode}), "
         f"elapsed={time.time() - eval_start:.1f}s",
         flush=True,
     )
@@ -671,6 +734,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     )
     max_clients = config.get("denice_max_clients")
     max_clients = None if max_clients is None else int(max_clients)
+    use_shared_context = bool(config.get("denice_shared_context_eval", True))
+    shared_ctx_cap_raw = config.get("denice_shared_context_max_per_episode")
+    shared_context_max_per_episode = (
+        None if shared_ctx_cap_raw is None else int(shared_ctx_cap_raw)
+    )
+    shared_context_memo_per_class = int(
+        config.get("nice_memo_per_class", config.get("memo_per_class", 50))
+    )
     initial_template = _make_model(config, device)
     initial_model_state = _cpu_state_dict(initial_template)
     del initial_template
@@ -961,6 +1032,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     label=f"task={task_id},round={round_id}",
                     progress_every_clients=eval_progress_every_clients,
                     progress_every_batches=eval_progress_every_batches,
+                    use_shared_context=use_shared_context,
+                    shared_context_max_per_episode=shared_context_max_per_episode,
+                    shared_context_memo_per_class=shared_context_memo_per_class,
+                    shared_context_seed=int(config.get("random_seed", config.get("seed", 42))),
                 )
                 metrics["eval_client_count"] = len(eval_ids)
                 metrics["eval_total_client_count"] = len(active_ids)
@@ -1130,6 +1205,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             label=f"task={task_id},post_task",
             progress_every_clients=eval_progress_every_clients,
             progress_every_batches=eval_progress_every_batches,
+            use_shared_context=use_shared_context,
+            shared_context_max_per_episode=shared_context_max_per_episode,
+            shared_context_memo_per_class=shared_context_memo_per_class,
+            shared_context_seed=int(config.get("random_seed", config.get("seed", 42))),
         )
         metrics["eval_client_count"] = len(eval_ids)
         metrics["eval_total_client_count"] = len(active_ids)
@@ -1157,7 +1236,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         print(
             "  Task summary -> "
             f"accuracy={metrics['accuracy'] * 100:.2f}%, "
-            f"f1={metrics['f1_macro'] * 100:.2f}%"
+            f"f1={metrics['f1_macro'] * 100:.2f}%, "
+            f"route_acc={metrics.get('route_accuracy', 0.0) * 100:.2f}% "
+            f"(routing={metrics.get('routing_mode', 'per-client')})"
         )
 
         torch.save(

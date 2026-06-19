@@ -462,6 +462,83 @@ class TestDecentralized:
 
 
 # ---------------------------------------------------------------------------
+# Shared/global context detector (route-accuracy fix, plan/protocol 15 + 23.3)
+# ---------------------------------------------------------------------------
+class TestSharedContextDetector:
+    def _episode_data(self, n, shift):
+        torch.manual_seed(100 + int(shift * 10))
+        return torch.randn(n, INPUT_SHAPE[0]) + float(shift)
+
+    def _binary(self, detector, model, data):
+        acts = {
+            name: np.asarray(act.detach().cpu().tolist())
+            for name, act in model.get_context_activations_per_sample(data).items()
+        }
+        return detector.binarize_layer_activations(acts)
+
+    def test_threshold_calibrated_on_first_push_even_if_episode_nonzero(self):
+        """Late-joining client (first task >= 1) must still get thresholds."""
+        from fed_learning.servers.nice_server import ContextDetector
+
+        model = _make_model()
+        model.eval()
+        det = ContextDetector(memo_per_class=10)
+        det.episode_classes[2] = [4, 5]
+        # Client's FIRST push is episode 2, not 0.
+        det.push_activations(model, self._episode_data(16, 3.0), episode=2)
+        assert det.binarize_thresholds is not None
+        assert set(det.binarize_thresholds) == {"conv1", "conv2", "conv3", "gru"}
+
+    def test_local_detector_cannot_route_missing_episode(self):
+        """Reproduces Claude's finding: a client missing an episode misroutes it."""
+        from fed_learning.servers.nice_server import ContextDetector
+
+        model = _make_model()
+        model.eval()
+        ep1 = self._episode_data(40, 5.0)
+
+        det_a = ContextDetector(memo_per_class=20)
+        det_a.episode_classes[0] = [0, 1]
+        det_a.push_activations(model, self._episode_data(40, -5.0), episode=0)
+        det_a.train_models(0)
+
+        # det_a never saw episode 1 -> it can only ever predict episode 0.
+        preds = det_a.predict_episodes_batch(self._binary(det_a, model, ep1))
+        assert set(int(p) for p in np.unique(preds)).issubset({0})
+
+    def test_pooled_detector_covers_and_routes_all_episodes(self):
+        from fed_learning.servers.nice_server import (
+            ContextDetector,
+            build_pooled_context_detector,
+        )
+
+        model = _make_model()
+        model.eval()
+        ep0 = self._episode_data(60, -5.0)
+        ep1 = self._episode_data(60, 5.0)
+
+        det_a = ContextDetector(memo_per_class=30)
+        det_a.episode_classes[0] = [0, 1]
+        det_a.push_activations(model, ep0, episode=0)
+        det_a.train_models(0)
+
+        det_b = ContextDetector(memo_per_class=30)
+        det_b.episode_classes[1] = [2, 3]
+        det_b.push_activations(model, ep1, episode=1)
+        det_b.train_models(1)
+
+        pooled = build_pooled_context_detector([det_a, det_b], memo_per_class=30)
+        assert set(pooled.episode_classes) == {0, 1}
+        assert set(pooled.activation_memory) == {0, 1}
+
+        pred0 = pooled.predict_episodes_batch(self._binary(pooled, model, ep0))
+        pred1 = pooled.predict_episodes_batch(self._binary(pooled, model, ep1))
+        # Majority of each episode routes to its own id (separable inputs).
+        assert float((pred0 == 0).mean()) > 0.6
+        assert float((pred1 == 1).mean()) > 0.6
+
+
+# ---------------------------------------------------------------------------
 # Training smoke test (one short task with adapter)
 # ---------------------------------------------------------------------------
 class TestTrainingSmoke:

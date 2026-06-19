@@ -285,6 +285,12 @@ CONFIG = {
     "denice_eval_max_samples": 500000,
     "denice_eval_progress_every_clients": 1,
     "denice_eval_progress_every_batches": 0,
+    # DeNICE shared/global context detector (fix route_accuracy thấp)
+    # True  -> pool binary activation sketches tất cả clients -> 1 detector chung
+    # False -> mỗi client dùng local detector (route_acc thấp với non-IID)
+    "denice_shared_context_eval": True,
+    "denice_shared_context_max_per_episode": None,  # None = không giới hạn mẫu/episode
+
     # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless
     # ablation explicitly tests retired-neuron reuse.
     "denice_enable_recycling": False,

@@ -63,14 +63,18 @@ def _allowed_classes_for_episode(
 
 
 @torch.no_grad()
-def denice_predict_batch(
+def _denice_predict_with_episodes(
     model,
     X_batch: torch.Tensor,
     context_detector,
     seen_classes: List[int],
     device: str,
-) -> torch.Tensor:
-    """Return predicted class ids for a batch using context-routed adapters."""
+) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
+    """Predict class ids and return the routed episode per sample.
+
+    The episode array is ``None`` when no context detector is available (so
+    routing falls back to the plain seen-class mask).
+    """
     model.eval()
     num_classes = int(model.num_classes)
     n = X_batch.shape[0]
@@ -83,7 +87,7 @@ def denice_predict_batch(
         out = model(X_batch)
         unseen = _seen_unseen_mask(num_classes, seen_classes, out.device)
         out[:, unseen] = float("-inf")
-        return out.argmax(dim=1)
+        return out.argmax(dim=1), None
 
     episodes = _route_episodes(model, X_batch, context_detector)
     unseen = _seen_unseen_mask(num_classes, seen_classes, device)
@@ -103,7 +107,30 @@ def denice_predict_batch(
         preds[idx] = out.argmax(dim=1)
 
     model.clear_active_adapters()
+    return preds, np.asarray(episodes)
+
+
+def denice_predict_batch(
+    model,
+    X_batch: torch.Tensor,
+    context_detector,
+    seen_classes: List[int],
+    device: str,
+) -> torch.Tensor:
+    """Return predicted class ids for a batch using context-routed adapters."""
+    preds, _episodes = _denice_predict_with_episodes(
+        model, X_batch, context_detector, seen_classes, device
+    )
     return preds
+
+
+def _label_to_episode_map(context_detector) -> Dict[int, int]:
+    """Map each class id to its (latest) episode from the detector summary."""
+    mapping: Dict[int, int] = {}
+    for episode, classes in getattr(context_detector, "episode_classes", {}).items():
+        for cls_id in classes:
+            mapping[int(cls_id)] = int(episode)
+    return mapping
 
 
 def evaluate_denice_model(
@@ -129,6 +156,8 @@ def evaluate_denice_model(
             "recall_macro": 0.0,
             "f1_macro": 0.0,
             "f1_weighted": 0.0,
+            "route_accuracy": 0.0,
+            "route_coverage": 0.0,
         }
 
     criterion = nn.CrossEntropyLoss()
@@ -138,6 +167,12 @@ def evaluate_denice_model(
     total_loss = 0.0
     n_batches = int(np.ceil(len(y_test) / max(1, batch_size)))
     start_time = time.time()
+
+    # Route accuracy = how often the context detector sends a sample to the
+    # episode that actually introduced its class (plan section 12 metric).
+    label2episode = _label_to_episode_map(context_detector)
+    route_correct = 0
+    route_total = 0
 
     for batch_idx, i in enumerate(range(0, len(y_test), batch_size), start=1):
         X_batch = X_test[i : i + batch_size].to(device)
@@ -151,11 +186,20 @@ def evaluate_denice_model(
             loss_out[:, unseen] = float("-inf")
             total_loss += criterion(loss_out, y_batch).item() * len(y_batch)
 
-        preds = denice_predict_batch(
+        preds, episodes = _denice_predict_with_episodes(
             model, X_batch, context_detector, seen_classes, device
         )
         all_preds.extend(preds.detach().cpu().tolist())
         all_targets.extend(y_batch.detach().cpu().tolist())
+
+        if episodes is not None and label2episode:
+            y_np = y_batch.detach().cpu().numpy()
+            true_eps = np.array(
+                [label2episode.get(int(c), -1) for c in y_np], dtype=np.int64
+            )
+            known = true_eps >= 0
+            route_total += int(known.sum())
+            route_correct += int((episodes[known] == true_eps[known]).sum())
 
         if progress_label and progress_every_batches > 0:
             should_print = (
@@ -181,4 +225,6 @@ def evaluate_denice_model(
         "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
         "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
+        "route_accuracy": (route_correct / route_total) if route_total > 0 else 0.0,
+        "route_coverage": (route_total / len(y_test)) if len(y_test) > 0 else 0.0,
     }

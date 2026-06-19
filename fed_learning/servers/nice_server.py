@@ -122,8 +122,13 @@ class ContextDetector:
         """
         model.eval()
 
-        # Set thresholds from first episode BEFORE binarizing (mean + std)
-        if episode == 0 and self.binarize_thresholds is None:
+        # Calibrate binarize thresholds on the FIRST push BEFORE binarizing
+        # (mean + std per layer). NICE calibrates on task 0, but in the
+        # decentralized DeNICE protocol a client may join at task >= 1, so we
+        # gate on "thresholds not yet set" instead of "episode == 0". Without
+        # this, late-joining clients keep thresholds=None and silently fall back
+        # to ``act > 0`` binarization, which corrupts routing/novelty.
+        if self.binarize_thresholds is None:
             acts = model.get_context_activations_per_sample(data)
             self.binarize_thresholds = {}
             for name in ["conv1", "conv2", "conv3", "gru"]:
@@ -336,6 +341,114 @@ class ContextDetector:
         """Batch episode prediction using official NICE tree_preds semantics."""
         preds, _probs = self.predict_episodes_with_scores(binary_activations)
         return preds
+
+
+def build_pooled_context_detector(
+    detectors: List["ContextDetector"],
+    memo_per_class: int = 50,
+    max_per_episode: Optional[int] = None,
+    seed: int = 0,
+) -> "ContextDetector":
+    """Build a shared/global context detector by pooling per-episode sketches.
+
+    DeNICE protocol section 15 (Level 2 context sharing) and section 23.3
+    (representative eval): every client only stores binary activation sketches
+    for the episodes it locally trained on, so its *local* context detector can
+    never route episodes it has not seen. This pools the already-binarized
+    per-episode sketches (NOT raw data) across clients into one detector that
+    covers every episode, then refits the chained logistic regressions.
+
+    This fixes both failure modes behind the low route accuracy:
+      1. missing-episode misrouting (a client without task t cannot route task t);
+      2. weak local detectors (pooling gives more, more diverse training data).
+
+    Args:
+        detectors: per-client :class:`ContextDetector` instances to pool.
+        memo_per_class: carried onto the pooled detector for downstream use.
+        max_per_episode: optional cap on pooled samples per episode (speed).
+        seed: RNG seed for the subsampling cap.
+
+    Returns:
+        A :class:`ContextDetector` with pooled ``activation_memory`` /
+        ``context_masks`` / ``episode_classes`` and freshly fitted learners.
+    """
+    pooled = ContextDetector(memo_per_class=memo_per_class)
+
+    # Reuse the first available calibrated thresholds so capsule/eval binarize
+    # the same way the sketches were stored.
+    for det in detectors:
+        thresholds = getattr(det, "binarize_thresholds", None)
+        if thresholds:
+            pooled.binarize_thresholds = dict(thresholds)
+            break
+
+    # Union of episode -> classes across clients.
+    episode_classes: Dict[int, set] = {}
+    for det in detectors:
+        for ep, classes in getattr(det, "episode_classes", {}).items():
+            episode_classes.setdefault(int(ep), set()).update(int(c) for c in classes)
+    pooled.episode_classes = {
+        ep: sorted(classes) for ep, classes in episode_classes.items()
+    }
+
+    # Determine the shared feature dimension from any stored sketch.
+    feature_dim: Optional[int] = None
+    for det in detectors:
+        for arr in getattr(det, "activation_memory", {}).values():
+            arr = np.asarray(arr)
+            if arr.ndim == 2 and arr.shape[1] > 0:
+                feature_dim = int(arr.shape[1])
+                break
+        if feature_dim is not None:
+            break
+
+    rng = np.random.default_rng(seed)
+    all_episodes = sorted(
+        {
+            int(ep)
+            for det in detectors
+            for ep in getattr(det, "activation_memory", {})
+        }
+    )
+    for ep in all_episodes:
+        mats: List[np.ndarray] = []
+        masks: List[np.ndarray] = []
+        for det in detectors:
+            arr = getattr(det, "activation_memory", {}).get(ep)
+            if arr is None:
+                continue
+            arr = np.asarray(arr)
+            if arr.ndim == 1:
+                arr = arr.reshape(1, -1)
+            if feature_dim is not None and arr.shape[1] != feature_dim:
+                continue
+            mats.append(arr)
+            mask = getattr(det, "context_masks", {}).get(ep)
+            if mask is not None and np.asarray(mask).size == arr.shape[1]:
+                masks.append(np.asarray(mask, dtype=bool))
+        if not mats:
+            continue
+
+        pooled_mat = np.concatenate(mats, axis=0)
+        if max_per_episode is not None and len(pooled_mat) > int(max_per_episode):
+            idx = rng.choice(len(pooled_mat), int(max_per_episode), replace=False)
+            pooled_mat = pooled_mat[idx]
+        pooled.activation_memory[ep] = pooled_mat
+
+        if masks:
+            union_mask = np.zeros(masks[0].shape[0], dtype=bool)
+            for mask in masks:
+                if mask.shape[0] == union_mask.shape[0]:
+                    union_mask |= mask
+            if not union_mask.any():
+                union_mask[:] = True
+            pooled.context_masks[ep] = union_mask
+        else:
+            pooled.context_masks[ep] = np.ones(pooled_mat.shape[1], dtype=bool)
+
+    if pooled.activation_memory:
+        pooled.train_models(max(pooled.activation_memory.keys()))
+    return pooled
 
 
 class NICEServer(IncrementalServer):
