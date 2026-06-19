@@ -30,6 +30,12 @@ class AggregationConfig:
     eta: float = 1.0           # aggregation step size (eta_agg)
     epsilon: float = 1e-8
     protect_mature: bool = True
+    # Robust in-cluster aggregation (Đề xuất section 7 / plan section 2.5).
+    #   "weighted_mean"     -> sum_j alpha_ij * Delta_j  (default, faithful alpha)
+    #   "coordinate_median" -> coordinate-wise median of neighbor deltas
+    #   "trimmed_mean"      -> coordinate-wise trimmed mean of neighbor deltas
+    method: str = "weighted_mean"
+    trim_ratio: float = 0.1    # fraction trimmed each side for trimmed_mean
 
 
 # Layer name -> mapping helpers (mirror NICEModel.reset_frozen_gradients).
@@ -115,6 +121,36 @@ def build_compatible_mask(
     return masks
 
 
+def _robust_combine(
+    stacked: torch.Tensor, method: str, trim_ratio: float
+) -> torch.Tensor:
+    """Combine neighbor deltas along dim 0 with a robust estimator.
+
+    ``stacked`` has shape ``[k, *param_shape]``. Returns a tensor of
+    ``param_shape``. Used to replace the weighted average for Byzantine
+    robustness (Đề xuất section 7).
+    """
+    k = stacked.shape[0]
+    if k == 0:
+        return torch.zeros(stacked.shape[1:], device=stacked.device)
+    if k == 1:
+        return stacked[0]
+
+    if method == "coordinate_median":
+        return torch.median(stacked, dim=0).values
+
+    if method == "trimmed_mean":
+        trim = int(np.floor(float(trim_ratio) * k))
+        if 2 * trim >= k:
+            return stacked.mean(dim=0)
+        ordered, _ = torch.sort(stacked, dim=0)
+        kept = ordered[trim : k - trim]
+        return kept.mean(dim=0)
+
+    # Unknown method -> plain mean (safe fallback).
+    return stacked.mean(dim=0)
+
+
 def age_aware_aggregate(
     target_params: "OrderedDict[str, torch.Tensor]",
     target_ages: Dict[str, np.ndarray],
@@ -123,9 +159,14 @@ def age_aware_aggregate(
     config: Optional[AggregationConfig] = None,
     gru_hidden: int = 100,
 ) -> "OrderedDict[str, torch.Tensor]":
-    """Apply masked, weighted neighbor deltas to the receiver params.
+    """Apply masked neighbor deltas to the receiver params.
 
     ``neighbor_deltas[j]`` is ``theta_j_after - reference`` for neighbor j.
+
+    With ``config.method == "weighted_mean"`` (default) the update is the
+    faithful ``sum_j alpha_ij * Delta_j``. The robust variants
+    (``coordinate_median`` / ``trimmed_mean``) replace the weighted average by a
+    coordinate-wise robust estimator over the neighbor deltas (Đề xuất §7).
     """
     config = config or AggregationConfig()
     masks = (
@@ -133,17 +174,30 @@ def age_aware_aggregate(
         if config.protect_mature
         else {name: torch.ones_like(p) for name, p in target_params.items()}
     )
+    robust = config.method in ("coordinate_median", "trimmed_mean")
 
     new_params = OrderedDict()
     for name, param in target_params.items():
-        agg = torch.zeros_like(param)
-        for j, delta in enumerate(neighbor_deltas):
-            if name not in delta:
-                continue
-            d = delta[name]
-            if d.shape != param.shape:
-                continue
-            agg = agg + float(alphas[j]) * d.to(param.device)
+        if robust:
+            contribs = [
+                delta[name].to(param.device)
+                for delta in neighbor_deltas
+                if name in delta and delta[name].shape == param.shape
+            ]
+            if contribs:
+                stacked = torch.stack(contribs, dim=0)
+                agg = _robust_combine(stacked, config.method, config.trim_ratio)
+            else:
+                agg = torch.zeros_like(param)
+        else:
+            agg = torch.zeros_like(param)
+            for j, delta in enumerate(neighbor_deltas):
+                if name not in delta:
+                    continue
+                d = delta[name]
+                if d.shape != param.shape:
+                    continue
+                agg = agg + float(alphas[j]) * d.to(param.device)
         mask = masks.get(name, torch.ones_like(param)).to(param.device)
         new_params[name] = param + config.eta * (mask * agg)
     return new_params

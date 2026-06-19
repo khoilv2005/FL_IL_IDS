@@ -460,6 +460,73 @@ class TestDecentralized:
         # Average of target(0) and matching neighbor(1) = 0.5; non-matching skipped.
         assert torch.allclose(merged[key]["U.weight"], torch.full((8, 4), 0.5))
 
+    def test_coordinate_median_ignores_outlier_neighbor(self):
+        """Robust aggregation (Đề xuất §7): median is unmoved by one outlier."""
+        from fed_learning.strategies.decentralized import (
+            AggregationConfig,
+            age_aware_aggregate,
+        )
+
+        target = OrderedDict({"fc2.weight": torch.zeros(4, 3)})
+        ages = {"fc2": np.array([0, 0, 0, 0])}  # all plastic
+        deltas = [
+            OrderedDict({"fc2.weight": torch.ones(4, 3)}),
+            OrderedDict({"fc2.weight": torch.ones(4, 3)}),
+            OrderedDict({"fc2.weight": torch.full((4, 3), 100.0)}),  # Byzantine
+        ]
+        cfg = AggregationConfig(method="coordinate_median")
+        out = age_aware_aggregate(target, ages, deltas, np.array([1.0, 1.0, 1.0]), cfg)
+        # Median of {1, 1, 100} = 1, outlier ignored.
+        assert torch.allclose(out["fc2.weight"], torch.ones(4, 3))
+
+    def test_trimmed_mean_drops_extremes(self):
+        from fed_learning.strategies.decentralized import (
+            AggregationConfig,
+            age_aware_aggregate,
+        )
+
+        target = OrderedDict({"fc2.weight": torch.zeros(2, 2)})
+        ages = {"fc2": np.array([0, 0])}
+        vals = [-50.0, 1.0, 1.0, 1.0, 50.0]
+        deltas = [OrderedDict({"fc2.weight": torch.full((2, 2), v)}) for v in vals]
+        cfg = AggregationConfig(method="trimmed_mean", trim_ratio=0.2)
+        out = age_aware_aggregate(
+            target, ages, deltas, np.ones(len(vals)), cfg
+        )
+        # Trim 1 each side -> mean of {1,1,1} = 1.
+        assert torch.allclose(out["fc2.weight"], torch.ones(2, 2))
+
+    def test_weighted_mean_is_default_and_unchanged(self):
+        """Default path must stay the faithful alpha-weighted sum."""
+        from fed_learning.strategies.decentralized import (
+            AggregationConfig,
+            age_aware_aggregate,
+        )
+
+        target = OrderedDict({"fc2.weight": torch.zeros(2, 2)})
+        ages = {"fc2": np.array([0, 0])}
+        deltas = [
+            OrderedDict({"fc2.weight": torch.full((2, 2), 2.0)}),
+            OrderedDict({"fc2.weight": torch.full((2, 2), 4.0)}),
+        ]
+        out = age_aware_aggregate(
+            target, ages, deltas, np.array([0.25, 0.75]), AggregationConfig()
+        )
+        # 0.25*2 + 0.75*4 = 3.5
+        assert torch.allclose(out["fc2.weight"], torch.full((2, 2), 3.5))
+
+    def test_collaboration_group_respects_context_edges(self):
+        """G_i = {j | same cluster AND s_ij > delta} (Đề xuất §6)."""
+        from fed_learning.strategies.decentralized import collaboration_group
+
+        labels = np.array([0, 0, 0])  # all same cluster
+        # Client 0 is only context-connected to client 1 (not 2).
+        neighbors = [1]
+        group = collaboration_group(0, labels, neighbors=neighbors)
+        assert group == [0, 1]
+        # Without edge filtering the whole cluster collaborates.
+        assert collaboration_group(0, labels) == [0, 1, 2]
+
 
 # ---------------------------------------------------------------------------
 # Shared/global context detector (route-accuracy fix, plan/protocol 15 + 23.3)

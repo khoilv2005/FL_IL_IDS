@@ -35,6 +35,7 @@ from fed_learning.servers.nice_server import (
 )
 from fed_learning.strategies.decentralized import (
     AggregationConfig,
+    ClusteringConfig,
     SimilarityWeights,
     age_aware_aggregate,
     aggregate_adapters,
@@ -443,12 +444,24 @@ def _aggregate_round(
 ) -> Dict[str, Any]:
     """Cluster capsules and apply age-aware decentralized aggregation."""
     ordered_caps = [capsules[cid] for cid in client_ids]
-    cluster_result = dynamic_ap_cluster(ordered_caps)
-    labels = cluster_result["labels"]
+    # Threshold delta for the context collaboration graph E_ij = 1 iff s_ij > delta
+    # (Đề xuất section 6). Default 0.0 keeps the legacy full-cluster behavior.
+    delta_sim = float(config.get("denice_cluster_delta_sim", 0.0))
+    cluster_config = ClusteringConfig(delta_sim=delta_sim)
     sim_weights = SimilarityWeights()
+    cluster_result = dynamic_ap_cluster(
+        ordered_caps, config=cluster_config, weights=sim_weights
+    )
+    labels = cluster_result["labels"]
+    context_edges = cluster_result.get("edges")
+    # When enabled, restrict each collaboration group to context neighbors
+    # (s_ij > delta), i.e. G_i = {j | C[j]=C[i] AND s_ij > delta} (Đề xuất §6).
+    use_context_edges = bool(config.get("denice_collab_use_context_edges", False))
     agg_config = AggregationConfig(
         eta=float(config.get("denice_aggregation_eta", 1.0)),
         protect_mature=bool(config.get("denice_protect_mature", True)),
+        method=str(config.get("denice_aggregation_method", "weighted_mean")),
+        trim_ratio=float(config.get("denice_aggregation_trim_ratio", 0.1)),
     )
 
     old_states = {cid: _state_dict(models[cid]) for cid in client_ids}
@@ -462,7 +475,16 @@ def _aggregate_round(
     alpha_values: List[float] = []
 
     for idx, cid in enumerate(client_ids):
-        group_indices = collaboration_group(idx, labels)
+        neighbors = None
+        if (
+            use_context_edges
+            and context_edges is not None
+            and getattr(context_edges, "shape", (0,))[0] == len(client_ids)
+        ):
+            neighbors = [
+                j for j in range(len(client_ids)) if int(context_edges[idx, j]) == 1
+            ]
+        group_indices = collaboration_group(idx, labels, neighbors=neighbors)
         group_ids = [client_ids[g] for g in group_indices]
         groups[int(cid)] = [int(x) for x in group_ids]
         group_sizes.append(len(group_ids))

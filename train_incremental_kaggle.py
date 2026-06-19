@@ -291,6 +291,14 @@ CONFIG = {
     "denice_shared_context_eval": True,
     "denice_shared_context_max_per_episode": None,  # None = không giới hạn mẫu/episode
 
+    # DeNICE decentralized aggregation (Đề xuất §6-§7). Mặc định giữ hành vi cũ.
+    # denice_aggregation_method: "weighted_mean" | "coordinate_median" | "trimmed_mean"
+    "denice_aggregation_method": "weighted_mean",
+    "denice_aggregation_trim_ratio": 0.1,
+    # G_i = {j | cùng cluster AND s_ij > delta} (§6). True = lọc theo đồ thị context.
+    "denice_collab_use_context_edges": False,
+    "denice_cluster_delta_sim": 0.0,
+
     # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless
     # ablation explicitly tests retired-neuron reuse.
     "denice_enable_recycling": False,
