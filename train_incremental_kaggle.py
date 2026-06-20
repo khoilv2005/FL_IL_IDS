@@ -282,24 +282,27 @@ CONFIG = {
     "denice_debug": True,
     "denice_save_round_artifacts": False,
     "denice_checkpoint_format": "delta",
-    # Eval workload: None = toàn bộ clients/samples (chỉ chạy 1 lần ở round cuối task).
-    # Đặt denice_eval_max_clients=5 nếu cần debug nhanh giữa chừng.
-    "denice_eval_max_clients": None,
-    "denice_eval_max_samples": None,
+    # Train-time eval guard. Full all-client eval should be run offline after training.
+    "denice_eval_max_clients": 5,
+    "denice_eval_max_samples": 500000,
     "denice_eval_progress_every_clients": 10,  # in progress mỗi 10 clients
     "denice_eval_progress_every_batches": 0,
-    # DeNICE shared/global context detector (fix route_accuracy thấp)
-    # True  -> pool binary activation sketches tất cả clients -> 1 detector chung
-    # False -> mỗi client dùng local detector (route_acc thấp với non-IID)
+    # DeNICE context routing bank. scope="cluster" follows the proposal:
+    # share context capsule/sketches only inside the decentralized collaboration group.
+    # Use scope="global" only for ablation/debug.
     "denice_shared_context_eval": True,
-    "denice_shared_context_max_per_episode": None,  # None = không giới hạn mẫu/episode
+    "denice_shared_context_scope": "cluster",
+    "denice_shared_context_max_per_episode": 512,
 
     # DeNICE decentralized aggregation (Đề xuất §6-§7). Mặc định giữ hành vi cũ.
     # denice_aggregation_method: "weighted_mean" | "coordinate_median" | "trimmed_mean"
     "denice_aggregation_method": "weighted_mean",
     "denice_aggregation_trim_ratio": 0.1,
+    "denice_gamma": 0.15,
     # G_i = {j | cùng cluster AND s_ij > delta} (§6). True = lọc theo đồ thị context.
-    "denice_collab_use_context_edges": False,
+    "denice_collab_use_context_edges": True,
+    "denice_require_label_overlap": True,
+    "denice_centroid_gate_threshold": 0.75,
     "denice_cluster_delta_sim": 0.0,
 
     # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless

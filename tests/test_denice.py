@@ -218,16 +218,32 @@ class TestDeNICEModel:
             model,
             _dummy_batch(12),
             task_id=1,
-            canc_plan=plan,
+            canc_plan={**plan, "old_metric_delta": 0.0},
             config={
                 "denice_enable_recycling": True,
                 "denice_recycle_ratio": 0.01,
                 "denice_recycle_min": 2,
                 "denice_recycle_max_per_layer": 3,
+                "denice_recycle_usage_recent_threshold": 1.0,
             },
         )
         assert summary["total_retired"] == 3
         assert int((model.unit_ranks["fc1"] == -1).sum()) == 3
+
+    def test_recycling_requires_old_metric_check(self):
+        model = _make_model()
+        model.unit_ranks["fc1"][:] = 2
+        plan = {"recycle_layers": ["fc1"]}
+        summary = apply_graceful_recycling(
+            model,
+            _dummy_batch(12),
+            task_id=1,
+            canc_plan=plan,
+            config={"denice_enable_recycling": True},
+        )
+        assert summary["blocked"] is True
+        assert summary["total_retired"] == 0
+        assert int((model.unit_ranks["fc1"] == -1).sum()) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -355,6 +371,29 @@ class TestCANC:
         plan = ctrl.plan_task(state, novelty=1.0, consumption={"fc1": 0.0})
         assert plan["recycle_layers"] == []
 
+    def test_capacity_pressure_includes_validation_loss_delta(self):
+        ctrl = CapacityController(
+            CANCConfig(alpha=0.0, beta=0.0, gamma=0.5, delta=0.0)
+        )
+        decision = ctrl.decide_layer(
+            "fc1", rho0=1.0, rhom=0.0, u=0.0, novelty=0.0, val_loss_delta=2.0
+        )
+        assert abs(decision["kappa"] - 1.0) < 1e-6
+
+    def test_runner_computes_runtime_validation_loss_delta(self):
+        from fed_learning.training.decentralized_denice_il import _compute_val_loss_delta
+
+        model = _make_model()
+        ref_bank = {0: (_dummy_batch(6), torch.zeros(6, dtype=torch.long))}
+        delta = _compute_val_loss_delta(
+            model,
+            ref_bank,
+            baseline=0.0,
+            device=torch.device("cpu"),
+            batch_size=4,
+        )
+        assert delta > 0.0
+
 
 # ---------------------------------------------------------------------------
 # Strategy registration
@@ -408,9 +447,45 @@ class TestDecentralized:
             label_set=[0, 1],
             sample_count=16,
             reliability=0.8,
+            labels=torch.tensor([0] * 8 + [1] * 8),
         )
         assert cap.proto_vector().size > 0
         assert set(cap.activation_prototypes.keys()) == {"conv1", "conv2", "conv3", "gru"}
+        assert set(cap.class_activation_prototypes.keys()) == {0, 1}
+        assert set(cap.class_activation_prototypes[0].keys()) == {"conv1", "conv2", "conv3", "gru"}
+
+    def test_capsule_context_detector_summary_contains_q_fields(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.strategies.decentralized import build_context_capsule
+
+        model = _make_model()
+        model.eval()
+        det = ContextDetector(memo_per_class=10)
+        det.episode_classes[0] = [0, 1]
+        det.episode_classes[1] = [2, 3]
+        det.push_activations(model, _dummy_batch(12), episode=0)
+        det.push_activations(model, _dummy_batch(12) + 2.0, episode=1)
+        det.train_models(1)
+        cap = build_context_capsule(
+            model,
+            _dummy_batch(8),
+            client_id=0,
+            task_id=0,
+            round_id=0,
+            label_histogram={0: 1.0},
+            label_set=[0],
+            sample_count=8,
+            reliability=0.8,
+            context_detector=det,
+            labels=torch.zeros(8, dtype=torch.long),
+        )
+        q = cap.context_detector_summary
+        assert q["episode_classes"] == {0: [0, 1], 1: [2, 3]}
+        assert q["memory_counts"][0] == 12
+        assert set(q["threshold_layers"]) == {"conv1", "conv2", "conv3", "gru"}
+        assert "activation_stats" in q
+        assert "threshold_values" in q
+        assert q["learners"][0]["coef_hash"]
 
     def test_dynamic_ap_two_groups(self):
         from fed_learning.strategies.decentralized import dynamic_ap_cluster
@@ -527,6 +602,18 @@ class TestDecentralized:
         # Without edge filtering the whole cluster collaborates.
         assert collaboration_group(0, labels) == [0, 1, 2]
 
+    def test_centroid_distance_marks_far_context_outlier(self):
+        from fed_learning.training.decentralized_denice_il import _cosine_distance_to_centroid
+
+        d = _cosine_distance_to_centroid(
+            {
+                0: np.array([1.0, 0.0]),
+                1: np.array([1.0, 0.0]),
+                2: np.array([-1.0, 0.0]),
+            }
+        )
+        assert d[2] > d[0]
+
 
 # ---------------------------------------------------------------------------
 # Shared/global context detector (route-accuracy fix, plan/protocol 15 + 23.3)
@@ -603,6 +690,45 @@ class TestSharedContextDetector:
         # Majority of each episode routes to its own id (separable inputs).
         assert float((pred0 == 0).mean()) > 0.6
         assert float((pred1 == 1).mean()) > 0.6
+
+    def test_cluster_context_bank_uses_only_group_clients(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.decentralized_denice_il import (
+            _build_shared_context_detector,
+        )
+
+        model = _make_model()
+        model.eval()
+
+        det_a = ContextDetector(memo_per_class=20)
+        det_a.episode_classes[0] = [0, 1]
+        det_a.push_activations(model, self._episode_data(30, -5.0), episode=0)
+        det_a.train_models(0)
+
+        det_b = ContextDetector(memo_per_class=20)
+        det_b.episode_classes[1] = [2, 3]
+        det_b.push_activations(model, self._episode_data(30, 5.0), episode=1)
+        det_b.train_models(1)
+
+        bank_a = _build_shared_context_detector(
+            {10: det_a, 20: det_b},
+            memo_per_class=20,
+            max_per_episode=None,
+            seed=0,
+            client_ids=[10],
+        )
+        bank_all = _build_shared_context_detector(
+            {10: det_a, 20: det_b},
+            memo_per_class=20,
+            max_per_episode=None,
+            seed=0,
+            client_ids=None,
+        )
+
+        assert set(bank_a.episode_classes) == {0}
+        assert set(bank_a.activation_memory) == {0}
+        assert set(bank_all.episode_classes) == {0, 1}
+        assert set(bank_all.activation_memory) == {0, 1}
 
 
 # ---------------------------------------------------------------------------

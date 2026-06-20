@@ -34,10 +34,20 @@ def _choose_low_importance_mature(
     ratio: float,
     min_count: int,
     max_count: int,
+    usage_recent_threshold: float,
 ) -> List[int]:
     mature = np.where(np.asarray(ranks) >= 2)[0]
     if mature.size == 0:
         return []
+    if scores is not None and scores.shape[0] == ranks.shape[0]:
+        score_max = float(np.max(scores)) if scores.size else 0.0
+        if score_max > 0.0:
+            usage_recent = scores / score_max
+            mature = mature[usage_recent[mature] <= float(usage_recent_threshold)]
+        else:
+            usage_recent = np.zeros_like(scores, dtype=np.float64)
+        if mature.size == 0:
+            return []
     count = max(int(min_count), int(np.ceil(mature.size * float(ratio))))
     count = min(count, int(max_count), int(mature.size))
     if count <= 0:
@@ -47,6 +57,28 @@ def _choose_low_importance_mature(
     else:
         order = mature[np.argsort(scores[mature])]
     return [int(idx) for idx in order[:count]]
+
+def _old_metric_check_passed(canc_plan: Dict[str, Any], config: CANCConfig) -> bool:
+    """Rule-5 safety: do not recycle if old-task quality check is missing or bad."""
+    if not bool(config.recycle_require_old_check):
+        return True
+    if "old_metric_delta" in canc_plan:
+        return float(canc_plan.get("old_metric_delta", 0.0)) <= float(
+            config.recycle_max_old_metric_drop
+        )
+    if "old_validation_drop" in canc_plan:
+        return float(canc_plan.get("old_validation_drop", 0.0)) <= float(
+            config.recycle_max_old_metric_drop
+        )
+    old_check = canc_plan.get("old_metric_check")
+    if isinstance(old_check, dict):
+        if "passed" in old_check:
+            return bool(old_check.get("passed"))
+        if "delta" in old_check:
+            return float(old_check.get("delta", 0.0)) <= float(
+                config.recycle_max_old_metric_drop
+            )
+    return False
 
 def revive_due_recycled_neurons(model: Any, task_id: int, config: Dict[str, Any]) -> Dict[str, List[int]]:
     """Revive retired units that have passed the configured grace period."""
@@ -73,8 +105,22 @@ def apply_graceful_recycling(
         return summary
 
     c = CANCConfig.from_dict(config)
+    if not _old_metric_check_passed(canc_plan, c):
+        summary = {
+            "enabled": True,
+            "recycle_layers": recycle_layers,
+            "retired": {},
+            "total_retired": 0,
+            "blocked": True,
+            "reason": "old_metric_check_failed_or_missing",
+            "max_old_metric_drop": float(c.recycle_max_old_metric_drop),
+        }
+        canc_plan["recycling"] = summary
+        return summary
+
     scores_by_layer = _activation_scores(model, ref_data)
     retired: Dict[str, List[int]] = {}
+    usage_recent: Dict[str, Dict[int, float]] = {}
 
     for layer in recycle_layers:
         ranks = getattr(model, "unit_ranks", {}).get(layer)
@@ -88,7 +134,11 @@ def apply_graceful_recycling(
             c.recycle_ratio,
             c.recycle_min,
             c.recycle_max_per_layer,
+            c.recycle_usage_recent_threshold,
         )
+        if scores is not None and scores.shape[0] == ranks.shape[0] and scores.size:
+            denom = float(np.max(scores)) or 1.0
+            usage_recent[layer] = {int(idx): float(scores[int(idx)] / denom) for idx in chosen}
         actual = model.retire_neurons(layer, chosen, task_id)
         if actual:
             retired[layer] = actual
@@ -99,6 +149,9 @@ def apply_graceful_recycling(
         "retired": retired,
         "total_retired": int(sum(len(v) for v in retired.values())),
         "grace_tasks": int(c.recycle_grace_tasks),
+        "usage_recent_threshold": float(c.recycle_usage_recent_threshold),
+        "usage_recent": usage_recent,
+        "old_metric_check": "passed",
         "note": "retired neurons use age=-1 and are revived as age=0 after grace_tasks",
     }
     canc_plan["recycling"] = summary

@@ -44,6 +44,7 @@ from fed_learning.strategies.decentralized import (
     collaboration_group,
     context_similarity,
     dynamic_ap_cluster,
+    label_overlap,
     merge_neuron_ages,
 )
 from fed_learning.strategies.fed_incremental.nice import (
@@ -75,7 +76,6 @@ from fed_learning.training.checkpoint_state import (
     snapshot_denice_state,
 )
 from fed_learning.training.local_task_loop import (
-    _sample_denice_reference,
     _update_local_nice_context_memory,
 )
 from fed_learning.training.task_loop import _resolve_output_dir
@@ -166,6 +166,31 @@ def _limit_eval_samples(
     idx = torch.randperm(total, generator=generator)[:used]
     return X[idx], y[idx], {"limited": True, "total": total, "used": used}
 
+def _sample_reference_with_labels(
+    X_train: torch.Tensor,
+    y_train: torch.Tensor,
+    classes: List[int],
+    per_class: int,
+    device: torch.device,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Sample a small labeled reference set for capsule prototypes."""
+    if X_train is None or y_train is None or len(y_train) == 0:
+        return torch.empty(0), torch.empty(0, dtype=torch.long)
+    y_cpu = y_train.detach().cpu()
+    x_chunks = []
+    y_chunks = []
+    for cls_id in classes:
+        idx = torch.nonzero(y_cpu == int(cls_id), as_tuple=False).flatten()
+        if len(idx) == 0:
+            continue
+        take = min(max(1, int(per_class)), len(idx))
+        selected = idx[torch.randperm(len(idx))[:take]]
+        x_chunks.append(X_train[selected].detach().cpu())
+        y_chunks.append(y_train[selected].detach().cpu())
+    if not x_chunks:
+        return torch.empty(0), torch.empty(0, dtype=torch.long)
+    return torch.cat(x_chunks, dim=0).to(device), torch.cat(y_chunks, dim=0).to(device)
+
 
 def _delta_to_target(
     target: "OrderedDict[str, torch.Tensor]",
@@ -188,6 +213,30 @@ def _label_histogram(y: torch.Tensor) -> Dict[int, float]:
     if total <= 0:
         return {}
     return {int(c): float(n.item() / total) for c, n in zip(labels, counts)}
+
+def _cosine_distance_to_centroid(vectors: Dict[int, np.ndarray]) -> Dict[int, float]:
+    """Cosine distance from each vector to the group centroid."""
+    if not vectors:
+        return {}
+    width = max(int(np.asarray(v).size) for v in vectors.values())
+    if width <= 0:
+        return {int(k): 0.0 for k in vectors}
+    rows = {}
+    for cid, vec in vectors.items():
+        arr = np.asarray(vec, dtype=np.float64).ravel()
+        if arr.size < width:
+            arr = np.pad(arr, (0, width - arr.size))
+        rows[int(cid)] = arr
+    centroid = np.mean(np.stack(list(rows.values()), axis=0), axis=0)
+    centroid_norm = float(np.linalg.norm(centroid))
+    distances: Dict[int, float] = {}
+    for cid, arr in rows.items():
+        denom = float(np.linalg.norm(arr)) * centroid_norm
+        if denom <= 1e-12:
+            distances[int(cid)] = 0.0
+        else:
+            distances[int(cid)] = float(1.0 - np.dot(arr, centroid) / denom)
+    return distances
 
 
 def _seen_classes(data_loader: IncrementalDataLoader, task_id: int) -> List[int]:
@@ -333,6 +382,61 @@ def _write_phase_outputs(
 def _make_model(config: Dict[str, Any], device: torch.device) -> DeNICEModel:
     return DeNICEModel(config["input_shape"], config["num_classes"]).to(device)
 
+def _compute_reference_ce_loss(
+    model: DeNICEModel,
+    ref_bank: Optional[Dict[int, Tuple[torch.Tensor, torch.Tensor]]],
+    device: torch.device,
+    batch_size: int = 8192,
+) -> Optional[float]:
+    """Local old-reference CE loss for CANC ``Delta L_val``.
+
+    The reference bank stays inside each simulated client. Only the scalar delta
+    is used by CANC; raw reference tensors are never placed in capsules.
+    """
+    if not ref_bank:
+        return None
+    was_training = model.training
+    active_adapters = dict(getattr(model, "active_adapters", {}))
+    total_loss = 0.0
+    total_count = 0
+    criterion = torch.nn.CrossEntropyLoss(reduction="sum")
+    model.eval()
+    with torch.no_grad():
+        for context_id, pair in sorted(ref_bank.items()):
+            if not pair:
+                continue
+            X_ref, y_ref = pair
+            if X_ref is None or y_ref is None or len(y_ref) == 0:
+                continue
+            if hasattr(model, "set_active_context"):
+                model.set_active_context(int(context_id))
+            X_ref = X_ref.to(device)
+            y_ref = y_ref.to(device).long()
+            for start in range(0, len(y_ref), max(1, int(batch_size))):
+                xb = X_ref[start : start + batch_size]
+                yb = y_ref[start : start + batch_size]
+                logits = model(xb)
+                total_loss += float(criterion(logits, yb).item())
+                total_count += int(len(yb))
+    model.active_adapters = active_adapters
+    if was_training:
+        model.train()
+    if total_count <= 0:
+        return None
+    return float(total_loss / total_count)
+
+def _compute_val_loss_delta(
+    model: DeNICEModel,
+    ref_bank: Optional[Dict[int, Tuple[torch.Tensor, torch.Tensor]]],
+    baseline: Optional[float],
+    device: torch.device,
+    batch_size: int,
+) -> float:
+    current = _compute_reference_ce_loss(model, ref_bank, device, batch_size=batch_size)
+    if current is None or baseline is None:
+        return 0.0
+    return float(max(0.0, current - float(baseline)))
+
 
 def _prepare_client_task(
     *,
@@ -348,6 +452,8 @@ def _prepare_client_task(
     context_detector: ContextDetector,
     novelty_estimator: NoveltyEstimator,
     prev_ages: Optional[Dict[str, np.ndarray]],
+    old_ref_bank: Optional[Dict[int, Tuple[torch.Tensor, torch.Tensor]]] = None,
+    old_ref_loss_baseline: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Run DeNICE prepare_task / novelty / CANC / adapter activation."""
     if hasattr(trainer, "set_task"):
@@ -359,8 +465,8 @@ def _prepare_client_task(
     context_detector.episode_classes[task_id] = list(int(c) for c in new_classes)
 
     per_class = max(1, int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))))
-    ref_data = _sample_denice_reference(
-        client.X_train, client.y_train, list(new_classes), per_class, str(device)
+    ref_data, ref_labels = _sample_reference_with_labels(
+        client.X_train, client.y_train, list(new_classes), per_class, device
     )
     revived = revive_due_recycled_neurons(model, task_id, config)
 
@@ -376,14 +482,23 @@ def _prepare_client_task(
     start_ages = model.get_neuron_ages_state()
     capacity_state = compute_capacity_state(model)
     consumption = compute_consumption(prev_ages, start_ages)
+    val_loss_delta = _compute_val_loss_delta(
+        model,
+        old_ref_bank,
+        old_ref_loss_baseline,
+        device,
+        batch_size=int(config.get("denice_val_delta_batch_size", config.get("eval_batch_size", 8192))),
+    )
     controller = CapacityController(CANCConfig.from_dict(config))
     plan = controller.plan_task(
         capacity_state,
         novelty,
         consumption,
+        val_loss_delta=val_loss_delta,
         is_first_task=is_first_task,
     )
     plan["novelty"] = novelty
+    plan["val_loss_delta"] = val_loss_delta
     plan["start_ages"] = start_ages
     plan["revived"] = revived
 
@@ -398,7 +513,7 @@ def _prepare_client_task(
             if ranks is not None:
                 model.freeze_masks[low] = np.ones(len(ranks), dtype=bool)
 
-    return {"plan": plan, "ref_data": ref_data}
+    return {"plan": plan, "ref_data": ref_data, "ref_labels": ref_labels}
 
 
 def _build_round_capsule(
@@ -410,6 +525,7 @@ def _build_round_capsule(
     client,
     context_detector: ContextDetector,
     ref_data: torch.Tensor,
+    ref_labels: Optional[torch.Tensor],
     loss: float,
 ) -> Any:
     reliability = 1.0 / (1.0 + max(0.0, float(loss)))
@@ -419,6 +535,10 @@ def _build_round_capsule(
     device = next(model.parameters()).device
     capsule_data = ref_data if ref_data.numel() > 0 else client.X_train[: min(32, len(client.y_train))]
     capsule_data = capsule_data.to(device)
+    if ref_labels is not None and ref_labels.numel() == len(capsule_data):
+        capsule_labels = ref_labels.to(device)
+    else:
+        capsule_labels = client.y_train[: len(capsule_data)].to(device)
     return build_context_capsule(
         model,
         capsule_data,
@@ -431,6 +551,7 @@ def _build_round_capsule(
         reliability=reliability,
         thresholds=thresholds,
         context_detector=context_detector,
+        labels=capsule_labels,
     )
 
 
@@ -457,6 +578,8 @@ def _aggregate_round(
     # When enabled, restrict each collaboration group to context neighbors
     # (s_ij > delta), i.e. G_i = {j | C[j]=C[i] AND s_ij > delta} (Đề xuất §6).
     use_context_edges = bool(config.get("denice_collab_use_context_edges", False))
+    require_label_overlap = bool(config.get("denice_require_label_overlap", True))
+    centroid_gate_threshold = float(config.get("denice_centroid_gate_threshold", 0.75))
     agg_config = AggregationConfig(
         eta=float(config.get("denice_aggregation_eta", 1.0)),
         protect_mature=bool(config.get("denice_protect_mature", True)),
@@ -486,6 +609,29 @@ def _aggregate_round(
             ]
         group_indices = collaboration_group(idx, labels, neighbors=neighbors)
         group_ids = [client_ids[g] for g in group_indices]
+        if require_label_overlap:
+            group_ids = [
+                gid
+                for gid in group_ids
+                if gid == cid
+                or label_overlap(capsules[cid].label_set, capsules[gid].label_set) > 0.0
+            ]
+            if cid not in group_ids:
+                group_ids.append(cid)
+            group_ids = sorted(set(int(gid) for gid in group_ids))
+        centroid_distances = _cosine_distance_to_centroid(
+            {gid: capsules[gid].proto_vector() for gid in group_ids}
+        )
+        if centroid_gate_threshold > 0 and len(group_ids) > 2:
+            group_ids = [
+                gid
+                for gid in group_ids
+                if gid == cid
+                or centroid_distances.get(int(gid), 0.0) <= centroid_gate_threshold
+            ]
+            if cid not in group_ids:
+                group_ids.append(cid)
+            group_ids = sorted(set(int(gid) for gid in group_ids))
         groups[int(cid)] = [int(x) for x in group_ids]
         group_sizes.append(len(group_ids))
 
@@ -508,6 +654,11 @@ def _aggregate_round(
             "sample_counts": [float(x) for x in counts],
             "reliabilities": [float(x) for x in rels],
             "alphas": [float(x) for x in alphas],
+            "centroid_distances": {
+                int(gid): float(centroid_distances.get(int(gid), 0.0))
+                for gid in group_ids
+            },
+            "centroid_gate_threshold": float(centroid_gate_threshold),
         }
 
         target_state = old_states[cid]
@@ -575,15 +726,23 @@ def _build_shared_context_detector(
     memo_per_class: int,
     max_per_episode: Optional[int],
     seed: int,
+    client_ids: Optional[List[int]] = None,
 ) -> Optional[ContextDetector]:
-    """Pool every client's per-episode sketches into one shared detector.
+    """Pool selected clients' per-episode sketches into a context bank.
 
-    Returns ``None`` when there is nothing to pool (falls back to per-client
-    detectors). See plan/protocol section 15 (Level 2) + 23.3.
+    ``client_ids=None`` keeps the old global behavior. Passing a collaboration
+    group implements the proposal's neighbor/cluster capsule sharing: a client
+    routes with context sketches from its decentralized group, not the whole
+    system.
     """
+    selected = (
+        list(context_detectors.values())
+        if client_ids is None
+        else [context_detectors[cid] for cid in client_ids if cid in context_detectors]
+    )
     detectors = [
         det
-        for det in context_detectors.values()
+        for det in selected
         if getattr(det, "activation_memory", None)
     ]
     if not detectors:
@@ -612,6 +771,8 @@ def _evaluate_clients(
     progress_every_clients: int = 1,
     progress_every_batches: int = 0,
     use_shared_context: bool = True,
+    shared_context_scope: str = "cluster",
+    context_groups: Optional[Dict[int, List[int]]] = None,
     shared_context_max_per_episode: Optional[int] = None,
     shared_context_memo_per_class: int = 50,
     shared_context_seed: int = 0,
@@ -621,30 +782,56 @@ def _evaluate_clients(
     total_samples = int(len(test_data.get("y_test", [])))
     eval_start = time.time()
 
-    # Shared/global context detector: pool the binary episode sketches of ALL
-    # clients so every client can route every episode (fixes missing-episode
-    # misrouting in decentralized global eval). Built once per eval call.
+    # Context routing bank. The proposal uses capsule exchange inside
+    # decentralized groups, so the default is cluster/neighbor pooling. Global
+    # pooling is kept only for ablation/debug because it is slower and less
+    # decentralized.
     shared_detector: Optional[ContextDetector] = None
-    if use_shared_context:
+    detector_cache: Dict[Tuple[int, ...], Optional[ContextDetector]] = {}
+    shared_context_scope = str(shared_context_scope or "cluster").lower()
+    if use_shared_context and shared_context_scope == "global":
         shared_detector = _build_shared_context_detector(
             context_detectors,
             memo_per_class=shared_context_memo_per_class,
             max_per_episode=shared_context_max_per_episode,
             seed=shared_context_seed,
         )
-    routing_mode = "shared" if shared_detector is not None else "per-client"
+    if not use_shared_context or shared_context_scope == "local":
+        routing_mode = "per-client"
+    elif shared_context_scope == "global" and shared_detector is not None:
+        routing_mode = "global"
+    elif shared_context_scope == "cluster":
+        routing_mode = "cluster"
+    else:
+        routing_mode = "per-client"
 
     print(
         f"  DeNICE eval start [{label}]: clients={len(client_ids)}, "
         f"test_samples={total_samples}, batch_size={batch_size}, "
         f"routing={routing_mode}, "
-        f"episodes={sorted(shared_detector.episode_classes) if shared_detector else 'local'}, "
+        f"episodes={sorted(shared_detector.episode_classes) if shared_detector else 'group/local'}, "
         f"seen_classes={list(seen_classes)}",
         flush=True,
     )
     for pos, cid in enumerate(client_ids, start=1):
         client_start = time.time()
-        detector = shared_detector if shared_detector is not None else context_detectors[cid]
+        detector = context_detectors[cid]
+        if routing_mode == "global" and shared_detector is not None:
+            detector = shared_detector
+        elif routing_mode == "cluster":
+            group_ids = (context_groups or {}).get(int(cid), [int(cid)])
+            if int(cid) not in group_ids:
+                group_ids = [int(cid), *group_ids]
+            group_key = tuple(sorted(set(int(x) for x in group_ids)))
+            if group_key not in detector_cache:
+                detector_cache[group_key] = _build_shared_context_detector(
+                    context_detectors,
+                    memo_per_class=shared_context_memo_per_class,
+                    max_per_episode=shared_context_max_per_episode,
+                    seed=shared_context_seed + int(cid),
+                    client_ids=list(group_key),
+                )
+            detector = detector_cache[group_key] or context_detectors[cid]
         client_metrics = evaluate_denice_model(
             models[cid],
             test_data,
@@ -757,6 +944,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     max_clients = config.get("denice_max_clients")
     max_clients = None if max_clients is None else int(max_clients)
     use_shared_context = bool(config.get("denice_shared_context_eval", True))
+    shared_context_scope = str(config.get("denice_shared_context_scope", "cluster")).lower()
     shared_ctx_cap_raw = config.get("denice_shared_context_max_per_episode")
     shared_context_max_per_episode = (
         None if shared_ctx_cap_raw is None else int(shared_ctx_cap_raw)
@@ -774,6 +962,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     novelty_estimators: Dict[int, NoveltyEstimator] = {}
     prev_ages: Dict[int, Optional[Dict[str, np.ndarray]]] = {}
     ref_data: Dict[int, torch.Tensor] = {}
+    ref_labels: Dict[int, torch.Tensor] = {}
+    old_ref_banks: Dict[int, Dict[int, Tuple[torch.Tensor, torch.Tensor]]] = {}
+    old_ref_loss_baselines: Dict[int, Optional[float]] = {}
     canc_plans: Dict[int, Dict[str, Any]] = {}
 
     history = {"task_accuracies": [], "task_forgetting": [], "round_metrics": []}
@@ -826,6 +1017,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         layer_weights=getattr(trainer, "novelty_layer_weights", None)
                     )
                     prev_ages[cid] = None
+                    old_ref_banks[cid] = {}
+                    old_ref_loss_baselines[cid] = None
 
         active_ids = sorted(active_ids)
         if max_clients is not None:
@@ -854,6 +1047,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
 
         for cid in active_ids:
+            old_ref_banks.setdefault(cid, {})
+            old_ref_loss_baselines.setdefault(cid, None)
             prep = _prepare_client_task(
                 cid=cid,
                 task_id=task_id,
@@ -867,9 +1062,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 context_detector=context_detectors[cid],
                 novelty_estimator=novelty_estimators[cid],
                 prev_ages=prev_ages.get(cid),
+                old_ref_bank=old_ref_banks.get(cid),
+                old_ref_loss_baseline=old_ref_loss_baselines.get(cid),
             )
             canc_plans[cid] = prep["plan"]
             ref_data[cid] = prep["ref_data"]
+            ref_labels[cid] = prep.get("ref_labels", torch.empty(0, dtype=torch.long))
         if denice_debug:
             debug_history.append(
                 {
@@ -889,10 +1087,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                                     "retired": float(info.get("retired", 0.0)),
                                     "u": float(info.get("u", 0.0)),
                                     "kappa": float(info.get("kappa", 0.0)),
+                                    "val_loss_delta": float(info.get("val_loss_delta", 0.0)),
                                 }
                                 for name, info in canc_plans[cid].get("layers", {}).items()
                             },
                             "adapters_to_add": list(canc_plans[cid].get("adapters_to_add", [])),
+                            "val_loss_delta": float(canc_plans[cid].get("val_loss_delta", 0.0)),
                             "recycling": canc_plans[cid].get("recycling", {}),
                         }
                         for cid in active_ids
@@ -986,6 +1186,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     client=clients[cid],
                     context_detector=context_detectors[cid],
                     ref_data=ref_data[cid],
+                    ref_labels=ref_labels.get(cid),
                     loss=losses[cid],
                 )
                 for cid in active_ids
@@ -1055,6 +1256,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     progress_every_clients=eval_progress_every_clients,
                     progress_every_batches=eval_progress_every_batches,
                     use_shared_context=use_shared_context,
+                    shared_context_scope=shared_context_scope,
+                    context_groups=cluster_summary.get("groups", {}),
                     shared_context_max_per_episode=shared_context_max_per_episode,
                     shared_context_memo_per_class=shared_context_memo_per_class,
                     shared_context_seed=int(config.get("random_seed", config.get("seed", 42))),
@@ -1190,6 +1393,18 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             if ref_data[cid].numel() > 0:
                 proto = novelty_estimators[cid].compute_prototype(model, ref_data[cid])
                 novelty_estimators[cid].store_prototype(task_id, proto)
+                old_ref_banks.setdefault(cid, {})[int(task_id)] = (
+                    ref_data[cid].detach().cpu(),
+                    ref_labels[cid].detach().cpu().long(),
+                )
+                old_ref_loss_baselines[cid] = _compute_reference_ce_loss(
+                    model,
+                    old_ref_banks.get(cid),
+                    device,
+                    batch_size=int(
+                        config.get("denice_val_delta_batch_size", config.get("eval_batch_size", 8192))
+                    ),
+                )
             prev_ages[cid] = canc_plans[cid].get("start_ages", model.get_neuron_ages_state())
             adapter_history.append(
                 {
@@ -1228,6 +1443,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             progress_every_clients=eval_progress_every_clients,
             progress_every_batches=eval_progress_every_batches,
             use_shared_context=use_shared_context,
+            shared_context_scope=shared_context_scope,
+            context_groups=cluster_summary.get("groups", {}),
             shared_context_max_per_episode=shared_context_max_per_episode,
             shared_context_memo_per_class=shared_context_memo_per_class,
             shared_context_seed=int(config.get("random_seed", config.get("seed", 42))),

@@ -1,0 +1,4636 @@
+[
+  {
+    "type": "task_start",
+    "task": 0,
+    "new_classes": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "client_data": {
+      "0": {
+        "num_samples": 15058,
+        "class_hist": {
+          "0": 33,
+          "1": 14316,
+          "2": 164,
+          "3": 45,
+          "5": 500
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      "4": {
+        "num_samples": 28732,
+        "class_hist": {
+          "0": 91,
+          "1": 28328,
+          "2": 10,
+          "3": 4,
+          "4": 299
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "9": {
+        "num_samples": 4397,
+        "class_hist": {
+          "1": 2519,
+          "2": 76,
+          "3": 313,
+          "4": 1262,
+          "5": 227
+        },
+        "labels": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "13": {
+        "num_samples": 15766,
+        "class_hist": {
+          "0": 5,
+          "1": 14266,
+          "2": 48,
+          "3": 3,
+          "4": 1444
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "14": {
+        "num_samples": 11889,
+        "class_hist": {
+          "0": 6,
+          "1": 10132,
+          "3": 32,
+          "5": 1719
+        },
+        "labels": [
+          0,
+          1,
+          3,
+          5
+        ]
+      },
+      "15": {
+        "num_samples": 38864,
+        "class_hist": {
+          "0": 93,
+          "1": 27497,
+          "2": 182,
+          "3": 5,
+          "4": 10428,
+          "5": 659
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "18": {
+        "num_samples": 1246,
+        "class_hist": {
+          "0": 102,
+          "4": 835,
+          "5": 309
+        },
+        "labels": [
+          0,
+          4,
+          5
+        ]
+      },
+      "19": {
+        "num_samples": 49986,
+        "class_hist": {
+          "0": 60,
+          "1": 49032,
+          "3": 113,
+          "4": 474,
+          "5": 307
+        },
+        "labels": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "25": {
+        "num_samples": 32,
+        "class_hist": {
+          "3": 32
+        },
+        "labels": [
+          3
+        ]
+      },
+      "26": {
+        "num_samples": 50316,
+        "class_hist": {
+          "0": 16,
+          "1": 50112,
+          "2": 134,
+          "3": 15,
+          "5": 39
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      "30": {
+        "num_samples": 21065,
+        "class_hist": {
+          "1": 9606,
+          "2": 150,
+          "4": 10940,
+          "5": 369
+        },
+        "labels": [
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "32": {
+        "num_samples": 8532,
+        "class_hist": {
+          "0": 41,
+          "1": 892,
+          "2": 37,
+          "3": 30,
+          "4": 6133,
+          "5": 1399
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "33": {
+        "num_samples": 19208,
+        "class_hist": {
+          "0": 6,
+          "1": 19200,
+          "3": 2
+        },
+        "labels": [
+          0,
+          1,
+          3
+        ]
+      },
+      "34": {
+        "num_samples": 2614,
+        "class_hist": {
+          "0": 12,
+          "1": 1505,
+          "2": 304,
+          "4": 751,
+          "5": 42
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "38": {
+        "num_samples": 8224,
+        "class_hist": {
+          "0": 4,
+          "1": 181,
+          "3": 98,
+          "4": 6696,
+          "5": 1245
+        },
+        "labels": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "42": {
+        "num_samples": 8592,
+        "class_hist": {
+          "0": 63,
+          "1": 5319,
+          "2": 167,
+          "4": 2255,
+          "5": 788
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "45": {
+        "num_samples": 1450,
+        "class_hist": {
+          "3": 131,
+          "4": 1319
+        },
+        "labels": [
+          3,
+          4
+        ]
+      },
+      "46": {
+        "num_samples": 19691,
+        "class_hist": {
+          "0": 22,
+          "1": 735,
+          "2": 24,
+          "3": 5,
+          "4": 18868,
+          "5": 37
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "47": {
+        "num_samples": 19165,
+        "class_hist": {
+          "0": 21,
+          "2": 59,
+          "3": 10,
+          "4": 19067,
+          "5": 8
+        },
+        "labels": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "48": {
+        "num_samples": 53798,
+        "class_hist": {
+          "0": 66,
+          "1": 51127,
+          "2": 209,
+          "3": 264,
+          "4": 1156,
+          "5": 976
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "49": {
+        "num_samples": 10080,
+        "class_hist": {
+          "4": 9483,
+          "5": 597
+        },
+        "labels": [
+          4,
+          5
+        ]
+      },
+      "52": {
+        "num_samples": 11723,
+        "class_hist": {
+          "0": 43,
+          "1": 10664,
+          "2": 63,
+          "3": 59,
+          "4": 894
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "53": {
+        "num_samples": 5793,
+        "class_hist": {
+          "0": 154,
+          "1": 3980,
+          "2": 5,
+          "3": 117,
+          "5": 1537
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      "54": {
+        "num_samples": 17575,
+        "class_hist": {
+          "0": 53,
+          "2": 358,
+          "3": 23,
+          "4": 17094,
+          "5": 47
+        },
+        "labels": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "55": {
+        "num_samples": 12716,
+        "class_hist": {
+          "2": 221,
+          "4": 12495
+        },
+        "labels": [
+          2,
+          4
+        ]
+      },
+      "56": {
+        "num_samples": 95440,
+        "class_hist": {
+          "0": 78,
+          "1": 84512,
+          "2": 74,
+          "4": 10561,
+          "5": 215
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "57": {
+        "num_samples": 19866,
+        "class_hist": {
+          "1": 19706,
+          "2": 125,
+          "3": 35
+        },
+        "labels": [
+          1,
+          2,
+          3
+        ]
+      },
+      "58": {
+        "num_samples": 251,
+        "class_hist": {
+          "2": 109,
+          "5": 142
+        },
+        "labels": [
+          2,
+          5
+        ]
+      },
+      "60": {
+        "num_samples": 2841,
+        "class_hist": {
+          "0": 307,
+          "2": 187,
+          "3": 57,
+          "4": 2290
+        },
+        "labels": [
+          0,
+          2,
+          3,
+          4
+        ]
+      },
+      "64": {
+        "num_samples": 11687,
+        "class_hist": {
+          "0": 33,
+          "1": 8513,
+          "2": 15,
+          "3": 48,
+          "4": 1638,
+          "5": 1440
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "65": {
+        "num_samples": 1259,
+        "class_hist": {
+          "0": 49,
+          "2": 112,
+          "4": 1066,
+          "5": 32
+        },
+        "labels": [
+          0,
+          2,
+          4,
+          5
+        ]
+      },
+      "68": {
+        "num_samples": 365,
+        "class_hist": {
+          "0": 13,
+          "3": 249,
+          "4": 62,
+          "5": 41
+        },
+        "labels": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "69": {
+        "num_samples": 2011,
+        "class_hist": {
+          "4": 2011
+        },
+        "labels": [
+          4
+        ]
+      },
+      "70": {
+        "num_samples": 68905,
+        "class_hist": {
+          "0": 45,
+          "1": 68838,
+          "5": 22
+        },
+        "labels": [
+          0,
+          1,
+          5
+        ]
+      },
+      "71": {
+        "num_samples": 36689,
+        "class_hist": {
+          "0": 12,
+          "1": 34113,
+          "2": 110,
+          "3": 61,
+          "5": 2393
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      "72": {
+        "num_samples": 30198,
+        "class_hist": {
+          "1": 29229,
+          "2": 43,
+          "3": 1,
+          "5": 925
+        },
+        "labels": [
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      "73": {
+        "num_samples": 28503,
+        "class_hist": {
+          "1": 28188,
+          "2": 11,
+          "4": 304
+        },
+        "labels": [
+          1,
+          2,
+          4
+        ]
+      },
+      "76": {
+        "num_samples": 11050,
+        "class_hist": {
+          "0": 245,
+          "3": 156,
+          "4": 10644,
+          "5": 5
+        },
+        "labels": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "78": {
+        "num_samples": 36901,
+        "class_hist": {
+          "0": 42,
+          "1": 29892,
+          "2": 104,
+          "3": 1030,
+          "4": 5787,
+          "5": 46
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "80": {
+        "num_samples": 10195,
+        "class_hist": {
+          "1": 4542,
+          "4": 5382,
+          "5": 271
+        },
+        "labels": [
+          1,
+          4,
+          5
+        ]
+      },
+      "81": {
+        "num_samples": 6186,
+        "class_hist": {
+          "0": 84,
+          "2": 172,
+          "3": 221,
+          "4": 5709
+        },
+        "labels": [
+          0,
+          2,
+          3,
+          4
+        ]
+      },
+      "83": {
+        "num_samples": 2168,
+        "class_hist": {
+          "1": 2111,
+          "3": 57
+        },
+        "labels": [
+          1,
+          3
+        ]
+      },
+      "88": {
+        "num_samples": 315,
+        "class_hist": {
+          "0": 19,
+          "2": 38,
+          "3": 61,
+          "5": 197
+        },
+        "labels": [
+          0,
+          2,
+          3,
+          5
+        ]
+      },
+      "89": {
+        "num_samples": 20708,
+        "class_hist": {
+          "0": 83,
+          "1": 2874,
+          "2": 8,
+          "3": 21,
+          "4": 17722
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "91": {
+        "num_samples": 14349,
+        "class_hist": {
+          "1": 12983,
+          "2": 36,
+          "3": 3,
+          "5": 1327
+        },
+        "labels": [
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      "94": {
+        "num_samples": 9907,
+        "class_hist": {
+          "1": 9328,
+          "3": 243,
+          "5": 336
+        },
+        "labels": [
+          1,
+          3,
+          5
+        ]
+      },
+      "96": {
+        "num_samples": 42921,
+        "class_hist": {
+          "0": 46,
+          "1": 41953,
+          "2": 221,
+          "3": 55,
+          "4": 246,
+          "5": 400
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "97": {
+        "num_samples": 24422,
+        "class_hist": {
+          "0": 36,
+          "1": 23701,
+          "2": 106,
+          "4": 579
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          4
+        ]
+      },
+      "98": {
+        "num_samples": 21700,
+        "class_hist": {
+          "0": 93,
+          "1": 17142,
+          "2": 25,
+          "3": 19,
+          "4": 3816,
+          "5": 605
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "99": {
+        "num_samples": 20599,
+        "class_hist": {
+          "0": 79,
+          "1": 18925,
+          "2": 234,
+          "4": 1245,
+          "5": 116
+        },
+        "labels": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ]
+      }
+    },
+    "new_model_count": 50,
+    "new_model_shared_init": true,
+    "new_model_max_init_param_diff": 0,
+    "active_client_count": 50,
+    "total_samples": 955948
+  },
+  {
+    "type": "canc_plan",
+    "task": 0,
+    "clients": {
+      "0": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "4": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "9": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "13": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "14": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "15": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "18": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "19": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "25": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "26": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "30": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "32": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "33": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "34": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "38": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "42": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "45": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "46": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "47": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "48": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "49": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "52": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "53": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "54": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "55": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "56": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "57": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "58": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "60": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "64": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "65": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "68": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "69": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "70": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "71": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "72": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "73": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "76": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "78": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "80": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "81": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "83": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "88": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "89": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "91": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "94": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "96": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "97": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "98": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      },
+      "99": {
+        "novelty": 0,
+        "actions": {
+          "conv1": "NICE_ONLY",
+          "conv2": "NICE_ONLY",
+          "conv3": "NICE_ONLY",
+          "gru": "NICE_ONLY",
+          "fc1": "NICE_ONLY"
+        },
+        "capacity": {
+          "conv1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv2": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "conv3": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "gru": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          },
+          "fc1": {
+            "rho0": 1,
+            "rhom": 0,
+            "retired": 0,
+            "u": 0,
+            "kappa": 0
+          }
+        },
+        "adapters_to_add": [],
+        "recycling": {
+          "enabled": false,
+          "retired": {},
+          "total_retired": 0
+        }
+      }
+    }
+  },
+  {
+    "type": "round",
+    "task": 0,
+    "round": 0,
+    "timing": {
+      "round_time": 27.636034965515137,
+      "train_time": 24.836195945739746,
+      "context_update_time": 0.7269165515899658,
+      "capsule_time": 0.39067602157592773,
+      "aggregation_time": 1.2772669792175293,
+      "checkpoint_time": 0.3670220375061035
+    },
+    "loss_stats": {
+      "min": 0.391669359523803,
+      "mean": 2.0817275506882837,
+      "max": 3.847026824951172
+    },
+    "clients": {
+      "0": {
+        "loss": 1.6940767616033554,
+        "train_time": 7.039195775985718,
+        "context_update_time": 0.018863201141357422,
+        "num_samples": 15058,
+        "class_hist": {
+          "0": 33,
+          "1": 14316,
+          "2": 164,
+          "3": 45,
+          "5": 500
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "4": {
+        "loss": 0.8667592315623551,
+        "train_time": 0.600271463394165,
+        "context_update_time": 0.013947010040283203,
+        "num_samples": 28732,
+        "class_hist": {
+          "0": 91,
+          "1": 28328,
+          "2": 10,
+          "3": 4,
+          "4": 299
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "9": {
+        "loss": 2.984322667121887,
+        "train_time": 0.10390305519104004,
+        "context_update_time": 0.017281532287597656,
+        "num_samples": 4397,
+        "class_hist": {
+          "1": 2519,
+          "2": 76,
+          "3": 313,
+          "4": 1262,
+          "5": 227
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "13": {
+        "loss": 1.777821607887745,
+        "train_time": 0.29076409339904785,
+        "context_update_time": 0.012990951538085938,
+        "num_samples": 15766,
+        "class_hist": {
+          "0": 5,
+          "1": 14266,
+          "2": 48,
+          "3": 3,
+          "4": 1444
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "14": {
+        "loss": 2.2449796994527182,
+        "train_time": 0.21925091743469238,
+        "context_update_time": 0.011806488037109375,
+        "num_samples": 11889,
+        "class_hist": {
+          "0": 6,
+          "1": 10132,
+          "3": 32,
+          "5": 1719
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "15": {
+        "loss": 1.005291497707367,
+        "train_time": 0.7093555927276611,
+        "context_update_time": 0.01921701431274414,
+        "num_samples": 38864,
+        "class_hist": {
+          "0": 93,
+          "1": 27497,
+          "2": 182,
+          "3": 5,
+          "4": 10428,
+          "5": 659
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "18": {
+        "loss": 3.746579647064209,
+        "train_time": 0.04419064521789551,
+        "context_update_time": 0.011725902557373047,
+        "num_samples": 1246,
+        "class_hist": {
+          "0": 102,
+          "4": 835,
+          "5": 309
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "19": {
+        "loss": 0.6019516272040514,
+        "train_time": 0.9112565517425537,
+        "context_update_time": 0.020230531692504883,
+        "num_samples": 49986,
+        "class_hist": {
+          "0": 60,
+          "1": 49032,
+          "3": 113,
+          "4": 474,
+          "5": 307
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "25": {
+        "loss": 3.42333984375,
+        "train_time": 0.0456089973449707,
+        "context_update_time": 0.0054454803466796875,
+        "num_samples": 32,
+        "class_hist": {
+          "3": 32
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "26": {
+        "loss": 0.5376268797195874,
+        "train_time": 0.9180142879486084,
+        "context_update_time": 0.014562368392944336,
+        "num_samples": 50316,
+        "class_hist": {
+          "0": 16,
+          "1": 50112,
+          "2": 134,
+          "3": 15,
+          "5": 39
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "30": {
+        "loss": 1.4855628063281376,
+        "train_time": 0.40034961700439453,
+        "context_update_time": 0.01654982566833496,
+        "num_samples": 21065,
+        "class_hist": {
+          "1": 9606,
+          "2": 150,
+          "4": 10940,
+          "5": 369
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "32": {
+        "loss": 2.396663467089335,
+        "train_time": 0.18231678009033203,
+        "context_update_time": 0.01956462860107422,
+        "num_samples": 8532,
+        "class_hist": {
+          "0": 41,
+          "1": 892,
+          "2": 37,
+          "3": 30,
+          "4": 6133,
+          "5": 1399
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "33": {
+        "loss": 1.2746257074177265,
+        "train_time": 0.3530082702636719,
+        "context_update_time": 0.007500171661376953,
+        "num_samples": 19208,
+        "class_hist": {
+          "0": 6,
+          "1": 19200,
+          "3": 2
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "34": {
+        "loss": 3.6000120639801025,
+        "train_time": 0.0572507381439209,
+        "context_update_time": 0.015545129776000977,
+        "num_samples": 2614,
+        "class_hist": {
+          "0": 12,
+          "1": 1505,
+          "2": 304,
+          "4": 751,
+          "5": 42
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "38": {
+        "loss": 2.692790428797404,
+        "train_time": 0.15799713134765625,
+        "context_update_time": 0.01656055450439453,
+        "num_samples": 8224,
+        "class_hist": {
+          "0": 4,
+          "1": 181,
+          "3": 98,
+          "4": 6696,
+          "5": 1245
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "42": {
+        "loss": 2.461222251256307,
+        "train_time": 0.1801750659942627,
+        "context_update_time": 0.01817941665649414,
+        "num_samples": 8592,
+        "class_hist": {
+          "0": 63,
+          "1": 5319,
+          "2": 167,
+          "4": 2255,
+          "5": 788
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "45": {
+        "loss": 3.7247071266174316,
+        "train_time": 0.04046225547790527,
+        "context_update_time": 0.009054183959960938,
+        "num_samples": 1450,
+        "class_hist": {
+          "3": 131,
+          "4": 1319
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          },
+          "conv3": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          },
+          "gru": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 100,
+            "mature": 0,
+            "retired": 0,
+            "total": 100
+          },
+          "fc1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 256,
+            "mature": 0,
+            "retired": 0,
+            "total": 256
+          }
+        }
+      },
+      "46": {
+        "loss": 1.670044618844986,
+        "train_time": 0.3585059642791748,
+        "context_update_time": 0.015589237213134766,
+        "num_samples": 19691,
+        "class_hist": {
+          "0": 22,
+          "1": 735,
+          "2": 24,
+          "3": 5,
+          "4": 18868,
+          "5": 37
+        },
+        "adapter_usage": {
+          "num_adapters": 0,
+          "total_adapter_params": 0,
+          "per_layer": {},
+          "adapters": [],
+          "recycling": {}
+        },
+        "capacity_after_train": {
+          "conv1": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 64,
+            "mature": 0,
+            "retired": 0,
+            "total": 64
+          },
+          "conv2": {
+            "rho0": 0,
+            "rhom": 0,
+            "free": 0,
+            "learner": 128,
+            "mature": 0,
+            "retired": 0,
+            "total": 128
+          }
+        }
+      }
+    }
+  }
+]

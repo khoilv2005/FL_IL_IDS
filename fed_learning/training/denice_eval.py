@@ -62,6 +62,61 @@ def _allowed_classes_for_episode(
     return sorted(c for c in seen_set if 0 <= c < num_classes)
 
 
+def _mask_logits_to_classes(
+    logits: torch.Tensor,
+    allowed_classes: List[int],
+    fill_value: float = -100.0,
+) -> torch.Tensor:
+    """Keep only allowed classes active for routed prediction and loss."""
+    if not allowed_classes:
+        return logits
+    mask = torch.ones(logits.shape[1], dtype=torch.bool, device=logits.device)
+    allowed_t = torch.as_tensor(allowed_classes, dtype=torch.long, device=logits.device)
+    mask[allowed_t] = False
+    logits[:, mask] = fill_value
+    return logits
+
+@torch.no_grad()
+def _denice_routed_logits_with_episodes(
+    model,
+    X_batch: torch.Tensor,
+    context_detector,
+    seen_classes: List[int],
+    device: str,
+) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
+    """Return logits from the same routed path used for DeNICE prediction."""
+    model.eval()
+    num_classes = int(model.num_classes)
+    n = X_batch.shape[0]
+    routed_logits = torch.full(
+        (n, num_classes), -100.0, dtype=torch.float32, device=device
+    )
+
+    has_detector = bool(getattr(context_detector, "episode_classes", None))
+    if not has_detector:
+        model.clear_active_adapters()
+        out = model(X_batch)
+        unseen = _seen_unseen_mask(num_classes, seen_classes, out.device)
+        out[:, unseen] = -100.0
+        return out, None
+
+    episodes = _route_episodes(model, X_batch, context_detector)
+    unseen = _seen_unseen_mask(num_classes, seen_classes, device)
+
+    for ep in np.unique(episodes):
+        idx_np = np.where(episodes == ep)[0]
+        idx = torch.as_tensor(idx_np, dtype=torch.long, device=device)
+        model.set_active_context(int(ep))
+        out = model(X_batch.index_select(0, idx))
+        out[:, unseen] = -100.0
+        allowed = _allowed_classes_for_episode(
+            context_detector, int(ep), seen_classes, num_classes
+        )
+        routed_logits[idx] = _mask_logits_to_classes(out, allowed)
+
+    model.clear_active_adapters()
+    return routed_logits, np.asarray(episodes)
+
 @torch.no_grad()
 def _denice_predict_with_episodes(
     model,
@@ -75,39 +130,10 @@ def _denice_predict_with_episodes(
     The episode array is ``None`` when no context detector is available (so
     routing falls back to the plain seen-class mask).
     """
-    model.eval()
-    num_classes = int(model.num_classes)
-    n = X_batch.shape[0]
-    preds = torch.full((n,), -1, dtype=torch.long, device=device)
-
-    has_detector = bool(getattr(context_detector, "episode_classes", None))
-
-    if not has_detector:
-        model.clear_active_adapters()
-        out = model(X_batch)
-        unseen = _seen_unseen_mask(num_classes, seen_classes, out.device)
-        out[:, unseen] = float("-inf")
-        return out.argmax(dim=1), None
-
-    episodes = _route_episodes(model, X_batch, context_detector)
-    unseen = _seen_unseen_mask(num_classes, seen_classes, device)
-
-    for ep in np.unique(episodes):
-        idx_np = np.where(episodes == ep)[0]
-        idx = torch.as_tensor(idx_np, dtype=torch.long, device=device)
-        model.set_active_context(int(ep))
-        out = model(X_batch.index_select(0, idx))
-        out[:, unseen] = float("-inf")
-        allowed = _allowed_classes_for_episode(
-            context_detector, int(ep), seen_classes, num_classes
-        )
-        if allowed:
-            allowed_t = torch.as_tensor(allowed, dtype=torch.long, device=device)
-            out[:, allowed_t] = out[:, allowed_t] + 99999.0
-        preds[idx] = out.argmax(dim=1)
-
-    model.clear_active_adapters()
-    return preds, np.asarray(episodes)
+    logits, episodes = _denice_routed_logits_with_episodes(
+        model, X_batch, context_detector, seen_classes, device
+    )
+    return logits.argmax(dim=1), episodes
 
 
 def denice_predict_batch(
@@ -161,7 +187,6 @@ def evaluate_denice_model(
         }
 
     criterion = nn.CrossEntropyLoss()
-    num_classes = int(model.num_classes)
     all_preds: List[int] = []
     all_targets: List[int] = []
     total_loss = 0.0
@@ -178,17 +203,11 @@ def evaluate_denice_model(
         X_batch = X_test[i : i + batch_size].to(device)
         y_batch = y_test[i : i + batch_size].to(device)
 
-        # Loss on the assigned-context model (no adapters) with global unseen mask.
-        model.clear_active_adapters()
-        with torch.no_grad():
-            loss_out = model(X_batch)
-            unseen = _seen_unseen_mask(num_classes, seen_classes, loss_out.device)
-            loss_out[:, unseen] = float("-inf")
-            total_loss += criterion(loss_out, y_batch).item() * len(y_batch)
-
-        preds, episodes = _denice_predict_with_episodes(
+        routed_logits, episodes = _denice_routed_logits_with_episodes(
             model, X_batch, context_detector, seen_classes, device
         )
+        total_loss += criterion(routed_logits, y_batch).item() * len(y_batch)
+        preds = routed_logits.argmax(dim=1)
         all_preds.extend(preds.detach().cpu().tolist())
         all_targets.extend(y_batch.detach().cpu().tolist())
 

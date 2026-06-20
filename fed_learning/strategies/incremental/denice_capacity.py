@@ -9,12 +9,11 @@ Tracks per-layer capacity and decides, before training a new task, whether to:
     EMERGENCY_LOW_ADAPTER  enable an adapter on a low layer (last resort)
     GRACEFUL_RECYCLING     retire low-importance mature neurons, revive later
 
-Capacity pressure (MVP form, plan section 2.2)::
+Capacity pressure (plan section 2.2)::
 
-    kappa_i,l,t = alpha*(1 - rho0_i,l) + beta*u_i,l + delta*nu_i,t
+    kappa_i,l,t = alpha*(1 - rho0_i,l) + beta*u_i,l + gamma*dL_val + delta*nu_i,t
 
-(the ``gamma * dL`` validation term is intentionally dropped in the MVP because
-continual learning rarely has a full old validation set.)
+``dL_val`` defaults to 0 when no old validation/prototype check is available.
 """
 
 from __future__ import annotations
@@ -55,6 +54,7 @@ class CANCConfig:
 
     alpha: float = 0.45
     beta: float = 0.25
+    gamma: float = 0.15
     delta: float = 0.30
 
     # Which layers may receive an adapter. MVP = fc1 only.
@@ -64,6 +64,9 @@ class CANCConfig:
     recycle_min: int = 1
     recycle_max_per_layer: int = 8
     recycle_grace_tasks: int = 1
+    recycle_usage_recent_threshold: float = 0.10
+    recycle_max_old_metric_drop: float = 0.02
+    recycle_require_old_check: bool = True
 
     @classmethod
     def from_dict(cls, config: Optional[Dict]) -> "CANCConfig":
@@ -87,6 +90,7 @@ class CANCConfig:
             ),
             alpha=float(config.get("denice_alpha", defaults.alpha)),
             beta=float(config.get("denice_beta", defaults.beta)),
+            gamma=float(config.get("denice_gamma", defaults.gamma)),
             delta=float(config.get("denice_delta", defaults.delta)),
             enabled_adapter_layers=adapter_layers,
             enable_recycling=bool(config.get("denice_enable_recycling", defaults.enable_recycling)),
@@ -97,6 +101,24 @@ class CANCConfig:
             ),
             recycle_grace_tasks=int(
                 config.get("denice_recycle_grace_tasks", defaults.recycle_grace_tasks)
+            ),
+            recycle_usage_recent_threshold=float(
+                config.get(
+                    "denice_recycle_usage_recent_threshold",
+                    defaults.recycle_usage_recent_threshold,
+                )
+            ),
+            recycle_max_old_metric_drop=float(
+                config.get(
+                    "denice_recycle_max_old_metric_drop",
+                    defaults.recycle_max_old_metric_drop,
+                )
+            ),
+            recycle_require_old_check=bool(
+                config.get(
+                    "denice_recycle_require_old_check",
+                    defaults.recycle_require_old_check,
+                )
             ),
         )
 
@@ -204,16 +226,29 @@ class CapacityController:
     def __init__(self, config: Optional[CANCConfig] = None):
         self.config = config or CANCConfig()
 
-    def pressure(self, rho0: float, u: float, novelty: float) -> float:
+    def pressure(
+        self, rho0: float, u: float, novelty: float, val_loss_delta: float = 0.0
+    ) -> float:
         c = self.config
-        return float(c.alpha * (1.0 - rho0) + c.beta * u + c.delta * novelty)
+        return float(
+            c.alpha * (1.0 - rho0)
+            + c.beta * u
+            + c.gamma * max(0.0, float(val_loss_delta))
+            + c.delta * novelty
+        )
 
     def decide_layer(
-        self, layer: str, rho0: float, rhom: float, u: float, novelty: float
+        self,
+        layer: str,
+        rho0: float,
+        rhom: float,
+        u: float,
+        novelty: float,
+        val_loss_delta: float = 0.0,
     ) -> Dict[str, float]:
         """Return ``{action, kappa}`` for a single layer."""
         c = self.config
-        kappa = self.pressure(rho0, u, novelty)
+        kappa = self.pressure(rho0, u, novelty, val_loss_delta)
         is_low = layer in LOW_LAYERS
 
         # Rule 4: emergency adapter on a depleted low layer under strong shift.
@@ -238,6 +273,7 @@ class CapacityController:
         capacity_state: Dict[str, Dict[str, float]],
         novelty: float,
         consumption: Optional[Dict[str, float]] = None,
+        val_loss_delta: Optional[Dict[str, float] | float] = None,
         is_first_task: bool = False,
     ) -> Dict:
         """Produce per-layer actions and the concrete adapter/freeze plan.
@@ -269,7 +305,13 @@ class CapacityController:
 
         for name, st in capacity_state.items():
             u = float(consumption.get(name, 0.0))
-            decision = self.decide_layer(name, st["rho0"], st["rhom"], u, novelty)
+            if isinstance(val_loss_delta, dict):
+                d_loss = float(val_loss_delta.get(name, 0.0))
+            else:
+                d_loss = float(val_loss_delta or 0.0)
+            decision = self.decide_layer(
+                name, st["rho0"], st["rhom"], u, novelty, d_loss
+            )
             layers[name] = {
                 **decision,
                 "rho0": st["rho0"],
@@ -277,6 +319,7 @@ class CapacityController:
                 "retired": st.get("retired", 0.0),
                 "u": u,
                 "novelty": novelty,
+                "val_loss_delta": d_loss,
             }
 
         freeze_low = any(
