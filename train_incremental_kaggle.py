@@ -228,7 +228,9 @@ CONFIG = {
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
     "batch_size": 2048,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
-    "eval_every": 1,
+    # eval_every > rounds_per_task -> chỉ eval ở post-task (round cuối mỗi task).
+    # Đặt = rounds_per_task nếu muốn bật mid-task eval lại.
+    "eval_every": 9999,
     "round_checkpoint_every": 1,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
@@ -280,10 +282,11 @@ CONFIG = {
     "denice_debug": True,
     "denice_save_round_artifacts": False,
     "denice_checkpoint_format": "delta",
-    # Debug eval workload guard. Set both to None for full final evaluation.
-    "denice_eval_max_clients": 1,
-    "denice_eval_max_samples": 500000,
-    "denice_eval_progress_every_clients": 1,
+    # Eval workload: None = toàn bộ clients/samples (chỉ chạy 1 lần ở round cuối task).
+    # Đặt denice_eval_max_clients=5 nếu cần debug nhanh giữa chừng.
+    "denice_eval_max_clients": None,
+    "denice_eval_max_samples": None,
+    "denice_eval_progress_every_clients": 10,  # in progress mỗi 10 clients
     "denice_eval_progress_every_batches": 0,
     # DeNICE shared/global context detector (fix route_accuracy thấp)
     # True  -> pool binary activation sketches tất cả clients -> 1 detector chung
