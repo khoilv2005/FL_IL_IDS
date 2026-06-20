@@ -147,10 +147,35 @@ def _round_float_stats(values: List[float]) -> Dict[str, Optional[float]]:
 def _select_eval_clients(
     client_ids: List[int],
     max_clients: Optional[int],
+    context_detectors: Optional[Dict[int, ContextDetector]] = None,
+    seen_classes: Optional[List[int]] = None,
+    require_full_coverage: bool = True,
 ) -> List[int]:
+    ordered = list(client_ids)
+    if context_detectors is not None and seen_classes is not None:
+        required = {int(c) for c in seen_classes}
+
+        def coverage(cid: int) -> float:
+            detector = context_detectors.get(int(cid))
+            episode_classes = getattr(detector, "episode_classes", {}) if detector else {}
+            known = {
+                int(cls_id)
+                for classes in episode_classes.values()
+                for cls_id in classes
+            }
+            if not required:
+                return 1.0
+            return len(required & known) / max(1, len(required))
+
+        full = [cid for cid in ordered if coverage(cid) >= 1.0]
+        partial = sorted(
+            [cid for cid in ordered if cid not in full],
+            key=lambda cid: (-coverage(cid), int(cid)),
+        )
+        ordered = full if require_full_coverage and full else [*full, *partial]
     if max_clients is None or int(max_clients) <= 0:
-        return list(client_ids)
-    return list(client_ids)[: int(max_clients)]
+        return ordered
+    return ordered[: int(max_clients)]
 
 def _limit_eval_samples(
     X: torch.Tensor,
@@ -1236,7 +1261,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     denice_eval_max_samples,
                     seed=int(config.get("random_seed", config.get("seed", 42))) + task_id,
                 )
-                eval_ids = _select_eval_clients(active_ids, denice_eval_max_clients)
+                seen_classes_eval = _seen_classes(data_loader, task_id)
+                eval_ids = _select_eval_clients(
+                    active_ids,
+                    denice_eval_max_clients,
+                    context_detectors=context_detectors,
+                    seen_classes=seen_classes_eval,
+                    require_full_coverage=bool(
+                        config.get("denice_eval_require_full_coverage", True)
+                    ),
+                )
                 print(
                     f"  DeNICE eval workload [{task_id}:{round_id}]: "
                     f"clients={len(eval_ids)}/{len(active_ids)}, "
@@ -1249,7 +1283,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     models=models,
                     context_detectors=context_detectors,
                     test_data={"X_test": test_X, "y_test": test_y},
-                    seen_classes=_seen_classes(data_loader, task_id),
+                    seen_classes=seen_classes_eval,
                     batch_size=eval_batch_size,
                     device=device,
                     label=f"task={task_id},round={round_id}",
@@ -1423,7 +1457,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             denice_eval_max_samples,
             seed=int(config.get("random_seed", config.get("seed", 42))) + task_id,
         )
-        eval_ids = _select_eval_clients(active_ids, denice_eval_max_clients)
+        seen_classes_eval = _seen_classes(data_loader, task_id)
+        eval_ids = _select_eval_clients(
+            active_ids,
+            denice_eval_max_clients,
+            context_detectors=context_detectors,
+            seen_classes=seen_classes_eval,
+            require_full_coverage=bool(config.get("denice_eval_require_full_coverage", True)),
+        )
         print(
             f"  Starting post-task DeNICE eval: task={task_id}, "
             f"clients={len(eval_ids)}/{len(active_ids)}, "
@@ -1436,7 +1477,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             models=models,
             context_detectors=context_detectors,
             test_data={"X_test": test_X, "y_test": test_y},
-            seen_classes=_seen_classes(data_loader, task_id),
+            seen_classes=seen_classes_eval,
             batch_size=eval_batch_size,
             device=device,
             label=f"task={task_id},post_task",

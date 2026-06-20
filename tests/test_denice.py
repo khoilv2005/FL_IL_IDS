@@ -395,6 +395,28 @@ class TestCANC:
         assert delta > 0.0
 
 
+    def test_eval_client_selection_prefers_full_seen_class_coverage(self):
+        from fed_learning.training.decentralized_denice_il import _select_eval_clients
+
+        class Detector:
+            def __init__(self, classes):
+                self.episode_classes = {0: classes}
+
+        detectors = {
+            1: Detector([6, 7, 8, 9, 10, 11]),
+            2: Detector([6, 7, 8, 9, 10, 11]),
+            3: Detector([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
+            4: Detector([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
+        }
+        selected = _select_eval_clients(
+            [1, 2, 3, 4],
+            2,
+            context_detectors=detectors,
+            seen_classes=list(range(12)),
+            require_full_coverage=True,
+        )
+        assert selected == [3, 4]
+
 # ---------------------------------------------------------------------------
 # Strategy registration
 # ---------------------------------------------------------------------------
