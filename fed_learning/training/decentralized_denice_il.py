@@ -964,6 +964,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("denice_checkpoint_format must be 'full' or 'delta'.")
     batch_size = int(config.get("batch_size", 128))
     eval_batch_size = int(config.get("eval_batch_size", 8192))
+    post_task_eval = bool(config.get("denice_post_task_eval", True))
     denice_debug = bool(config.get("denice_debug", False))
     eval_progress_every_clients = max(
         1, int(config.get("denice_eval_progress_every_clients", 1))
@@ -1463,57 +1464,92 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             model.clear_active_adapters()
 
-        test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
-        test_X, test_y, sample_info = _limit_eval_samples(
-            test_X,
-            test_y,
-            denice_eval_max_samples,
-            seed=int(config.get("random_seed", config.get("seed", 42))) + task_id,
-        )
+        final_round_id = rounds_per_task - 1
         seen_classes_eval = _seen_classes(data_loader, task_id)
-        eval_ids = _select_eval_clients(
-            active_ids,
-            denice_eval_max_clients,
-            context_detectors=context_detectors,
-            seen_classes=seen_classes_eval,
-            require_full_coverage=bool(config.get("denice_eval_require_full_coverage", True)),
-        )
-        print(
-            f"  Starting post-task DeNICE eval: task={task_id}, "
-            f"clients={len(eval_ids)}/{len(active_ids)}, "
-            f"test_samples={len(test_y)}/{sample_info['total']}, "
-            f"sample_limited={sample_info['limited']}, batch_size={eval_batch_size}",
-            flush=True,
-        )
-        metrics = _evaluate_clients(
-            client_ids=eval_ids,
-            models=models,
-            context_detectors=context_detectors,
-            test_data={"X_test": test_X, "y_test": test_y},
-            seen_classes=seen_classes_eval,
-            batch_size=eval_batch_size,
-            device=device,
-            label=f"task={task_id},post_task",
-            progress_every_clients=eval_progress_every_clients,
-            progress_every_batches=eval_progress_every_batches,
-            use_shared_context=use_shared_context,
-            shared_context_scope=shared_context_scope,
-            context_groups=cluster_summary.get("groups", {}),
-            shared_context_max_per_episode=shared_context_max_per_episode,
-            shared_context_memo_per_class=shared_context_memo_per_class,
-            shared_context_seed=int(config.get("random_seed", config.get("seed", 42))),
-        )
-        metrics["eval_client_count"] = len(eval_ids)
-        metrics["eval_total_client_count"] = len(active_ids)
-        metrics["eval_sample_count"] = int(len(test_y))
-        metrics["eval_total_sample_count"] = int(sample_info["total"])
-        metrics["eval_sample_limited"] = bool(sample_info["limited"])
+        final_train_loss = None
+        if history.get("round_metrics"):
+            final_train_loss = history["round_metrics"][-1].get("train_loss")
+
+        if post_task_eval:
+            test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+            test_X, test_y, sample_info = _limit_eval_samples(
+                test_X,
+                test_y,
+                denice_eval_max_samples,
+                seed=int(config.get("random_seed", config.get("seed", 42))) + task_id,
+            )
+            eval_ids = _select_eval_clients(
+                active_ids,
+                denice_eval_max_clients,
+                context_detectors=context_detectors,
+                seen_classes=seen_classes_eval,
+                require_full_coverage=bool(config.get("denice_eval_require_full_coverage", True)),
+            )
+            print(
+                f"  Starting post-task DeNICE eval: task={task_id}, "
+                f"clients={len(eval_ids)}/{len(active_ids)}, "
+                f"test_samples={len(test_y)}/{sample_info['total']}, "
+                f"sample_limited={sample_info['limited']}, batch_size={eval_batch_size}",
+                flush=True,
+            )
+            metrics = _evaluate_clients(
+                client_ids=eval_ids,
+                models=models,
+                context_detectors=context_detectors,
+                test_data={"X_test": test_X, "y_test": test_y},
+                seen_classes=seen_classes_eval,
+                batch_size=eval_batch_size,
+                device=device,
+                label=f"task={task_id},post_task",
+                progress_every_clients=eval_progress_every_clients,
+                progress_every_batches=eval_progress_every_batches,
+                use_shared_context=use_shared_context,
+                shared_context_scope=shared_context_scope,
+                context_groups=cluster_summary.get("groups", {}),
+                shared_context_max_per_episode=shared_context_max_per_episode,
+                shared_context_memo_per_class=shared_context_memo_per_class,
+                shared_context_seed=int(config.get("random_seed", config.get("seed", 42))),
+            )
+            metrics["eval_client_count"] = len(eval_ids)
+            metrics["eval_total_client_count"] = len(active_ids)
+            metrics["eval_sample_count"] = int(len(test_y))
+            metrics["eval_total_sample_count"] = int(sample_info["total"])
+            metrics["eval_sample_limited"] = bool(sample_info["limited"])
+            metrics["eval_skipped"] = False
+        else:
+            print(
+                "  Post-task DeNICE eval skipped -> denice_post_task_eval=False",
+                flush=True,
+            )
+            metrics = {
+                "task": int(task_id),
+                "final_round": int(final_round_id),
+                "loss": final_train_loss,
+                "train_loss": final_train_loss,
+                "test_loss": None,
+                "accuracy": None,
+                "precision_macro": None,
+                "recall_macro": None,
+                "f1_macro": None,
+                "f1_weighted": None,
+                "route_accuracy": None,
+                "route_coverage": None,
+                "routing_mode": "skipped",
+                "eval_skipped": True,
+                "eval_reason": "denice_post_task_eval=False",
+                "per_client": {},
+                "eval_client_count": 0,
+                "eval_total_client_count": len(active_ids),
+                "eval_sample_count": 0,
+                "eval_total_sample_count": 0,
+                "eval_sample_limited": False,
+            }
         debug_history.append(
             {
                 "type": "task_summary",
                 "task": int(task_id),
                 "metrics": metrics,
-            "adapter_usage": {
+                "adapter_usage": {
                     int(cid): compute_adapter_usage(models[cid]) for cid in active_ids
                 },
                 "capacity_end": {
@@ -1521,18 +1557,23 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 },
             }
         )
-        final_round_id = rounds_per_task - 1
         history["task_accuracies"].append(
             {"task": task_id, "final_round": final_round_id, **metrics, "avg_forgetting": None}
         )
         history["task_forgetting"].append({"task": task_id, "avg_forgetting": None})
-        print(
-            "  Task summary -> "
-            f"accuracy={metrics['accuracy'] * 100:.2f}%, "
-            f"f1={metrics['f1_macro'] * 100:.2f}%, "
-            f"route_acc={metrics.get('route_accuracy', 0.0) * 100:.2f}% "
-            f"(routing={metrics.get('routing_mode', 'per-client')})"
-        )
+        if metrics.get("eval_skipped"):
+            print(
+                "  Task summary -> eval skipped, "
+                f"train_loss={final_train_loss if final_train_loss is not None else 'n/a'}"
+            )
+        else:
+            print(
+                "  Task summary -> "
+                f"accuracy={metrics['accuracy'] * 100:.2f}%, "
+                f"f1={metrics['f1_macro'] * 100:.2f}%, "
+                f"route_acc={metrics.get('route_accuracy', 0.0) * 100:.2f}% "
+                f"(routing={metrics.get('routing_mode', 'per-client')})"
+            )
 
         torch.save(
             {
