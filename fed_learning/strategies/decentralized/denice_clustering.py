@@ -51,8 +51,8 @@ class ClusteringConfig:
     delta_sim: float = 0.0  # <= 0 derives adaptive threshold from similarities.
     beta: float = 0.0
     epsilon: float = 1e-8
-    edge_top_k: int = 10
-    edge_quantile: float = 0.60
+    edge_top_k: int = 20
+    edge_quantile: float = 0.40
     min_signal_std: float = 0.02
 
 

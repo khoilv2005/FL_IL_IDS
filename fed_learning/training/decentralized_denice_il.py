@@ -596,8 +596,8 @@ def _aggregate_round(
     cluster_config = ClusteringConfig(
         delta_sim=delta_sim,
         theta_s=float(config.get("denice_cluster_theta_s", 0.5)),
-        edge_top_k=int(config.get("denice_cluster_edge_top_k", 10)),
-        edge_quantile=float(config.get("denice_cluster_edge_quantile", 0.60)),
+        edge_top_k=int(config.get("denice_cluster_edge_top_k", 20)),
+        edge_quantile=float(config.get("denice_cluster_edge_quantile", 0.40)),
         min_signal_std=float(config.get("denice_cluster_min_signal_std", 0.02)),
     )
     sim_weights = SimilarityWeights()
