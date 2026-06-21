@@ -47,6 +47,8 @@ def aggregation_weights(
     counts: List[float],
     reliabilities: List[float],
     self_index: Optional[int] = None,
+    count_transform: str = "log",
+    self_floor: float = 0.0,
     epsilon: float = 1e-8,
 ) -> np.ndarray:
     """Normalized alpha_ij over a collaboration group (plan section 2.5).
@@ -55,7 +57,11 @@ def aggregation_weights(
     (``alpha_ii = 1``) following Algorithm 2 phase 6.
     """
     s = np.maximum(np.asarray(similarities, dtype=np.float64), 0.0)
-    n = np.asarray(counts, dtype=np.float64)
+    n = np.maximum(np.asarray(counts, dtype=np.float64), 0.0)
+    if count_transform == "log":
+        n = np.log1p(n)
+    elif count_transform == "sqrt":
+        n = np.sqrt(n)
     r = np.maximum(np.asarray(reliabilities, dtype=np.float64), 0.0)
     raw = s * n * r
     total = float(raw.sum())
@@ -64,7 +70,24 @@ def aggregation_weights(
         if self_index is not None and 0 <= self_index < len(alpha):
             alpha[self_index] = 1.0
         return alpha
-    return raw / total
+    alpha = raw / total
+    if (
+        self_floor > 0.0
+        and self_index is not None
+        and 0 <= self_index < len(alpha)
+        and len(alpha) > 1
+        and alpha[self_index] < self_floor
+    ):
+        floor = min(float(self_floor), 1.0)
+        other_total = float(alpha.sum() - alpha[self_index])
+        if other_total > epsilon:
+            scale = (1.0 - floor) / other_total
+            alpha = alpha * scale
+            alpha[self_index] = floor
+        else:
+            alpha = np.zeros_like(alpha)
+            alpha[self_index] = 1.0
+    return alpha
 
 
 def _mature_mask_for_param(

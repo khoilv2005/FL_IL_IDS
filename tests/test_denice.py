@@ -523,6 +523,49 @@ class TestDecentralized:
         assert result["K_t"] >= 1
         assert result["labels"].shape == (4,)
 
+    def test_class_prototype_similarity_requires_shared_class(self):
+        from fed_learning.strategies.decentralized import (
+            ContextCapsule,
+            class_prototype_similarity,
+        )
+
+        proto_a = {name: np.ones(4, dtype=np.float32) for name in ["conv1", "conv2", "conv3", "gru"]}
+        proto_b = {name: np.ones(4, dtype=np.float32) for name in ["conv1", "conv2", "conv3", "gru"]}
+        base = dict(
+            task_id=0,
+            round_id=0,
+            activation_prototypes={},
+            age_mask={name: np.ones(4, dtype=np.float32) for name in ["conv1", "conv2", "conv3", "gru"]},
+            neuron_importance={name: np.ones(4, dtype=np.float32) for name in ["conv1", "conv2", "conv3", "gru"]},
+            capacity_histogram={name: {"young": 0.0, "learner": 0.0, "mature": 1.0} for name in ["conv1", "conv2", "conv3", "gru"]},
+            sample_count=100,
+            reliability=1.0,
+            context_detector_summary={},
+        )
+        cap_a = ContextCapsule(
+            client_id=0,
+            label_histogram={0: 1.0},
+            label_set=[0],
+            class_activation_prototypes={0: proto_a},
+            **base,
+        )
+        cap_b = ContextCapsule(
+            client_id=1,
+            label_histogram={1: 1.0},
+            label_set=[1],
+            class_activation_prototypes={1: proto_b},
+            **base,
+        )
+        cap_c = ContextCapsule(
+            client_id=2,
+            label_histogram={0: 1.0},
+            label_set=[0],
+            class_activation_prototypes={0: proto_b},
+            **base,
+        )
+        assert class_prototype_similarity(cap_a, cap_b) == 0.0
+        assert class_prototype_similarity(cap_a, cap_c) > 0.99
+
     def test_aggregation_weights_normalize(self):
         from fed_learning.strategies.decentralized import aggregation_weights
 
@@ -534,6 +577,20 @@ class TestDecentralized:
 
         alpha = aggregation_weights([0.0, 0.0], [0, 0], [0, 0], self_index=0)
         assert alpha[0] == 1.0
+
+    def test_aggregation_weights_self_floor_limits_overwrite(self):
+        from fed_learning.strategies.decentralized import aggregation_weights
+
+        alpha = aggregation_weights(
+            [1.0, 1.0],
+            [10, 1_000_000],
+            [1.0, 1.0],
+            self_index=0,
+            count_transform="log",
+            self_floor=0.25,
+        )
+        assert alpha[0] >= 0.25
+        assert abs(alpha.sum() - 1.0) < 1e-6
 
     def test_age_aware_aggregate_protects_mature(self):
         from fed_learning.strategies.decentralized import age_aware_aggregate

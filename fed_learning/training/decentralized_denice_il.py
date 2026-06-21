@@ -590,10 +590,16 @@ def _aggregate_round(
 ) -> Dict[str, Any]:
     """Cluster capsules and apply age-aware decentralized aggregation."""
     ordered_caps = [capsules[cid] for cid in client_ids]
-    # Threshold delta for the context collaboration graph E_ij = 1 iff s_ij > delta
-    # (Đề xuất section 6). Default 0.0 keeps the legacy full-cluster behavior.
+    # Context graph E_ij = 1 iff clients are context-compatible (proposal section 6).
+    # delta<=0 lets clustering derive an adaptive threshold and mutual top-k graph.
     delta_sim = float(config.get("denice_cluster_delta_sim", 0.0))
-    cluster_config = ClusteringConfig(delta_sim=delta_sim)
+    cluster_config = ClusteringConfig(
+        delta_sim=delta_sim,
+        theta_s=float(config.get("denice_cluster_theta_s", 0.5)),
+        edge_top_k=int(config.get("denice_cluster_edge_top_k", 5)),
+        edge_quantile=float(config.get("denice_cluster_edge_quantile", 0.75)),
+        min_signal_std=float(config.get("denice_cluster_min_signal_std", 0.02)),
+    )
     sim_weights = SimilarityWeights()
     cluster_result = dynamic_ap_cluster(
         ordered_caps, config=cluster_config, weights=sim_weights
@@ -602,7 +608,7 @@ def _aggregate_round(
     context_edges = cluster_result.get("edges")
     # When enabled, restrict each collaboration group to context neighbors
     # (s_ij > delta), i.e. G_i = {j | C[j]=C[i] AND s_ij > delta} (Đề xuất §6).
-    use_context_edges = bool(config.get("denice_collab_use_context_edges", False))
+    use_context_edges = bool(config.get("denice_collab_use_context_edges", True))
     require_label_overlap = bool(config.get("denice_require_label_overlap", True))
     centroid_gate_threshold = float(config.get("denice_centroid_gate_threshold", 0.75))
     agg_config = AggregationConfig(
@@ -671,7 +677,14 @@ def _aggregate_round(
             counts.append(float(capsules[gid].sample_count))
             rels.append(float(capsules[gid].reliability))
         self_index = group_ids.index(cid)
-        alphas = aggregation_weights(sims, counts, rels, self_index=self_index)
+        alphas = aggregation_weights(
+            sims,
+            counts,
+            rels,
+            self_index=self_index,
+            count_transform=str(config.get("denice_aggregation_count_transform", "log")),
+            self_floor=float(config.get("denice_aggregation_self_floor", 0.25)),
+        )
         alpha_values.extend(float(a) for a in alphas)
         alpha_debug[int(cid)] = {
             "group_ids": [int(x) for x in group_ids],

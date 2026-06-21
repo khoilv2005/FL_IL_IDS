@@ -1,16 +1,18 @@
-"""
-Context-aware Dynamic-K clustering for DeNICE.
+"""Context-aware dynamic clustering for DeNICE.
 
-Implements plan section 2.4 and ``ap_nice_fl_pseudocode.md`` Algorithm 1.
+The proposal clusters clients from NICE Context Capsules:
 
-Similarity between client i and neighbor j (plan / Đề xuất section 6)::
+    s_ij = l1*cos(P_i,c,P_j,c) + l2*J(M_i,M_j) + l3*O(Y_i,Y_j)
+         + l4*C(H_i,H_j) + l5*R_j - l6*D(Delta_i,Delta_j)
 
-    s_ij = l1*cos(P_i,P_j) + l2*J(M_i,M_j) + l3*O(Y_i,Y_j)
-         + l4*C(H_i,H_j)   + l5*R_j        - l6*D(Delta_i,Delta_j)
-         (+ l_imp*cos(A_i,A_j))   # extra importance term from the AP pseudocode
+Root-cause fixes implemented here:
 
-Affinity Propagation is used so the number of clusters ``K_t`` emerges
-dynamically. Silhouette score validates the clustering; low quality -> fallback.
+* activation prototypes stay class-aware; class prototypes are not averaged
+  across unrelated classes;
+* saturated terms such as age/capacity are down-weighted when they have almost
+  no variance across client pairs;
+* the collaboration graph is sparse by default via adaptive threshold + mutual
+  top-k, matching E_ij = 1 iff clients are context-compatible.
 """
 
 from __future__ import annotations
@@ -20,40 +22,40 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from .denice_capsule import ContextCapsule, CAPSULE_LAYERS
+from .denice_capsule import CAPSULE_LAYERS, ContextCapsule
 
 LARGE_NEG = -1e9
 
 
 @dataclass
 class SimilarityWeights:
-    """Weights for the context-aware similarity (plan section 2.4)."""
+    """Weights for the context-aware similarity (proposal section 6)."""
 
-    proto: float = 0.30        # lambda1 - cos(P_i, P_j)
-    age: float = 0.20          # lambda2 - Jaccard(M_i, M_j)
-    label: float = 0.20        # lambda3 - label overlap
-    capacity: float = 0.10     # lambda4 - capacity compatibility
-    reliability: float = 0.10  # lambda5 - neighbor reliability
-    update: float = 0.10       # lambda6 - update distance (subtracted)
-    importance: float = 0.10   # extra - cos(A_i, A_j)
+    proto: float = 0.35
+    age: float = 0.10
+    label: float = 0.25
+    capacity: float = 0.05
+    reliability: float = 0.10
+    update: float = 0.10
+    importance: float = 0.15
 
 
 @dataclass
 class ClusteringConfig:
-    """AP + silhouette parameters (Algorithm 1)."""
+    """AP + sparse context-graph parameters."""
 
     damping: float = 0.7
     t_max: int = 100
     conv_iter: int = 15
-    theta_s: float = 0.5       # silhouette threshold
-    delta_sim: float = 0.0      # min context similarity for a collaboration edge
-    beta: float = 0.0           # preference weight on data-rich/reliable clients
+    theta_s: float = 0.5
+    delta_sim: float = 0.0  # <= 0 derives adaptive threshold from similarities.
+    beta: float = 0.0
     epsilon: float = 1e-8
+    edge_top_k: int = 5
+    edge_quantile: float = 0.75
+    min_signal_std: float = 0.02
 
 
-# ----------------------------------------------------------------------------
-# Similarity primitives
-# ----------------------------------------------------------------------------
 def _safe_l2_normalize(x: np.ndarray, eps: float = 1e-8) -> np.ndarray:
     n = float(np.linalg.norm(x))
     if n < eps:
@@ -107,52 +109,172 @@ def update_distance(d_i: Optional[np.ndarray], d_j: Optional[np.ndarray]) -> flo
     return float(np.linalg.norm(d_i - d_j))
 
 
+def class_prototype_similarity(cap_i: ContextCapsule, cap_j: ContextCapsule) -> float:
+    """Compare P_i,c and P_j,c only on shared class slots."""
+    pi = getattr(cap_i, "class_activation_prototypes", {}) or {}
+    pj = getattr(cap_j, "class_activation_prototypes", {}) or {}
+    if not pi or not pj:
+        return _cosine(cap_i.proto_vector(), cap_j.proto_vector())
+
+    shared = sorted(set(int(c) for c in pi) & set(int(c) for c in pj))
+    if not shared:
+        return 0.0
+
+    sims: List[float] = []
+    for cls_id in shared:
+        li = pi.get(cls_id, {}) or {}
+        lj = pj.get(cls_id, {}) or {}
+        layer_sims = [
+            _cosine(np.asarray(li[name]).ravel(), np.asarray(lj[name]).ravel())
+            for name in CAPSULE_LAYERS
+            if name in li and name in lj
+        ]
+        if layer_sims:
+            sims.append(float(np.mean(layer_sims)))
+    return float(np.mean(sims)) if sims else 0.0
+
+
+def _similarity_components(cap_i: ContextCapsule, cap_j: ContextCapsule) -> Dict[str, float]:
+    return {
+        "proto": class_prototype_similarity(cap_i, cap_j),
+        "age": _jaccard_binary(cap_i.age_mask_vector(), cap_j.age_mask_vector()),
+        "importance": _cosine(cap_i.importance_vector(), cap_j.importance_vector()),
+        "label": label_overlap(cap_i.label_set, cap_j.label_set),
+        "capacity": capacity_compatibility(cap_i.capacity_vector(), cap_j.capacity_vector()),
+        "reliability": float(cap_j.reliability),
+        "update": update_distance(cap_i.update_summary, cap_j.update_summary),
+    }
+
+
+def _score_components(components: Dict[str, float], weights: SimilarityWeights) -> float:
+    return (
+        weights.proto * components["proto"]
+        + weights.age * components["age"]
+        + weights.importance * components["importance"]
+        + weights.label * components["label"]
+        + weights.capacity * components["capacity"]
+        + weights.reliability * components["reliability"]
+        - weights.update * components["update"]
+    )
+
+
 def context_similarity(
     cap_i: ContextCapsule, cap_j: ContextCapsule, weights: SimilarityWeights
 ) -> float:
-    """s_ij (plan section 2.4)."""
-    proto_sim = _cosine(cap_i.proto_vector(), cap_j.proto_vector())
-    age_sim = _jaccard_binary(cap_i.age_mask_vector(), cap_j.age_mask_vector())
-    imp_sim = _cosine(cap_i.importance_vector(), cap_j.importance_vector())
-    lab_sim = label_overlap(cap_i.label_set, cap_j.label_set)
-    cap_sim = capacity_compatibility(cap_i.capacity_vector(), cap_j.capacity_vector())
-    rel = float(cap_j.reliability)
-    upd = update_distance(cap_i.update_summary, cap_j.update_summary)
+    """s_ij (proposal section 6)."""
+    return _score_components(_similarity_components(cap_i, cap_j), weights)
 
-    return (
-        weights.proto * proto_sim
-        + weights.age * age_sim
-        + weights.importance * imp_sim
-        + weights.label * lab_sim
-        + weights.capacity * cap_sim
-        + weights.reliability * rel
-        - weights.update * upd
+
+def _adaptive_weights(
+    component_values: Dict[str, List[float]],
+    weights: SimilarityWeights,
+    min_signal_std: float,
+) -> SimilarityWeights:
+    raw = {
+        "proto": weights.proto,
+        "age": weights.age,
+        "importance": weights.importance,
+        "label": weights.label,
+        "capacity": weights.capacity,
+        "reliability": weights.reliability,
+    }
+    kept: Dict[str, float] = {}
+    for name, weight in raw.items():
+        vals = np.asarray(component_values.get(name, []), dtype=np.float64)
+        if vals.size == 0 or float(np.std(vals)) >= float(min_signal_std):
+            kept[name] = float(weight)
+        else:
+            kept[name] = 0.0
+
+    total_raw = sum(raw.values())
+    total_kept = sum(kept.values())
+    if total_kept <= 1e-12:
+        kept = raw
+        total_kept = total_raw
+    scale = total_raw / total_kept if total_kept > 0 else 1.0
+    update_vals = np.asarray(component_values.get("update", []), dtype=np.float64)
+    update_weight = (
+        weights.update
+        if update_vals.size == 0 or float(np.std(update_vals)) >= float(min_signal_std)
+        else 0.0
     )
+    return SimilarityWeights(
+        proto=kept["proto"] * scale,
+        age=kept["age"] * scale,
+        label=kept["label"] * scale,
+        capacity=kept["capacity"] * scale,
+        reliability=kept["reliability"] * scale,
+        update=update_weight,
+        importance=kept["importance"] * scale,
+    )
+
+
+def _sparse_edges(scores: np.ndarray, threshold: float, top_k: int) -> np.ndarray:
+    n = scores.shape[0]
+    finite = np.isfinite(scores) & (scores > LARGE_NEG / 2)
+    E = (scores > threshold) & finite
+    np.fill_diagonal(E, False)
+    if top_k and top_k > 0 and n > 1:
+        k = min(int(top_k), n - 1)
+        top = np.zeros((n, n), dtype=bool)
+        for i in range(n):
+            row = np.where(finite[i], scores[i], -np.inf)
+            row[i] = -np.inf
+            if np.isfinite(row).any():
+                idx = np.argpartition(row, -k)[-k:]
+                top[i, idx[np.isfinite(row[idx])]] = True
+        E = E & top & top.T
+    return E.astype(np.int8)
 
 
 def build_similarity_matrix(
     capsules: List[ContextCapsule],
     weights: SimilarityWeights,
     delta_sim: float,
+    config: Optional[ClusteringConfig] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Return (S, E_context). Off-diagonal entries below ``delta_sim`` are masked."""
+    """Return sparse similarity matrix S and context graph E."""
+    config = config or ClusteringConfig(delta_sim=delta_sim)
     n = len(capsules)
-    S = np.full((n, n), LARGE_NEG, dtype=np.float64)
-    E = np.zeros((n, n), dtype=np.int8)
+    raw_scores = np.full((n, n), LARGE_NEG, dtype=np.float64)
+    component_values: Dict[str, List[float]] = {
+        "proto": [],
+        "age": [],
+        "importance": [],
+        "label": [],
+        "capacity": [],
+        "reliability": [],
+        "update": [],
+    }
+    pair_components: Dict[Tuple[int, int], Dict[str, float]] = {}
     for i in range(n):
         for j in range(n):
             if i == j:
                 continue
-            s = context_similarity(capsules[i], capsules[j], weights)
-            if s > delta_sim:
-                S[i, j] = s
-                E[i, j] = 1
+            comps = _similarity_components(capsules[i], capsules[j])
+            pair_components[(i, j)] = comps
+            for key, value in comps.items():
+                component_values[key].append(float(value))
+
+    effective = _adaptive_weights(component_values, weights, config.min_signal_std)
+    for (i, j), comps in pair_components.items():
+        raw_scores[i, j] = _score_components(comps, effective)
+
+    finite_scores = raw_scores[(raw_scores > LARGE_NEG / 2) & np.isfinite(raw_scores)]
+    if finite_scores.size == 0:
+        return raw_scores, np.zeros((n, n), dtype=np.int8)
+    if delta_sim > 0:
+        threshold = float(delta_sim)
+    else:
+        q = min(0.99, max(0.0, float(config.edge_quantile)))
+        threshold = float(np.quantile(finite_scores, q))
+
+    E = _sparse_edges(raw_scores, threshold, int(config.edge_top_k))
+    S = np.full((n, n), LARGE_NEG, dtype=np.float64)
+    S[E.astype(bool)] = raw_scores[E.astype(bool)]
     return S, E
 
 
-# ----------------------------------------------------------------------------
-# Affinity Propagation (Algorithm 1, steps 3-6)
-# ----------------------------------------------------------------------------
 def affinity_propagation(
     S: np.ndarray,
     damping: float = 0.7,
@@ -160,19 +282,9 @@ def affinity_propagation(
     conv_iter: int = 15,
     seed: int = 0,
 ) -> Tuple[np.ndarray, List[int]]:
-    """Run AP on a (preference-filled) similarity matrix.
-
-    Returns ``(labels, exemplars)`` where ``labels[i]`` is the cluster index of
-    ``i`` (0..K-1) and ``exemplars`` are the chosen exemplar point indices.
-
-    Follows the standard AP convergence: exemplars are points whose
-    ``diag(A+R) > 0``; each point is then assigned to the exemplar with the
-    highest similarity. A tiny noise is added to break symmetric degeneracies
-    (same trick as scikit-learn).
-    """
+    """Run AP on a preference-filled similarity matrix."""
     n = S.shape[0]
     S = S.astype(np.float64).copy()
-    # Break ties / symmetric oscillation.
     rng = np.random.default_rng(seed)
     noise = (np.finfo(np.float64).eps * np.abs(S) + 1e-12) * rng.standard_normal((n, n))
     S = S + noise
@@ -181,9 +293,7 @@ def affinity_propagation(
     A = np.zeros((n, n))
     prev_exemplars = None
     stable = 0
-
     for _ in range(t_max):
-        # Responsibilities
         AS = A + S
         max1 = np.max(AS, axis=1, keepdims=True)
         idx1 = np.argmax(AS, axis=1)
@@ -194,7 +304,6 @@ def affinity_propagation(
         R_new[np.arange(n), idx1] = (S - max2)[np.arange(n), idx1]
         R = damping * R + (1 - damping) * R_new
 
-        # Availabilities
         Rp = np.maximum(R, 0)
         np.fill_diagonal(Rp, np.diag(R))
         col_sum = np.sum(Rp, axis=0, keepdims=True)
@@ -203,8 +312,8 @@ def affinity_propagation(
         A_new[np.arange(n), np.arange(n)] = diag_A
         A = damping * A + (1 - damping) * A_new
 
-        E_diag = np.diag(A) + np.diag(R)
-        exemplars = np.where(E_diag > 0)[0]
+        e_diag = np.diag(A) + np.diag(R)
+        exemplars = np.where(e_diag > 0)[0]
         if prev_exemplars is not None and np.array_equal(exemplars, prev_exemplars):
             stable += 1
         else:
@@ -213,41 +322,35 @@ def affinity_propagation(
         if stable >= conv_iter and len(exemplars) > 0:
             break
 
-    E_diag = np.diag(A) + np.diag(R)
-    exemplar_idx = np.where(E_diag > 0)[0]
-
+    e_diag = np.diag(A) + np.diag(R)
+    exemplar_idx = np.where(e_diag > 0)[0]
     if len(exemplar_idx) == 0:
-        # Degenerate: every point in one cluster.
-        return np.zeros(n, dtype=int), [int(np.argmax(E_diag))]
+        return np.zeros(n, dtype=int), [int(np.argmax(e_diag))]
 
-    # Assign each point to the exemplar with the highest similarity.
     assign = np.argmax(S[:, exemplar_idx], axis=1)
-    # Exemplars point to themselves.
     for c, k in enumerate(exemplar_idx):
         assign[k] = c
-    labels = assign.astype(int)
-    return labels, [int(k) for k in exemplar_idx]
+    return assign.astype(int), [int(k) for k in exemplar_idx]
 
 
 def silhouette_score(features: np.ndarray, labels: np.ndarray, eps: float = 1e-8) -> float:
-    """Average silhouette (Algorithm 1 step 7). Invalid (<2 clusters) -> nan."""
+    """Euclidean silhouette kept for backward-compatible tests/debug."""
     unique = np.unique(labels)
     n = len(labels)
     if len(unique) < 2 or n < 2:
         return float("nan")
-
-    # Pairwise euclidean distances.
     diff = features[:, None, :] - features[None, :, :]
     dist = np.sqrt(np.maximum(0.0, (diff ** 2).sum(axis=2)))
+    return _silhouette_from_distance(dist, labels, eps)
 
+
+def _silhouette_from_distance(dist: np.ndarray, labels: np.ndarray, eps: float = 1e-8) -> float:
+    unique = np.unique(labels)
     s_vals = []
-    for i in range(n):
+    for i in range(len(labels)):
         same = labels == labels[i]
         same[i] = False
-        if same.any():
-            a_i = float(dist[i, same].mean())
-        else:
-            a_i = 0.0
+        a_i = float(dist[i, same].mean()) if same.any() else 0.0
         b_i = np.inf
         for c in unique:
             if c == labels[i]:
@@ -262,8 +365,28 @@ def silhouette_score(features: np.ndarray, labels: np.ndarray, eps: float = 1e-8
     return float(np.mean(s_vals))
 
 
+def silhouette_score_from_similarity(S: np.ndarray, labels: np.ndarray, eps: float = 1e-8) -> float:
+    """Silhouette using the same context graph used by clustering."""
+    unique = np.unique(labels)
+    n = len(labels)
+    if len(unique) < 2 or n < 2:
+        return float("nan")
+    finite = (S > LARGE_NEG / 2) & np.isfinite(S)
+    vals = S[finite]
+    if vals.size == 0:
+        return float("nan")
+    lo, hi = float(vals.min()), float(vals.max())
+    sim = np.zeros_like(S, dtype=np.float64)
+    if hi - lo < eps:
+        sim[finite] = 1.0
+    else:
+        sim[finite] = (S[finite] - lo) / (hi - lo)
+    sim = np.maximum(sim, sim.T)
+    np.fill_diagonal(sim, 1.0)
+    return _silhouette_from_distance(1.0 - sim, labels, eps)
+
+
 def _client_features(capsules: List[ContextCapsule]) -> np.ndarray:
-    """f_i = concat(normalized proto/age/importance/capacity) (Algorithm 1 step 1)."""
     rows = []
     for cap in capsules:
         rows.append(
@@ -287,15 +410,10 @@ def dynamic_ap_cluster(
     config: Optional[ClusteringConfig] = None,
     weights: Optional[SimilarityWeights] = None,
 ) -> Dict:
-    """Dynamic-K AP clustering over capsules (Algorithm 1).
-
-    Returns dict with keys: ``labels``, ``exemplars``, ``K_t``, ``silhouette``,
-    ``similarity``, ``edges``, ``valid``.
-    """
+    """Dynamic-K AP clustering over NICE Context Capsules."""
     config = config or ClusteringConfig()
     weights = weights or SimilarityWeights()
     n = len(capsules)
-
     if n < 2:
         return {
             "labels": np.zeros(n, dtype=int),
@@ -307,8 +425,7 @@ def dynamic_ap_cluster(
             "valid": False,
         }
 
-    S, E = build_similarity_matrix(capsules, weights, config.delta_sim)
-
+    S, E = build_similarity_matrix(capsules, weights, config.delta_sim, config=config)
     valid = S[E.astype(bool)]
     p0 = float(np.median(valid)) if valid.size > 0 else 0.0
     counts = np.array([max(1, c.sample_count) for c in capsules], dtype=np.float64)
@@ -323,10 +440,7 @@ def dynamic_ap_cluster(
         S_ap, config.damping, config.t_max, config.conv_iter
     )
     k_t = len(set(labels.tolist()))
-
-    features = _client_features(capsules)
-    sil = silhouette_score(features, labels) if k_t >= 2 else float("nan")
-
+    sil = silhouette_score_from_similarity(S, labels) if k_t >= 2 else float("nan")
     is_valid = k_t >= 2 and np.isfinite(sil) and sil >= config.theta_s
 
     return {
@@ -345,7 +459,7 @@ def collaboration_group(
     labels: np.ndarray,
     neighbors: Optional[List[int]] = None,
 ) -> List[int]:
-    """G_i^t = {i} ∪ {j | C[j]=C[i] and j in N_i} (Algorithm 2 phase 5)."""
+    """G_i = {j | same cluster and context-compatible}, always including i."""
     same = [int(j) for j in range(len(labels)) if labels[j] == labels[client_idx]]
     if neighbors is not None:
         nb = set(int(j) for j in neighbors) | {int(client_idx)}

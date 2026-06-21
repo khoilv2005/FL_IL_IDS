@@ -17,6 +17,7 @@ from .denice_capsule import ContextCapsule, build_context_capsule
 from .denice_clustering import (
     ClusteringConfig,
     SimilarityWeights,
+    class_prototype_similarity,
     context_similarity,
     label_overlap,
     build_similarity_matrix,
@@ -39,6 +40,7 @@ __all__ = [
     "build_context_capsule",
     "ClusteringConfig",
     "SimilarityWeights",
+    "class_prototype_similarity",
     "context_similarity",
     "label_overlap",
     "build_similarity_matrix",
