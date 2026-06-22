@@ -1,0 +1,12 @@
+{
+  "algorithm": "denice",
+  "mode": "decentralized",
+  "task_start": 0,
+  "task_end": 5,
+  "completed_task": 5,
+  "num_task_records": 6,
+  "num_round_records": 120,
+  "num_cluster_records": 120,
+  "num_adapter_records": 447,
+  "num_debug_records": 138
+}

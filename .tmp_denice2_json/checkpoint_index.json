@@ -1,0 +1,1127 @@
+{
+  "schema_version": 2,
+  "checkpoints": [
+    {
+      "kind": "base",
+      "task_id": 0,
+      "round_id": -1,
+      "path": "checkpoint_task_0_base.pt",
+      "checkpoint_type": "denice_delta_base"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 0,
+      "path": "checkpoint_task_0_round_0.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": null,
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 1,
+      "path": "checkpoint_task_0_round_1.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_0.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 2,
+      "path": "checkpoint_task_0_round_2.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_1.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 3,
+      "path": "checkpoint_task_0_round_3.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_2.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 4,
+      "path": "checkpoint_task_0_round_4.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_3.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 5,
+      "path": "checkpoint_task_0_round_5.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_4.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 6,
+      "path": "checkpoint_task_0_round_6.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_5.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 7,
+      "path": "checkpoint_task_0_round_7.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_6.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 8,
+      "path": "checkpoint_task_0_round_8.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_7.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 9,
+      "path": "checkpoint_task_0_round_9.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_8.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 10,
+      "path": "checkpoint_task_0_round_10.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_9.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 11,
+      "path": "checkpoint_task_0_round_11.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_10.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 12,
+      "path": "checkpoint_task_0_round_12.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_11.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 13,
+      "path": "checkpoint_task_0_round_13.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_12.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 14,
+      "path": "checkpoint_task_0_round_14.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_13.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 15,
+      "path": "checkpoint_task_0_round_15.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_14.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 16,
+      "path": "checkpoint_task_0_round_16.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_15.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 17,
+      "path": "checkpoint_task_0_round_17.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_16.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 18,
+      "path": "checkpoint_task_0_round_18.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_17.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 0,
+      "round_id": 19,
+      "path": "checkpoint_task_0_round_19.pt",
+      "base": "checkpoint_task_0_base.pt",
+      "previous": "checkpoint_task_0_round_18.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "base",
+      "task_id": 1,
+      "round_id": -1,
+      "path": "checkpoint_task_1_base.pt",
+      "checkpoint_type": "denice_delta_base"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 0,
+      "path": "checkpoint_task_1_round_0.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": null,
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 1,
+      "path": "checkpoint_task_1_round_1.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_0.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 2,
+      "path": "checkpoint_task_1_round_2.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_1.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 3,
+      "path": "checkpoint_task_1_round_3.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_2.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 4,
+      "path": "checkpoint_task_1_round_4.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_3.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 5,
+      "path": "checkpoint_task_1_round_5.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_4.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 6,
+      "path": "checkpoint_task_1_round_6.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_5.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 7,
+      "path": "checkpoint_task_1_round_7.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_6.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 8,
+      "path": "checkpoint_task_1_round_8.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_7.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 9,
+      "path": "checkpoint_task_1_round_9.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_8.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 10,
+      "path": "checkpoint_task_1_round_10.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_9.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 11,
+      "path": "checkpoint_task_1_round_11.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_10.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 12,
+      "path": "checkpoint_task_1_round_12.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_11.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 13,
+      "path": "checkpoint_task_1_round_13.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_12.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 14,
+      "path": "checkpoint_task_1_round_14.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_13.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 15,
+      "path": "checkpoint_task_1_round_15.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_14.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 16,
+      "path": "checkpoint_task_1_round_16.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_15.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 17,
+      "path": "checkpoint_task_1_round_17.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_16.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 18,
+      "path": "checkpoint_task_1_round_18.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_17.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 1,
+      "round_id": 19,
+      "path": "checkpoint_task_1_round_19.pt",
+      "base": "checkpoint_task_1_base.pt",
+      "previous": "checkpoint_task_1_round_18.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "base",
+      "task_id": 2,
+      "round_id": -1,
+      "path": "checkpoint_task_2_base.pt",
+      "checkpoint_type": "denice_delta_base"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 0,
+      "path": "checkpoint_task_2_round_0.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": null,
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 1,
+      "path": "checkpoint_task_2_round_1.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_0.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 2,
+      "path": "checkpoint_task_2_round_2.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_1.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 3,
+      "path": "checkpoint_task_2_round_3.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_2.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 4,
+      "path": "checkpoint_task_2_round_4.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_3.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 5,
+      "path": "checkpoint_task_2_round_5.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_4.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 6,
+      "path": "checkpoint_task_2_round_6.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_5.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 7,
+      "path": "checkpoint_task_2_round_7.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_6.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 8,
+      "path": "checkpoint_task_2_round_8.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_7.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 9,
+      "path": "checkpoint_task_2_round_9.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_8.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 10,
+      "path": "checkpoint_task_2_round_10.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_9.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 11,
+      "path": "checkpoint_task_2_round_11.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_10.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 12,
+      "path": "checkpoint_task_2_round_12.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_11.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 13,
+      "path": "checkpoint_task_2_round_13.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_12.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 14,
+      "path": "checkpoint_task_2_round_14.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_13.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 15,
+      "path": "checkpoint_task_2_round_15.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_14.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 16,
+      "path": "checkpoint_task_2_round_16.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_15.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 17,
+      "path": "checkpoint_task_2_round_17.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_16.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 18,
+      "path": "checkpoint_task_2_round_18.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_17.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 2,
+      "round_id": 19,
+      "path": "checkpoint_task_2_round_19.pt",
+      "base": "checkpoint_task_2_base.pt",
+      "previous": "checkpoint_task_2_round_18.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "base",
+      "task_id": 3,
+      "round_id": -1,
+      "path": "checkpoint_task_3_base.pt",
+      "checkpoint_type": "denice_delta_base"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 0,
+      "path": "checkpoint_task_3_round_0.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": null,
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 1,
+      "path": "checkpoint_task_3_round_1.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_0.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 2,
+      "path": "checkpoint_task_3_round_2.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_1.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 3,
+      "path": "checkpoint_task_3_round_3.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_2.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 4,
+      "path": "checkpoint_task_3_round_4.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_3.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 5,
+      "path": "checkpoint_task_3_round_5.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_4.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 6,
+      "path": "checkpoint_task_3_round_6.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_5.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 7,
+      "path": "checkpoint_task_3_round_7.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_6.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 8,
+      "path": "checkpoint_task_3_round_8.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_7.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 9,
+      "path": "checkpoint_task_3_round_9.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_8.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 10,
+      "path": "checkpoint_task_3_round_10.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_9.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 11,
+      "path": "checkpoint_task_3_round_11.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_10.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 12,
+      "path": "checkpoint_task_3_round_12.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_11.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 13,
+      "path": "checkpoint_task_3_round_13.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_12.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 14,
+      "path": "checkpoint_task_3_round_14.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_13.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 15,
+      "path": "checkpoint_task_3_round_15.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_14.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 16,
+      "path": "checkpoint_task_3_round_16.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_15.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 17,
+      "path": "checkpoint_task_3_round_17.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_16.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 18,
+      "path": "checkpoint_task_3_round_18.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_17.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 3,
+      "round_id": 19,
+      "path": "checkpoint_task_3_round_19.pt",
+      "base": "checkpoint_task_3_base.pt",
+      "previous": "checkpoint_task_3_round_18.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "base",
+      "task_id": 4,
+      "round_id": -1,
+      "path": "checkpoint_task_4_base.pt",
+      "checkpoint_type": "denice_delta_base"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 0,
+      "path": "checkpoint_task_4_round_0.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": null,
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 1,
+      "path": "checkpoint_task_4_round_1.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_0.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 2,
+      "path": "checkpoint_task_4_round_2.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_1.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 3,
+      "path": "checkpoint_task_4_round_3.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_2.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 4,
+      "path": "checkpoint_task_4_round_4.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_3.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 5,
+      "path": "checkpoint_task_4_round_5.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_4.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 6,
+      "path": "checkpoint_task_4_round_6.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_5.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 7,
+      "path": "checkpoint_task_4_round_7.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_6.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 8,
+      "path": "checkpoint_task_4_round_8.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_7.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 9,
+      "path": "checkpoint_task_4_round_9.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_8.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 10,
+      "path": "checkpoint_task_4_round_10.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_9.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 11,
+      "path": "checkpoint_task_4_round_11.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_10.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 12,
+      "path": "checkpoint_task_4_round_12.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_11.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 13,
+      "path": "checkpoint_task_4_round_13.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_12.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 14,
+      "path": "checkpoint_task_4_round_14.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_13.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 15,
+      "path": "checkpoint_task_4_round_15.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_14.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 16,
+      "path": "checkpoint_task_4_round_16.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_15.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 17,
+      "path": "checkpoint_task_4_round_17.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_16.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 18,
+      "path": "checkpoint_task_4_round_18.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_17.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 4,
+      "round_id": 19,
+      "path": "checkpoint_task_4_round_19.pt",
+      "base": "checkpoint_task_4_base.pt",
+      "previous": "checkpoint_task_4_round_18.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "base",
+      "task_id": 5,
+      "round_id": -1,
+      "path": "checkpoint_task_5_base.pt",
+      "checkpoint_type": "denice_delta_base"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 0,
+      "path": "checkpoint_task_5_round_0.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": null,
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 1,
+      "path": "checkpoint_task_5_round_1.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_0.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 2,
+      "path": "checkpoint_task_5_round_2.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_1.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 3,
+      "path": "checkpoint_task_5_round_3.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_2.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 4,
+      "path": "checkpoint_task_5_round_4.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_3.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 5,
+      "path": "checkpoint_task_5_round_5.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_4.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 6,
+      "path": "checkpoint_task_5_round_6.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_5.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 7,
+      "path": "checkpoint_task_5_round_7.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_6.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 8,
+      "path": "checkpoint_task_5_round_8.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_7.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 9,
+      "path": "checkpoint_task_5_round_9.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_8.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 10,
+      "path": "checkpoint_task_5_round_10.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_9.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 11,
+      "path": "checkpoint_task_5_round_11.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_10.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 12,
+      "path": "checkpoint_task_5_round_12.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_11.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 13,
+      "path": "checkpoint_task_5_round_13.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_12.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 14,
+      "path": "checkpoint_task_5_round_14.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_13.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 15,
+      "path": "checkpoint_task_5_round_15.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_14.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 16,
+      "path": "checkpoint_task_5_round_16.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_15.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 17,
+      "path": "checkpoint_task_5_round_17.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_16.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 18,
+      "path": "checkpoint_task_5_round_18.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_17.pt",
+      "checkpoint_type": "denice_delta_round"
+    },
+    {
+      "kind": "round",
+      "task_id": 5,
+      "round_id": 19,
+      "path": "checkpoint_task_5_round_19.pt",
+      "base": "checkpoint_task_5_base.pt",
+      "previous": "checkpoint_task_5_round_18.pt",
+      "checkpoint_type": "denice_delta_round"
+    }
+  ]
+}

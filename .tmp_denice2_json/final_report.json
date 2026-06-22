@@ -1,0 +1,29 @@
+{
+  "algorithm": "denice",
+  "mode": "decentralized",
+  "completed_task": 5,
+  "final_metrics": {
+    "task": 5,
+    "final_round": 19,
+    "loss": 3.16529231005969,
+    "train_loss": 3.16529231005969,
+    "test_loss": null,
+    "accuracy": null,
+    "precision_macro": null,
+    "recall_macro": null,
+    "f1_macro": null,
+    "f1_weighted": null,
+    "route_accuracy": null,
+    "route_coverage": null,
+    "routing_mode": "skipped",
+    "eval_skipped": true,
+    "eval_reason": "denice_post_task_eval=False",
+    "per_client": {},
+    "eval_client_count": 0,
+    "eval_total_client_count": 98,
+    "eval_sample_count": 0,
+    "eval_total_sample_count": 0,
+    "eval_sample_limited": false,
+    "avg_forgetting": null
+  }
+}
