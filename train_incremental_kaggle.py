@@ -176,18 +176,18 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus or DeNICE decentralized IL (no server)
-    "mode": "decentralized",
+    "mode": "fed_il",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "dfca_il"
     # il:     "ewc", "lwf", "der", "nice", "denice"
     # decentralized: "plexus", "denice"
-    "algorithm": "denice",
+    "algorithm": "dfca_il",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental
-    "output_dir": "/kaggle/working/results_denice",
+    "output_dir": "/kaggle/working/results_dfca_il",
 
     # Split-run / continuation state
     # Set TRAIN_PHASE at the top of this file:
@@ -202,7 +202,7 @@ CONFIG = {
     "resume_state_path": target,
     # Always output IL resume artifacts to /kaggle/working/ for persistence
     # (downloadable from the Kaggle Output tab).
-    "resume_output_dir": "/kaggle/working/results_incremental",
+    "resume_output_dir": "/kaggle/working/results_dfca_il",
     # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
     # None = disable; set to 5 for safe recovery without bloating disk.
     #
@@ -345,11 +345,8 @@ CONFIG = {
     "dfca_participation_rate": 1.0,
     "dfca_debug_assignments": False,
     "dfca_debug_cluster_models": True,
-    # Checkpoint / resume
+    # Checkpoint / resume (per-round checkpoint inside each task)
     "round_checkpoint_every": 1,
-    "checkpoint_path": "/kaggle/input/datasets/phungvannamanh/dfca-outputs/results_dfca_20260521_051917/checkpoint_round_9.pt",
-    "auto_resume_latest": True,
-    "num_rounds": 15,
 }
 
 
@@ -357,8 +354,8 @@ CONFIG = {
 # MAIN
 # =============================================================================
 if __name__ == "__main__":
-    mode = CONFIG.get("mode", "decentralized").lower()
-    algo = CONFIG.get("algorithm", "dfca").lower()
+    mode = CONFIG.get("mode", "fed_il").lower()
+    algo = CONFIG.get("algorithm", "dfca_il").lower()
 
     if mode == "decentralized" and algo == "dfca":
         # ---- Pure DFCA ----

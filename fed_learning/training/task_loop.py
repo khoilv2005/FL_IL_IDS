@@ -1177,6 +1177,49 @@ def run_incremental_training(config: Dict[str, Any]):
                 seen_classes,
                 is_last_task,
             )
+        elif algo == "dfca_il":
+            dfca_rounds = config.get("rounds_per_task", 5)
+            print(f"\n  === DFCA-IL Training ({dfca_rounds} rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    task_id=task_id,
+                    verbose=True,
+                ),
+                dfca_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+            )
+        else:
+            # Fallback: generic round-based training for any algorithm
+            # not explicitly handled above (e.g., fedavg, fedprox, cgofed, etc.)
+            generic_rounds = config.get("rounds_per_task", 5)
+            print(f"\n  === {algo.upper()} Training ({generic_rounds} rounds) ===")
+            last_round_record = _run_tracked_rounds(
+                server,
+                lambda _r: server.train_round(
+                    participating_clients=participating_clients,
+                    verbose=True,
+                ),
+                generic_rounds,
+                task_id,
+                output_dir,
+                all_history,
+                all_test_data,
+                best_acc_per_task,
+                trainer,
+                config,
+                seen_classes,
+                is_last_task,
+            )
 
         # 5f. Post-Task Processing
         post_task_processing(
