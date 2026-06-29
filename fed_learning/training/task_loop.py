@@ -829,8 +829,39 @@ def run_incremental_training(config: Dict[str, Any]):
     resume_state = None
     if config.get("resume_state_path"):
         resume_state = load_continuation_state(config["resume_state_path"])
+
+        # Auto-convert raw checkpoint → continuation_state format
+        # Raw checkpoints (checkpoint_task_X.pt / checkpoint_task_X_round_Y.pt)
+        # don't have a "meta" key — they were saved by _save_fed_task_checkpoint.
+        if "meta" not in resume_state:
+            print("  ⚠ Loaded file is a raw checkpoint, converting to continuation format...")
+            raw_task_id = resume_state.get("task_id", 0)
+            raw_algo = resume_state.get("algorithm", config.get("algorithm", ""))
+            raw_mode = resume_state.get("mode", config.get("mode", "fed_il"))
+            resume_state = {
+                "meta": {
+                    "saved_at": "",
+                    "mode": raw_mode,
+                    "algorithm": raw_algo,
+                    "completed_task": raw_task_id,
+                    "resume_from_task": raw_task_id + 1,
+                    "output_dir": config.get("output_dir", ""),
+                },
+                "config": resume_state.get("config", config),
+                "model_state_dict": resume_state.get("model_state_dict"),
+                "global_neuron_ages": None,
+                "all_history": {"task_accuracies": [], "task_forgetting": [], "round_metrics": []},
+                "best_acc_per_task": resume_state.get("task_accuracies", {}),
+                "seen_classes": resume_state.get("seen_classes", []),
+                "trainer_state": None,
+                "server_state": None,
+                "aggregator_state": None,
+                "persistent_clients_state": {},
+            }
+            print(f"  ✓ Converted: resume from task {resume_state['meta']['resume_from_task']}")
+
         resume_algo = resume_state["meta"].get("algorithm")
-        if resume_algo != config["algorithm"]:
+        if resume_algo and resume_algo != config["algorithm"]:
             raise ValueError(
                 f"Resume state algorithm mismatch: {resume_algo} != {config['algorithm']}"
             )
