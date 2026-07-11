@@ -40,6 +40,25 @@ def _route_episodes(model, X_batch: torch.Tensor, context_detector) -> np.ndarra
     return context_detector.predict_episodes_batch(binary)
 
 
+def _route_episodes_with_scores(
+    model, X_batch: torch.Tensor, context_detector
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """Route + return ``(top1_episodes, chain_probs)`` using adapter-free acts.
+
+    ``chain_probs`` is ``[n, n_episodes]`` (episode index == column index) so a
+    top-k routing rule can ``argsort`` it directly. Falls back to ``(preds,
+    None)`` when the detector cannot produce per-episode scores.
+    """
+    acts = model.get_context_activations_per_sample(X_batch)
+    binary = context_detector.binarize_layer_activations(
+        {name: act.detach().cpu().numpy() for name, act in acts.items()}
+    )
+    if hasattr(context_detector, "predict_episodes_with_scores"):
+        preds, probs = context_detector.predict_episodes_with_scores(binary)
+        return np.asarray(preds), np.asarray(probs)
+    return np.asarray(context_detector.predict_episodes_batch(binary)), None
+
+
 def _seen_unseen_mask(num_classes: int, seen_classes: List[int], device) -> torch.Tensor:
     mask = torch.ones(num_classes, dtype=torch.bool, device=device)
     for cls_id in set(int(c) for c in (seen_classes or [])):
@@ -83,8 +102,23 @@ def _denice_routed_logits_with_episodes(
     context_detector,
     seen_classes: List[int],
     device: str,
+    route_mode: str = "hard",
+    route_topk: int = 1,
 ) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
-    """Return logits from the same routed path used for DeNICE prediction."""
+    """Return logits from the same routed path used for DeNICE prediction.
+
+    ``route_mode`` controls how routing translates into the class mask:
+
+    - ``"hard"`` (default): top-1 episode; classes outside that episode are
+      masked to ``-100`` (original DeNICE behaviour, unchanged).
+    - ``"topk"``: keep the union of allowed classes over the sample's top-k
+      episodes (``route_topk``). The adapter still follows the top-1 episode.
+    - ``"nomask"``: diagnostic upper bound - predict over all seen classes with
+      no episode masking (routing is still computed for the metric/adapter).
+
+    In every mode the returned episode array is the top-1 route, so
+    ``route_accuracy`` stays comparable across modes.
+    """
     model.eval()
     num_classes = int(model.num_classes)
     n = X_batch.shape[0]
@@ -100,19 +134,55 @@ def _denice_routed_logits_with_episodes(
         out[:, unseen] = -100.0
         return out, None
 
-    episodes = _route_episodes(model, X_batch, context_detector)
+    mode = str(route_mode or "hard").lower()
+    episodes, chain_probs = _route_episodes_with_scores(model, X_batch, context_detector)
     unseen = _seen_unseen_mask(num_classes, seen_classes, device)
+
+    # Per-sample top-k episode indices (only needed for the topk rule).
+    topk_eps: Optional[np.ndarray] = None
+    if mode == "topk" and chain_probs is not None and chain_probs.ndim == 2:
+        k = max(1, int(route_topk))
+        topk_eps = np.argsort(-chain_probs, axis=1)[:, :k]
+
+    allowed_cache: Dict[int, List[int]] = {}
+
+    def _allowed_for(ep: int) -> List[int]:
+        ep = int(ep)
+        if ep not in allowed_cache:
+            allowed_cache[ep] = _allowed_classes_for_episode(
+                context_detector, ep, seen_classes, num_classes
+            )
+        return allowed_cache[ep]
 
     for ep in np.unique(episodes):
         idx_np = np.where(episodes == ep)[0]
         idx = torch.as_tensor(idx_np, dtype=torch.long, device=device)
-        model.set_active_context(int(ep))
+        model.set_active_context(int(ep))  # adapter follows the top-1 route
         out = model(X_batch.index_select(0, idx))
         out[:, unseen] = -100.0
-        allowed = _allowed_classes_for_episode(
-            context_detector, int(ep), seen_classes, num_classes
-        )
-        routed_logits[idx] = _mask_logits_to_classes(out, allowed)
+
+        if mode == "nomask":
+            routed_logits[idx] = out
+            continue
+
+        if mode == "topk" and topk_eps is not None:
+            # Union of allowed classes over each sample's own top-k episodes.
+            allow = np.zeros((len(idx_np), num_classes), dtype=bool)
+            for col in range(topk_eps.shape[1]):
+                sub_eps = topk_eps[idx_np, col]
+                for e in np.unique(sub_eps):
+                    rows = np.where(sub_eps == e)[0]
+                    cols = _allowed_for(int(e))
+                    if rows.size and cols:
+                        allow[np.ix_(rows, np.asarray(cols, dtype=np.int64))] = True
+            allow_t = torch.as_tensor(allow, dtype=torch.bool, device=device)
+            routed_logits[idx] = torch.where(
+                allow_t, out, torch.full_like(out, -100.0)
+            )
+            continue
+
+        # hard (default): identical to the original top-1 masking path.
+        routed_logits[idx] = _mask_logits_to_classes(out, _allowed_for(int(ep)))
 
     model.clear_active_adapters()
     return routed_logits, np.asarray(episodes)
@@ -124,6 +194,8 @@ def _denice_predict_with_episodes(
     context_detector,
     seen_classes: List[int],
     device: str,
+    route_mode: str = "hard",
+    route_topk: int = 1,
 ) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
     """Predict class ids and return the routed episode per sample.
 
@@ -131,7 +203,7 @@ def _denice_predict_with_episodes(
     routing falls back to the plain seen-class mask).
     """
     logits, episodes = _denice_routed_logits_with_episodes(
-        model, X_batch, context_detector, seen_classes, device
+        model, X_batch, context_detector, seen_classes, device, route_mode, route_topk
     )
     return logits.argmax(dim=1), episodes
 
@@ -142,10 +214,12 @@ def denice_predict_batch(
     context_detector,
     seen_classes: List[int],
     device: str,
+    route_mode: str = "hard",
+    route_topk: int = 1,
 ) -> torch.Tensor:
     """Return predicted class ids for a batch using context-routed adapters."""
     preds, _episodes = _denice_predict_with_episodes(
-        model, X_batch, context_detector, seen_classes, device
+        model, X_batch, context_detector, seen_classes, device, route_mode, route_topk
     )
     return preds
 
@@ -168,6 +242,8 @@ def evaluate_denice_model(
     batch_size: int = 1024,
     progress_label: Optional[str] = None,
     progress_every_batches: int = 0,
+    route_mode: str = "hard",
+    route_topk: int = 1,
 ) -> Dict[str, float]:
     """Evaluate a DeNICE model with context-routed micro-adapters."""
     model.eval()
@@ -204,7 +280,7 @@ def evaluate_denice_model(
         y_batch = y_test[i : i + batch_size].to(device)
 
         routed_logits, episodes = _denice_routed_logits_with_episodes(
-            model, X_batch, context_detector, seen_classes, device
+            model, X_batch, context_detector, seen_classes, device, route_mode, route_topk
         )
         total_loss += criterion(routed_logits, y_batch).item() * len(y_batch)
         preds = routed_logits.argmax(dim=1)

@@ -49,14 +49,28 @@ class ContextDetector:
         episode_classes: Dict[episode, List[int]] - classes per episode
     """
 
-    def __init__(self, memo_per_class: int = 50):
-        """Khởi tạo bộ nhớ activation và các bộ phân loại context theo episode."""
+    def __init__(self, memo_per_class: int = 50, router_mode: str = "chained"):
+        """Khởi tạo bộ nhớ activation và các bộ phân loại context theo episode.
+
+        ``router_mode`` chooses how ``train_models`` fits the router:
+
+        - ``"chained"`` (default): the original NICE chain of binary logistic
+          regressions (positive=episode k, negative=all later episodes).
+        - ``"multiclass"``: a single multinomial ``LogisticRegression`` with
+          ``class_weight="balanced"`` over all episodes. This removes the
+          chain's "default-to-latest-episode" bias that collapses routing for
+          old classes as the number of episodes grows.
+        """
         self.memo_per_class = memo_per_class
+        self.router_mode = str(router_mode or "chained").lower()
         self.activation_memory: Dict[int, np.ndarray] = {}
         self.context_masks: Dict[int, np.ndarray] = {}
         self.binarize_thresholds: Optional[Dict[str, float]] = None
         self.context_learners: List[LogisticRegression] = []
         self.episode_classes: Dict[int, List[int]] = {}
+        # Populated only when router_mode == "multiclass".
+        self.multiclass_router: Optional[LogisticRegression] = None
+        self.multiclass_episodes: List[int] = []
 
     def _binarize_per_sample(self, model: NICEModel, data: torch.Tensor) -> np.ndarray:
         """Get per-sample binary activation vectors.
@@ -154,6 +168,12 @@ class ContextDetector:
         Sau bước này, context detector đã có chuỗi classifier để dự đoán episode.
         """
         self.context_learners = []
+        self.multiclass_router = None
+        self.multiclass_episodes = []
+
+        if getattr(self, "router_mode", "chained") == "multiclass":
+            self._train_multiclass_router(current_episode)
+            return
 
         if current_episode == 0:
             return
@@ -205,6 +225,51 @@ class ContextDetector:
                 self.context_learners.append(lr)
             except Exception:
                 self.context_learners.append(None)
+
+    def _train_multiclass_router(self, current_episode: int) -> None:
+        """Fit ONE balanced multinomial LR over all episodes (Solution C).
+
+        Uses the full (unmasked) binary sketch as features and the episode id as
+        the multiclass target, so a single softmax replaces the chained cascade.
+        ``class_weight="balanced"`` counters the heavy per-episode sample
+        imbalance. Falls back to leaving ``multiclass_router=None`` (routing then
+        defaults to the latest episode) when there is <2 episodes of data.
+        """
+        X_parts: List[np.ndarray] = []
+        y_parts: List[np.ndarray] = []
+        for ep in range(int(current_episode) + 1):
+            arr = self.activation_memory.get(ep)
+            if arr is None:
+                continue
+            arr = np.asarray(arr)
+            if arr.ndim == 1:
+                arr = arr.reshape(1, -1)
+            X_parts.append(arr)
+            y_parts.append(np.full(len(arr), int(ep), dtype=np.int64))
+
+        if len(X_parts) < 2:
+            return
+
+        # Guard against ragged feature dims across pooled episodes.
+        feature_dim = X_parts[0].shape[1]
+        if any(part.shape[1] != feature_dim for part in X_parts):
+            return
+
+        X = np.concatenate(X_parts, axis=0)
+        y = np.concatenate(y_parts, axis=0)
+        if len(np.unique(y)) < 2:
+            return
+
+        try:
+            clf = LogisticRegression(
+                max_iter=1000, solver="lbfgs", class_weight="balanced"
+            )
+            clf.fit(X, y)
+            self.multiclass_router = clf
+            self.multiclass_episodes = sorted(int(e) for e in np.unique(y))
+        except Exception:
+            self.multiclass_router = None
+            self.multiclass_episodes = []
 
     def _predict_episode_threshold_unused(self, binary_activations: np.ndarray) -> int:
         """Predict which episode a sample belongs to using chained probabilities (Eq.4).
@@ -303,6 +368,10 @@ class ContextDetector:
             binary_activations = binary_activations.reshape(1, -1)
 
         latest_episode = max(self.episode_classes.keys()) if self.episode_classes else 0
+
+        if getattr(self, "router_mode", "chained") == "multiclass":
+            return self._predict_multiclass_scores(binary_activations, latest_episode)
+
         if not self.context_learners:
             preds = np.full(len(binary_activations), latest_episode, dtype=int)
             probs = np.ones((len(binary_activations), 1), dtype=np.float32)
@@ -337,6 +406,36 @@ class ContextDetector:
         chain_probs[:, -1] = np.maximum(0.0, 1.0 - chain_probs.sum(axis=1))
         return chain_probs.argmax(axis=1).astype(int), chain_probs
 
+    def _predict_multiclass_scores(
+        self, binary_activations: np.ndarray, latest_episode: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Score episodes with the single balanced multinomial router (Sol. C).
+
+        Returns ``(argmax_episode, probs)`` where ``probs`` is ``[n, E+1]``
+        indexed by episode id (column j == episode j), matching the chained
+        detector's layout so top-k routing works unchanged.
+        """
+        n = len(binary_activations)
+        max_ep = int(max(latest_episode, *(self.multiclass_episodes or [latest_episode])))
+        full = np.zeros((n, max_ep + 1), dtype=np.float32)
+
+        router = self.multiclass_router
+        if router is None:
+            full[:, min(latest_episode, max_ep)] = 1.0
+            return full.argmax(axis=1).astype(int), full
+
+        try:
+            proba = router.predict_proba(binary_activations)
+        except Exception:
+            full[:, min(latest_episode, max_ep)] = 1.0
+            return full.argmax(axis=1).astype(int), full
+
+        for col, ep in enumerate(router.classes_):
+            ep = int(ep)
+            if 0 <= ep <= max_ep:
+                full[:, ep] = proba[:, col]
+        return full.argmax(axis=1).astype(int), full
+
     def predict_episodes_batch(self, binary_activations: np.ndarray) -> np.ndarray:
         """Batch episode prediction using official NICE tree_preds semantics."""
         preds, _probs = self.predict_episodes_with_scores(binary_activations)
@@ -348,6 +447,7 @@ def build_pooled_context_detector(
     memo_per_class: int = 50,
     max_per_episode: Optional[int] = None,
     seed: int = 0,
+    router_mode: str = "chained",
 ) -> "ContextDetector":
     """Build a shared/global context detector by pooling per-episode sketches.
 
@@ -372,7 +472,7 @@ def build_pooled_context_detector(
         A :class:`ContextDetector` with pooled ``activation_memory`` /
         ``context_masks`` / ``episode_classes`` and freshly fitted learners.
     """
-    pooled = ContextDetector(memo_per_class=memo_per_class)
+    pooled = ContextDetector(memo_per_class=memo_per_class, router_mode=router_mode)
 
     # Reuse the first available calibrated thresholds so capsule/eval binarize
     # the same way the sketches were stored.

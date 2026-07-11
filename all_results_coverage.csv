@@ -1,0 +1,13 @@
+algorithm,source_file,rows,missing_task_rounds,missing_preview,missing_f1_weighted_rows
+DeNICE,denice_eval_5seed_summary.csv,120,0,,0
+FL_CGoFed,FL_CGoFed (1).csv,120,0,,0
+FL_DER,Fed_DER (1).csv,120,0,,0
+FL_EWC,100 Clients(FedavgEWC).csv,120,0,,0
+FL_FedCBDR,FL_FedCBDR (1).csv,120,0,,0
+FL_LWF,100 Clients(FedavgLWF).csv,120,0,,0
+FL_NICE,FL_NICE (1).csv,120,0,,0
+IL_DER,results (2).zip::results_il_der_eval/all_round_metrics.csv,120,0,,0
+IL_EWC,IL_EWC (1).csv,120,0,,0
+IL_LWF,IL_LWF (1).csv,120,0,,0
+IL_NICE,IL_NICE (1).csv,120,0,,0
+Plexus,100 Clients(Plexus).csv,120,0,,0
