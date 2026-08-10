@@ -176,18 +176,18 @@ CONFIG = {
     #   - "fed_il": federated incremental learning
     #   - "il": local incremental learning
     #   - "decentralized": Plexus or DeNICE decentralized IL (no server)
-    "mode": "fed_il",
+    "mode": "decentralized",
     # Algorithm Selection
     # fed_il: "cgofed", "fedavg_ewc", "fedprox_ewc", "fedavg_lwf",
     #         "fedprox_lwf", "fedcbdr", "der", "nice", "glfc", "refed",
     #         "dfca_il"
     # il:     "ewc", "lwf", "der", "nice", "denice"
     # decentralized: "plexus", "denice"
-    "algorithm": "dfca_il",
+    "algorithm": "denice",
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental
-    "output_dir": "/kaggle/working/results_dfca_il",
+    "output_dir": "/kaggle/working/results_denice_il",
 
     # Split-run / continuation state
     # Set TRAIN_PHASE at the top of this file:
@@ -202,7 +202,7 @@ CONFIG = {
     "resume_state_path": target,
     # Always output IL resume artifacts to /kaggle/working/ for persistence
     # (downloadable from the Kaggle Output tab).
-    "resume_output_dir": "/kaggle/working/results_dfca_il",
+    "resume_output_dir": "/kaggle/working/results_denice_il",
     # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
     # None = disable; set to 5 for safe recovery without bloating disk.
     #
