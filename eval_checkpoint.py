@@ -8,6 +8,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import OrderedDict
 from pathlib import Path
@@ -24,13 +25,20 @@ from fed_learning.servers.nice_server import ContextDetector
 from fed_learning.strategies.incremental.nice import update_freeze_masks
 from fed_learning.training.checkpoint_state import restore_context_detector
 from fed_learning.training.denice_delta_checkpoint import load_denice_checkpoint
-from fed_learning.training.denice_eval import evaluate_denice_model
+from fed_learning.training.denice_eval import evaluate_denice_ensemble, evaluate_denice_model
 from fed_learning.training.der_worker import _reconstruct_model_structure
 from fed_learning.training.local_task_loop import _evaluate_model
 
 
 def _load_checkpoint(path: str) -> Dict[str, Any]:
-    return load_denice_checkpoint(path)
+    checkpoint = load_denice_checkpoint(path)
+    # Task-end resume checkpoints predate the delta schema and store ``task``
+    # rather than ``task_id``. Normalize at the boundary so every evaluator
+    # mode can consume both formats.
+    if "task_id" not in checkpoint and "task" in checkpoint:
+        checkpoint = dict(checkpoint)
+        checkpoint["task_id"] = int(checkpoint["task"])
+    return checkpoint
 
 def _dict_get_int(mapping: Dict[Any, Any], key: int, default=None):
     if key in mapping:
@@ -40,7 +48,12 @@ def _dict_get_int(mapping: Dict[Any, Any], key: int, default=None):
         return mapping[text_key]
     return default
 
-def _make_denice_client_model(ckpt: Dict[str, Any], client_id: int, device: str):
+def _make_denice_client_model(
+    ckpt: Dict[str, Any],
+    client_id: int,
+    device: str,
+    router_mode: str | None = None,
+):
     config = dict(ckpt["config"])
     input_shape = config["input_shape"]
     num_classes = config.get("num_classes", config.get("total_classes"))
@@ -79,9 +92,14 @@ def _make_denice_client_model(ckpt: Dict[str, Any], client_id: int, device: str)
         print(f"warning: client {client_id} unexpected keys: {len(unexpected)}")
 
     context_detector = ContextDetector(
-        memo_per_class=int(config.get("memo_per_class", 50))
+        memo_per_class=int(config.get("memo_per_class", 50)),
+        router_mode=str(router_mode or config.get("denice_router_mode", "chained")),
     )
     restore_context_detector(context_detector, denice_state.get("context_detector"))
+    if router_mode is not None and context_detector.router_mode != str(router_mode).lower():
+        context_detector.router_mode = str(router_mode).lower()
+        if context_detector.activation_memory:
+            context_detector.train_models(max(context_detector.activation_memory))
 
     model.to(device)
     model.eval()
@@ -137,6 +155,12 @@ def evaluate_checkpoint(
     checkpoint_path: str,
     device: str | None = None,
     data_dir: str | None = None,
+    route_mode: str = "hard",
+    route_topk: int = 1,
+    router_mode: str | None = None,
+    evaluation_mode: str = "local",
+    max_samples: int | None = None,
+    eval_seed: int = 42,
 ) -> Dict[str, Any]:
     ckpt = _load_checkpoint(checkpoint_path)
     config = dict(ckpt["config"])
@@ -149,14 +173,70 @@ def evaluate_checkpoint(
     task_id = int(ckpt["task_id"])
     data_loader = IncrementalDataLoader(data_dir=data_dir)
     test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
+    total_test_samples = int(len(test_y))
+    if max_samples is not None and 0 < int(max_samples) < len(test_y):
+        generator = torch.Generator().manual_seed(int(eval_seed) + int(task_id))
+        indices = torch.randperm(len(test_y), generator=generator)[: int(max_samples)]
+        test_X, test_y = test_X[indices], test_y[indices]
 
     if ckpt.get("algorithm") == "denice" and "client_model_states" in ckpt:
         client_ids = [
             int(cid) for cid in ckpt.get("client_ids", ckpt["client_model_states"].keys())
         ]
+        evaluation_mode = str(evaluation_mode or "local").lower()
+        if evaluation_mode not in {"local", "ensemble", "representative"}:
+            raise ValueError("evaluation_mode must be local, ensemble, or representative")
+        if evaluation_mode in {"ensemble", "representative"}:
+            pairs = []
+            selected_ids = client_ids
+            if evaluation_mode == "representative":
+                groups = (ckpt.get("cluster") or {}).get("groups", {})
+                seen_groups = set()
+                selected_ids = []
+                for cid in client_ids:
+                    group = tuple(sorted(set(int(x) for x in _dict_get_int(groups, int(cid), [cid]))))
+                    if group in seen_groups:
+                        continue
+                    seen_groups.add(group)
+                    selected_ids.append(min(group))
+                selected_ids = [cid for cid in selected_ids if cid in client_ids]
+            for cid in selected_ids:
+                pairs.append(_make_denice_client_model(ckpt, cid, device, router_mode=router_mode))
+            metrics = evaluate_denice_ensemble(
+                pairs,
+                {"X_test": test_X, "y_test": test_y},
+                device=device,
+                seen_classes=ckpt.get("seen_classes"),
+                batch_size=int(config.get("eval_batch_size", 8192)),
+                route_mode=route_mode,
+                route_topk=route_topk,
+            )
+            return {
+                "checkpoint": str(checkpoint_path),
+                "checkpoint_type": ckpt.get("checkpoint_type"),
+                "task_id": task_id,
+                "round_id": ckpt.get("round_id", ckpt.get("final_round_id")),
+                "algorithm": "denice",
+                "evaluation_mode": evaluation_mode,
+                "representative_client_ids": selected_ids,
+                "metrics": metrics,
+                "route_mode": route_mode,
+                "route_topk": int(route_topk),
+                "router_mode": router_mode or config.get("denice_router_mode", "chained"),
+                "checkpoint_sha256": hashlib.sha256(Path(checkpoint_path).read_bytes()).hexdigest(),
+                "config_sha256": hashlib.sha256(
+                    json.dumps(config, sort_keys=True, default=str).encode("utf-8")
+                ).hexdigest(),
+                "eval_sample_count": int(len(test_y)),
+                "eval_total_sample_count": total_test_samples,
+                "eval_seed": int(eval_seed),
+            }
+
         per_client = []
         for cid in client_ids:
-            model, context_detector = _make_denice_client_model(ckpt, cid, device)
+            model, context_detector = _make_denice_client_model(
+                ckpt, cid, device, router_mode=router_mode
+            )
             metrics = evaluate_denice_model(
                 model,
                 {"X_test": test_X, "y_test": test_y},
@@ -164,6 +244,8 @@ def evaluate_checkpoint(
                 context_detector=context_detector,
                 seen_classes=ckpt.get("seen_classes"),
                 batch_size=int(config.get("eval_batch_size", 8192)),
+                route_mode=route_mode,
+                route_topk=route_topk,
             )
             per_client.append({"client_id": cid, **metrics})
             del model
@@ -192,6 +274,16 @@ def evaluate_checkpoint(
             "eval_client_count": len(per_client),
             "metrics": mean_metrics,
             "per_client_metrics": per_client,
+            "route_mode": route_mode,
+            "route_topk": int(route_topk),
+            "router_mode": router_mode or config.get("denice_router_mode", "chained"),
+            "checkpoint_sha256": hashlib.sha256(Path(checkpoint_path).read_bytes()).hexdigest(),
+            "config_sha256": hashlib.sha256(
+                json.dumps(config, sort_keys=True, default=str).encode("utf-8")
+            ).hexdigest(),
+            "eval_sample_count": int(len(test_y)),
+            "eval_total_sample_count": total_test_samples,
+            "eval_seed": int(eval_seed),
         }
 
     model, context_detector = _make_model(ckpt, device)
@@ -218,13 +310,43 @@ def main() -> None:
     parser.add_argument("--device", default=None)
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--output", default=None)
+    parser.add_argument("--route-mode", default="hard", choices=["hard", "topk", "nomask"])
+    parser.add_argument("--route-topk", type=int, default=1)
+    parser.add_argument("--router-mode", default=None, choices=["chained", "multiclass"])
+    parser.add_argument(
+        "--evaluation-mode",
+        default="local",
+        choices=["local", "ensemble", "representative"],
+    )
+    parser.add_argument("--max-samples", type=int, default=None)
+    parser.add_argument("--eval-seed", type=int, default=42)
+    parser.add_argument(
+        "--route-modes",
+        default=None,
+        help="Comma-separated ablation modes; emits one result per mode on identical checkpoint/data.",
+    )
     args = parser.parse_args()
 
-    result = evaluate_checkpoint(
-        args.checkpoint,
-        device=args.device,
-        data_dir=args.data_dir,
-    )
+    modes = [args.route_mode]
+    if args.route_modes:
+        modes = [m.strip() for m in args.route_modes.split(",") if m.strip()]
+    if any(m not in {"hard", "topk", "nomask"} for m in modes):
+        parser.error("--route-modes accepts only hard,topk,nomask")
+    results = {
+        mode: evaluate_checkpoint(
+            args.checkpoint,
+            device=args.device,
+            data_dir=args.data_dir,
+            route_mode=mode,
+            route_topk=args.route_topk,
+            router_mode=args.router_mode,
+            evaluation_mode=args.evaluation_mode,
+            max_samples=args.max_samples,
+            eval_seed=args.eval_seed,
+        )
+        for mode in modes
+    }
+    result = results[modes[0]] if len(modes) == 1 else {"ablations": results}
     print(json.dumps(result, indent=2))
 
     if args.output:

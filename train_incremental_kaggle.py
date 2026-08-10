@@ -287,12 +287,22 @@ CONFIG = {
     "denice_eval_max_samples": 500000,
     "denice_eval_progress_every_clients": 10,  # in progress mỗi 10 clients
     "denice_eval_progress_every_batches": 0,
+    # Store routed, classifier-ceiling (nomask), route confusion and a
+    # representative-ensemble metric on exactly the same evaluation samples.
+    "denice_eval_route_mode": "hard",
+    "denice_eval_route_topk": 1,
+    "denice_eval_report_nomask": True,
+    "denice_eval_representative_ensemble": True,
     # DeNICE context routing bank. scope="cluster" follows the proposal:
     # share context capsule/sketches only inside the decentralized collaboration group.
     # Use scope="global" only for ablation/debug.
     "denice_shared_context_eval": True,
     "denice_shared_context_scope": "cluster",
     "denice_shared_context_max_per_episode": 512,
+    # Pool binary context sketches only when all contributors share a verified
+    # calibration/provenance; otherwise evaluation safely falls back to local.
+    "denice_shared_context_require_compatible_calibration": True,
+    "denice_router_mode": "multiclass",
 
     # DeNICE decentralized aggregation (Đề xuất §6-§7). Mặc định giữ hành vi cũ.
     # denice_aggregation_method: "weighted_mean" | "coordinate_median" | "trimmed_mean"
@@ -304,6 +314,13 @@ CONFIG = {
     "denice_require_label_overlap": True,
     "denice_centroid_gate_threshold": 0.75,
     "denice_cluster_delta_sim": 0.0,
+    # Invalid AP output must never drive neighbor aggregation.  A compatible
+    # prior valid assignment is reused; otherwise every client is self-only.
+    "denice_cluster_invalid_policy": "previous_valid_or_self_only",
+    # Prevent capacity collapse caused by union/max propagation of peer ages.
+    "denice_age_merge_policy": "consensus",
+    "denice_age_merge_consensus_threshold": 0.5,
+    "denice_min_free_capacity_ratio": 0.10,
 
     # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless
     # ablation explicitly tests retired-neuron reuse.

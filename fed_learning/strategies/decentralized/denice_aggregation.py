@@ -229,18 +229,65 @@ def age_aware_aggregate(
 def merge_neuron_ages(
     target_ages: Dict[str, np.ndarray],
     neighbor_ages: List[Dict[str, np.ndarray]],
+    neighbor_weights: Optional[List[float]] = None,
+    policy: str = "consensus",
+    consensus_threshold: float = 0.5,
 ) -> Dict[str, np.ndarray]:
-    """Conservative max-merge of neuron ages (plan section 2.5 / denice_protocol).
+    """Merge peer maturity without turning disjoint selections into a union.
 
-    A neuron stays mature if any peer considers it mature.
+    ``policy="consensus"`` (the default) only promotes a receiver neuron to
+    mature when peers that mark that same neuron mature contribute at least
+    ``consensus_threshold`` total neighbor weight.  Existing receiver maturity
+    is never reduced.  This prevents the old element-wise max rule from
+    exhausting every client's capacity after repeated decentralized rounds.
+
+    ``policy="max"`` is retained strictly for backwards-compatible ablations.
+    It must not be used by the DeNICE runner default.
     """
     merged = {k: np.asarray(v).copy() for k, v in target_ages.items()}
-    for ages in neighbor_ages:
-        for layer, arr in ages.items():
-            arr = np.asarray(arr)
-            if layer not in merged or merged[layer].shape != arr.shape:
+    if not neighbor_ages:
+        return merged
+
+    mode = str(policy or "consensus").lower()
+    if mode not in {"consensus", "max", "none"}:
+        raise ValueError(f"Unsupported neuron-age merge policy: {policy}")
+    if mode == "none":
+        return merged
+
+    if neighbor_weights is None:
+        weights = np.full(len(neighbor_ages), 1.0 / len(neighbor_ages), dtype=np.float64)
+    else:
+        weights = np.asarray(neighbor_weights, dtype=np.float64)
+        if weights.shape != (len(neighbor_ages),):
+            raise ValueError("neighbor_weights must align with neighbor_ages")
+        weights = np.maximum(weights, 0.0)
+        if float(weights.sum()) <= 0.0:
+            return merged
+
+    for layer, target in merged.items():
+        compatible = []
+        compatible_weights = []
+        for ages, weight in zip(neighbor_ages, weights):
+            arr = np.asarray(ages.get(layer, []))
+            if arr.shape != target.shape:
                 continue
-            merged[layer] = np.maximum(merged[layer], arr)
+            compatible.append(arr)
+            compatible_weights.append(float(weight))
+        if not compatible:
+            continue
+
+        stack = np.stack(compatible, axis=0)
+        if mode == "max":
+            merged[layer] = np.maximum(target, stack.max(axis=0))
+            continue
+
+        layer_weights = np.asarray(compatible_weights, dtype=np.float64)
+        if float(layer_weights.sum()) <= 0.0:
+            continue
+        mature_vote = ((stack >= 2) * layer_weights.reshape((-1,) + (1,) * target.ndim)).sum(axis=0)
+        promote = (target < 2) & (mature_vote >= float(consensus_threshold))
+        peer_max = stack.max(axis=0)
+        merged[layer] = np.where(promote, peer_max, target)
     return merged
 
 
@@ -248,6 +295,7 @@ def aggregate_adapters(
     target_adapter_states: Dict[str, "OrderedDict[str, torch.Tensor]"],
     neighbor_adapter_states: List[Dict[str, "OrderedDict[str, torch.Tensor]"]],
     neighbor_weights: List[float],
+    target_weight: float = 1.0,
 ) -> Dict[str, "OrderedDict[str, torch.Tensor]"]:
     """FedAvg adapters, matched strictly by adapter key (plan section 2.5).
 
@@ -256,8 +304,9 @@ def aggregate_adapters(
     adapter are skipped for that adapter's average.
     """
     merged: Dict[str, OrderedDict] = {}
+    target_weight = max(0.0, float(target_weight))
     for key, target_state in target_adapter_states.items():
-        contributors = [(target_state, 1.0)]
+        contributors = [(target_state, target_weight)]
         for nb_states, w in zip(neighbor_adapter_states, neighbor_weights):
             nb = nb_states.get(key)
             if nb is None:

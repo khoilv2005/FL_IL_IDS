@@ -14,6 +14,7 @@ Key Features:
     - end_task(): Age transition + freeze mask update + context detector training
 """
 
+import hashlib
 import time
 from collections import OrderedDict
 from typing import Dict, List, Optional
@@ -49,7 +50,12 @@ class ContextDetector:
         episode_classes: Dict[episode, List[int]] - classes per episode
     """
 
-    def __init__(self, memo_per_class: int = 50, router_mode: str = "chained"):
+    def __init__(
+        self,
+        memo_per_class: int = 50,
+        router_mode: str = "chained",
+        calibration_provenance: Optional[str] = None,
+    ):
         """Khởi tạo bộ nhớ activation và các bộ phân loại context theo episode.
 
         ``router_mode`` chooses how ``train_models`` fits the router:
@@ -71,6 +77,24 @@ class ContextDetector:
         # Populated only when router_mode == "multiclass".
         self.multiclass_router: Optional[LogisticRegression] = None
         self.multiclass_episodes: List[int] = []
+        # A shared context bank may only concatenate sketches that were
+        # binarized in the same feature/calibration space.  Callers may set an
+        # explicit provenance for a common reference encoder; otherwise the
+        # calibrated thresholds form a deterministic signature.
+        self.calibration_provenance = calibration_provenance
+
+    def calibration_signature(self) -> Optional[str]:
+        """Stable identifier for the binary feature space used by this router."""
+        if self.calibration_provenance:
+            provenance = str(self.calibration_provenance)
+            return provenance if ":" in provenance else f"provenance:{provenance}"
+        if not self.binarize_thresholds:
+            return None
+        payload = ";".join(
+            f"{name}:{float(value):.12g}"
+            for name, value in sorted(self.binarize_thresholds.items())
+        )
+        return "thresholds:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def _binarize_per_sample(self, model: NICEModel, data: torch.Tensor) -> np.ndarray:
         """Get per-sample binary activation vectors.
@@ -448,7 +472,8 @@ def build_pooled_context_detector(
     max_per_episode: Optional[int] = None,
     seed: int = 0,
     router_mode: str = "chained",
-) -> "ContextDetector":
+    require_compatible_calibration: bool = False,
+) -> Optional["ContextDetector"]:
     """Build a shared/global context detector by pooling per-episode sketches.
 
     DeNICE protocol section 15 (Level 2 context sharing) and section 23.3
@@ -472,7 +497,27 @@ def build_pooled_context_detector(
         A :class:`ContextDetector` with pooled ``activation_memory`` /
         ``context_masks`` / ``episode_classes`` and freshly fitted learners.
     """
-    pooled = ContextDetector(memo_per_class=memo_per_class, router_mode=router_mode)
+    if not detectors:
+        return None
+
+    signatures = {
+        det.calibration_signature()
+        for det in detectors
+        if getattr(det, "activation_memory", None)
+    }
+    if require_compatible_calibration and (
+        None in signatures or len(signatures) != 1
+    ):
+        # Never concatenate binary sketches from divergent model calibrations.
+        # The caller must fall back to the matching per-client router or supply
+        # an explicit common calibration provenance.
+        return None
+
+    pooled = ContextDetector(
+        memo_per_class=memo_per_class,
+        router_mode=router_mode,
+        calibration_provenance=(next(iter(signatures)) if len(signatures) == 1 else None),
+    )
 
     # Reuse the first available calibrated thresholds so capsule/eval binarize
     # the same way the sketches were stored.

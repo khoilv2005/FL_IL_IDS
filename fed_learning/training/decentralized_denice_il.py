@@ -63,7 +63,10 @@ from fed_learning.strategies.incremental.denice_recycling import (
     apply_graceful_recycling,
     revive_due_recycled_neurons,
 )
-from fed_learning.training.denice_eval import evaluate_denice_model
+from fed_learning.training.denice_eval import (
+    evaluate_denice_ensemble,
+    evaluate_denice_model,
+)
 from fed_learning.training.denice_delta_checkpoint import (
     cpu_client_model_states,
     save_delta_round_checkpoint,
@@ -73,6 +76,7 @@ from fed_learning.training.denice_delta_checkpoint import (
 from fed_learning.training.denice_usage import compute_adapter_usage
 from fed_learning.training.checkpoint_state import (
     CHECKPOINT_SCHEMA_VERSION,
+    restore_context_detector,
     snapshot_denice_state,
 )
 from fed_learning.training.local_task_loop import (
@@ -133,6 +137,41 @@ def _param_max_abs_diff(
 def _capacity_debug(model: DeNICEModel) -> Dict[str, Dict[str, float]]:
     return compute_capacity_state(model)
 
+
+def _enforce_minimum_free_capacity(
+    model: DeNICEModel,
+    task_start_ages: Optional[Dict[str, np.ndarray]],
+    minimum_free_ratio: float,
+) -> Dict[str, int]:
+    """Keep a deterministic reserve from neurons selected in the current task.
+
+    NICE promotes all rank-1 units at task end.  In the decentralized setting
+    that can leave no plastic capacity after the very first task, before CANC
+    or adapters have a chance to react.  Only units that were free at the
+    start of this task and remain learners are released back to free; mature
+    knowledge from earlier tasks is never reopened.
+    """
+    ratio = float(minimum_free_ratio)
+    if ratio <= 0.0 or not task_start_ages:
+        return {}
+    released: Dict[str, int] = {}
+    for layer, start in task_start_ages.items():
+        ranks = getattr(model, "unit_ranks", {}).get(layer)
+        start = np.asarray(start)
+        if ranks is None or np.asarray(ranks).shape != start.shape:
+            continue
+        required_free = int(np.ceil(ratio * len(ranks)))
+        deficit = required_free - int((ranks == 0).sum())
+        if deficit <= 0:
+            continue
+        eligible = np.flatnonzero((ranks == 1) & (start == 0))
+        if not len(eligible):
+            continue
+        chosen = eligible[:deficit]
+        ranks[chosen] = 0
+        released[layer] = int(len(chosen))
+    return released
+
 def _round_float_stats(values: List[float]) -> Dict[str, Optional[float]]:
     clean = [float(v) for v in values if np.isfinite(float(v))]
     if not clean:
@@ -143,6 +182,139 @@ def _round_float_stats(values: List[float]) -> Dict[str, Optional[float]]:
         "mean": float(arr.mean()),
         "max": float(arr.max()),
     }
+
+
+def _effective_cluster_assignment(
+    cluster_result: Dict[str, Any],
+    client_ids: List[int],
+    previous_valid_cluster: Optional[Dict[str, Any]] = None,
+    invalid_policy: str = "previous_valid_or_self_only",
+) -> Tuple[np.ndarray, Optional[np.ndarray], str, Optional[str], Optional[Dict[str, Any]]]:
+    """Resolve a safe collaboration assignment from a raw AP result.
+
+    AP's ``valid`` flag is a control-flow signal, not merely diagnostic data.
+    When a round is invalid, reusing labels is safe only when they were fitted
+    for exactly the same ordered client set. Otherwise each client remains in
+    a singleton group, avoiding invalid neighbor aggregation and age transfer.
+    """
+    raw_labels = np.asarray(cluster_result["labels"], dtype=np.int64)
+    if raw_labels.shape != (len(client_ids),):
+        raise ValueError("cluster labels must align with client_ids")
+
+    if bool(cluster_result.get("valid", False)):
+        next_state = {
+            "client_ids": tuple(int(cid) for cid in client_ids),
+            "labels": raw_labels.copy(),
+        }
+        return raw_labels, cluster_result.get("edges"), "raw_valid", None, next_state
+
+    policy = str(invalid_policy or "previous_valid_or_self_only").lower()
+    if policy not in {"previous_valid_or_self_only", "self_only"}:
+        raise ValueError(f"Unsupported invalid cluster policy: {invalid_policy}")
+
+    if policy == "previous_valid_or_self_only" and previous_valid_cluster is not None:
+        previous_ids = tuple(int(cid) for cid in previous_valid_cluster.get("client_ids", ()))
+        previous_labels = np.asarray(previous_valid_cluster.get("labels", []), dtype=np.int64)
+        if previous_ids == tuple(int(cid) for cid in client_ids) and previous_labels.shape == raw_labels.shape:
+            return (
+                previous_labels.copy(),
+                None,
+                "previous_valid",
+                "raw_cluster_invalid_reused_previous_valid_labels",
+                previous_valid_cluster,
+            )
+
+    return (
+        np.arange(len(client_ids), dtype=np.int64),
+        None,
+        "self_only",
+        "raw_cluster_invalid_without_compatible_previous_valid_labels",
+        previous_valid_cluster,
+    )
+
+
+def _bootstrap_source_client(
+    models: Dict[int, DeNICEModel],
+    context_detectors: Dict[int, ContextDetector],
+    exclude_client: Optional[int] = None,
+) -> Optional[int]:
+    """Choose a deterministic current representative for a late joiner.
+
+    More covered contexts are preferred; remaining ties prefer a model with
+    more free capacity and finally the smallest id for reproducibility.
+    """
+    if not models:
+        return None
+
+    def score(cid: int) -> Tuple[int, int, float, int]:
+        detector = context_detectors.get(int(cid))
+        covered = {
+            int(label)
+            for labels in getattr(detector, "episode_classes", {}).values()
+            for label in labels
+        }
+        capacity = _capacity_debug(models[cid])
+        free = float(np.mean([v["rho0"] for v in capacity.values()])) if capacity else 0.0
+        return (len(covered), len(getattr(detector, "episode_classes", {})), free, -int(cid))
+
+    candidates = [int(cid) for cid in models if int(cid) != exclude_client]
+    return max(candidates, key=score) if candidates else None
+
+
+def _bootstrap_denice_model(
+    source_model: DeNICEModel,
+    config: Dict[str, Any],
+    device: torch.device,
+) -> DeNICEModel:
+    """Clone a compatible DeNICE representative, including adapter structure."""
+    model = _make_model(config, device)
+    for meta in source_model.get_adapter_registry_state().values():
+        model.add_adapter(
+            int(meta["context_id"]),
+            str(meta["layer_name"]),
+            rank=int(meta["rank"]),
+            set_active=False,
+        )
+    model.load_state_dict(_state_dict(source_model), strict=True)
+    model.set_neuron_ages_state(source_model.get_neuron_ages_state())
+    if hasattr(source_model, "get_recycling_state"):
+        model.set_recycling_state(source_model.get_recycling_state())
+    update_freeze_masks(model)
+    if hasattr(model, "freeze_bn_for_mature"):
+        model.freeze_bn_for_mature()
+    model.clear_active_adapters()
+    return model.to(device)
+
+
+def _catch_up_rejoining_model(
+    target_model: DeNICEModel,
+    source_model: DeNICEModel,
+    device: torch.device,
+) -> float:
+    """Synchronize only target-plastic parameters from a current representative."""
+    for meta in source_model.get_adapter_registry_state().values():
+        if not target_model.has_adapter(
+            int(meta["context_id"]), str(meta["layer_name"]), int(meta["rank"])
+        ):
+            target_model.add_adapter(
+                int(meta["context_id"]),
+                str(meta["layer_name"]),
+                rank=int(meta["rank"]),
+                set_active=False,
+            )
+    before = _state_dict(target_model)
+    source = _state_dict(source_model)
+    updated = age_aware_aggregate(
+        before,
+        target_model.get_neuron_ages_state(),
+        [_delta_to_target(before, source)],
+        np.asarray([1.0]),
+        AggregationConfig(eta=1.0, protect_mature=True),
+    )
+    target_model.load_state_dict(updated, strict=False)
+    target_model.clear_active_adapters()
+    target_model.to(device)
+    return _param_max_abs_diff(before, updated)
 
 def _select_eval_clients(
     client_ids: List[int],
@@ -587,6 +759,7 @@ def _aggregate_round(
     capsules: Dict[int, Any],
     config: Dict[str, Any],
     device: torch.device,
+    previous_valid_cluster: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Cluster capsules and apply age-aware decentralized aggregation."""
     ordered_caps = [capsules[cid] for cid in client_ids]
@@ -604,8 +777,19 @@ def _aggregate_round(
     cluster_result = dynamic_ap_cluster(
         ordered_caps, config=cluster_config, weights=sim_weights
     )
-    labels = cluster_result["labels"]
-    context_edges = cluster_result.get("edges")
+    raw_labels = np.asarray(cluster_result["labels"], dtype=np.int64)
+    labels, context_edges, cluster_policy, fallback_reason, next_valid_cluster = (
+        _effective_cluster_assignment(
+            cluster_result,
+            client_ids,
+            previous_valid_cluster,
+            invalid_policy=str(
+                config.get(
+                    "denice_cluster_invalid_policy", "previous_valid_or_self_only"
+                )
+            ),
+        )
+    )
     # When enabled, restrict each collaboration group to context neighbors
     # (s_ij > delta), i.e. G_i = {j | C[j]=C[i] AND s_ij > delta} (Đề xuất §6).
     use_context_edges = bool(config.get("denice_collab_use_context_edges", True))
@@ -625,6 +809,7 @@ def _aggregate_round(
     new_ages: Dict[int, Dict[str, np.ndarray]] = {}
     groups: Dict[int, List[int]] = {}
     alpha_debug: Dict[int, Dict[str, Any]] = {}
+    age_peer_promotions: Dict[int, Dict[str, int]] = {}
     group_sizes: List[int] = []
     alpha_values: List[float] = []
 
@@ -719,12 +904,29 @@ def _aggregate_round(
             old_adapter_states[cid],
             neighbor_adapter_states,
             neighbor_adapter_weights,
+            target_weight=float(alphas[self_index]),
+        )
+        age_merge_policy = str(config.get("denice_age_merge_policy", "consensus"))
+        age_consensus_threshold = float(
+            config.get("denice_age_merge_consensus_threshold", 0.5)
         )
         _inject_adapter_states(new_states[cid], merged_adapters)
         new_ages[cid] = merge_neuron_ages(
             old_ages[cid],
             [old_ages[gid] for gid in group_ids if gid != cid],
+            neighbor_weights=neighbor_adapter_weights,
+            policy=age_merge_policy,
+            consensus_threshold=age_consensus_threshold,
         )
+        age_peer_promotions[int(cid)] = {
+            layer: int(
+                ((np.asarray(new_ages[cid][layer]) >= 2)
+                 & (np.asarray(old_ages[cid][layer]) < 2)).sum()
+            )
+            for layer in old_ages[cid]
+            if layer in new_ages[cid]
+            and np.asarray(new_ages[cid][layer]).shape == np.asarray(old_ages[cid][layer]).shape
+        }
 
     for cid in client_ids:
         models[cid].load_state_dict(new_states[cid], strict=False)
@@ -734,6 +936,26 @@ def _aggregate_round(
             models[cid].freeze_bn_for_mature()
         models[cid].to(device)
 
+    capacity_after_aggregation = {
+        int(cid): _capacity_debug(models[cid]) for cid in client_ids
+    }
+    capacity_guardrails: Dict[int, Dict[str, Any]] = {}
+    for cid, state in capacity_after_aggregation.items():
+        free_by_layer = {layer: float(info.get("rho0", 0.0)) for layer, info in state.items()}
+        min_free = min(free_by_layer.values()) if free_by_layer else 1.0
+        level = (
+            "critical" if min_free < 0.01 else
+            "severe" if min_free < 0.05 else
+            "warning" if min_free < 0.10 else
+            None
+        )
+        if level is not None:
+            capacity_guardrails[int(cid)] = {
+                "level": level,
+                "min_rho0": float(min_free),
+                "layers": [layer for layer, rho0 in free_by_layer.items() if rho0 < 0.10],
+            }
+
     label_map = {int(cid): int(labels[i]) for i, cid in enumerate(client_ids)}
     cluster_sizes = {
         int(label): int((labels == label).sum())
@@ -742,13 +964,18 @@ def _aggregate_round(
     sim_matrix = np.asarray(cluster_result.get("similarity", np.zeros((0, 0))))
     finite_sim = sim_matrix[(sim_matrix > -1e8) & np.isfinite(sim_matrix)]
     return {
-        "K_t": int(cluster_result["K_t"]),
+        "K_t": int(len(set(int(x) for x in labels.tolist()))),
+        "raw_K_t": int(cluster_result["K_t"]),
+        "effective_K_t": int(len(set(int(x) for x in labels.tolist()))),
         "silhouette": (
             None
             if not np.isfinite(cluster_result["silhouette"])
             else float(cluster_result["silhouette"])
         ),
         "valid": bool(cluster_result["valid"]),
+        "raw_valid": bool(cluster_result["valid"]),
+        "effective_policy": cluster_policy,
+        "fallback_reason": fallback_reason,
         "labels": label_map,
         "groups": groups,
         "cluster_sizes": cluster_sizes,
@@ -756,6 +983,10 @@ def _aggregate_round(
         "group_size_stats": _round_float_stats([float(x) for x in group_sizes]),
         "alpha_stats": _round_float_stats(alpha_values),
         "alpha_debug": alpha_debug,
+        "age_peer_promotions": age_peer_promotions,
+        "capacity_after_aggregation": capacity_after_aggregation,
+        "capacity_guardrails": capacity_guardrails,
+        "next_valid_cluster": next_valid_cluster,
     }
 
 
@@ -765,6 +996,8 @@ def _build_shared_context_detector(
     max_per_episode: Optional[int],
     seed: int,
     client_ids: Optional[List[int]] = None,
+    router_mode: str = "chained",
+    require_compatible_calibration: bool = True,
 ) -> Optional[ContextDetector]:
     """Pool selected clients' per-episode sketches into a context bank.
 
@@ -790,8 +1023,10 @@ def _build_shared_context_detector(
         memo_per_class=memo_per_class,
         max_per_episode=max_per_episode,
         seed=seed,
+        router_mode=router_mode,
+        require_compatible_calibration=require_compatible_calibration,
     )
-    if not shared.activation_memory:
+    if shared is None or not shared.activation_memory:
         return None
     return shared
 
@@ -814,7 +1049,13 @@ def _evaluate_clients(
     shared_context_max_per_episode: Optional[int] = None,
     shared_context_memo_per_class: int = 50,
     shared_context_seed: int = 0,
-) -> Dict[str, float]:
+    router_mode: str = "chained",
+    require_compatible_calibration: bool = True,
+    route_mode: str = "hard",
+    route_topk: int = 1,
+    report_nomask: bool = True,
+    report_representative_ensemble: bool = True,
+) -> Dict[str, Any]:
     metrics = []
     per_client = {}
     total_samples = int(len(test_data.get("y_test", [])))
@@ -833,6 +1074,8 @@ def _evaluate_clients(
             memo_per_class=shared_context_memo_per_class,
             max_per_episode=shared_context_max_per_episode,
             seed=shared_context_seed,
+            router_mode=router_mode,
+            require_compatible_calibration=require_compatible_calibration,
         )
     if not use_shared_context or shared_context_scope == "local":
         routing_mode = "per-client"
@@ -868,6 +1111,8 @@ def _evaluate_clients(
                     max_per_episode=shared_context_max_per_episode,
                     seed=shared_context_seed + int(cid),
                     client_ids=list(group_key),
+                    router_mode=router_mode,
+                    require_compatible_calibration=require_compatible_calibration,
                 )
             detector = detector_cache[group_key] or context_detectors[cid]
         client_metrics = evaluate_denice_model(
@@ -879,7 +1124,23 @@ def _evaluate_clients(
             batch_size=batch_size,
             progress_label=f"eval cid={cid}",
             progress_every_batches=progress_every_batches,
+            route_mode=route_mode,
+            route_topk=route_topk,
+            include_route_diagnostics=True,
         )
+        if report_nomask and str(route_mode).lower() != "nomask":
+            nomask_metrics = evaluate_denice_model(
+                models[cid],
+                test_data,
+                device=str(device),
+                context_detector=detector,
+                seen_classes=seen_classes,
+                batch_size=batch_size,
+                route_mode="nomask",
+                route_topk=route_topk,
+            )
+            for key in ("loss", "accuracy", "precision_macro", "recall_macro", "f1_macro", "f1_weighted"):
+                client_metrics[f"nomask_{key}"] = float(nomask_metrics[key])
         metrics.append(client_metrics)
         per_client[int(cid)] = client_metrics
         client_elapsed = time.time() - client_start
@@ -911,16 +1172,53 @@ def _evaluate_clients(
             "per_client": {},
             "per_client_accuracy_stats": {"min": None, "mean": None, "max": None},
         }
-    keys = metrics[0].keys()
-    averaged = {key: float(np.mean([m[key] for m in metrics])) for key in keys}
+    numeric_keys = [
+        key for key, value in metrics[0].items()
+        if isinstance(value, (int, float, np.floating, np.integer))
+    ]
+    averaged = {key: float(np.mean([m[key] for m in metrics])) for key in numeric_keys}
+    route_confusion: Dict[str, Dict[str, int]] = {}
+    for metric in metrics:
+        for true_ep, row in metric.get("route_confusion", {}).items():
+            total_row = route_confusion.setdefault(str(true_ep), {})
+            for pred_ep, count in row.items():
+                total_row[str(pred_ep)] = int(total_row.get(str(pred_ep), 0) + int(count))
     averaged["per_client"] = per_client
     averaged["routing_mode"] = routing_mode
+    averaged["route_mode"] = str(route_mode)
+    averaged["route_topk"] = int(route_topk)
+    averaged["route_confusion"] = route_confusion
     averaged["per_client_accuracy_stats"] = _round_float_stats(
         [float(m.get("accuracy", 0.0)) for m in metrics]
     )
     averaged["per_client_route_accuracy_stats"] = _round_float_stats(
         [float(m.get("route_accuracy", 0.0)) for m in metrics]
     )
+    if report_representative_ensemble:
+        representative_ids: List[int] = []
+        seen_groups = set()
+        for cid in client_ids:
+            group = tuple(
+                sorted(set(int(x) for x in (context_groups or {}).get(int(cid), [int(cid)])))
+            )
+            if group in seen_groups:
+                continue
+            seen_groups.add(group)
+            representative_ids.append(min(group))
+        representative_ids = [
+            cid for cid in representative_ids
+            if cid in models and cid in context_detectors
+        ]
+        if representative_ids:
+            averaged["representative_ensemble"] = evaluate_denice_ensemble(
+                [(models[cid], context_detectors[cid]) for cid in representative_ids],
+                test_data,
+                device=str(device),
+                seen_classes=seen_classes,
+                batch_size=batch_size,
+                route_mode=route_mode,
+                route_topk=route_topk,
+            )
     print(
         f"  DeNICE eval done [{label}]: "
         f"accuracy={averaged['accuracy'] * 100:.2f}%, "
@@ -982,8 +1280,22 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     )
     max_clients = config.get("denice_max_clients")
     max_clients = None if max_clients is None else int(max_clients)
+    max_train_samples_raw = config.get("denice_max_train_samples_per_client")
+    denice_max_train_samples_per_client = (
+        None if max_train_samples_raw is None else max(1, int(max_train_samples_raw))
+    )
     use_shared_context = bool(config.get("denice_shared_context_eval", True))
     shared_context_scope = str(config.get("denice_shared_context_scope", "cluster")).lower()
+    denice_router_mode = str(config.get("denice_router_mode", "chained")).lower()
+    shared_context_require_compatible_calibration = bool(
+        config.get("denice_shared_context_require_compatible_calibration", True)
+    )
+    denice_eval_route_mode = str(config.get("denice_eval_route_mode", "hard")).lower()
+    denice_eval_route_topk = max(1, int(config.get("denice_eval_route_topk", 1)))
+    denice_eval_report_nomask = bool(config.get("denice_eval_report_nomask", True))
+    denice_eval_representative_ensemble = bool(
+        config.get("denice_eval_representative_ensemble", True)
+    )
     shared_ctx_cap_raw = config.get("denice_shared_context_max_per_episode")
     shared_context_max_per_episode = (
         None if shared_ctx_cap_raw is None else int(shared_ctx_cap_raw)
@@ -1005,6 +1317,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     old_ref_banks: Dict[int, Dict[int, Tuple[torch.Tensor, torch.Tensor]]] = {}
     old_ref_loss_baselines: Dict[int, Optional[float]] = {}
     canc_plans: Dict[int, Dict[str, Any]] = {}
+    last_active_task: Dict[int, int] = {}
 
     history = {"task_accuracies": [], "task_forgetting": [], "round_metrics": []}
     cluster_history: List[Dict[str, Any]] = []
@@ -1020,6 +1333,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         new_classes = data_loader.get_task_classes(task_id)
         active_ids = []
         new_model_init_diffs: List[float] = []
+        bootstrap_events: List[Dict[str, Any]] = []
         task_debug = {
             "type": "task_start",
             "task": int(task_id),
@@ -1028,7 +1342,23 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         }
         for cid in data_loader.get_all_client_ids():
             X, y = data_loader.get_client_data(cid, task_id)
+            if (
+                denice_max_train_samples_per_client is not None
+                and len(y) > denice_max_train_samples_per_client
+            ):
+                generator = torch.Generator().manual_seed(
+                    int(config.get("random_seed", config.get("seed", 42)))
+                    + 10_000 * int(task_id)
+                    + int(cid)
+                )
+                selected = torch.randperm(len(y), generator=generator)[:denice_max_train_samples_per_client]
+                X, y = X[selected], y[selected]
             if len(y) > 0:
+                # Apply the smoke/debug client cap before constructing models
+                # and client state; the previous post-loop slice allocated
+                # unused models for every active client.
+                if max_clients is not None and len(active_ids) >= max_clients:
+                    continue
                 active_ids.append(int(cid))
                 task_debug["client_data"][int(cid)] = {
                     "num_samples": int(len(y)),
@@ -1041,16 +1371,61 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     update_client_data(clients[cid], data, task_id, new_classes)
                 if cid not in models:
-                    models[cid] = _make_model(config, device)
-                    models[cid].load_state_dict(
-                        {k: v.to(device) for k, v in initial_model_state.items()},
-                        strict=False,
+                    source_id = (
+                        _bootstrap_source_client(models, context_detectors)
+                        if task_id > 0
+                        else None
                     )
+                    if source_id is None:
+                        models[cid] = _make_model(config, device)
+                        models[cid].load_state_dict(
+                            {k: v.to(device) for k, v in initial_model_state.items()},
+                            strict=False,
+                        )
+                        context_detectors[cid] = ContextDetector(
+                            memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))),
+                            router_mode=denice_router_mode,
+                        )
+                        bootstrap_events.append(
+                            {
+                                "client_id": int(cid),
+                                "bootstrap_policy": "initial_template",
+                                "bootstrap_source": None,
+                                "param_distance_to_initial": 0.0,
+                            }
+                        )
+                    else:
+                        models[cid] = _bootstrap_denice_model(
+                            models[source_id], config, device
+                        )
+                        source_detector_state = snapshot_denice_state(
+                            models[source_id], context_detectors[source_id]
+                        ).get("context_detector")
+                        context_detectors[cid] = ContextDetector(
+                            memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))),
+                            router_mode=denice_router_mode,
+                        )
+                        # The new model is an exact clone at this point, so the
+                        # source detector's sketches/calibration are compatible.
+                        restore_context_detector(
+                            context_detectors[cid], source_detector_state
+                        )
+                        bootstrap_events.append(
+                            {
+                                "client_id": int(cid),
+                                "bootstrap_policy": "representative_clone",
+                                "bootstrap_source": int(source_id),
+                                "param_distance_to_source": _param_max_abs_diff(
+                                    _cpu_state_dict(models[cid]),
+                                    _cpu_state_dict(models[source_id]),
+                                ),
+                                "param_distance_to_initial": _param_max_abs_diff(
+                                    _cpu_state_dict(models[cid]), initial_model_state
+                                ),
+                            }
+                        )
                     new_model_init_diffs.append(
                         _param_max_abs_diff(_cpu_state_dict(models[cid]), initial_model_state)
-                    )
-                    context_detectors[cid] = ContextDetector(
-                        memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50)))
                     )
                     novelty_estimators[cid] = NoveltyEstimator(
                         layer_weights=getattr(trainer, "novelty_layer_weights", None)
@@ -1058,16 +1433,35 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     prev_ages[cid] = None
                     old_ref_banks[cid] = {}
                     old_ref_loss_baselines[cid] = None
+                elif last_active_task.get(int(cid), task_id - 1) < task_id - 1:
+                    source_id = _bootstrap_source_client(
+                        models, context_detectors, exclude_client=int(cid)
+                    )
+                    if source_id is not None:
+                        updated_distance = _catch_up_rejoining_model(
+                            models[cid], models[source_id], device
+                        )
+                        bootstrap_events.append(
+                            {
+                                "client_id": int(cid),
+                                "bootstrap_policy": "rejoining_plastic_catch_up",
+                                "bootstrap_source": int(source_id),
+                                "missed_tasks": int(task_id - last_active_task[int(cid)] - 1),
+                                "catch_up_param_distance": float(updated_distance),
+                            }
+                        )
+                last_active_task[int(cid)] = int(task_id)
 
         active_ids = sorted(active_ids)
-        if max_clients is not None:
-            active_ids = active_ids[:max_clients]
         print(f"  Active DeNICE clients: {len(active_ids)}")
         if not active_ids:
             continue
         task_debug["new_model_count"] = len(new_model_init_diffs)
+        # ``False`` when no model was created in this task; reporting ``True``
+        # for an empty list previously looked like a late client had silently
+        # been initialized from the random template.
         task_debug["new_model_shared_init"] = bool(
-            not new_model_init_diffs or max(new_model_init_diffs) <= 1e-12
+            new_model_init_diffs and max(new_model_init_diffs) <= 1e-12
         )
         task_debug["new_model_max_init_param_diff"] = (
             max(new_model_init_diffs) if new_model_init_diffs else None
@@ -1076,6 +1470,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         task_debug["total_samples"] = int(
             sum(v["num_samples"] for v in task_debug["client_data"].values())
         )
+        task_debug["bootstrap_events"] = bootstrap_events
         debug_history.append(task_debug)
         if denice_debug:
             print(
@@ -1168,6 +1563,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             previous_model_states = cpu_client_model_states(active_ids, models)
             print(f"   Task base checkpoint saved: {delta_base_path}")
 
+        previous_valid_cluster: Optional[Dict[str, Any]] = None
         for round_id in range(rounds_per_task):
             print(f"  Round {round_id}/{rounds_per_task - 1}")
             start = time.time()
@@ -1193,6 +1589,17 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 client_train_time = time.time() - client_train_start
                 train_time_total += client_train_time
                 losses[cid] = float((result or {}).get("loss", 0.0))
+                # Keep the reserve during the task as well as at task end;
+                # otherwise a single local NICE phase can transiently consume
+                # all plastic units before CANC/aggregation can react.
+                reserve_after_train = _enforce_minimum_free_capacity(
+                    model,
+                    canc_plans.get(cid, {}).get("start_ages", prev_ages.get(cid)),
+                    float(config.get("denice_min_free_capacity_ratio", 0.10)),
+                )
+                update_freeze_masks(model)
+                if hasattr(model, "freeze_bn_for_mature"):
+                    model.freeze_bn_for_mature()
                 context_start = time.time()
                 _update_local_nice_context_memory(
                     context_detectors[cid],
@@ -1213,6 +1620,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     "class_hist": _count_histogram(client.y_train),
                     "adapter_usage": compute_adapter_usage(model),
                     "capacity_after_train": _capacity_debug(model),
+                    "capacity_reserve_released": reserve_after_train,
                 }
 
             capsule_start = time.time()
@@ -1238,8 +1646,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 capsules=capsules,
                 config=config,
                 device=device,
+                previous_valid_cluster=previous_valid_cluster,
             )
+            previous_valid_cluster = cluster_summary.pop("next_valid_cluster", None)
             aggregation_time = time.time() - aggregation_start
+            if cluster_summary.get("capacity_guardrails"):
+                print(
+                    "    DeNICE capacity guardrail: "
+                    f"{cluster_summary['capacity_guardrails']}",
+                    flush=True,
+                )
             cluster_summary.update({"task": task_id, "round": round_id})
             cluster_history.append(cluster_summary)
 
@@ -1309,6 +1725,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     shared_context_max_per_episode=shared_context_max_per_episode,
                     shared_context_memo_per_class=shared_context_memo_per_class,
                     shared_context_seed=int(config.get("random_seed", config.get("seed", 42))),
+                    router_mode=denice_router_mode,
+                    require_compatible_calibration=shared_context_require_compatible_calibration,
+                    route_mode=denice_eval_route_mode,
+                    route_topk=denice_eval_route_topk,
+                    report_nomask=denice_eval_report_nomask,
+                    report_representative_ensemble=denice_eval_representative_ensemble,
                 )
                 metrics["eval_client_count"] = len(eval_ids)
                 metrics["eval_total_client_count"] = len(active_ids)
@@ -1432,8 +1854,17 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     f"K={cluster_summary['K_t']}, clusters={cluster_summary.get('cluster_sizes')}"
                 )
 
+        capacity_reserve_released: Dict[int, Dict[str, int]] = {}
+        minimum_free_capacity_ratio = float(
+            config.get("denice_min_free_capacity_ratio", 0.10)
+        )
         for cid in active_ids:
             model = models[cid]
+            capacity_reserve_released[int(cid)] = _enforce_minimum_free_capacity(
+                model,
+                canc_plans.get(cid, {}).get("start_ages", prev_ages.get(cid)),
+                minimum_free_capacity_ratio,
+            )
             increase_unit_ranks(model)
             update_freeze_masks(model)
             if hasattr(model, "freeze_bn_for_mature"):
@@ -1509,6 +1940,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 shared_context_max_per_episode=shared_context_max_per_episode,
                 shared_context_memo_per_class=shared_context_memo_per_class,
                 shared_context_seed=int(config.get("random_seed", config.get("seed", 42))),
+                router_mode=denice_router_mode,
+                require_compatible_calibration=shared_context_require_compatible_calibration,
+                route_mode=denice_eval_route_mode,
+                route_topk=denice_eval_route_topk,
+                report_nomask=denice_eval_report_nomask,
+                report_representative_ensemble=denice_eval_representative_ensemble,
             )
             metrics["eval_client_count"] = len(eval_ids)
             metrics["eval_total_client_count"] = len(active_ids)
@@ -1555,6 +1992,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "capacity_end": {
                     int(cid): _capacity_debug(models[cid]) for cid in active_ids
                 },
+                "capacity_reserve_released": capacity_reserve_released,
             }
         )
         history["task_accuracies"].append(
@@ -1575,30 +2013,31 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 f"(routing={metrics.get('routing_mode', 'per-client')})"
             )
 
-        torch.save(
-            {
-                "task": task_id,
-                "schema_version": CHECKPOINT_SCHEMA_VERSION,
-                "mode": "decentralized",
-                "algorithm": "denice",
-                "final_round_id": final_round_id,
-                "client_model_states": {
-                    int(cid): _cpu_state_dict(models[cid])
-                    for cid in active_ids
+        if bool(config.get("save_resume_after_task", True)):
+            torch.save(
+                {
+                    "task": task_id,
+                    "schema_version": CHECKPOINT_SCHEMA_VERSION,
+                    "mode": "decentralized",
+                    "algorithm": "denice",
+                    "final_round_id": final_round_id,
+                    "client_model_states": {
+                        int(cid): _cpu_state_dict(models[cid])
+                        for cid in active_ids
+                    },
+                    "client_algorithm_states": _client_algorithm_states(
+                        active_ids, models, context_detectors
+                    ),
+                    "client_neuron_ages": {
+                        int(cid): models[cid].get_neuron_ages_state()
+                        for cid in active_ids
+                    },
+                    "config": config,
+                    "seen_classes": _seen_classes(data_loader, task_id),
+                    "metrics": metrics,
                 },
-                "client_algorithm_states": _client_algorithm_states(
-                    active_ids, models, context_detectors
-                ),
-                "client_neuron_ages": {
-                    int(cid): models[cid].get_neuron_ages_state()
-                    for cid in active_ids
-                },
-                "config": config,
-                "seen_classes": _seen_classes(data_loader, task_id),
-                "metrics": metrics,
-            },
-            os.path.join(output_dir, f"checkpoint_task_{task_id}.pt"),
-        )
+                os.path.join(output_dir, f"checkpoint_task_{task_id}.pt"),
+            )
         _write_phase_outputs(
             output_dir, history, cluster_history, adapter_history, debug_history, config, task_id
         )

@@ -244,7 +244,8 @@ def evaluate_denice_model(
     progress_every_batches: int = 0,
     route_mode: str = "hard",
     route_topk: int = 1,
-) -> Dict[str, float]:
+    include_route_diagnostics: bool = False,
+) -> Dict[str, Any]:
     """Evaluate a DeNICE model with context-routed micro-adapters."""
     model.eval()
     X_test = test_data["X_test"]
@@ -274,6 +275,7 @@ def evaluate_denice_model(
     label2episode = _label_to_episode_map(context_detector)
     route_correct = 0
     route_total = 0
+    route_confusion: Dict[str, Dict[str, int]] = {}
 
     for batch_idx, i in enumerate(range(0, len(y_test), batch_size), start=1):
         X_batch = X_test[i : i + batch_size].to(device)
@@ -295,6 +297,12 @@ def evaluate_denice_model(
             known = true_eps >= 0
             route_total += int(known.sum())
             route_correct += int((episodes[known] == true_eps[known]).sum())
+            if include_route_diagnostics:
+                for true_ep, pred_ep in zip(true_eps[known], episodes[known]):
+                    true_key = str(int(true_ep))
+                    pred_key = str(int(pred_ep))
+                    row = route_confusion.setdefault(true_key, {})
+                    row[pred_key] = int(row.get(pred_key, 0) + 1)
 
         if progress_label and progress_every_batches > 0:
             should_print = (
@@ -313,7 +321,7 @@ def evaluate_denice_model(
 
     y_true = np.asarray(all_targets)
     y_pred = np.asarray(all_preds)
-    return {
+    metrics: Dict[str, Any] = {
         "loss": total_loss / max(1, len(y_test)),
         "accuracy": accuracy_score(y_true, y_pred),
         "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
@@ -322,4 +330,84 @@ def evaluate_denice_model(
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
         "route_accuracy": (route_correct / route_total) if route_total > 0 else 0.0,
         "route_coverage": (route_total / len(y_test)) if len(y_test) > 0 else 0.0,
+    }
+    if include_route_diagnostics:
+        metrics["route_confusion"] = route_confusion
+    return metrics
+
+
+@torch.no_grad()
+def evaluate_denice_ensemble(
+    model_detector_pairs: List[Tuple[Any, Any]],
+    test_data: Dict[str, torch.Tensor],
+    device: str,
+    seen_classes: List[int],
+    batch_size: int = 1024,
+    route_mode: str = "hard",
+    route_topk: int = 1,
+) -> Dict[str, float]:
+    """Evaluate an equal-probability ensemble of cluster representatives.
+
+    Every pair supplies its own model and matching context detector, avoiding
+    the invalid assumption that a detector calibrated for one model can route
+    another model.  This is the protocol-level global metric; it is separate
+    from personalized per-client evaluation.
+    """
+    if not model_detector_pairs:
+        raise ValueError("model_detector_pairs must not be empty")
+    X_test = test_data["X_test"]
+    y_test = test_data["y_test"]
+    if len(y_test) == 0:
+        return {
+            "loss": 0.0, "accuracy": 0.0, "precision_macro": 0.0,
+            "recall_macro": 0.0, "f1_macro": 0.0, "f1_weighted": 0.0,
+            "route_accuracy": 0.0, "route_coverage": 0.0,
+            "ensemble_size": float(len(model_detector_pairs)),
+        }
+
+    all_preds: List[int] = []
+    all_targets: List[int] = []
+    total_loss = 0.0
+    route_correct = 0
+    route_total = 0
+    for i in range(0, len(y_test), max(1, batch_size)):
+        X_batch = X_test[i : i + batch_size].to(device)
+        y_batch = y_test[i : i + batch_size].to(device)
+        probs = None
+        for model, detector in model_detector_pairs:
+            logits, episodes = _denice_routed_logits_with_episodes(
+                model, X_batch, detector, seen_classes, device, route_mode, route_topk
+            )
+            current = torch.softmax(logits, dim=1)
+            probs = current if probs is None else probs + current
+            label2episode = _label_to_episode_map(detector)
+            if episodes is not None and label2episode:
+                true_eps = np.asarray(
+                    [label2episode.get(int(c), -1) for c in y_batch.detach().cpu().numpy()],
+                    dtype=np.int64,
+                )
+                known = true_eps >= 0
+                route_total += int(known.sum())
+                route_correct += int((episodes[known] == true_eps[known]).sum())
+        probs = probs / float(len(model_detector_pairs))
+        total_loss += (
+            -torch.log(probs.clamp_min(1e-12)[
+                torch.arange(len(y_batch), device=probs.device), y_batch
+            ]).sum().item()
+        )
+        all_preds.extend(probs.argmax(dim=1).detach().cpu().tolist())
+        all_targets.extend(y_batch.detach().cpu().tolist())
+
+    y_true = np.asarray(all_targets)
+    y_pred = np.asarray(all_preds)
+    return {
+        "loss": total_loss / max(1, len(y_test)),
+        "accuracy": accuracy_score(y_true, y_pred),
+        "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
+        "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
+        "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
+        "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
+        "route_accuracy": route_correct / route_total if route_total else 0.0,
+        "route_coverage": route_total / max(1, len(y_test) * len(model_detector_pairs)),
+        "ensemble_size": float(len(model_detector_pairs)),
     }

@@ -614,6 +614,171 @@ class TestDecentralized:
         # Average of target(0) and matching neighbor(1) = 0.5; non-matching skipped.
         assert torch.allclose(merged[key]["U.weight"], torch.full((8, 4), 0.5))
 
+    def test_aggregate_adapters_preserves_self_alpha(self):
+        """A target alpha of .25 and neighbor alpha of .75 must yield 7.5."""
+        from fed_learning.strategies.decentralized import aggregate_adapters
+
+        key = adapter_key(0, "fc1", 16, 1)
+        target = {key: OrderedDict({"U.weight": torch.zeros(1, 1)})}
+        neighbor = {key: OrderedDict({"U.weight": torch.full((1, 1), 10.0)})}
+        merged = aggregate_adapters(
+            target, [neighbor], [0.75], target_weight=0.25
+        )
+        assert torch.allclose(merged[key]["U.weight"], torch.full((1, 1), 7.5))
+
+    def test_consensus_age_merge_does_not_union_disjoint_peer_maturity(self):
+        from fed_learning.strategies.decentralized import merge_neuron_ages
+
+        target = {"fc1": np.array([0, 0, 0, 0])}
+        neighbors = [
+            {"fc1": np.array([2, 0, 0, 0])},
+            {"fc1": np.array([0, 2, 0, 0])},
+            {"fc1": np.array([0, 0, 2, 0])},
+        ]
+        merged = merge_neuron_ages(
+            target,
+            neighbors,
+            neighbor_weights=[0.25, 0.25, 0.25],
+            consensus_threshold=0.5,
+        )
+        assert np.array_equal(merged["fc1"], target["fc1"])
+
+    def test_consensus_age_merge_promotes_only_supported_maturity(self):
+        from fed_learning.strategies.decentralized import merge_neuron_ages
+
+        target = {"fc1": np.array([2, 0, 0])}
+        neighbors = [
+            {"fc1": np.array([0, 2, 0])},
+            {"fc1": np.array([0, 2, 2])},
+        ]
+        merged = merge_neuron_ages(
+            target,
+            neighbors,
+            neighbor_weights=[0.30, 0.30],
+            consensus_threshold=0.50,
+        )
+        assert np.array_equal(merged["fc1"], np.array([2, 2, 0]))
+
+    def test_invalid_cluster_without_prior_valid_is_self_only(self):
+        from fed_learning.training.decentralized_denice_il import (
+            _effective_cluster_assignment,
+        )
+
+        result = {"labels": np.array([5, 5, 9]), "valid": False, "edges": np.ones((3, 3))}
+        labels, edges, policy, reason, state = _effective_cluster_assignment(
+            result, [10, 20, 30]
+        )
+        assert np.array_equal(labels, np.array([0, 1, 2]))
+        assert edges is None
+        assert policy == "self_only"
+        assert reason is not None
+        assert state is None
+
+    def test_invalid_cluster_reuses_only_compatible_previous_valid_state(self):
+        from fed_learning.training.decentralized_denice_il import (
+            _effective_cluster_assignment,
+        )
+
+        result = {"labels": np.array([9, 9, 9]), "valid": False, "edges": np.ones((3, 3))}
+        prior = {"client_ids": (10, 20, 30), "labels": np.array([0, 0, 1])}
+        labels, edges, policy, _reason, _state = _effective_cluster_assignment(
+            result, [10, 20, 30], prior
+        )
+        assert np.array_equal(labels, np.array([0, 0, 1]))
+        assert edges is None
+        assert policy == "previous_valid"
+
+        labels, _edges, policy, _reason, _state = _effective_cluster_assignment(
+            result, [20, 10, 30], prior
+        )
+        assert np.array_equal(labels, np.array([0, 1, 2]))
+        assert policy == "self_only"
+
+    def test_bootstrap_clone_preserves_model_and_adapter_structure(self):
+        from fed_learning.training.decentralized_denice_il import (
+            _bootstrap_denice_model,
+            _param_max_abs_diff,
+            _state_dict,
+        )
+
+        source = _make_model()
+        source.add_adapter(0, "fc1", set_active=False)
+        with torch.no_grad():
+            source.fc1.weight.fill_(0.125)
+        cloned = _bootstrap_denice_model(
+            source,
+            {"input_shape": INPUT_SHAPE, "num_classes": NUM_CLASSES},
+            torch.device("cpu"),
+        )
+        assert cloned.get_adapter_registry_state() == source.get_adapter_registry_state()
+        assert _param_max_abs_diff(_state_dict(cloned), _state_dict(source)) == 0.0
+
+    def test_rejoining_catch_up_keeps_receiver_mature_rows(self):
+        from fed_learning.training.decentralized_denice_il import (
+            _catch_up_rejoining_model,
+        )
+
+        target = _make_model()
+        source = _make_model()
+        target.unit_ranks["fc1"][0] = 2
+        with torch.no_grad():
+            target.fc1.weight.zero_()
+            source.fc1.weight.fill_(1.0)
+        _catch_up_rejoining_model(target, source, torch.device("cpu"))
+        assert torch.allclose(target.fc1.weight[0], torch.zeros_like(target.fc1.weight[0]))
+        assert torch.allclose(target.fc1.weight[1], torch.ones_like(target.fc1.weight[1]))
+
+    def test_invalid_cluster_self_only_aggregation_smoke(self, monkeypatch):
+        """Invalid AP labels must not alter peer state or spread peer maturity."""
+        import fed_learning.training.decentralized_denice_il as runner
+
+        models = {0: _make_model(), 1: _make_model()}
+        models[1].unit_ranks["fc1"][0] = 2
+        before = {
+            cid: OrderedDict((k, v.detach().clone()) for k, v in model.state_dict().items())
+            for cid, model in models.items()
+        }
+        capsules = {
+            0: self._capsule(0, [0, 1], 1),
+            1: self._capsule(1, [0, 1], 1),
+        }
+        monkeypatch.setattr(
+            runner,
+            "dynamic_ap_cluster",
+            lambda *_args, **_kwargs: {
+                "labels": np.array([0, 0]), "edges": np.ones((2, 2), dtype=int),
+                "valid": False, "K_t": 1, "silhouette": 0.1,
+                "similarity": np.eye(2),
+            },
+        )
+        summary = runner._aggregate_round(
+            client_ids=[0, 1],
+            models=models,
+            capsules=capsules,
+            config={"denice_age_merge_policy": "consensus"},
+            device=torch.device("cpu"),
+        )
+        assert summary["effective_policy"] == "self_only"
+        assert summary["groups"] == {0: [0], 1: [1]}
+        assert all(
+            torch.allclose(value, before[cid][name])
+            for cid, model in models.items()
+            for name, value in model.state_dict().items()
+        )
+        assert models[0].unit_ranks["fc1"][0] == 0
+
+    def test_capacity_reserve_keeps_current_task_units_plastic(self):
+        from fed_learning.training.decentralized_denice_il import (
+            _enforce_minimum_free_capacity,
+        )
+
+        model = _make_model()
+        start = model.get_neuron_ages_state()
+        model.unit_ranks["fc1"][:] = 1
+        released = _enforce_minimum_free_capacity(model, start, 0.10)
+        assert released["fc1"] >= int(np.ceil(0.10 * len(model.unit_ranks["fc1"])))
+        assert float((model.unit_ranks["fc1"] == 0).mean()) >= 0.10
+
     def test_coordinate_median_ignores_outlier_neighbor(self):
         """Robust aggregation (Đề xuất §7): median is unmoved by one outlier."""
         from fed_learning.strategies.decentralized import (
@@ -770,6 +935,51 @@ class TestSharedContextDetector:
         assert float((pred0 == 0).mean()) > 0.6
         assert float((pred1 == 1).mean()) > 0.6
 
+    def test_strict_pooling_rejects_mismatched_calibration(self):
+        from fed_learning.servers.nice_server import (
+            ContextDetector,
+            build_pooled_context_detector,
+        )
+
+        model = _make_model()
+        model.eval()
+        det_a = ContextDetector(memo_per_class=10)
+        det_a.episode_classes[0] = [0]
+        det_a.push_activations(model, self._episode_data(12, -3.0), episode=0)
+        det_b = ContextDetector(memo_per_class=10)
+        det_b.episode_classes[1] = [1]
+        det_b.push_activations(model, self._episode_data(12, 3.0), episode=1)
+
+        assert det_a.calibration_signature() != det_b.calibration_signature()
+        assert build_pooled_context_detector(
+            [det_a, det_b], require_compatible_calibration=True
+        ) is None
+
+    def test_context_detector_checkpoint_preserves_router_state(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.checkpoint_state import (
+            restore_context_detector,
+            snapshot_context_detector,
+        )
+
+        model = _make_model()
+        model.eval()
+        source = ContextDetector(
+            memo_per_class=10,
+            router_mode="multiclass",
+            calibration_provenance="reference-encoder-v1",
+        )
+        source.episode_classes[0] = [0, 1]
+        source.push_activations(model, self._episode_data(16, -2.0), episode=0)
+        source.train_models(0)
+        state = snapshot_context_detector(source)
+
+        restored = ContextDetector(memo_per_class=1)
+        restore_context_detector(restored, state)
+        assert restored.router_mode == "multiclass"
+        assert restored.calibration_provenance == "reference-encoder-v1"
+        assert restored.multiclass_episodes == source.multiclass_episodes
+
     def test_cluster_context_bank_uses_only_group_clients(self):
         from fed_learning.servers.nice_server import ContextDetector
         from fed_learning.training.decentralized_denice_il import (
@@ -795,6 +1005,7 @@ class TestSharedContextDetector:
             max_per_episode=None,
             seed=0,
             client_ids=[10],
+            require_compatible_calibration=False,
         )
         bank_all = _build_shared_context_detector(
             {10: det_a, 20: det_b},
@@ -802,12 +1013,65 @@ class TestSharedContextDetector:
             max_per_episode=None,
             seed=0,
             client_ids=None,
+            require_compatible_calibration=False,
         )
 
         assert set(bank_a.episode_classes) == {0}
         assert set(bank_a.activation_memory) == {0}
         assert set(bank_all.episode_classes) == {0, 1}
         assert set(bank_all.activation_memory) == {0, 1}
+
+
+class TestDeNICEEvaluation:
+    def test_checkpoint_loader_normalizes_task_end_schema(self, monkeypatch):
+        import eval_checkpoint
+
+        monkeypatch.setattr(
+            eval_checkpoint,
+            "load_denice_checkpoint",
+            lambda _path: {"task": 3, "algorithm": "denice"},
+        )
+        assert eval_checkpoint._load_checkpoint("unused.pt")["task_id"] == 3
+
+    def test_evaluation_exposes_route_diagnostics_and_nomask_path(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.denice_eval import evaluate_denice_model
+
+        model = _make_model()
+        detector = ContextDetector(memo_per_class=10)
+        data = {"X_test": _dummy_batch(8), "y_test": torch.zeros(8, dtype=torch.long)}
+        metrics = evaluate_denice_model(
+            model,
+            data,
+            device="cpu",
+            context_detector=detector,
+            seen_classes=list(range(NUM_CLASSES)),
+            route_mode="nomask",
+            include_route_diagnostics=True,
+        )
+        assert set(metrics["route_confusion"]) == set()
+        assert 0.0 <= metrics["accuracy"] <= 1.0
+        assert np.isfinite(metrics["loss"])
+
+    def test_representative_ensemble_returns_normalized_metrics(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.denice_eval import evaluate_denice_ensemble
+
+        model_a = _make_model()
+        model_b = _make_model()
+        detector_a = ContextDetector(memo_per_class=10)
+        detector_b = ContextDetector(memo_per_class=10)
+        data = {"X_test": _dummy_batch(8), "y_test": torch.zeros(8, dtype=torch.long)}
+        metrics = evaluate_denice_ensemble(
+            [(model_a, detector_a), (model_b, detector_b)],
+            data,
+            device="cpu",
+            seen_classes=list(range(NUM_CLASSES)),
+            route_mode="nomask",
+        )
+        assert metrics["ensemble_size"] == 2.0
+        assert 0.0 <= metrics["accuracy"] <= 1.0
+        assert np.isfinite(metrics["loss"])
 
 
 # ---------------------------------------------------------------------------

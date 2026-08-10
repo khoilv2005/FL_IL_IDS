@@ -37,6 +37,10 @@ def snapshot_context_detector(context_detector: Any) -> Optional[Dict[str, Any]]
         return None
     return {
         "memo_per_class": getattr(context_detector, "memo_per_class", 50),
+        "router_mode": getattr(context_detector, "router_mode", "chained"),
+        "calibration_provenance": getattr(
+            context_detector, "calibration_provenance", None
+        ),
         "activation_memory": _clone_value(
             getattr(context_detector, "activation_memory", {})
         ),
@@ -45,6 +49,10 @@ def snapshot_context_detector(context_detector: Any) -> Optional[Dict[str, Any]]
             getattr(context_detector, "binarize_thresholds", None)
         ),
         "context_learners": list(getattr(context_detector, "context_learners", [])),
+        "multiclass_router": getattr(context_detector, "multiclass_router", None),
+        "multiclass_episodes": _clone_value(
+            getattr(context_detector, "multiclass_episodes", [])
+        ),
         "episode_classes": _clone_value(
             getattr(context_detector, "episode_classes", {})
         ),
@@ -55,6 +63,8 @@ def restore_context_detector(context_detector: Any, state: Optional[Dict[str, An
     if context_detector is None or not state:
         return
     context_detector.memo_per_class = int(state.get("memo_per_class", 50))
+    context_detector.router_mode = str(state.get("router_mode", "chained")).lower()
+    context_detector.calibration_provenance = state.get("calibration_provenance")
     context_detector.activation_memory = _clone_value(
         state.get("activation_memory", {})
     )
@@ -63,6 +73,10 @@ def restore_context_detector(context_detector: Any, state: Optional[Dict[str, An
         state.get("binarize_thresholds")
     )
     context_detector.context_learners = list(state.get("context_learners", []))
+    context_detector.multiclass_router = state.get("multiclass_router")
+    context_detector.multiclass_episodes = [
+        int(ep) for ep in state.get("multiclass_episodes", [])
+    ]
     context_detector.episode_classes = _clone_value(state.get("episode_classes", {}))
 
 
