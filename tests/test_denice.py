@@ -1036,6 +1036,21 @@ class TestSharedContextDetector:
 
 
 class TestDeNICEEvaluation:
+    def test_smoke_client_limit_preserves_each_present_class(self):
+        from fed_learning.training.decentralized_denice_il import (
+            _stratified_limit_client_task_data,
+        )
+
+        X = torch.arange(30, dtype=torch.float32).reshape(30, 1)
+        y = torch.tensor([0] * 25 + [1] * 3 + [2] * 2, dtype=torch.long)
+        X_limited, y_limited = _stratified_limit_client_task_data(X, y, 9, seed=5)
+        X_again, y_again = _stratified_limit_client_task_data(X, y, 9, seed=5)
+
+        assert len(y_limited) == 9
+        assert set(y_limited.tolist()) == {0, 1, 2}
+        assert torch.equal(X_limited, X_again)
+        assert torch.equal(y_limited, y_again)
+
     def test_context_reference_memory_refreshes_after_model_change(self):
         from fed_learning.servers.nice_server import ContextDetector
         from fed_learning.training.checkpoint_state import (
@@ -1080,6 +1095,48 @@ class TestDeNICEEvaluation:
         episode_tensor = torch.tensor(episodes.tolist(), dtype=torch.long)
         assert set(labels[indices[episode_tensor == 0]].tolist()).issubset({0, 1})
         assert set(labels[indices[episode_tensor == 1]].tolist()) == {2}
+
+    def test_current_router_audit_ignores_future_dataset_episodes(self, monkeypatch):
+        import eval_checkpoint
+        from fed_learning.servers.nice_server import ContextDetector
+
+        detector = ContextDetector(memo_per_class=2, router_mode="multiclass")
+        detector.activation_memory = {
+            0: np.zeros((2, 2), dtype=np.float32),
+            1: np.ones((2, 2), dtype=np.float32),
+        }
+        detector.episode_classes = {0: [0], 1: [1]}
+        detector.train_models(1)
+
+        checkpoint = {
+            "client_ids": [7],
+            "client_model_states": {7: {}},
+            "client_algorithm_states": {7: {"denice": {"context_detector": {
+                "episode_classes": {0: [0], 1: [1]},
+                "activation_memory": {0: np.zeros((2, 2)), 1: np.ones((2, 2))},
+            }}}},
+        }
+        monkeypatch.setattr(
+            eval_checkpoint,
+            "_make_denice_client_model",
+            lambda *_args, **_kwargs: (object(), detector),
+        )
+        monkeypatch.setattr(
+            eval_checkpoint,
+            "_binary_current_context_features",
+            lambda *_args, **_kwargs: np.zeros((4, 2), dtype=np.float32),
+        )
+        audit = eval_checkpoint.audit_denice_router_current_features(
+            checkpoint,
+            torch.zeros((4, 1)),
+            torch.tensor([0, 0, 1, 1]),
+            {0: [0], 1: [1], 2: [2]},
+            device="cpu",
+            samples_per_episode=2,
+        )
+
+        assert audit["required_episodes"] == [0, 1]
+        assert audit["full_coverage_client_count"] == 1
 
     def test_router_state_audit_reports_coverage_and_holdout(self):
         import eval_checkpoint

@@ -121,6 +121,44 @@ def _count_histogram(y: torch.Tensor) -> Dict[int, int]:
     labels, counts = torch.unique(y.detach().cpu(), return_counts=True)
     return {int(c): int(n.item()) for c, n in zip(labels, counts)}
 
+
+def _stratified_limit_client_task_data(
+    X: torch.Tensor, y: torch.Tensor, max_samples: Optional[int], *, seed: int
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Limit a debug/smoke client task without erasing rare local classes.
+
+    The normal full run passes ``None`` and is unchanged.  A uniform random
+    prefix on strongly non-IID intrusion labels can omit a whole task class,
+    making a router-memory smoke test diagnose sampling noise instead of
+    routing.  This deterministic allocation gives every locally present class
+    a fair share before filling any remainder.
+    """
+    if max_samples is None or len(y) <= int(max_samples):
+        return X, y
+    limit = max(1, int(max_samples))
+    labels = sorted(int(label) for label in torch.unique(y.detach().cpu()).tolist())
+    if not labels:
+        return X[:0], y[:0]
+    generator = torch.Generator().manual_seed(int(seed))
+    base, remainder = divmod(limit, len(labels))
+    chosen: List[torch.Tensor] = []
+    leftovers: List[torch.Tensor] = []
+    for position, label in enumerate(labels):
+        candidates = torch.nonzero(y.detach().cpu() == label, as_tuple=False).flatten()
+        shuffled = candidates[torch.randperm(len(candidates), generator=generator)]
+        quota = min(len(shuffled), base + (1 if position < remainder else 0))
+        chosen.append(shuffled[:quota])
+        leftovers.append(shuffled[quota:])
+    selected = torch.cat(chosen) if chosen else torch.empty(0, dtype=torch.long)
+    missing = limit - int(len(selected))
+    if missing > 0:
+        remaining = torch.cat(leftovers) if leftovers else torch.empty(0, dtype=torch.long)
+        if len(remaining):
+            remaining = remaining[torch.randperm(len(remaining), generator=generator)]
+            selected = torch.cat([selected, remaining[:missing]])
+    selected = selected[torch.randperm(len(selected), generator=generator)]
+    return X[selected], y[selected]
+
 def _param_max_abs_diff(
     left: "OrderedDict[str, torch.Tensor]",
     right: "OrderedDict[str, torch.Tensor]",
@@ -1346,13 +1384,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 denice_max_train_samples_per_client is not None
                 and len(y) > denice_max_train_samples_per_client
             ):
-                generator = torch.Generator().manual_seed(
-                    int(config.get("random_seed", config.get("seed", 42)))
-                    + 10_000 * int(task_id)
-                    + int(cid)
+                X, y = _stratified_limit_client_task_data(
+                    X,
+                    y,
+                    denice_max_train_samples_per_client,
+                    seed=(
+                        int(config.get("random_seed", config.get("seed", 42)))
+                        + 10_000 * int(task_id)
+                        + int(cid)
+                    ),
                 )
-                selected = torch.randperm(len(y), generator=generator)[:denice_max_train_samples_per_client]
-                X, y = X[selected], y[selected]
             if len(y) > 0:
                 # Apply the smoke/debug client cap before constructing models
                 # and client state; the previous post-loop slice allocated

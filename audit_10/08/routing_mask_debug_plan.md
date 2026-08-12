@@ -243,8 +243,8 @@ Pass/fail:
 - [x] P1 — Router stored-memory/current-feature/drift audit.
 - [x] P2 — Hard-mask invariant và adaptive fallback ablation.
 - [x] P3 — Targeted router repair theo diagnosis.
-- [ ] P4 — Continual classifier audit/fix nếu còn bottleneck.
-- [ ] P5 — Instrumented smoke retrain pass.
+- [x] P4 — Continual classifier audit/fix nếu còn bottleneck.
+- [x] P5 — Instrumented smoke retrain pass.
 - [ ] P6 — Full rerun, >=3 training seed và final report.
 
 ## 5.1 Evidence from P1 (13/08/2026)
@@ -281,6 +281,28 @@ Pass/fail:
   model feature space. Old checkpoints are evaluated unchanged; the new policy
   is enabled only for fresh training via
   `denice_refresh_router_memory_after_aggregation=True`.
+
+## 5.3 Evidence from P4/P5 stratified smoke (13/08/2026)
+
+- The old task-5 checkpoint's E0/E2 values (36.510%/15.617% versus
+  37.690%/16.306% accuracy/macro-F1) show that its sparse adapters provide
+  negligible benefit. The remaining classifier/backbone quality is therefore
+  a separate bottleneck, not evidence that the router/mask implementation is
+  incorrect.
+- A first 3-task/10-client/3-round smoke with uniform client subsampling
+  failed its router criterion because rare non-IID classes were omitted from
+  the tiny local sample. The smoke-only data limit is now deterministic and
+  stratified by locally present class; production full data is unchanged.
+- The corrected smoke (`router_refresh_stratified_smoke_*`) passes router
+  memory quality: persisted balanced accuracy 95.746%, refit held-out 80.349%.
+  Its final-feature router accuracy is 63.527% on a balanced test subset, with
+  prototype cosine drift mean 0.953 (minimum 0.833), rather than the old
+  checkpoint's severe old-episode drift.
+- On the same 20,000-sample smoke partition: E3 oracle-hard=18.130%, E4
+  predicted-hard=17.835% (0.295-point gap), route accuracy=69.830%, and
+  `oracle_mask_violation_count=0`. Therefore P5 routing/mask pass criteria
+  are met. Classifier quality is intentionally not accepted as a full-run
+  result; it must be re-measured in P6.
 
 ## 6. Quy tắc dừng
 

@@ -302,7 +302,19 @@ def audit_denice_router_current_features(
     client_ids = [
         int(cid) for cid in checkpoint.get("client_ids", checkpoint.get("client_model_states", {}))
     ]
-    required_episodes = set(int(episode) for episode in task_classes)
+    # ``task_classes`` contains the whole dataset schedule. A checkpoint from
+    # task t must be audited only on task episodes that actually occur in its
+    # cumulative test labels, never future episodes that it could not learn.
+    class_to_episode = {
+        int(class_id): int(episode)
+        for episode, classes in task_classes.items()
+        for class_id in classes
+    }
+    required_episodes = {
+        int(class_to_episode[int(label)])
+        for label in test_y.detach().cpu().tolist()
+        if int(label) in class_to_episode
+    }
     coverage = {
         client_id: _client_router_episode_coverage(checkpoint, client_id)
         for client_id in client_ids
@@ -320,6 +332,7 @@ def audit_denice_router_current_features(
     )
     if not len(indices):
         raise ValueError("Current-feature router audit found no task-mapped test samples")
+    required_episodes = set(int(episode) for episode in true_episodes)
     X_selected = test_X[indices]
     records: list[Dict[str, Any]] = []
     for client_id in selected_clients:
