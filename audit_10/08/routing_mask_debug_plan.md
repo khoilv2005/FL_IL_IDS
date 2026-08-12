@@ -239,13 +239,48 @@ Pass/fail:
 
 - [x] Baseline checkpoint routing/mask evidence được lưu.
 - [x] Xác nhận 45/98 client có full router episode coverage.
-- [ ] P0 — Evaluation decomposition và coverage-aware protocol.
-- [ ] P1 — Router stored-memory/current-feature/drift audit.
-- [ ] P2 — Hard-mask invariant và adaptive fallback ablation.
-- [ ] P3 — Targeted router repair theo diagnosis.
+- [x] P0 — Evaluation decomposition và coverage-aware protocol.
+- [x] P1 — Router stored-memory/current-feature/drift audit.
+- [x] P2 — Hard-mask invariant và adaptive fallback ablation.
+- [x] P3 — Targeted router repair theo diagnosis.
 - [ ] P4 — Continual classifier audit/fix nếu còn bottleneck.
 - [ ] P5 — Instrumented smoke retrain pass.
 - [ ] P6 — Full rerun, >=3 training seed và final report.
+
+## 5.1 Evidence from P1 (13/08/2026)
+
+- `router_memory_audit_task5_round19.json`: 98/98 clients are eligible for the
+  held-out audit; persisted router balanced accuracy is 99.998% and refit
+  held-out balanced accuracy is 97.281%.
+- `router_current_feature_audit_task5_round19.json`: 45 clients have all six
+  stored router episodes. On a deterministic balanced global-test subset
+  (256 samples x 6 episodes), the first 10 full-coverage clients average only
+  31.549% current-feature router balanced accuracy (range 22.201%-41.536%).
+- Diagnosis: router fitting and checkpoint restoration are not the primary
+  failure. Final-model context features drift substantially from stored router
+  memory, causing a strong late-episode prediction bias. P2 will separately
+  quantify the hard-mask damage and make fallback behavior explicit.
+
+## 5.2 Evidence from P2/P3 smoke (13/08/2026)
+
+- `decomposition_smoke_e0.json` and `decomposition_smoke_e3.json` use the
+  same 20,000-sample, seed-42 `coverage_aware_local` assignment. E0
+  backbone/seen-class accuracy is 36.510% (macro-F1 15.617%); E3 oracle-hard
+  is 67.705% (macro-F1 38.332%). Therefore the classifier remains a secondary
+  bottleneck, but routing/masking has a much larger recoverable gap.
+- E3 has `oracle_mask_violation_count=0`: the class-to-episode map and hard
+  mask implementation are correct. Predicted routing is only 18.050% on this
+  assignment, so hard masking converts routing errors into deterministic class
+  errors.
+- Only 2,078/20,000 smoke samples activated an adapter; 17,922 fell back to
+  backbone because the selected context had no adapter. The evaluator now logs
+  this explicitly and has adaptive hard/top-k/nomask ablation counters.
+- Targeted repair: each client now retains its tiny router reference inputs and
+  re-encodes all episode sketches after every decentralized aggregation, then
+  refits its router. This aligns checkpoint-time router memory with the final
+  model feature space. Old checkpoints are evaluated unchanged; the new policy
+  is enabled only for fresh training via
+  `denice_refresh_router_memory_after_aggregation=True`.
 
 ## 6. Quy tắc dừng
 

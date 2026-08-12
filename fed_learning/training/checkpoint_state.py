@@ -44,6 +44,9 @@ def snapshot_context_detector(context_detector: Any) -> Optional[Dict[str, Any]]
         "activation_memory": _clone_value(
             getattr(context_detector, "activation_memory", {})
         ),
+        "reference_input_memory": _clone_value(
+            getattr(context_detector, "reference_input_memory", {})
+        ),
         "context_masks": _clone_value(getattr(context_detector, "context_masks", {})),
         "binarize_thresholds": _clone_value(
             getattr(context_detector, "binarize_thresholds", None)
@@ -67,6 +70,9 @@ def restore_context_detector(context_detector: Any, state: Optional[Dict[str, An
     context_detector.calibration_provenance = state.get("calibration_provenance")
     context_detector.activation_memory = _clone_value(
         state.get("activation_memory", {})
+    )
+    context_detector.reference_input_memory = _clone_value(
+        state.get("reference_input_memory", {})
     )
     context_detector.context_masks = _clone_value(state.get("context_masks", {}))
     context_detector.binarize_thresholds = _clone_value(

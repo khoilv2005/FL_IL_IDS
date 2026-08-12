@@ -1650,6 +1650,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             previous_valid_cluster = cluster_summary.pop("next_valid_cluster", None)
             aggregation_time = time.time() - aggregation_start
+            router_refresh: Dict[int, Dict[str, int]] = {}
+            if bool(config.get("denice_refresh_router_memory_after_aggregation", True)):
+                for cid in active_ids:
+                    router_refresh[int(cid)] = context_detectors[cid].refresh_activation_memory(
+                        models[cid]
+                    )
             if cluster_summary.get("capacity_guardrails"):
                 print(
                     "    DeNICE capacity guardrail: "
@@ -1657,6 +1663,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     flush=True,
                 )
             cluster_summary.update({"task": task_id, "round": round_id})
+            cluster_summary["router_memory_refresh"] = router_refresh
             cluster_history.append(cluster_summary)
 
             round_record = {

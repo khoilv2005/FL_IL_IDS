@@ -17,7 +17,13 @@ from typing import Any, Dict
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.models.cnn_gru import CNN_GRU_Model
@@ -55,6 +61,332 @@ def _dict_get_int(mapping: Dict[Any, Any], key: int, default=None):
     if text_key in mapping:
         return mapping[text_key]
     return default
+
+
+def _safe_entropy(probabilities: np.ndarray) -> float:
+    if probabilities.size == 0:
+        return 0.0
+    clipped = np.clip(np.asarray(probabilities, dtype=np.float64), 1e-12, 1.0)
+    return float(np.mean(-(clipped * np.log(clipped)).sum(axis=1)))
+
+
+def _router_memory_arrays(detector_state: Dict[str, Any]) -> Dict[int, np.ndarray]:
+    arrays: Dict[int, np.ndarray] = {}
+    for episode, value in (detector_state.get("activation_memory") or {}).items():
+        arr = np.asarray(value, dtype=np.float32)
+        if arr.ndim == 1:
+            arr = arr.reshape(1, -1)
+        if arr.ndim == 2 and len(arr):
+            arrays[int(episode)] = arr
+    return arrays
+
+
+def _evaluate_router_predictions(
+    detector: ContextDetector,
+    memory: Dict[int, np.ndarray],
+) -> Dict[str, Any]:
+    if not memory:
+        return {
+            "sample_count": 0,
+            "accuracy": None,
+            "balanced_accuracy": None,
+            "per_episode_recall": {},
+            "predicted_episode_distribution": {},
+            "mean_confidence": None,
+            "mean_entropy": None,
+        }
+    X = np.concatenate([memory[episode] for episode in sorted(memory)], axis=0)
+    y = np.concatenate(
+        [np.full(len(memory[episode]), episode, dtype=np.int64) for episode in sorted(memory)]
+    )
+    predictions, probabilities = detector.predict_episodes_with_scores(X)
+    predictions = np.asarray(predictions, dtype=np.int64)
+    per_episode_recall = {
+        str(episode): float((predictions[y == episode] == episode).mean())
+        for episode in sorted(memory)
+    }
+    unique, counts = np.unique(predictions, return_counts=True)
+    return {
+        "sample_count": int(len(y)),
+        "accuracy": float(accuracy_score(y, predictions)),
+        "balanced_accuracy": float(balanced_accuracy_score(y, predictions)),
+        "per_episode_recall": per_episode_recall,
+        "predicted_episode_distribution": {
+            str(int(episode)): int(count) for episode, count in zip(unique, counts)
+        },
+        "mean_confidence": float(np.max(probabilities, axis=1).mean()),
+        "mean_entropy": _safe_entropy(probabilities),
+    }
+
+
+def _split_router_memory(
+    memory: Dict[int, np.ndarray], *, seed: int, holdout_fraction: float = 0.2
+) -> tuple[Dict[int, np.ndarray], Dict[int, np.ndarray]]:
+    train: Dict[int, np.ndarray] = {}
+    holdout: Dict[int, np.ndarray] = {}
+    generator = np.random.default_rng(int(seed))
+    for episode, values in memory.items():
+        if len(values) < 2:
+            continue
+        order = generator.permutation(len(values))
+        holdout_count = max(1, int(round(len(values) * holdout_fraction)))
+        holdout_count = min(holdout_count, len(values) - 1)
+        holdout[int(episode)] = values[order[:holdout_count]]
+        train[int(episode)] = values[order[holdout_count:]]
+    return train, holdout
+
+
+def audit_denice_router_states(
+    checkpoint: Dict[str, Any], *, seed: int = 42, holdout_fraction: float = 0.2
+) -> Dict[str, Any]:
+    """Audit saved local router state without reconstructing the model delta chain.
+
+    ``persisted_memory`` checks the actual serialized router against its stored
+    sketches.  ``refit_holdout`` retrains a router on a deterministic 80/20
+    per-episode split, testing whether the stored binary feature space can
+    separate tasks at all.  It intentionally does not claim anything about
+    current-model feature drift; that is a later model-dependent diagnostic.
+    """
+    algorithm_states = checkpoint.get("client_algorithm_states", {})
+    config = checkpoint.get("config", {})
+    records: list[Dict[str, Any]] = []
+    coverage_histogram: Dict[str, int] = {}
+    for client_id_raw, state in algorithm_states.items():
+        client_id = int(client_id_raw)
+        denice_state = (state or {}).get("denice", state or {})
+        detector_state = denice_state.get("context_detector") or {}
+        memory = _router_memory_arrays(detector_state)
+        episode_classes = {
+            int(ep): [int(cls) for cls in classes]
+            for ep, classes in (detector_state.get("episode_classes") or {}).items()
+        }
+        memory_episodes = sorted(memory)
+        coverage_key = ",".join(map(str, memory_episodes)) or "none"
+        coverage_histogram[coverage_key] = coverage_histogram.get(coverage_key, 0) + 1
+        detector = ContextDetector(
+            memo_per_class=int(detector_state.get("memo_per_class", config.get("memo_per_class", 50))),
+            router_mode=str(detector_state.get("router_mode", config.get("denice_router_mode", "chained"))),
+        )
+        restore_context_detector(detector, detector_state)
+        persisted = _evaluate_router_predictions(detector, memory)
+        train_memory, holdout_memory = _split_router_memory(
+            memory, seed=int(seed) + client_id, holdout_fraction=holdout_fraction
+        )
+        refit = None
+        if len(train_memory) >= 2 and len(holdout_memory) >= 2:
+            refit_detector = ContextDetector(
+                memo_per_class=detector.memo_per_class,
+                router_mode=detector.router_mode,
+                calibration_provenance=detector.calibration_provenance,
+            )
+            refit_detector.activation_memory = {ep: values.copy() for ep, values in train_memory.items()}
+            refit_detector.context_masks = {
+                int(ep): np.asarray(
+                    _dict_get_int(detector_state.get("context_masks") or {}, int(ep), []),
+                    dtype=bool,
+                ).copy()
+                for ep in train_memory
+            }
+            refit_detector.episode_classes = {
+                ep: list(episode_classes.get(ep, [])) for ep in train_memory
+            }
+            refit_detector.binarize_thresholds = detector.binarize_thresholds
+            refit_detector.train_models(max(train_memory))
+            refit = _evaluate_router_predictions(refit_detector, holdout_memory)
+        records.append(
+            {
+                "client_id": client_id,
+                "router_mode": detector.router_mode,
+                "episode_classes": sorted(episode_classes),
+                "memory_episodes": memory_episodes,
+                "router_classes": [int(ep) for ep in getattr(detector.multiclass_router, "classes_", [])]
+                if detector.multiclass_router is not None else [],
+                "calibration_signature": detector.calibration_signature(),
+                "memory_sample_count": int(sum(len(values) for values in memory.values())),
+                "persisted_memory": persisted,
+                "refit_holdout": refit,
+            }
+        )
+    eligible = [record for record in records if record["refit_holdout"] is not None]
+    return {
+        "audit_protocol": "saved_activation_memory_in_sample_and_refit_holdout",
+        "seed": int(seed),
+        "holdout_fraction": float(holdout_fraction),
+        "client_count": len(records),
+        "eligible_holdout_client_count": len(eligible),
+        "memory_episode_coverage_histogram": coverage_histogram,
+        "mean_persisted_balanced_accuracy": float(np.mean([
+            record["persisted_memory"]["balanced_accuracy"]
+            for record in records
+            if record["persisted_memory"]["balanced_accuracy"] is not None
+        ])) if records else None,
+        "mean_refit_holdout_balanced_accuracy": float(np.mean([
+            record["refit_holdout"]["balanced_accuracy"] for record in eligible
+        ])) if eligible else None,
+        "worst_refit_holdout_clients": sorted(
+            eligible,
+            key=lambda record: record["refit_holdout"]["balanced_accuracy"],
+        )[:10],
+        "clients": records,
+    }
+
+
+def _balanced_episode_indices(
+    test_y: torch.Tensor,
+    task_classes: Dict[int, list[int]],
+    *,
+    samples_per_episode: int,
+    seed: int,
+) -> tuple[torch.Tensor, np.ndarray]:
+    """Choose a deterministic, class-imbalanced-safe router audit subset."""
+    class_to_episode = {
+        int(class_id): int(episode)
+        for episode, classes in task_classes.items()
+        for class_id in classes
+    }
+    max_class = max(class_to_episode, default=-1)
+    lookup = torch.full((max_class + 1,), -1, dtype=torch.long)
+    for class_id, episode in class_to_episode.items():
+        lookup[class_id] = int(episode)
+    labels = test_y.detach().cpu().long()
+    target_episodes = torch.full_like(labels, -1)
+    valid = (labels >= 0) & (labels <= max_class)
+    target_episodes[valid] = lookup[labels[valid]]
+    generator = torch.Generator().manual_seed(int(seed))
+    selected: list[torch.Tensor] = []
+    expected: list[np.ndarray] = []
+    for episode in sorted(task_classes):
+        candidates = torch.nonzero(target_episodes == int(episode), as_tuple=False).flatten()
+        if not len(candidates):
+            continue
+        count = min(int(samples_per_episode), len(candidates))
+        candidates = candidates[torch.randperm(len(candidates), generator=generator)[:count]]
+        selected.append(candidates)
+        expected.append(np.full(count, int(episode), dtype=np.int64))
+    if not selected:
+        return torch.empty(0, dtype=torch.long), np.empty(0, dtype=np.int64)
+    return torch.cat(selected), np.concatenate(expected)
+
+
+def _binary_current_context_features(
+    model: DeNICEModel, detector: ContextDetector, X: torch.Tensor
+) -> np.ndarray:
+    activations = model.get_context_activations_per_sample(X)
+    layer_acts = {
+        name: np.asarray(value.detach().cpu().tolist(), dtype=np.float32)
+        for name, value in activations.items()
+    }
+    return detector.binarize_layer_activations(layer_acts)
+
+
+@torch.no_grad()
+def audit_denice_router_current_features(
+    checkpoint: Dict[str, Any],
+    test_X: torch.Tensor,
+    test_y: torch.Tensor,
+    task_classes: Dict[int, list[int]],
+    *,
+    device: str,
+    seed: int = 42,
+    max_clients: int = 10,
+    samples_per_episode: int = 256,
+) -> Dict[str, Any]:
+    """Measure router accuracy on features emitted by the *final* saved model.
+
+    Router memory for an old task was captured when the old model state was
+    current.  This audit therefore compares the stored binary prototype against
+    a final-model prototype on the same task's held-out samples.  It only uses
+    full-coverage clients by default, separating feature drift from clients
+    that never learned an episode.
+    """
+    client_ids = [
+        int(cid) for cid in checkpoint.get("client_ids", checkpoint.get("client_model_states", {}))
+    ]
+    required_episodes = set(int(episode) for episode in task_classes)
+    coverage = {
+        client_id: _client_router_episode_coverage(checkpoint, client_id)
+        for client_id in client_ids
+    }
+    full_coverage = [
+        client_id for client_id in client_ids
+        if required_episodes.issubset(set(coverage[client_id]["supported_episodes"]))
+    ]
+    selected_clients = sorted(full_coverage)[:max(1, int(max_clients))]
+    indices, true_episodes = _balanced_episode_indices(
+        test_y,
+        task_classes,
+        samples_per_episode=samples_per_episode,
+        seed=seed,
+    )
+    if not len(indices):
+        raise ValueError("Current-feature router audit found no task-mapped test samples")
+    X_selected = test_X[indices]
+    records: list[Dict[str, Any]] = []
+    for client_id in selected_clients:
+        model, detector = _make_denice_client_model(checkpoint, client_id, device)
+        features = _binary_current_context_features(model, detector, X_selected.to(device))
+        predictions, probabilities = detector.predict_episodes_with_scores(features)
+        predictions = np.asarray(predictions, dtype=np.int64)
+        current_metrics = {
+            "sample_count": int(len(true_episodes)),
+            "accuracy": float(accuracy_score(true_episodes, predictions)),
+            "balanced_accuracy": float(balanced_accuracy_score(true_episodes, predictions)),
+            "per_episode_recall": {
+                str(episode): float((predictions[true_episodes == episode] == episode).mean())
+                for episode in sorted(set(int(ep) for ep in true_episodes))
+            },
+            "predicted_episode_distribution": {
+                str(int(ep)): int(count)
+                for ep, count in zip(*np.unique(predictions, return_counts=True))
+            },
+            "mean_confidence": float(np.max(probabilities, axis=1).mean()),
+            "mean_entropy": _safe_entropy(probabilities),
+        }
+        denice_state = _dict_get_int(checkpoint.get("client_algorithm_states", {}), client_id, {}) or {}
+        denice_state = denice_state.get("denice", denice_state)
+        old_memory = _router_memory_arrays((denice_state.get("context_detector") or {}))
+        drift = {}
+        for episode in sorted(required_episodes.intersection(old_memory)):
+            current_rows = features[true_episodes == episode]
+            old_rows = old_memory[episode]
+            if not len(current_rows) or not len(old_rows):
+                continue
+            current_prototype = current_rows.mean(axis=0)
+            old_prototype = old_rows.mean(axis=0)
+            denominator = float(np.linalg.norm(current_prototype) * np.linalg.norm(old_prototype))
+            drift[str(episode)] = {
+                "prototype_mean_abs_delta": float(np.abs(current_prototype - old_prototype).mean()),
+                "prototype_cosine_similarity": (
+                    float(np.dot(current_prototype, old_prototype) / denominator)
+                    if denominator > 1e-12 else None
+                ),
+            }
+        records.append({
+            "client_id": client_id,
+            "coverage": coverage[client_id],
+            "current_feature_router": current_metrics,
+            "prototype_drift_by_episode": drift,
+        })
+        del model
+        if str(device).startswith("cuda"):
+            torch.cuda.empty_cache()
+    return {
+        "audit_protocol": "final_model_feature_router_audit_on_balanced_global_test_subset",
+        "seed": int(seed),
+        "samples_per_episode": int(samples_per_episode),
+        "total_selected_sample_count": int(len(indices)),
+        "required_episodes": sorted(required_episodes),
+        "full_coverage_client_count": len(full_coverage),
+        "audited_client_count": len(records),
+        "mean_current_feature_balanced_accuracy": float(np.mean([
+            record["current_feature_router"]["balanced_accuracy"] for record in records
+        ])) if records else None,
+        "worst_current_feature_clients": sorted(
+            records,
+            key=lambda record: record["current_feature_router"]["balanced_accuracy"],
+        )[:10],
+        "clients": records,
+    }
 
 def _make_denice_client_model(
     ckpt: Dict[str, Any],
@@ -318,6 +650,15 @@ def _evaluate_denice_partitioned_clients(
     batch_size = int(config.get("eval_batch_size", 8192))
     seen_classes = ckpt.get("seen_classes")
     mask_violation_count = 0
+    routing_diagnostics: Dict[str, int] = {
+        "adapter_active_sample_count": 0,
+        "missing_adapter_sample_count": 0,
+        "hard_mask_sample_count": 0,
+        "topk_mask_sample_count": 0,
+        "adaptive_hard_sample_count": 0,
+        "adaptive_topk_sample_count": 0,
+        "adaptive_nomask_sample_count": 0,
+    }
 
     for client_id, indices in partition_pairs:
         partition_sizes[str(client_id)] = int(indices.numel())
@@ -363,6 +704,7 @@ def _evaluate_denice_partitioned_clients(
                 route_topk,
                 inference_policy=inference_policy,
                 oracle_episodes=oracle_episodes,
+                routing_diagnostics=routing_diagnostics,
             )
             batch_loss = criterion(logits, y_batch).item() * len(y_batch)
             total_loss += batch_loss
@@ -454,6 +796,7 @@ def _evaluate_denice_partitioned_clients(
         "protocol_debug": protocol_debug or {},
         "inference_policy": inference_policy or "routed_default",
         "oracle_mask_violation_count": int(mask_violation_count),
+        "routing_diagnostics": routing_diagnostics,
     }
 
 
@@ -678,7 +1021,9 @@ def main() -> None:
     parser.add_argument("--device", default=None)
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--output", default=None)
-    parser.add_argument("--route-mode", default="hard", choices=["hard", "topk", "nomask"])
+    parser.add_argument(
+        "--route-mode", default="hard", choices=["hard", "topk", "nomask", "adaptive"]
+    )
     parser.add_argument("--route-topk", type=int, default=1)
     parser.add_argument("--router-mode", default=None, choices=["chained", "multiclass"])
     parser.add_argument(
@@ -703,17 +1048,61 @@ def main() -> None:
         help="Component-isolation policy; requires partitioned or coverage-aware local evaluation.",
     )
     parser.add_argument(
+        "--router-audit",
+        action="store_true",
+        help="Audit serialized DeNICE router memory and exit; does not evaluate test data.",
+    )
+    parser.add_argument(
+        "--router-current-feature-audit",
+        action="store_true",
+        help="Audit router accuracy on final-model features using a balanced test subset.",
+    )
+    parser.add_argument("--router-audit-max-clients", type=int, default=10)
+    parser.add_argument("--router-audit-samples-per-episode", type=int, default=256)
+    parser.add_argument(
         "--route-modes",
         default=None,
         help="Comma-separated ablation modes; emits one result per mode on identical checkpoint/data.",
     )
     args = parser.parse_args()
 
+    if args.router_audit:
+        audit = audit_denice_router_states(_load_checkpoint(args.checkpoint), seed=args.eval_seed)
+        print(json.dumps(audit, indent=2))
+        if args.output:
+            out_path = Path(args.output)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(audit, indent=2), encoding="utf-8")
+        return
+
+    if args.router_current_feature_audit:
+        checkpoint = _load_checkpoint(args.checkpoint)
+        config = dict(checkpoint["config"])
+        actual_device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+        data_loader = IncrementalDataLoader(args.data_dir or config["data_dir"])
+        test_X, test_y = data_loader.get_test_data(int(checkpoint["task_id"]), cumulative=True)
+        audit = audit_denice_router_current_features(
+            checkpoint,
+            test_X,
+            test_y,
+            data_loader.task_classes,
+            device=actual_device,
+            seed=args.eval_seed,
+            max_clients=args.router_audit_max_clients,
+            samples_per_episode=args.router_audit_samples_per_episode,
+        )
+        print(json.dumps(audit, indent=2))
+        if args.output:
+            out_path = Path(args.output)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(audit, indent=2), encoding="utf-8")
+        return
+
     modes = [args.route_mode]
     if args.route_modes:
         modes = [m.strip() for m in args.route_modes.split(",") if m.strip()]
-    if any(m not in {"hard", "topk", "nomask"} for m in modes):
-        parser.error("--route-modes accepts only hard,topk,nomask")
+    if any(m not in {"hard", "topk", "nomask", "adaptive"} for m in modes):
+        parser.error("--route-modes accepts only hard,topk,nomask,adaptive")
     results = {
         mode: evaluate_checkpoint(
             args.checkpoint,

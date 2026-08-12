@@ -39,10 +39,12 @@ def compact_client_model_states(
     }
 
 
-def _compact_metadata(value: Any) -> Any:
+def _compact_metadata(value: Any, *, preserve_float: bool = False) -> Any:
     if isinstance(value, np.ndarray):
         arr = value.copy()
         if np.issubdtype(arr.dtype, np.floating) and arr.size > 0:
+            if preserve_float:
+                return arr.astype(np.float32)
             arr_min = float(np.nanmin(arr))
             arr_max = float(np.nanmax(arr))
             if arr_min >= 0.0 and arr_max <= 1.0:
@@ -52,11 +54,17 @@ def _compact_metadata(value: Any) -> Any:
     if isinstance(value, torch.Tensor):
         return _compact_tensor(value)
     if isinstance(value, dict):
-        return {k: _compact_metadata(v) for k, v in value.items()}
+        return {
+            k: _compact_metadata(
+                v,
+                preserve_float=preserve_float or str(k) == "reference_input_memory",
+            )
+            for k, v in value.items()
+        }
     if isinstance(value, list):
-        return [_compact_metadata(v) for v in value]
+        return [_compact_metadata(v, preserve_float=preserve_float) for v in value]
     if isinstance(value, tuple):
-        return tuple(_compact_metadata(v) for v in value)
+        return tuple(_compact_metadata(v, preserve_float=preserve_float) for v in value)
     return value
 
 

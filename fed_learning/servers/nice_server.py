@@ -70,6 +70,10 @@ class ContextDetector:
         self.memo_per_class = memo_per_class
         self.router_mode = str(router_mode or "chained").lower()
         self.activation_memory: Dict[int, np.ndarray] = {}
+        # Small, client-local raw reference bank used only to re-encode router
+        # sketches after the backbone changes. Binary sketches alone cannot be
+        # transformed into the feature space of an aggregated later model.
+        self.reference_input_memory: Dict[int, np.ndarray] = {}
         self.context_masks: Dict[int, np.ndarray] = {}
         self.binarize_thresholds: Optional[Dict[str, float]] = None
         self.context_learners: List[LogisticRegression] = []
@@ -145,7 +149,13 @@ class ContextDetector:
             mask[:] = True
         return mask
 
-    def push_activations(self, model: NICEModel, data: torch.Tensor, episode: int):
+    def push_activations(
+        self,
+        model: NICEModel,
+        data: torch.Tensor,
+        episode: int,
+        reference_data: Optional[torch.Tensor] = None,
+    ):
         """Store per-sample binary activation vectors for an episode.
 
         Official: stores multiple binary vectors per episode (not just one aggregated).
@@ -177,6 +187,36 @@ class ContextDetector:
         binary_vecs = self._binarize_per_sample(model, data)  # [n_samples, features]
         self.activation_memory[episode] = binary_vecs
         self.context_masks[episode] = self._get_context_mask(model)
+        if reference_data is not None and len(reference_data):
+            self.reference_input_memory[int(episode)] = np.asarray(
+                reference_data.detach().cpu().tolist(), dtype=np.float32
+            )
+
+    def refresh_activation_memory(self, model: NICEModel) -> Dict[str, int]:
+        """Re-encode saved local router references with the current model.
+
+        A DeNICE router is fitted on binary backbone activations. After local
+        updates or decentralized aggregation, historical binary rows belong to
+        an earlier encoder and become stale. Rebuilding them from the small
+        client-local input bank keeps router memory in the exact feature space
+        of the model that will be checkpointed/evaluated.
+        """
+        refreshed = 0
+        samples = 0
+        try:
+            device = next(model.parameters()).device
+        except StopIteration:
+            device = torch.device("cpu")
+        for episode, raw_inputs in sorted(self.reference_input_memory.items()):
+            inputs = torch.as_tensor(raw_inputs, dtype=torch.float32, device=device)
+            if len(inputs) == 0:
+                continue
+            self.activation_memory[int(episode)] = self._binarize_per_sample(model, inputs)
+            refreshed += 1
+            samples += int(len(inputs))
+        if refreshed:
+            self.train_models(max(self.activation_memory))
+        return {"refreshed_episode_count": refreshed, "reference_sample_count": samples}
 
     def train_models(self, current_episode: int):
         """Fit chained logistic regression models.

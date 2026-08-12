@@ -105,6 +105,14 @@ INFERENCE_POLICIES = {
 }
 
 
+def _increment_route_diagnostic(
+    diagnostics: Optional[Dict[str, int]], key: str, count: int
+) -> None:
+    """Mutably collect compact routing facts when an evaluator requests them."""
+    if diagnostics is not None:
+        diagnostics[key] = int(diagnostics.get(key, 0)) + int(count)
+
+
 def _validate_oracle_episodes(
     oracle_episodes: Optional[np.ndarray], n: int
 ) -> np.ndarray:
@@ -127,6 +135,9 @@ def _denice_routed_logits_with_episodes(
     route_topk: int = 1,
     inference_policy: Optional[str] = None,
     oracle_episodes: Optional[np.ndarray] = None,
+    routing_diagnostics: Optional[Dict[str, int]] = None,
+    adaptive_high_confidence: float = 0.75,
+    adaptive_low_confidence: float = 0.45,
 ) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
     """Return logits from the same routed path used for DeNICE prediction.
 
@@ -171,6 +182,8 @@ def _denice_routed_logits_with_episodes(
         mode, adapter_source, mask_source = "hard", "oracle", "oracle"
     else:
         mode, adapter_source, mask_source = str(route_mode or "hard").lower(), "predicted", "predicted"
+    if mode not in {"hard", "topk", "nomask", "adaptive"}:
+        raise ValueError(f"Unknown DeNICE route mode: {mode}")
 
     episodes, chain_probs = _route_episodes_with_scores(model, X_batch, context_detector)
     active_episodes = (
@@ -190,6 +203,9 @@ def _denice_routed_logits_with_episodes(
     if mode == "topk" and chain_probs is not None and chain_probs.ndim == 2:
         k = max(1, int(route_topk))
         topk_eps = np.argsort(-chain_probs, axis=1)[:, :k]
+    elif mode == "adaptive" and chain_probs is not None and chain_probs.ndim == 2:
+        k = max(2, int(route_topk))
+        topk_eps = np.argsort(-chain_probs, axis=1)[:, :k]
 
     allowed_cache: Dict[int, List[int]] = {}
 
@@ -205,11 +221,56 @@ def _denice_routed_logits_with_episodes(
         idx_np = np.where(active_episodes == ep)[0]
         idx = torch.as_tensor(idx_np, dtype=torch.long, device=device)
         model.set_active_context(int(ep))  # adapter follows the top-1 route
+        if getattr(model, "active_adapters", {}):
+            _increment_route_diagnostic(routing_diagnostics, "adapter_active_sample_count", len(idx_np))
+        else:
+            _increment_route_diagnostic(routing_diagnostics, "missing_adapter_sample_count", len(idx_np))
         out = model(X_batch.index_select(0, idx))
         out[:, unseen] = -100.0
 
         if mode == "nomask" or mask_source == "none":
             routed_logits[idx] = out
+            continue
+
+        if mode == "adaptive":
+            # Safe, explicit fallbacks: a confident route gets the original
+            # hard mask; uncertain routes use a top-k class union; no scores
+            # or low confidence leaves all seen classes available.
+            if chain_probs is None or chain_probs.ndim != 2:
+                routed_logits[idx] = out
+                _increment_route_diagnostic(routing_diagnostics, "adaptive_nomask_sample_count", len(idx_np))
+                continue
+            confidence = np.max(chain_probs[idx_np], axis=1)
+            hard_rows = np.where(confidence >= float(adaptive_high_confidence))[0]
+            topk_rows = np.where(
+                (confidence >= float(adaptive_low_confidence))
+                & (confidence < float(adaptive_high_confidence))
+            )[0]
+            nomask_rows = np.where(confidence < float(adaptive_low_confidence))[0]
+            if hard_rows.size:
+                for row in hard_rows:
+                    routed_logits[idx[row : row + 1]] = _mask_logits_to_classes(
+                        out[row : row + 1], _allowed_for(int(ep))
+                    )
+            if topk_rows.size:
+                allow = np.zeros((len(topk_rows), num_classes), dtype=bool)
+                for col in range(topk_eps.shape[1]):
+                    sub_eps = topk_eps[idx_np[topk_rows], col]
+                    for candidate_ep in np.unique(sub_eps):
+                        local_rows = np.where(sub_eps == candidate_ep)[0]
+                        allowed = _allowed_for(int(candidate_ep))
+                        if local_rows.size and allowed:
+                            allow[np.ix_(local_rows, np.asarray(allowed, dtype=np.int64))] = True
+                routed_logits[idx[topk_rows]] = torch.where(
+                    torch.as_tensor(allow, dtype=torch.bool, device=device),
+                    out[topk_rows],
+                    torch.full_like(out[topk_rows], -100.0),
+                )
+            if nomask_rows.size:
+                routed_logits[idx[nomask_rows]] = out[nomask_rows]
+            _increment_route_diagnostic(routing_diagnostics, "adaptive_hard_sample_count", len(hard_rows))
+            _increment_route_diagnostic(routing_diagnostics, "adaptive_topk_sample_count", len(topk_rows))
+            _increment_route_diagnostic(routing_diagnostics, "adaptive_nomask_sample_count", len(nomask_rows))
             continue
 
         if mode == "topk" and topk_eps is not None:
@@ -226,6 +287,7 @@ def _denice_routed_logits_with_episodes(
             routed_logits[idx] = torch.where(
                 allow_t, out, torch.full_like(out, -100.0)
             )
+            _increment_route_diagnostic(routing_diagnostics, "topk_mask_sample_count", len(idx_np))
             continue
 
         # For oracle_hard, mask rows by their true task episode rather than by
@@ -242,6 +304,7 @@ def _denice_routed_logits_with_episodes(
         else:
             # hard (default): identical to the original top-1 masking path.
             routed_logits[idx] = _mask_logits_to_classes(out, _allowed_for(int(ep)))
+        _increment_route_diagnostic(routing_diagnostics, "hard_mask_sample_count", len(idx_np))
 
     model.clear_active_adapters()
     return routed_logits, np.asarray(episodes)

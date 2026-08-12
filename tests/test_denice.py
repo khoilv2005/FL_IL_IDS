@@ -33,6 +33,7 @@ from fed_learning.strategies.incremental.nice import select_learner_units
 from fed_learning.strategies.incremental import get_incremental_strategy
 from fed_learning.training.denice_delta_checkpoint import (
     cpu_client_model_states,
+    compact_algorithm_states,
     load_denice_checkpoint,
     save_delta_round_checkpoint,
     save_task_base_checkpoint,
@@ -74,6 +75,18 @@ class TestMicroAdapter:
 
 
 class TestDeNICEModel:
+    def test_delta_metadata_preserves_raw_router_references_as_float(self):
+        states = compact_algorithm_states(
+            {7: {"denice": {"context_detector": {
+                "activation_memory": {0: np.asarray([[0.0, 1.0]], dtype=np.float32)},
+                "reference_input_memory": {0: np.asarray([[0.125, 0.875]], dtype=np.float32)},
+            }}}}
+        )
+        detector_state = states[7]["denice"]["context_detector"]
+        assert detector_state["activation_memory"][0].dtype == np.uint8
+        assert detector_state["reference_input_memory"][0].dtype == np.float32
+        assert np.allclose(detector_state["reference_input_memory"][0], [[0.125, 0.875]])
+
     def test_forward_shape(self):
         model = _make_model()
         out = model(_dummy_batch())
@@ -1023,6 +1036,77 @@ class TestSharedContextDetector:
 
 
 class TestDeNICEEvaluation:
+    def test_context_reference_memory_refreshes_after_model_change(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.checkpoint_state import (
+            restore_context_detector,
+            snapshot_context_detector,
+        )
+
+        model = _make_model()
+        detector = ContextDetector(memo_per_class=4, router_mode="multiclass")
+        detector.episode_classes = {0: [0], 1: [1]}
+        ref0 = _dummy_batch(8)
+        ref1 = _dummy_batch(8) + 1.5
+        detector.push_activations(model, ref0, 0, reference_data=ref0)
+        detector.push_activations(model, ref1, 1, reference_data=ref1)
+        detector.train_models(1)
+        old_memory = detector.activation_memory[0].copy()
+        with torch.no_grad():
+            model.conv1.weight.add_(0.5)
+        summary = detector.refresh_activation_memory(model)
+
+        assert summary == {"refreshed_episode_count": 2, "reference_sample_count": 16}
+        assert detector.activation_memory[0].shape == old_memory.shape
+        state = snapshot_context_detector(detector)
+        restored = ContextDetector(memo_per_class=1)
+        restore_context_detector(restored, state)
+        assert set(restored.reference_input_memory) == {0, 1}
+
+    def test_balanced_router_audit_subset_has_equal_episode_quota(self):
+        import eval_checkpoint
+
+        labels = torch.tensor([0, 0, 0, 1, 1, 2, 2, 2, 2], dtype=torch.long)
+        indices, episodes = eval_checkpoint._balanced_episode_indices(
+            labels,
+            {0: [0, 1], 1: [2]},
+            samples_per_episode=2,
+            seed=9,
+        )
+
+        assert len(indices) == 4
+        assert (episodes == 0).sum() == 2
+        assert (episodes == 1).sum() == 2
+        episode_tensor = torch.tensor(episodes.tolist(), dtype=torch.long)
+        assert set(labels[indices[episode_tensor == 0]].tolist()).issubset({0, 1})
+        assert set(labels[indices[episode_tensor == 1]].tolist()) == {2}
+
+    def test_router_state_audit_reports_coverage_and_holdout(self):
+        import eval_checkpoint
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.checkpoint_state import snapshot_context_detector
+
+        detector = ContextDetector(memo_per_class=4, router_mode="multiclass")
+        detector.activation_memory = {
+            0: np.zeros((8, 3), dtype=np.float32),
+            1: np.ones((8, 3), dtype=np.float32),
+        }
+        detector.context_masks = {0: np.ones(3, dtype=bool), 1: np.ones(3, dtype=bool)}
+        detector.episode_classes = {0: [0], 1: [1]}
+        detector.train_models(1)
+        checkpoint = {
+            "config": {"denice_router_mode": "multiclass", "memo_per_class": 4},
+            "client_algorithm_states": {
+                7: {"denice": {"context_detector": snapshot_context_detector(detector)}}
+            },
+        }
+        audit = eval_checkpoint.audit_denice_router_states(checkpoint, seed=1)
+
+        assert audit["client_count"] == 1
+        assert audit["eligible_holdout_client_count"] == 1
+        assert audit["memory_episode_coverage_histogram"] == {"0,1": 1}
+        assert audit["clients"][0]["refit_holdout"]["balanced_accuracy"] == 1.0
+
     def test_coverage_aware_partition_never_assigns_unsupported_episode(self):
         import eval_checkpoint
 
@@ -1111,6 +1195,47 @@ class TestDeNICEEvaluation:
 
         assert torch.all(logits[0, 2:4] == -100.0)
         assert torch.all(logits[1, :2] == -100.0)
+
+    def test_adaptive_route_records_fallback_and_preserves_seen_classes(self, monkeypatch):
+        from fed_learning.servers.nice_server import ContextDetector
+        import fed_learning.training.denice_eval as denice_eval
+
+        model = _make_model()
+        detector = ContextDetector(memo_per_class=10, router_mode="multiclass")
+        detector.episode_classes = {0: [0, 1], 1: [2, 3]}
+        X = _dummy_batch(3)
+        monkeypatch.setattr(
+            denice_eval,
+            "_route_episodes_with_scores",
+            lambda *_args: (
+                np.asarray([0, 1, 1]),
+                np.asarray([
+                    [0.90, 0.10, 0.00],
+                    [0.55, 0.45, 0.00],
+                    [0.30, 0.40, 0.30],
+                ]),
+            ),
+        )
+        diagnostics = {}
+        logits, _ = denice_eval._denice_routed_logits_with_episodes(
+            model,
+            X,
+            detector,
+            seen_classes=[0, 1, 2, 3],
+            device="cpu",
+            route_mode="adaptive",
+            route_topk=2,
+            routing_diagnostics=diagnostics,
+            adaptive_high_confidence=0.75,
+            adaptive_low_confidence=0.45,
+        )
+
+        assert diagnostics["adaptive_hard_sample_count"] == 1
+        assert diagnostics["adaptive_topk_sample_count"] == 1
+        assert diagnostics["adaptive_nomask_sample_count"] == 1
+        assert torch.all(logits[0, 2:4] == -100.0)
+        assert torch.all(logits[1, :4] > -100.0)
+        assert torch.all(logits[2, :4] > -100.0)
 
     def test_checkpoint_loader_normalizes_task_end_schema(self, monkeypatch):
         import eval_checkpoint

@@ -303,6 +303,9 @@ CONFIG = {
     # calibration/provenance; otherwise evaluation safely falls back to local.
     "denice_shared_context_require_compatible_calibration": True,
     "denice_router_mode": "multiclass",
+    # Re-encode each small client-local context reference bank after aggregation
+    # so the router never compares final-model activations with stale sketches.
+    "denice_refresh_router_memory_after_aggregation": True,
 
     # DeNICE decentralized aggregation (Đề xuất §6-§7). Mặc định giữ hành vi cũ.
     # denice_aggregation_method: "weighted_mean" | "coordinate_median" | "trimmed_mean"

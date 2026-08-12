@@ -1,0 +1,7671 @@
+{
+  "audit_protocol": "saved_activation_memory_in_sample_and_refit_holdout",
+  "seed": 42,
+  "holdout_fraction": 0.2,
+  "client_count": 98,
+  "eligible_holdout_client_count": 98,
+  "memory_episode_coverage_histogram": {
+    "0,3,4,5": 8,
+    "0,1,2,3,4,5": 45,
+    "0,1,2,5": 2,
+    "0,1,3,4,5": 11,
+    "0,1,2,3,5": 4,
+    "0,2,3,4,5": 10,
+    "0,1,2,4,5": 9,
+    "0,4,5": 1,
+    "0,2,3,5": 2,
+    "0,2,4,5": 3,
+    "0,1,4,5": 1,
+    "0,1,3,5": 1,
+    "0,3,5": 1
+  },
+  "mean_persisted_balanced_accuracy": 0.9999774265858666,
+  "mean_refit_holdout_balanced_accuracy": 0.9728068488274507,
+  "worst_refit_holdout_clients": [
+    {
+      "client_id": 51,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 866,
+      "persisted_memory": {
+        "sample_count": 866,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 300,
+          "3": 300,
+          "4": 212,
+          "5": 4
+        },
+        "mean_confidence": 0.9973514676094055,
+        "mean_entropy": 0.019005571118900305
+      },
+      "refit_holdout": {
+        "sample_count": 173,
+        "accuracy": 0.9942196531791907,
+        "balanced_accuracy": 0.8,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 60,
+          "3": 60,
+          "4": 43
+        },
+        "mean_confidence": 0.9961435198783875,
+        "mean_entropy": 0.02561441712406627
+      }
+    },
+    {
+      "client_id": 30,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:57c09609427342def3025c115550bd79da95b7e95cac7b8e5b978445e44e94e1",
+      "memory_sample_count": 1047,
+      "persisted_memory": {
+        "sample_count": 1047,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 200,
+          "1": 200,
+          "2": 199,
+          "3": 300,
+          "4": 145,
+          "5": 3
+        },
+        "mean_confidence": 0.9941900372505188,
+        "mean_entropy": 0.03848949531039768
+      },
+      "refit_holdout": {
+        "sample_count": 210,
+        "accuracy": 0.9952380952380953,
+        "balanced_accuracy": 0.8333333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.0
+        },
+        "predicted_episode_distribution": {
+          "0": 40,
+          "1": 40,
+          "2": 40,
+          "3": 60,
+          "4": 30
+        },
+        "mean_confidence": 0.989123523235321,
+        "mean_entropy": 0.05616524527054587
+      }
+    },
+    {
+      "client_id": 61,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1004,
+      "persisted_memory": {
+        "sample_count": 1004,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 250,
+          "3": 250,
+          "4": 251,
+          "5": 3
+        },
+        "mean_confidence": 0.9914224743843079,
+        "mean_entropy": 0.05168546398571048
+      },
+      "refit_holdout": {
+        "sample_count": 201,
+        "accuracy": 0.9950248756218906,
+        "balanced_accuracy": 0.8333333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 50,
+          "3": 50,
+          "4": 51
+        },
+        "mean_confidence": 0.9829948544502258,
+        "mean_entropy": 0.08194682439506959
+      }
+    },
+    {
+      "client_id": 95,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 863,
+      "persisted_memory": {
+        "sample_count": 863,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 250,
+          "3": 107,
+          "4": 250,
+          "5": 6
+        },
+        "mean_confidence": 0.9941877126693726,
+        "mean_entropy": 0.03918742119703133
+      },
+      "refit_holdout": {
+        "sample_count": 172,
+        "accuracy": 0.9941860465116279,
+        "balanced_accuracy": 0.8333333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 50,
+          "3": 21,
+          "4": 51
+        },
+        "mean_confidence": 0.9861853122711182,
+        "mean_entropy": 0.06708207320265734
+      }
+    },
+    {
+      "client_id": 4,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:3ca072609e0d226be1b8e4a5e5315af4b5b7fc57c1d04f39c73d557c5e22a08b",
+      "memory_sample_count": 936,
+      "persisted_memory": {
+        "sample_count": 936,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 164,
+          "1": 250,
+          "3": 200,
+          "4": 248,
+          "5": 74
+        },
+        "mean_confidence": 0.9839810132980347,
+        "mean_entropy": 0.0653497701534145
+      },
+      "refit_holdout": {
+        "sample_count": 188,
+        "accuracy": 0.925531914893617,
+        "balanced_accuracy": 0.8413333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 0.94,
+          "5": 0.26666666666666666
+        },
+        "predicted_episode_distribution": {
+          "0": 33,
+          "1": 50,
+          "3": 40,
+          "4": 58,
+          "5": 7
+        },
+        "mean_confidence": 0.9534205794334412,
+        "mean_entropy": 0.12913628799900734
+      }
+    },
+    {
+      "client_id": 89,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:519ca0f32923c497d366cf10d4e961ce766d25f7bc91fe4b396bdf3ff0f70a2b",
+      "memory_sample_count": 785,
+      "persisted_memory": {
+        "sample_count": 785,
+        "accuracy": 0.9987261146496815,
+        "balanced_accuracy": 0.9988700564971751,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9943502824858758,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 179,
+          "2": 150,
+          "3": 150,
+          "4": 176,
+          "5": 130
+        },
+        "mean_confidence": 0.9617577791213989,
+        "mean_entropy": 0.1168607228281117
+      },
+      "refit_holdout": {
+        "sample_count": 157,
+        "accuracy": 0.8535031847133758,
+        "balanced_accuracy": 0.842930402930403,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 0.9333333333333333,
+          "4": 0.7428571428571429,
+          "5": 0.5384615384615384
+        },
+        "predicted_episode_distribution": {
+          "0": 36,
+          "2": 31,
+          "3": 28,
+          "4": 39,
+          "5": 23
+        },
+        "mean_confidence": 0.9434915781021118,
+        "mean_entropy": 0.14319216801788145
+      }
+    },
+    {
+      "client_id": 33,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:bb55f40e8c3554d7835359baa62f3fa700aaae2acece71c1dc6e747a65e3ab07",
+      "memory_sample_count": 388,
+      "persisted_memory": {
+        "sample_count": 388,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 58,
+          "3": 150,
+          "4": 172,
+          "5": 8
+        },
+        "mean_confidence": 0.9961110353469849,
+        "mean_entropy": 0.02655138381643623
+      },
+      "refit_holdout": {
+        "sample_count": 78,
+        "accuracy": 0.9871794871794872,
+        "balanced_accuracy": 0.875,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.5
+        },
+        "predicted_episode_distribution": {
+          "0": 12,
+          "3": 30,
+          "4": 35,
+          "5": 1
+        },
+        "mean_confidence": 0.9855948090553284,
+        "mean_entropy": 0.05979371068279324
+      }
+    },
+    {
+      "client_id": 73,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:00d48128f733f2f4af4c11615fc6d87976598cb770b6e6da4900118a8be6d44c",
+      "memory_sample_count": 915,
+      "persisted_memory": {
+        "sample_count": 915,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 111,
+          "1": 250,
+          "2": 208,
+          "3": 200,
+          "4": 130,
+          "5": 16
+        },
+        "mean_confidence": 0.9950429201126099,
+        "mean_entropy": 0.03392777636418545
+      },
+      "refit_holdout": {
+        "sample_count": 183,
+        "accuracy": 0.9781420765027322,
+        "balanced_accuracy": 0.8760683760683761,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9230769230769231,
+          "5": 0.3333333333333333
+        },
+        "predicted_episode_distribution": {
+          "0": 22,
+          "1": 50,
+          "2": 42,
+          "3": 40,
+          "4": 26,
+          "5": 3
+        },
+        "mean_confidence": 0.9766935706138611,
+        "mean_entropy": 0.08741738441328761
+      }
+    },
+    {
+      "client_id": 49,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:e0fc79489bc217dac01522e2ff28e26dce273590edbd9fdebe69153961036cdb",
+      "memory_sample_count": 1028,
+      "persisted_memory": {
+        "sample_count": 1028,
+        "accuracy": 0.9990272373540856,
+        "balanced_accuracy": 0.9989177489177489,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.9935064935064936
+        },
+        "predicted_episode_distribution": {
+          "0": 100,
+          "1": 250,
+          "2": 200,
+          "3": 124,
+          "4": 201,
+          "5": 153
+        },
+        "mean_confidence": 0.9652683734893799,
+        "mean_entropy": 0.11858821030157916
+      },
+      "refit_holdout": {
+        "sample_count": 206,
+        "accuracy": 0.8786407766990292,
+        "balanced_accuracy": 0.8866129032258065,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 0.96,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.65,
+          "5": 0.7096774193548387
+        },
+        "predicted_episode_distribution": {
+          "0": 21,
+          "1": 48,
+          "2": 41,
+          "3": 25,
+          "4": 35,
+          "5": 36
+        },
+        "mean_confidence": 0.9247219562530518,
+        "mean_entropy": 0.19367790384434647
+      }
+    },
+    {
+      "client_id": 91,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:88a859b869ecbdb38d9b645c3f3d825994fdb02bde5d50d78272e1454a1a9ee3",
+      "memory_sample_count": 959,
+      "persisted_memory": {
+        "sample_count": 959,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 139,
+          "1": 250,
+          "2": 111,
+          "3": 250,
+          "4": 150,
+          "5": 59
+        },
+        "mean_confidence": 0.9895452857017517,
+        "mean_entropy": 0.0526291671970801
+      },
+      "refit_holdout": {
+        "sample_count": 192,
+        "accuracy": 0.9479166666666666,
+        "balanced_accuracy": 0.9027777777777777,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.8333333333333334,
+          "5": 0.5833333333333334
+        },
+        "predicted_episode_distribution": {
+          "0": 28,
+          "1": 50,
+          "2": 22,
+          "3": 50,
+          "4": 30,
+          "5": 12
+        },
+        "mean_confidence": 0.9622757434844971,
+        "mean_entropy": 0.11818602685880515
+      }
+    }
+  ],
+  "clients": [
+    {
+      "client_id": 0,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:7f95606f62ebe77dbd4d3c49c42777a67690202093453b9059a2bbdb99723001",
+      "memory_sample_count": 644,
+      "persisted_memory": {
+        "sample_count": 644,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 228,
+          "3": 200,
+          "4": 154,
+          "5": 62
+        },
+        "mean_confidence": 0.9966593384742737,
+        "mean_entropy": 0.0228611464776909
+      },
+      "refit_holdout": {
+        "sample_count": 129,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 46,
+          "3": 40,
+          "4": 31,
+          "5": 12
+        },
+        "mean_confidence": 0.9934020638465881,
+        "mean_entropy": 0.03702748213748577
+      }
+    },
+    {
+      "client_id": 1,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1016,
+      "persisted_memory": {
+        "sample_count": 1016,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 212,
+          "3": 250,
+          "4": 201,
+          "5": 103
+        },
+        "mean_confidence": 0.9922677278518677,
+        "mean_entropy": 0.04550484281403214
+      },
+      "refit_holdout": {
+        "sample_count": 203,
+        "accuracy": 0.9901477832512315,
+        "balanced_accuracy": 0.9887301587301588,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 0.98,
+          "4": 1.0,
+          "5": 0.9523809523809523
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 41,
+          "2": 42,
+          "3": 49,
+          "4": 41,
+          "5": 20
+        },
+        "mean_confidence": 0.9792258143424988,
+        "mean_entropy": 0.07708184930371544
+      }
+    },
+    {
+      "client_id": 2,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 587,
+      "persisted_memory": {
+        "sample_count": 587,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 212,
+          "5": 125
+        },
+        "mean_confidence": 0.9961732029914856,
+        "mean_entropy": 0.02553310082283501
+      },
+      "refit_holdout": {
+        "sample_count": 117,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 42,
+          "5": 25
+        },
+        "mean_confidence": 0.989768922328949,
+        "mean_entropy": 0.04334166817722111
+      }
+    },
+    {
+      "client_id": 3,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1003,
+      "persisted_memory": {
+        "sample_count": 1003,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 250,
+          "2": 250,
+          "3": 202,
+          "4": 221,
+          "5": 30
+        },
+        "mean_confidence": 0.9922999739646912,
+        "mean_entropy": 0.04762142399247801
+      },
+      "refit_holdout": {
+        "sample_count": 200,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 50,
+          "2": 50,
+          "3": 40,
+          "4": 44,
+          "5": 6
+        },
+        "mean_confidence": 0.98268723487854,
+        "mean_entropy": 0.08031562540816864
+      }
+    },
+    {
+      "client_id": 4,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:3ca072609e0d226be1b8e4a5e5315af4b5b7fc57c1d04f39c73d557c5e22a08b",
+      "memory_sample_count": 936,
+      "persisted_memory": {
+        "sample_count": 936,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 164,
+          "1": 250,
+          "3": 200,
+          "4": 248,
+          "5": 74
+        },
+        "mean_confidence": 0.9839810132980347,
+        "mean_entropy": 0.0653497701534145
+      },
+      "refit_holdout": {
+        "sample_count": 188,
+        "accuracy": 0.925531914893617,
+        "balanced_accuracy": 0.8413333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 0.94,
+          "5": 0.26666666666666666
+        },
+        "predicted_episode_distribution": {
+          "0": 33,
+          "1": 50,
+          "3": 40,
+          "4": 58,
+          "5": 7
+        },
+        "mean_confidence": 0.9534205794334412,
+        "mean_entropy": 0.12913628799900734
+      }
+    },
+    {
+      "client_id": 5,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 473,
+      "persisted_memory": {
+        "sample_count": 473,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 50,
+          "3": 100,
+          "5": 73
+        },
+        "mean_confidence": 0.9951819181442261,
+        "mean_entropy": 0.03350426719054989
+      },
+      "refit_holdout": {
+        "sample_count": 95,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 10,
+          "3": 20,
+          "5": 15
+        },
+        "mean_confidence": 0.9928714036941528,
+        "mean_entropy": 0.04648492670375963
+      }
+    },
+    {
+      "client_id": 6,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 933,
+      "persisted_memory": {
+        "sample_count": 933,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 100,
+          "3": 240,
+          "4": 215,
+          "5": 128
+        },
+        "mean_confidence": 0.9900956153869629,
+        "mean_entropy": 0.055365764506272994
+      },
+      "refit_holdout": {
+        "sample_count": 187,
+        "accuracy": 0.983957219251337,
+        "balanced_accuracy": 0.9833035181872392,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9767441860465116,
+          "5": 0.9230769230769231
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 20,
+          "3": 48,
+          "4": 44,
+          "5": 25
+        },
+        "mean_confidence": 0.966458261013031,
+        "mean_entropy": 0.11850496346006584
+      }
+    },
+    {
+      "client_id": 7,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 910,
+      "persisted_memory": {
+        "sample_count": 910,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 250,
+          "2": 250,
+          "3": 150,
+          "4": 159,
+          "5": 51
+        },
+        "mean_confidence": 0.9915555715560913,
+        "mean_entropy": 0.05109071466292579
+      },
+      "refit_holdout": {
+        "sample_count": 182,
+        "accuracy": 0.9945054945054945,
+        "balanced_accuracy": 0.9833333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.9
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 50,
+          "2": 50,
+          "3": 30,
+          "4": 33,
+          "5": 9
+        },
+        "mean_confidence": 0.9821447134017944,
+        "mean_entropy": 0.0826854889052204
+      }
+    },
+    {
+      "client_id": 8,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 651,
+      "persisted_memory": {
+        "sample_count": 651,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 119,
+          "2": 150,
+          "3": 104,
+          "4": 150,
+          "5": 78
+        },
+        "mean_confidence": 0.9884218573570251,
+        "mean_entropy": 0.0637320036375375
+      },
+      "refit_holdout": {
+        "sample_count": 131,
+        "accuracy": 0.9770992366412213,
+        "balanced_accuracy": 0.967361111111111,
+        "per_episode_recall": {
+          "0": 0.9,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9666666666666667,
+          "5": 0.9375
+        },
+        "predicted_episode_distribution": {
+          "0": 9,
+          "1": 24,
+          "2": 30,
+          "3": 21,
+          "4": 30,
+          "5": 17
+        },
+        "mean_confidence": 0.9601945877075195,
+        "mean_entropy": 0.1376404958350369
+      }
+    },
+    {
+      "client_id": 9,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:812785849ba52b3c928f58b497f9dcc9392bc1e10bbaffa2bd4f5de3295ce1f4",
+      "memory_sample_count": 912,
+      "persisted_memory": {
+        "sample_count": 912,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 250,
+          "2": 202,
+          "3": 250,
+          "4": 108,
+          "5": 102
+        },
+        "mean_confidence": 0.996507465839386,
+        "mean_entropy": 0.024298292652857947
+      },
+      "refit_holdout": {
+        "sample_count": 182,
+        "accuracy": 0.9945054945054945,
+        "balanced_accuracy": 0.990909090909091,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9545454545454546,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "2": 40,
+          "3": 50,
+          "4": 21,
+          "5": 21
+        },
+        "mean_confidence": 0.9867692589759827,
+        "mean_entropy": 0.053661411148351816
+      }
+    },
+    {
+      "client_id": 10,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 585,
+      "persisted_memory": {
+        "sample_count": 585,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 50,
+          "2": 248,
+          "4": 150,
+          "5": 87
+        },
+        "mean_confidence": 0.9880064129829407,
+        "mean_entropy": 0.06053249598170202
+      },
+      "refit_holdout": {
+        "sample_count": 117,
+        "accuracy": 0.9743589743589743,
+        "balanced_accuracy": 0.9749019607843138,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 0.9333333333333333,
+          "5": 0.9411764705882353
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 10,
+          "2": 50,
+          "4": 29,
+          "5": 18
+        },
+        "mean_confidence": 0.9610899090766907,
+        "mean_entropy": 0.11779152157300231
+      }
+    },
+    {
+      "client_id": 11,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 928,
+      "persisted_memory": {
+        "sample_count": 928,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 250,
+          "2": 150,
+          "3": 200,
+          "4": 201,
+          "5": 77
+        },
+        "mean_confidence": 0.9924114942550659,
+        "mean_entropy": 0.04811160286038062
+      },
+      "refit_holdout": {
+        "sample_count": 185,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 50,
+          "2": 30,
+          "3": 40,
+          "4": 40,
+          "5": 15
+        },
+        "mean_confidence": 0.9822779297828674,
+        "mean_entropy": 0.08517798272625635
+      }
+    },
+    {
+      "client_id": 12,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 581,
+      "persisted_memory": {
+        "sample_count": 581,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 209,
+          "2": 151,
+          "4": 105,
+          "5": 66
+        },
+        "mean_confidence": 0.9914565682411194,
+        "mean_entropy": 0.047951903121347624
+      },
+      "refit_holdout": {
+        "sample_count": 116,
+        "accuracy": 0.9913793103448276,
+        "balanced_accuracy": 0.9904761904761905,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 0.9523809523809523,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 42,
+          "2": 30,
+          "4": 20,
+          "5": 14
+        },
+        "mean_confidence": 0.9692075252532959,
+        "mean_entropy": 0.10506542449270856
+      }
+    },
+    {
+      "client_id": 13,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:ba5ae85b4a0c889a4da290bbcb7591c43a601d78c07bbb9f2aa2df3e08fd44fb",
+      "memory_sample_count": 922,
+      "persisted_memory": {
+        "sample_count": 922,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 156,
+          "1": 200,
+          "3": 250,
+          "4": 250,
+          "5": 66
+        },
+        "mean_confidence": 0.9961293935775757,
+        "mean_entropy": 0.02550524623329422
+      },
+      "refit_holdout": {
+        "sample_count": 184,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 31,
+          "1": 40,
+          "3": 50,
+          "4": 50,
+          "5": 13
+        },
+        "mean_confidence": 0.9911567568778992,
+        "mean_entropy": 0.04478238390896398
+      }
+    },
+    {
+      "client_id": 14,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:e28529eb6d6dc624f8097317a192e0c45e6f04a622a4bafb14fbc040623ba41f",
+      "memory_sample_count": 368,
+      "persisted_memory": {
+        "sample_count": 368,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 138,
+          "3": 150,
+          "4": 58,
+          "5": 22
+        },
+        "mean_confidence": 0.9964175224304199,
+        "mean_entropy": 0.025047994539976613
+      },
+      "refit_holdout": {
+        "sample_count": 74,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 28,
+          "3": 30,
+          "4": 12,
+          "5": 4
+        },
+        "mean_confidence": 0.9900374412536621,
+        "mean_entropy": 0.047713026628928464
+      }
+    },
+    {
+      "client_id": 15,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "calibration_signature": "thresholds:a37c35e588b6ba07a78aa98f40e4f6a6509ecf220d25b049273a755abe3149f8",
+      "memory_sample_count": 1041,
+      "persisted_memory": {
+        "sample_count": 1041,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 255,
+          "1": 200,
+          "2": 200,
+          "3": 280,
+          "5": 106
+        },
+        "mean_confidence": 0.9968463182449341,
+        "mean_entropy": 0.02243002397236574
+      },
+      "refit_holdout": {
+        "sample_count": 208,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 51,
+          "1": 40,
+          "2": 40,
+          "3": 56,
+          "5": 21
+        },
+        "mean_confidence": 0.9945735335350037,
+        "mean_entropy": 0.03123630423971769
+      }
+    },
+    {
+      "client_id": 16,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 899,
+      "persisted_memory": {
+        "sample_count": 899,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 150,
+          "2": 250,
+          "3": 200,
+          "4": 101,
+          "5": 148
+        },
+        "mean_confidence": 0.9936119914054871,
+        "mean_entropy": 0.04126849606364191
+      },
+      "refit_holdout": {
+        "sample_count": 180,
+        "accuracy": 0.9944444444444445,
+        "balanced_accuracy": 0.9916666666666667,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.95,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 30,
+          "2": 50,
+          "3": 40,
+          "4": 19,
+          "5": 31
+        },
+        "mean_confidence": 0.9874516725540161,
+        "mean_entropy": 0.06606016688534487
+      }
+    },
+    {
+      "client_id": 17,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 969,
+      "persisted_memory": {
+        "sample_count": 969,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 250,
+          "2": 218,
+          "3": 200,
+          "4": 250,
+          "5": 1
+        },
+        "mean_confidence": 0.9942057728767395,
+        "mean_entropy": 0.03848205808703716
+      },
+      "refit_holdout": {
+        "sample_count": 194,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 50,
+          "2": 44,
+          "3": 40,
+          "4": 50
+        },
+        "mean_confidence": 0.9926413297653198,
+        "mean_entropy": 0.04483663128609893
+      }
+    },
+    {
+      "client_id": 18,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9adeaf997f5b5469d324e0ba2645015d27f25e3f90659c7071e38ed3d3a80aab",
+      "memory_sample_count": 1113,
+      "persisted_memory": {
+        "sample_count": 1113,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 150,
+          "1": 300,
+          "2": 200,
+          "3": 200,
+          "4": 162,
+          "5": 101
+        },
+        "mean_confidence": 0.9918754696846008,
+        "mean_entropy": 0.04485765300259266
+      },
+      "refit_holdout": {
+        "sample_count": 222,
+        "accuracy": 0.990990990990991,
+        "balanced_accuracy": 0.9864583333333333,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.96875,
+          "5": 0.95
+        },
+        "predicted_episode_distribution": {
+          "0": 30,
+          "1": 60,
+          "2": 40,
+          "3": 40,
+          "4": 32,
+          "5": 20
+        },
+        "mean_confidence": 0.9681999683380127,
+        "mean_entropy": 0.09955967016117565
+      }
+    },
+    {
+      "client_id": 20,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 911,
+      "persisted_memory": {
+        "sample_count": 911,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 212,
+          "3": 200,
+          "4": 150,
+          "5": 99
+        },
+        "mean_confidence": 0.9878444075584412,
+        "mean_entropy": 0.06790308235702616
+      },
+      "refit_holdout": {
+        "sample_count": 182,
+        "accuracy": 0.978021978021978,
+        "balanced_accuracy": 0.9666666666666667,
+        "per_episode_recall": {
+          "0": 0.9,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 9,
+          "1": 40,
+          "2": 42,
+          "3": 40,
+          "4": 27,
+          "5": 24
+        },
+        "mean_confidence": 0.9643340110778809,
+        "mean_entropy": 0.13415904311168897
+      }
+    },
+    {
+      "client_id": 21,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 780,
+      "persisted_memory": {
+        "sample_count": 780,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 250,
+          "4": 200,
+          "5": 80
+        },
+        "mean_confidence": 0.995287299156189,
+        "mean_entropy": 0.03204929878144398
+      },
+      "refit_holdout": {
+        "sample_count": 156,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 50,
+          "4": 40,
+          "5": 16
+        },
+        "mean_confidence": 0.9918467402458191,
+        "mean_entropy": 0.043248038993363075
+      }
+    },
+    {
+      "client_id": 22,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 861,
+      "persisted_memory": {
+        "sample_count": 861,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 300,
+          "2": 150,
+          "3": 200,
+          "4": 102,
+          "5": 59
+        },
+        "mean_confidence": 0.9917804598808289,
+        "mean_entropy": 0.05062006305177813
+      },
+      "refit_holdout": {
+        "sample_count": 172,
+        "accuracy": 0.9825581395348837,
+        "balanced_accuracy": 0.9694444444444446,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9,
+          "5": 0.9166666666666666
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 60,
+          "2": 30,
+          "3": 40,
+          "4": 19,
+          "5": 13
+        },
+        "mean_confidence": 0.968660831451416,
+        "mean_entropy": 0.11526240188486456
+      }
+    },
+    {
+      "client_id": 23,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 717,
+      "persisted_memory": {
+        "sample_count": 717,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 300,
+          "3": 200,
+          "4": 100,
+          "5": 67
+        },
+        "mean_confidence": 0.9905393123626709,
+        "mean_entropy": 0.047537919159839646
+      },
+      "refit_holdout": {
+        "sample_count": 143,
+        "accuracy": 0.965034965034965,
+        "balanced_accuracy": 0.9446153846153846,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 0.8,
+          "5": 0.9230769230769231
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 60,
+          "3": 40,
+          "4": 17,
+          "5": 16
+        },
+        "mean_confidence": 0.9601312279701233,
+        "mean_entropy": 0.108298486994017
+      }
+    },
+    {
+      "client_id": 24,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 932,
+      "persisted_memory": {
+        "sample_count": 932,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 168,
+          "2": 200,
+          "3": 200,
+          "4": 250,
+          "5": 64
+        },
+        "mean_confidence": 0.9790946841239929,
+        "mean_entropy": 0.08993467751331619
+      },
+      "refit_holdout": {
+        "sample_count": 187,
+        "accuracy": 0.93048128342246,
+        "balanced_accuracy": 0.9187179487179488,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.82,
+          "5": 0.6923076923076923
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 34,
+          "2": 40,
+          "3": 40,
+          "4": 45,
+          "5": 18
+        },
+        "mean_confidence": 0.9407346844673157,
+        "mean_entropy": 0.1668540644141372
+      }
+    },
+    {
+      "client_id": 25,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:7586557ddc61038d2e33d06c91af8595818622d26247904dba9bd45d105082f8",
+      "memory_sample_count": 547,
+      "persisted_memory": {
+        "sample_count": 547,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 32,
+          "2": 150,
+          "3": 200,
+          "4": 146,
+          "5": 19
+        },
+        "mean_confidence": 0.9939355254173279,
+        "mean_entropy": 0.039009247100593954
+      },
+      "refit_holdout": {
+        "sample_count": 109,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 6,
+          "2": 30,
+          "3": 40,
+          "4": 29,
+          "5": 4
+        },
+        "mean_confidence": 0.97990882396698,
+        "mean_entropy": 0.07359394072927876
+      }
+    },
+    {
+      "client_id": 26,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:958837725baf849236b69c9bdad4311f2ff5ca6537bef4bd5ecd394f556c7830",
+      "memory_sample_count": 972,
+      "persisted_memory": {
+        "sample_count": 972,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 170,
+          "1": 200,
+          "2": 300,
+          "4": 205,
+          "5": 97
+        },
+        "mean_confidence": 0.9946759939193726,
+        "mean_entropy": 0.03282808977393839
+      },
+      "refit_holdout": {
+        "sample_count": 194,
+        "accuracy": 0.9948453608247423,
+        "balanced_accuracy": 0.9894736842105264,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 0.9473684210526315
+        },
+        "predicted_episode_distribution": {
+          "0": 34,
+          "1": 40,
+          "2": 60,
+          "4": 42,
+          "5": 18
+        },
+        "mean_confidence": 0.986364483833313,
+        "mean_entropy": 0.05679042167541059
+      }
+    },
+    {
+      "client_id": 27,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 724,
+      "persisted_memory": {
+        "sample_count": 724,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "3": 250,
+          "4": 102,
+          "5": 122
+        },
+        "mean_confidence": 0.9933211803436279,
+        "mean_entropy": 0.04145164020955725
+      },
+      "refit_holdout": {
+        "sample_count": 144,
+        "accuracy": 0.9930555555555556,
+        "balanced_accuracy": 0.9960000000000001,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 0.98,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "3": 49,
+          "4": 21,
+          "5": 24
+        },
+        "mean_confidence": 0.9851720333099365,
+        "mean_entropy": 0.06673404908911217
+      }
+    },
+    {
+      "client_id": 28,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 638,
+      "persisted_memory": {
+        "sample_count": 638,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "3": 100,
+          "4": 209,
+          "5": 79
+        },
+        "mean_confidence": 0.9871194958686829,
+        "mean_entropy": 0.059890456871746045
+      },
+      "refit_holdout": {
+        "sample_count": 128,
+        "accuracy": 0.9921875,
+        "balanced_accuracy": 0.9875,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.9375
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "3": 20,
+          "4": 43,
+          "5": 15
+        },
+        "mean_confidence": 0.9625533819198608,
+        "mean_entropy": 0.1150167161565917
+      }
+    },
+    {
+      "client_id": 29,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 786,
+      "persisted_memory": {
+        "sample_count": 786,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 150,
+          "2": 208,
+          "3": 150,
+          "4": 150,
+          "5": 78
+        },
+        "mean_confidence": 0.9934052228927612,
+        "mean_entropy": 0.04275769969826658
+      },
+      "refit_holdout": {
+        "sample_count": 158,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 30,
+          "2": 42,
+          "3": 30,
+          "4": 30,
+          "5": 16
+        },
+        "mean_confidence": 0.9887216091156006,
+        "mean_entropy": 0.060037011554402185
+      }
+    },
+    {
+      "client_id": 30,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:57c09609427342def3025c115550bd79da95b7e95cac7b8e5b978445e44e94e1",
+      "memory_sample_count": 1047,
+      "persisted_memory": {
+        "sample_count": 1047,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 200,
+          "1": 200,
+          "2": 199,
+          "3": 300,
+          "4": 145,
+          "5": 3
+        },
+        "mean_confidence": 0.9941900372505188,
+        "mean_entropy": 0.03848949531039768
+      },
+      "refit_holdout": {
+        "sample_count": 210,
+        "accuracy": 0.9952380952380953,
+        "balanced_accuracy": 0.8333333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.0
+        },
+        "predicted_episode_distribution": {
+          "0": 40,
+          "1": 40,
+          "2": 40,
+          "3": 60,
+          "4": 30
+        },
+        "mean_confidence": 0.989123523235321,
+        "mean_entropy": 0.05616524527054587
+      }
+    },
+    {
+      "client_id": 31,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 565,
+      "persisted_memory": {
+        "sample_count": 565,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 200,
+          "4": 100,
+          "5": 15
+        },
+        "mean_confidence": 0.9939133524894714,
+        "mean_entropy": 0.03864666352567855
+      },
+      "refit_holdout": {
+        "sample_count": 113,
+        "accuracy": 0.9911504424778761,
+        "balanced_accuracy": 0.99,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 0.95,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 40,
+          "4": 19,
+          "5": 4
+        },
+        "mean_confidence": 0.9704990983009338,
+        "mean_entropy": 0.10086986637275937
+      }
+    },
+    {
+      "client_id": 32,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:d9aa93c16531fec4e7ed7d31e151580011835528c0d7cdbd92be6597749884d2",
+      "memory_sample_count": 922,
+      "persisted_memory": {
+        "sample_count": 922,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 258,
+          "3": 300,
+          "4": 261,
+          "5": 103
+        },
+        "mean_confidence": 0.9935358166694641,
+        "mean_entropy": 0.034088638337223996
+      },
+      "refit_holdout": {
+        "sample_count": 185,
+        "accuracy": 0.972972972972973,
+        "balanced_accuracy": 0.9546703296703297,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 0.9615384615384616,
+          "5": 0.8571428571428571
+        },
+        "predicted_episode_distribution": {
+          "0": 52,
+          "3": 60,
+          "4": 53,
+          "5": 20
+        },
+        "mean_confidence": 0.972973644733429,
+        "mean_entropy": 0.07919888913520093
+      }
+    },
+    {
+      "client_id": 33,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:bb55f40e8c3554d7835359baa62f3fa700aaae2acece71c1dc6e747a65e3ab07",
+      "memory_sample_count": 388,
+      "persisted_memory": {
+        "sample_count": 388,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 58,
+          "3": 150,
+          "4": 172,
+          "5": 8
+        },
+        "mean_confidence": 0.9961110353469849,
+        "mean_entropy": 0.02655138381643623
+      },
+      "refit_holdout": {
+        "sample_count": 78,
+        "accuracy": 0.9871794871794872,
+        "balanced_accuracy": 0.875,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.5
+        },
+        "predicted_episode_distribution": {
+          "0": 12,
+          "3": 30,
+          "4": 35,
+          "5": 1
+        },
+        "mean_confidence": 0.9855948090553284,
+        "mean_entropy": 0.05979371068279324
+      }
+    },
+    {
+      "client_id": 34,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:7f6ce1d85c59c058d0f10fd473b951d393c48b5376e688e15cf471ea7fc5e58c",
+      "memory_sample_count": 1282,
+      "persisted_memory": {
+        "sample_count": 1282,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 204,
+          "1": 300,
+          "2": 283,
+          "3": 200,
+          "4": 200,
+          "5": 95
+        },
+        "mean_confidence": 0.9871066212654114,
+        "mean_entropy": 0.060265427062053636
+      },
+      "refit_holdout": {
+        "sample_count": 257,
+        "accuracy": 0.9455252918287937,
+        "balanced_accuracy": 0.9233472400513479,
+        "per_episode_recall": {
+          "0": 0.975609756097561,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.775,
+          "5": 0.7894736842105263
+        },
+        "predicted_episode_distribution": {
+          "0": 40,
+          "1": 60,
+          "2": 58,
+          "3": 40,
+          "4": 35,
+          "5": 24
+        },
+        "mean_confidence": 0.9604895114898682,
+        "mean_entropy": 0.11338143079078805
+      }
+    },
+    {
+      "client_id": 35,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1083,
+      "persisted_memory": {
+        "sample_count": 1083,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 250,
+          "2": 218,
+          "3": 200,
+          "4": 250,
+          "5": 115
+        },
+        "mean_confidence": 0.9916493892669678,
+        "mean_entropy": 0.04992335244866843
+      },
+      "refit_holdout": {
+        "sample_count": 217,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 50,
+          "2": 44,
+          "3": 40,
+          "4": 50,
+          "5": 23
+        },
+        "mean_confidence": 0.9835546612739563,
+        "mean_entropy": 0.08094978753801128
+      }
+    },
+    {
+      "client_id": 36,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 696,
+      "persisted_memory": {
+        "sample_count": 696,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 100,
+          "2": 150,
+          "3": 173,
+          "4": 150,
+          "5": 73
+        },
+        "mean_confidence": 0.9913939833641052,
+        "mean_entropy": 0.052545071588161636
+      },
+      "refit_holdout": {
+        "sample_count": 140,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 20,
+          "2": 30,
+          "3": 35,
+          "4": 30,
+          "5": 15
+        },
+        "mean_confidence": 0.98170405626297,
+        "mean_entropy": 0.08680930291584958
+      }
+    },
+    {
+      "client_id": 37,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 859,
+      "persisted_memory": {
+        "sample_count": 859,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 200,
+          "3": 200,
+          "4": 208,
+          "5": 1
+        },
+        "mean_confidence": 0.9952800869941711,
+        "mean_entropy": 0.03202628266445296
+      },
+      "refit_holdout": {
+        "sample_count": 172,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 40,
+          "3": 40,
+          "4": 42
+        },
+        "mean_confidence": 0.9887044429779053,
+        "mean_entropy": 0.04392164199547106
+      }
+    },
+    {
+      "client_id": 38,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:4cab23ede5a5093133913a9a7ce1bc43e2f793c965a128cbfc054359a8c34fd6",
+      "memory_sample_count": 427,
+      "persisted_memory": {
+        "sample_count": 427,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 204,
+          "4": 192,
+          "5": 31
+        },
+        "mean_confidence": 0.9942963123321533,
+        "mean_entropy": 0.03293356942569883
+      },
+      "refit_holdout": {
+        "sample_count": 85,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 41,
+          "4": 38,
+          "5": 6
+        },
+        "mean_confidence": 0.990691602230072,
+        "mean_entropy": 0.04430671601352555
+      }
+    },
+    {
+      "client_id": 39,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 910,
+      "persisted_memory": {
+        "sample_count": 910,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 150,
+          "2": 150,
+          "3": 250,
+          "4": 250,
+          "5": 60
+        },
+        "mean_confidence": 0.9931341409683228,
+        "mean_entropy": 0.04446967288436209
+      },
+      "refit_holdout": {
+        "sample_count": 182,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 30,
+          "2": 30,
+          "3": 50,
+          "4": 50,
+          "5": 12
+        },
+        "mean_confidence": 0.9902545213699341,
+        "mean_entropy": 0.05966503702606917
+      }
+    },
+    {
+      "client_id": 40,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 605,
+      "persisted_memory": {
+        "sample_count": 605,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 100,
+          "2": 50,
+          "3": 150,
+          "4": 205,
+          "5": 50
+        },
+        "mean_confidence": 0.9882513880729675,
+        "mean_entropy": 0.06204398617554096
+      },
+      "refit_holdout": {
+        "sample_count": 121,
+        "accuracy": 0.9917355371900827,
+        "balanced_accuracy": 0.9833333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.9
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 20,
+          "2": 10,
+          "3": 30,
+          "4": 42,
+          "5": 9
+        },
+        "mean_confidence": 0.9619109034538269,
+        "mean_entropy": 0.12944441799440695
+      }
+    },
+    {
+      "client_id": 41,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 599,
+      "persisted_memory": {
+        "sample_count": 599,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 150,
+          "3": 150,
+          "4": 166,
+          "5": 83
+        },
+        "mean_confidence": 0.9920743703842163,
+        "mean_entropy": 0.04586342420479997
+      },
+      "refit_holdout": {
+        "sample_count": 120,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 30,
+          "3": 30,
+          "4": 33,
+          "5": 17
+        },
+        "mean_confidence": 0.9817032217979431,
+        "mean_entropy": 0.07689962873904495
+      }
+    },
+    {
+      "client_id": 42,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:2a0c097761571c779c2c2b25905791292656f4217cb31397e144114de7543fee",
+      "memory_sample_count": 603,
+      "persisted_memory": {
+        "sample_count": 603,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 250,
+          "3": 200,
+          "4": 106,
+          "5": 47
+        },
+        "mean_confidence": 0.9965687990188599,
+        "mean_entropy": 0.023049618570853848
+      },
+      "refit_holdout": {
+        "sample_count": 120,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "3": 40,
+          "4": 21,
+          "5": 9
+        },
+        "mean_confidence": 0.9895809888839722,
+        "mean_entropy": 0.049354459303623345
+      }
+    },
+    {
+      "client_id": 43,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 959,
+      "persisted_memory": {
+        "sample_count": 959,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 250,
+          "2": 218,
+          "3": 200,
+          "4": 124,
+          "5": 117
+        },
+        "mean_confidence": 0.9922904968261719,
+        "mean_entropy": 0.0492328083269692
+      },
+      "refit_holdout": {
+        "sample_count": 192,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 50,
+          "2": 44,
+          "3": 40,
+          "4": 25,
+          "5": 23
+        },
+        "mean_confidence": 0.9817840456962585,
+        "mean_entropy": 0.08782421999324926
+      }
+    },
+    {
+      "client_id": 44,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 967,
+      "persisted_memory": {
+        "sample_count": 967,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 250,
+          "3": 200,
+          "4": 193,
+          "5": 74
+        },
+        "mean_confidence": 0.993477463722229,
+        "mean_entropy": 0.04180897921585539
+      },
+      "refit_holdout": {
+        "sample_count": 194,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 50,
+          "3": 40,
+          "4": 39,
+          "5": 15
+        },
+        "mean_confidence": 0.987515926361084,
+        "mean_entropy": 0.06324094583487404
+      }
+    },
+    {
+      "client_id": 45,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:4ff058ba08c46899fe3ef6ed67cacf72fadb91cf9265a124b9cbce712e5f1cba",
+      "memory_sample_count": 910,
+      "persisted_memory": {
+        "sample_count": 910,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 100,
+          "1": 300,
+          "2": 204,
+          "4": 153,
+          "5": 153
+        },
+        "mean_confidence": 0.996109664440155,
+        "mean_entropy": 0.02705696034476888
+      },
+      "refit_holdout": {
+        "sample_count": 183,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 20,
+          "1": 60,
+          "2": 41,
+          "4": 31,
+          "5": 31
+        },
+        "mean_confidence": 0.9816267490386963,
+        "mean_entropy": 0.07680411645911961
+      }
+    },
+    {
+      "client_id": 46,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:da6ba406231c1d000db814b80dda57342f7aa0b156ad3f2a6fbfc6060fa04e75",
+      "memory_sample_count": 657,
+      "persisted_memory": {
+        "sample_count": 657,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 188,
+          "2": 200,
+          "3": 101,
+          "4": 100,
+          "5": 68
+        },
+        "mean_confidence": 0.9956245422363281,
+        "mean_entropy": 0.03039897585983676
+      },
+      "refit_holdout": {
+        "sample_count": 132,
+        "accuracy": 0.9924242424242424,
+        "balanced_accuracy": 0.99,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 0.95,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 38,
+          "2": 40,
+          "3": 19,
+          "4": 21,
+          "5": 14
+        },
+        "mean_confidence": 0.9848411083221436,
+        "mean_entropy": 0.06264700349953656
+      }
+    },
+    {
+      "client_id": 47,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "calibration_signature": "thresholds:c9976615ec8866e673a8d986dc768c11f6ca44af18980e95a1c8932f7f60604c",
+      "memory_sample_count": 589,
+      "persisted_memory": {
+        "sample_count": 589,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 139,
+          "2": 100,
+          "3": 200,
+          "5": 150
+        },
+        "mean_confidence": 0.9975382089614868,
+        "mean_entropy": 0.01858351755518354
+      },
+      "refit_holdout": {
+        "sample_count": 118,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 28,
+          "2": 20,
+          "3": 40,
+          "5": 30
+        },
+        "mean_confidence": 0.9965033531188965,
+        "mean_entropy": 0.024597655963797666
+      }
+    },
+    {
+      "client_id": 48,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:21124b147ea7c8ef48177aa3cb5c7af66084ce02e5ab92dcc9a854053e7053fe",
+      "memory_sample_count": 1037,
+      "persisted_memory": {
+        "sample_count": 1037,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 300,
+          "2": 250,
+          "3": 200,
+          "4": 186,
+          "5": 101
+        },
+        "mean_confidence": 0.9956725835800171,
+        "mean_entropy": 0.027893466996438944
+      },
+      "refit_holdout": {
+        "sample_count": 207,
+        "accuracy": 0.9951690821256038,
+        "balanced_accuracy": 0.99,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.95
+        },
+        "predicted_episode_distribution": {
+          "0": 60,
+          "2": 50,
+          "3": 40,
+          "4": 38,
+          "5": 19
+        },
+        "mean_confidence": 0.9837806224822998,
+        "mean_entropy": 0.06422540230880383
+      }
+    },
+    {
+      "client_id": 49,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:e0fc79489bc217dac01522e2ff28e26dce273590edbd9fdebe69153961036cdb",
+      "memory_sample_count": 1028,
+      "persisted_memory": {
+        "sample_count": 1028,
+        "accuracy": 0.9990272373540856,
+        "balanced_accuracy": 0.9989177489177489,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.9935064935064936
+        },
+        "predicted_episode_distribution": {
+          "0": 100,
+          "1": 250,
+          "2": 200,
+          "3": 124,
+          "4": 201,
+          "5": 153
+        },
+        "mean_confidence": 0.9652683734893799,
+        "mean_entropy": 0.11858821030157916
+      },
+      "refit_holdout": {
+        "sample_count": 206,
+        "accuracy": 0.8786407766990292,
+        "balanced_accuracy": 0.8866129032258065,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 0.96,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.65,
+          "5": 0.7096774193548387
+        },
+        "predicted_episode_distribution": {
+          "0": 21,
+          "1": 48,
+          "2": 41,
+          "3": 25,
+          "4": 35,
+          "5": 36
+        },
+        "mean_confidence": 0.9247219562530518,
+        "mean_entropy": 0.19367790384434647
+      }
+    },
+    {
+      "client_id": 50,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 784,
+      "persisted_memory": {
+        "sample_count": 784,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 250,
+          "3": 250,
+          "5": 34
+        },
+        "mean_confidence": 0.9944452047348022,
+        "mean_entropy": 0.03574261438216852
+      },
+      "refit_holdout": {
+        "sample_count": 157,
+        "accuracy": 0.9936305732484076,
+        "balanced_accuracy": 0.9960000000000001,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 0.98,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 50,
+          "3": 49,
+          "5": 8
+        },
+        "mean_confidence": 0.9858594536781311,
+        "mean_entropy": 0.0591203483963128
+      }
+    },
+    {
+      "client_id": 51,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 866,
+      "persisted_memory": {
+        "sample_count": 866,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 300,
+          "3": 300,
+          "4": 212,
+          "5": 4
+        },
+        "mean_confidence": 0.9973514676094055,
+        "mean_entropy": 0.019005571118900305
+      },
+      "refit_holdout": {
+        "sample_count": 173,
+        "accuracy": 0.9942196531791907,
+        "balanced_accuracy": 0.8,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 60,
+          "3": 60,
+          "4": 43
+        },
+        "mean_confidence": 0.9961435198783875,
+        "mean_entropy": 0.02561441712406627
+      }
+    },
+    {
+      "client_id": 52,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:2790ef847524112d0eae6b5e338b48ac81760d2712cfd149907a64346e43844f",
+      "memory_sample_count": 915,
+      "persisted_memory": {
+        "sample_count": 915,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 243,
+          "2": 200,
+          "3": 200,
+          "4": 222,
+          "5": 50
+        },
+        "mean_confidence": 0.9957652688026428,
+        "mean_entropy": 0.02866761489278972
+      },
+      "refit_holdout": {
+        "sample_count": 183,
+        "accuracy": 0.994535519125683,
+        "balanced_accuracy": 0.9800000000000001,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.9
+        },
+        "predicted_episode_distribution": {
+          "0": 49,
+          "2": 40,
+          "3": 40,
+          "4": 45,
+          "5": 9
+        },
+        "mean_confidence": 0.9881261587142944,
+        "mean_entropy": 0.05560852214037452
+      }
+    },
+    {
+      "client_id": 53,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:92ff586cbaddba8a32fa60ad49a9459b7b4af309fbf975806d7387dc3f3e6c6f",
+      "memory_sample_count": 857,
+      "persisted_memory": {
+        "sample_count": 857,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 205,
+          "2": 200,
+          "3": 279,
+          "4": 133,
+          "5": 40
+        },
+        "mean_confidence": 0.9963949918746948,
+        "mean_entropy": 0.024833902225254504
+      },
+      "refit_holdout": {
+        "sample_count": 172,
+        "accuracy": 0.9825581395348837,
+        "balanced_accuracy": 0.9601851851851851,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9259259259259259,
+          "5": 0.875
+        },
+        "predicted_episode_distribution": {
+          "0": 41,
+          "2": 40,
+          "3": 56,
+          "4": 26,
+          "5": 9
+        },
+        "mean_confidence": 0.9817023873329163,
+        "mean_entropy": 0.06076615525254706
+      }
+    },
+    {
+      "client_id": 54,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:61058df837a6c53fc104aa83756c84833bd76cbb6931d4634c2002521fb38b7c",
+      "memory_sample_count": 974,
+      "persisted_memory": {
+        "sample_count": 974,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 220,
+          "1": 300,
+          "3": 227,
+          "4": 118,
+          "5": 109
+        },
+        "mean_confidence": 0.9956265091896057,
+        "mean_entropy": 0.02810790180421974
+      },
+      "refit_holdout": {
+        "sample_count": 195,
+        "accuracy": 0.9897435897435898,
+        "balanced_accuracy": 0.9833333333333332,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 0.9166666666666666,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 44,
+          "1": 60,
+          "3": 45,
+          "4": 22,
+          "5": 24
+        },
+        "mean_confidence": 0.9750275611877441,
+        "mean_entropy": 0.07733051223706584
+      }
+    },
+    {
+      "client_id": 55,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:5a2b9107255d6a630c9e1949e60a61fb047dc49ea4b0f087b816178aa88ed308",
+      "memory_sample_count": 780,
+      "persisted_memory": {
+        "sample_count": 780,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 100,
+          "1": 150,
+          "3": 250,
+          "4": 220,
+          "5": 60
+        },
+        "mean_confidence": 0.9949128031730652,
+        "mean_entropy": 0.03178983378132591
+      },
+      "refit_holdout": {
+        "sample_count": 156,
+        "accuracy": 0.9935897435897436,
+        "balanced_accuracy": 0.9833333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.9166666666666666
+        },
+        "predicted_episode_distribution": {
+          "0": 20,
+          "1": 30,
+          "3": 50,
+          "4": 45,
+          "5": 11
+        },
+        "mean_confidence": 0.9895689487457275,
+        "mean_entropy": 0.048488512687715514
+      }
+    },
+    {
+      "client_id": 56,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:615e82e847d6ee422f8a0079bf7c06a8196fd3cf41c50e319224f31369bd3c5b",
+      "memory_sample_count": 713,
+      "persisted_memory": {
+        "sample_count": 713,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 250,
+          "2": 200,
+          "4": 150,
+          "5": 113
+        },
+        "mean_confidence": 0.9962148070335388,
+        "mean_entropy": 0.024789754692180924
+      },
+      "refit_holdout": {
+        "sample_count": 143,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "2": 40,
+          "4": 30,
+          "5": 23
+        },
+        "mean_confidence": 0.9920200705528259,
+        "mean_entropy": 0.04153302646040721
+      }
+    },
+    {
+      "client_id": 57,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:383b1418495db72ceb85984fab976ae90a10e0177506be017d87b1bc0af25ae9",
+      "memory_sample_count": 719,
+      "persisted_memory": {
+        "sample_count": 719,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 135,
+          "3": 300,
+          "4": 172,
+          "5": 112
+        },
+        "mean_confidence": 0.9941802024841309,
+        "mean_entropy": 0.03314969332833064
+      },
+      "refit_holdout": {
+        "sample_count": 143,
+        "accuracy": 0.993006993006993,
+        "balanced_accuracy": 0.9958333333333333,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 0.9833333333333333,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 27,
+          "3": 59,
+          "4": 35,
+          "5": 22
+        },
+        "mean_confidence": 0.9830661416053772,
+        "mean_entropy": 0.06268098034061441
+      }
+    },
+    {
+      "client_id": 58,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:8da3130474040b84ba2e36617be7ba5a41dbc6178f61fec75d39663472d358a2",
+      "memory_sample_count": 760,
+      "persisted_memory": {
+        "sample_count": 760,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 100,
+          "2": 300,
+          "4": 277,
+          "5": 83
+        },
+        "mean_confidence": 0.9952084422111511,
+        "mean_entropy": 0.028552478435237415
+      },
+      "refit_holdout": {
+        "sample_count": 152,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 20,
+          "2": 60,
+          "4": 55,
+          "5": 17
+        },
+        "mean_confidence": 0.9849915504455566,
+        "mean_entropy": 0.0601411196767177
+      }
+    },
+    {
+      "client_id": 59,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 719,
+      "persisted_memory": {
+        "sample_count": 719,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 212,
+          "3": 50,
+          "4": 157,
+          "5": 50
+        },
+        "mean_confidence": 0.9894141554832458,
+        "mean_entropy": 0.05949936420678082
+      },
+      "refit_holdout": {
+        "sample_count": 143,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 42,
+          "3": 10,
+          "4": 31,
+          "5": 10
+        },
+        "mean_confidence": 0.9766339659690857,
+        "mean_entropy": 0.10191402651134478
+      }
+    },
+    {
+      "client_id": 60,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:0412374c2319dda585d7f0f3dc72ad0631680d364cc4a4ea1d68b5a39e322608",
+      "memory_sample_count": 727,
+      "persisted_memory": {
+        "sample_count": 727,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 200,
+          "3": 228,
+          "4": 152,
+          "5": 147
+        },
+        "mean_confidence": 0.9932301640510559,
+        "mean_entropy": 0.037638992148468844
+      },
+      "refit_holdout": {
+        "sample_count": 145,
+        "accuracy": 0.9793103448275862,
+        "balanced_accuracy": 0.9744252873563218,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 0.9666666666666667,
+          "5": 0.9310344827586207
+        },
+        "predicted_episode_distribution": {
+          "0": 40,
+          "3": 46,
+          "4": 31,
+          "5": 28
+        },
+        "mean_confidence": 0.9732745885848999,
+        "mean_entropy": 0.08702361642538296
+      }
+    },
+    {
+      "client_id": 61,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1004,
+      "persisted_memory": {
+        "sample_count": 1004,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 250,
+          "3": 250,
+          "4": 251,
+          "5": 3
+        },
+        "mean_confidence": 0.9914224743843079,
+        "mean_entropy": 0.05168546398571048
+      },
+      "refit_holdout": {
+        "sample_count": 201,
+        "accuracy": 0.9950248756218906,
+        "balanced_accuracy": 0.8333333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 50,
+          "3": 50,
+          "4": 51
+        },
+        "mean_confidence": 0.9829948544502258,
+        "mean_entropy": 0.08194682439506959
+      }
+    },
+    {
+      "client_id": 62,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 573,
+      "persisted_memory": {
+        "sample_count": 573,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 250,
+          "2": 200,
+          "5": 73
+        },
+        "mean_confidence": 0.9962217807769775,
+        "mean_entropy": 0.02576126158472079
+      },
+      "refit_holdout": {
+        "sample_count": 115,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 50,
+          "2": 40,
+          "5": 15
+        },
+        "mean_confidence": 0.9935756325721741,
+        "mean_entropy": 0.03874540563530649
+      }
+    },
+    {
+      "client_id": 63,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 471,
+      "persisted_memory": {
+        "sample_count": 471,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 100,
+          "2": 150,
+          "4": 152,
+          "5": 19
+        },
+        "mean_confidence": 0.9906784892082214,
+        "mean_entropy": 0.052716976727193554
+      },
+      "refit_holdout": {
+        "sample_count": 94,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 20,
+          "2": 30,
+          "4": 30,
+          "5": 4
+        },
+        "mean_confidence": 0.9804491996765137,
+        "mean_entropy": 0.09036044937642461
+      }
+    },
+    {
+      "client_id": 64,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "calibration_signature": "thresholds:2518855f8a147558ece578861f461d2653589455f66e5e1981ac7c89ed09e630",
+      "memory_sample_count": 800,
+      "persisted_memory": {
+        "sample_count": 800,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 246,
+          "1": 250,
+          "2": 150,
+          "3": 100,
+          "5": 54
+        },
+        "mean_confidence": 0.9966567754745483,
+        "mean_entropy": 0.02428448220717514
+      },
+      "refit_holdout": {
+        "sample_count": 160,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 49,
+          "1": 50,
+          "2": 30,
+          "3": 20,
+          "5": 11
+        },
+        "mean_confidence": 0.9916017651557922,
+        "mean_entropy": 0.03992824698476911
+      }
+    },
+    {
+      "client_id": 65,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:0c6fa7801fc910e82920ba583cd602dc972177767beff776e7ed58de0e4f74b5",
+      "memory_sample_count": 774,
+      "persisted_memory": {
+        "sample_count": 774,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 181,
+          "2": 154,
+          "3": 150,
+          "4": 150,
+          "5": 139
+        },
+        "mean_confidence": 0.9856337308883667,
+        "mean_entropy": 0.06371905527186338
+      },
+      "refit_holdout": {
+        "sample_count": 155,
+        "accuracy": 0.9612903225806452,
+        "balanced_accuracy": 0.959047619047619,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.8666666666666667,
+          "5": 0.9285714285714286
+        },
+        "predicted_episode_distribution": {
+          "0": 36,
+          "2": 31,
+          "3": 30,
+          "4": 28,
+          "5": 30
+        },
+        "mean_confidence": 0.9485434293746948,
+        "mean_entropy": 0.1334262140909044
+      }
+    },
+    {
+      "client_id": 66,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 465,
+      "persisted_memory": {
+        "sample_count": 465,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 150,
+          "4": 210,
+          "5": 55
+        },
+        "mean_confidence": 0.9912488460540771,
+        "mean_entropy": 0.04877884284211862
+      },
+      "refit_holdout": {
+        "sample_count": 93,
+        "accuracy": 0.989247311827957,
+        "balanced_accuracy": 0.975,
+        "per_episode_recall": {
+          "0": 0.9,
+          "1": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 9,
+          "1": 30,
+          "4": 42,
+          "5": 12
+        },
+        "mean_confidence": 0.9679606556892395,
+        "mean_entropy": 0.11562089682854604
+      }
+    },
+    {
+      "client_id": 67,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1074,
+      "persisted_memory": {
+        "sample_count": 1074,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 250,
+          "2": 202,
+          "3": 250,
+          "4": 216,
+          "5": 106
+        },
+        "mean_confidence": 0.9826632738113403,
+        "mean_entropy": 0.08328121831884466
+      },
+      "refit_holdout": {
+        "sample_count": 214,
+        "accuracy": 0.9345794392523364,
+        "balanced_accuracy": 0.9161221853082316,
+        "per_episode_recall": {
+          "0": 0.9,
+          "1": 1.0,
+          "2": 0.95,
+          "3": 1.0,
+          "4": 0.8372093023255814,
+          "5": 0.8095238095238095
+        },
+        "predicted_episode_distribution": {
+          "0": 9,
+          "1": 50,
+          "2": 38,
+          "3": 51,
+          "4": 41,
+          "5": 25
+        },
+        "mean_confidence": 0.9517214298248291,
+        "mean_entropy": 0.1583580604837706
+      }
+    },
+    {
+      "client_id": 68,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:cb85264cb09f54294af8c17d6845381d46664c9533a21af1f484f8c9cafd14fd",
+      "memory_sample_count": 1044,
+      "persisted_memory": {
+        "sample_count": 1044,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 154,
+          "2": 300,
+          "3": 250,
+          "4": 250,
+          "5": 90
+        },
+        "mean_confidence": 0.9944254755973816,
+        "mean_entropy": 0.03289072520118131
+      },
+      "refit_holdout": {
+        "sample_count": 209,
+        "accuracy": 0.9952153110047847,
+        "balanced_accuracy": 0.9960000000000001,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.98,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 31,
+          "2": 60,
+          "3": 50,
+          "4": 49,
+          "5": 19
+        },
+        "mean_confidence": 0.9890525341033936,
+        "mean_entropy": 0.05193881736196502
+      }
+    },
+    {
+      "client_id": 69,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 924,
+      "persisted_memory": {
+        "sample_count": 924,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 150,
+          "2": 200,
+          "3": 200,
+          "4": 200,
+          "5": 124
+        },
+        "mean_confidence": 0.989010214805603,
+        "mean_entropy": 0.057556174007715385
+      },
+      "refit_holdout": {
+        "sample_count": 185,
+        "accuracy": 0.9837837837837838,
+        "balanced_accuracy": 0.985,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 0.975,
+          "4": 0.975,
+          "5": 0.96
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 30,
+          "2": 40,
+          "3": 39,
+          "4": 40,
+          "5": 26
+        },
+        "mean_confidence": 0.9632523655891418,
+        "mean_entropy": 0.11893444954006246
+      }
+    },
+    {
+      "client_id": 70,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:50abf123658c0834bffa453ff97594a808e1c58978a67e450f4113484b62ef59",
+      "memory_sample_count": 572,
+      "persisted_memory": {
+        "sample_count": 572,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 117,
+          "3": 150,
+          "4": 231,
+          "5": 74
+        },
+        "mean_confidence": 0.9966443181037903,
+        "mean_entropy": 0.023662666657282706
+      },
+      "refit_holdout": {
+        "sample_count": 114,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 23,
+          "3": 30,
+          "4": 46,
+          "5": 15
+        },
+        "mean_confidence": 0.9950410723686218,
+        "mean_entropy": 0.03257516896159983
+      }
+    },
+    {
+      "client_id": 71,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:f110e5cdac9c96dee17d13ac4b518f6f410ca4420c60f06b49a72d3461a2af8e",
+      "memory_sample_count": 668,
+      "persisted_memory": {
+        "sample_count": 668,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 212,
+          "2": 100,
+          "4": 250,
+          "5": 106
+        },
+        "mean_confidence": 0.9969045519828796,
+        "mean_entropy": 0.020727301187738006
+      },
+      "refit_holdout": {
+        "sample_count": 133,
+        "accuracy": 0.9849624060150376,
+        "balanced_accuracy": 0.99,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "4": 0.96,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 42,
+          "2": 20,
+          "4": 48,
+          "5": 23
+        },
+        "mean_confidence": 0.9889891147613525,
+        "mean_entropy": 0.04394472889283581
+      }
+    },
+    {
+      "client_id": 72,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        5
+      ],
+      "calibration_signature": "thresholds:75fc3305113ad1e1bc07b80926fedff4667ae4eedf4944c70e56ffda5827c3a6",
+      "memory_sample_count": 684,
+      "persisted_memory": {
+        "sample_count": 684,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 144,
+          "1": 200,
+          "3": 250,
+          "5": 90
+        },
+        "mean_confidence": 0.997825562953949,
+        "mean_entropy": 0.016775738822171028
+      },
+      "refit_holdout": {
+        "sample_count": 137,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 29,
+          "1": 40,
+          "3": 50,
+          "5": 18
+        },
+        "mean_confidence": 0.9965570569038391,
+        "mean_entropy": 0.023752973557084542
+      }
+    },
+    {
+      "client_id": 73,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:00d48128f733f2f4af4c11615fc6d87976598cb770b6e6da4900118a8be6d44c",
+      "memory_sample_count": 915,
+      "persisted_memory": {
+        "sample_count": 915,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 111,
+          "1": 250,
+          "2": 208,
+          "3": 200,
+          "4": 130,
+          "5": 16
+        },
+        "mean_confidence": 0.9950429201126099,
+        "mean_entropy": 0.03392777636418545
+      },
+      "refit_holdout": {
+        "sample_count": 183,
+        "accuracy": 0.9781420765027322,
+        "balanced_accuracy": 0.8760683760683761,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9230769230769231,
+          "5": 0.3333333333333333
+        },
+        "predicted_episode_distribution": {
+          "0": 22,
+          "1": 50,
+          "2": 42,
+          "3": 40,
+          "4": 26,
+          "5": 3
+        },
+        "mean_confidence": 0.9766935706138611,
+        "mean_entropy": 0.08741738441328761
+      }
+    },
+    {
+      "client_id": 74,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1013,
+      "persisted_memory": {
+        "sample_count": 1013,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 300,
+          "3": 200,
+          "4": 213,
+          "5": 50
+        },
+        "mean_confidence": 0.9916540384292603,
+        "mean_entropy": 0.05170854111877482
+      },
+      "refit_holdout": {
+        "sample_count": 203,
+        "accuracy": 0.9950738916256158,
+        "balanced_accuracy": 0.9833333333333334,
+        "per_episode_recall": {
+          "0": 0.9,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 9,
+          "1": 41,
+          "2": 60,
+          "3": 40,
+          "4": 43,
+          "5": 10
+        },
+        "mean_confidence": 0.9782899618148804,
+        "mean_entropy": 0.09346379764986726
+      }
+    },
+    {
+      "client_id": 75,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 825,
+      "persisted_memory": {
+        "sample_count": 825,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 100,
+          "3": 200,
+          "4": 206,
+          "5": 69
+        },
+        "mean_confidence": 0.992343544960022,
+        "mean_entropy": 0.04710486905077286
+      },
+      "refit_holdout": {
+        "sample_count": 165,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 20,
+          "3": 40,
+          "4": 41,
+          "5": 14
+        },
+        "mean_confidence": 0.9817005395889282,
+        "mean_entropy": 0.08440045029333969
+      }
+    },
+    {
+      "client_id": 76,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:bd267aa0001b15d0b96fb996714dc96c2d6def5cf0cf9d0c0cd06685d5ac2d8e",
+      "memory_sample_count": 1061,
+      "persisted_memory": {
+        "sample_count": 1061,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 155,
+          "1": 200,
+          "2": 250,
+          "3": 250,
+          "4": 156,
+          "5": 50
+        },
+        "mean_confidence": 0.9922521710395813,
+        "mean_entropy": 0.04823984581168194
+      },
+      "refit_holdout": {
+        "sample_count": 212,
+        "accuracy": 0.9952830188679245,
+        "balanced_accuracy": 0.9946236559139785,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.967741935483871,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 31,
+          "1": 40,
+          "2": 50,
+          "3": 50,
+          "4": 30,
+          "5": 11
+        },
+        "mean_confidence": 0.9729029536247253,
+        "mean_entropy": 0.10298630083844806
+      }
+    },
+    {
+      "client_id": 77,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 995,
+      "persisted_memory": {
+        "sample_count": 995,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 240,
+          "2": 243,
+          "3": 200,
+          "4": 209,
+          "5": 53
+        },
+        "mean_confidence": 0.9911725521087646,
+        "mean_entropy": 0.051051515177453335
+      },
+      "refit_holdout": {
+        "sample_count": 200,
+        "accuracy": 0.985,
+        "balanced_accuracy": 0.976911976911977,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9523809523809523,
+          "5": 0.9090909090909091
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 48,
+          "2": 49,
+          "3": 40,
+          "4": 41,
+          "5": 12
+        },
+        "mean_confidence": 0.9781856536865234,
+        "mean_entropy": 0.08630219806310599
+      }
+    },
+    {
+      "client_id": 78,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:4bf79d90222ff44da2331535f70a24e8edcae353d81d701295d304f238a87b81",
+      "memory_sample_count": 1070,
+      "persisted_memory": {
+        "sample_count": 1070,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 288,
+          "1": 250,
+          "2": 250,
+          "4": 151,
+          "5": 131
+        },
+        "mean_confidence": 0.9968227744102478,
+        "mean_entropy": 0.02260868439937976
+      },
+      "refit_holdout": {
+        "sample_count": 214,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 58,
+          "1": 50,
+          "2": 50,
+          "4": 30,
+          "5": 26
+        },
+        "mean_confidence": 0.9949411153793335,
+        "mean_entropy": 0.031535484466195626
+      }
+    },
+    {
+      "client_id": 79,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1006,
+      "persisted_memory": {
+        "sample_count": 1006,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 250,
+          "3": 245,
+          "4": 150,
+          "5": 111
+        },
+        "mean_confidence": 0.9912180304527283,
+        "mean_entropy": 0.050219332892136447
+      },
+      "refit_holdout": {
+        "sample_count": 201,
+        "accuracy": 0.9950248756218906,
+        "balanced_accuracy": 0.9944444444444445,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9666666666666667,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 50,
+          "3": 49,
+          "4": 29,
+          "5": 23
+        },
+        "mean_confidence": 0.9806826114654541,
+        "mean_entropy": 0.08498964933003214
+      }
+    },
+    {
+      "client_id": 80,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:53452e8cbb698e5082bde52e5c62aaef245268619bf2cae510b6f069b601cd95",
+      "memory_sample_count": 1087,
+      "persisted_memory": {
+        "sample_count": 1087,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 150,
+          "1": 150,
+          "2": 256,
+          "3": 250,
+          "4": 142,
+          "5": 139
+        },
+        "mean_confidence": 0.9838248491287231,
+        "mean_entropy": 0.07263567377943612
+      },
+      "refit_holdout": {
+        "sample_count": 217,
+        "accuracy": 0.9631336405529954,
+        "balanced_accuracy": 0.9523809523809522,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.8571428571428571,
+          "5": 0.8571428571428571
+        },
+        "predicted_episode_distribution": {
+          "0": 30,
+          "1": 30,
+          "2": 51,
+          "3": 50,
+          "4": 28,
+          "5": 28
+        },
+        "mean_confidence": 0.9525768756866455,
+        "mean_entropy": 0.14380590271970956
+      }
+    },
+    {
+      "client_id": 82,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 908,
+      "persisted_memory": {
+        "sample_count": 908,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 200,
+          "3": 200,
+          "4": 156,
+          "5": 102
+        },
+        "mean_confidence": 0.991870105266571,
+        "mean_entropy": 0.04935094150296008
+      },
+      "refit_holdout": {
+        "sample_count": 181,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 40,
+          "3": 40,
+          "4": 31,
+          "5": 20
+        },
+        "mean_confidence": 0.9785845875740051,
+        "mean_entropy": 0.1020637220488407
+      }
+    },
+    {
+      "client_id": 83,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:d073b00219281e8c6e129ffd78f38e6bf459586e506996a28fcf6607d39ae304",
+      "memory_sample_count": 1048,
+      "persisted_memory": {
+        "sample_count": 1048,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 100,
+          "1": 200,
+          "2": 300,
+          "3": 200,
+          "4": 200,
+          "5": 48
+        },
+        "mean_confidence": 0.994410514831543,
+        "mean_entropy": 0.03622871986774815
+      },
+      "refit_holdout": {
+        "sample_count": 210,
+        "accuracy": 0.9904761904761905,
+        "balanced_accuracy": 0.9666666666666667,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.8
+        },
+        "predicted_episode_distribution": {
+          "0": 20,
+          "1": 40,
+          "2": 60,
+          "3": 40,
+          "4": 42,
+          "5": 8
+        },
+        "mean_confidence": 0.9813265204429626,
+        "mean_entropy": 0.07480632302481796
+      }
+    },
+    {
+      "client_id": 84,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 615,
+      "persisted_memory": {
+        "sample_count": 615,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 58,
+          "3": 300,
+          "4": 152,
+          "5": 55
+        },
+        "mean_confidence": 0.9935513138771057,
+        "mean_entropy": 0.04046023452680081
+      },
+      "refit_holdout": {
+        "sample_count": 123,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 12,
+          "3": 60,
+          "4": 30,
+          "5": 11
+        },
+        "mean_confidence": 0.9844620823860168,
+        "mean_entropy": 0.07410346492981851
+      }
+    },
+    {
+      "client_id": 85,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1012,
+      "persisted_memory": {
+        "sample_count": 1012,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 212,
+          "3": 250,
+          "4": 252,
+          "5": 48
+        },
+        "mean_confidence": 0.9886414408683777,
+        "mean_entropy": 0.06500586208071915
+      },
+      "refit_holdout": {
+        "sample_count": 202,
+        "accuracy": 0.995049504950495,
+        "balanced_accuracy": 0.9966666666666667,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 0.98,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 42,
+          "3": 49,
+          "4": 51,
+          "5": 10
+        },
+        "mean_confidence": 0.9764310717582703,
+        "mean_entropy": 0.10432589690234095
+      }
+    },
+    {
+      "client_id": 86,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 756,
+      "persisted_memory": {
+        "sample_count": 756,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "3": 250,
+          "4": 250,
+          "5": 6
+        },
+        "mean_confidence": 0.9961474537849426,
+        "mean_entropy": 0.025654653842739492
+      },
+      "refit_holdout": {
+        "sample_count": 151,
+        "accuracy": 0.9933774834437086,
+        "balanced_accuracy": 0.9960000000000001,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "3": 1.0,
+          "4": 0.98,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "3": 50,
+          "4": 49,
+          "5": 2
+        },
+        "mean_confidence": 0.9881298542022705,
+        "mean_entropy": 0.05113133940873635
+      }
+    },
+    {
+      "client_id": 87,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 881,
+      "persisted_memory": {
+        "sample_count": 881,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 150,
+          "3": 200,
+          "4": 151,
+          "5": 130
+        },
+        "mean_confidence": 0.9871304035186768,
+        "mean_entropy": 0.0589514207061455
+      },
+      "refit_holdout": {
+        "sample_count": 176,
+        "accuracy": 0.9545454545454546,
+        "balanced_accuracy": 0.9529914529914528,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.8333333333333334,
+          "5": 0.8846153846153846
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 30,
+          "3": 40,
+          "4": 28,
+          "5": 28
+        },
+        "mean_confidence": 0.956783652305603,
+        "mean_entropy": 0.12475382605552944
+      }
+    },
+    {
+      "client_id": 88,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "calibration_signature": "thresholds:c65c4483e381966c6bb8ebc4c83000b154dffed5d4a7182694a8a811d5899e7f",
+      "memory_sample_count": 624,
+      "persisted_memory": {
+        "sample_count": 624,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 157,
+          "2": 200,
+          "3": 150,
+          "5": 117
+        },
+        "mean_confidence": 0.997279167175293,
+        "mean_entropy": 0.01925657724349722
+      },
+      "refit_holdout": {
+        "sample_count": 124,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 31,
+          "2": 40,
+          "3": 30,
+          "5": 23
+        },
+        "mean_confidence": 0.9960894584655762,
+        "mean_entropy": 0.026382257680223193
+      }
+    },
+    {
+      "client_id": 89,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:519ca0f32923c497d366cf10d4e961ce766d25f7bc91fe4b396bdf3ff0f70a2b",
+      "memory_sample_count": 785,
+      "persisted_memory": {
+        "sample_count": 785,
+        "accuracy": 0.9987261146496815,
+        "balanced_accuracy": 0.9988700564971751,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9943502824858758,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 179,
+          "2": 150,
+          "3": 150,
+          "4": 176,
+          "5": 130
+        },
+        "mean_confidence": 0.9617577791213989,
+        "mean_entropy": 0.1168607228281117
+      },
+      "refit_holdout": {
+        "sample_count": 157,
+        "accuracy": 0.8535031847133758,
+        "balanced_accuracy": 0.842930402930403,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 0.9333333333333333,
+          "4": 0.7428571428571429,
+          "5": 0.5384615384615384
+        },
+        "predicted_episode_distribution": {
+          "0": 36,
+          "2": 31,
+          "3": 28,
+          "4": 39,
+          "5": 23
+        },
+        "mean_confidence": 0.9434915781021118,
+        "mean_entropy": 0.14319216801788145
+      }
+    },
+    {
+      "client_id": 90,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 1000,
+      "persisted_memory": {
+        "sample_count": 1000,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 261,
+          "2": 221,
+          "3": 250,
+          "4": 134,
+          "5": 84
+        },
+        "mean_confidence": 0.9932801127433777,
+        "mean_entropy": 0.042623883416905275
+      },
+      "refit_holdout": {
+        "sample_count": 200,
+        "accuracy": 0.995,
+        "balanced_accuracy": 0.9962121212121212,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 0.9772727272727273,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 52,
+          "2": 43,
+          "3": 51,
+          "4": 27,
+          "5": 17
+        },
+        "mean_confidence": 0.9825167655944824,
+        "mean_entropy": 0.07544308541753761
+      }
+    },
+    {
+      "client_id": 91,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:88a859b869ecbdb38d9b645c3f3d825994fdb02bde5d50d78272e1454a1a9ee3",
+      "memory_sample_count": 959,
+      "persisted_memory": {
+        "sample_count": 959,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 139,
+          "1": 250,
+          "2": 111,
+          "3": 250,
+          "4": 150,
+          "5": 59
+        },
+        "mean_confidence": 0.9895452857017517,
+        "mean_entropy": 0.0526291671970801
+      },
+      "refit_holdout": {
+        "sample_count": 192,
+        "accuracy": 0.9479166666666666,
+        "balanced_accuracy": 0.9027777777777777,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.8333333333333334,
+          "5": 0.5833333333333334
+        },
+        "predicted_episode_distribution": {
+          "0": 28,
+          "1": 50,
+          "2": 22,
+          "3": 50,
+          "4": 30,
+          "5": 12
+        },
+        "mean_confidence": 0.9622757434844971,
+        "mean_entropy": 0.11818602685880515
+      }
+    },
+    {
+      "client_id": 92,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 935,
+      "persisted_memory": {
+        "sample_count": 935,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 248,
+          "3": 200,
+          "4": 100,
+          "5": 137
+        },
+        "mean_confidence": 0.9905964732170105,
+        "mean_entropy": 0.05305506009214795
+      },
+      "refit_holdout": {
+        "sample_count": 187,
+        "accuracy": 0.9732620320855615,
+        "balanced_accuracy": 0.9646604938271605,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 0.975,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.85,
+          "5": 0.9629629629629629
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 39,
+          "2": 50,
+          "3": 40,
+          "4": 18,
+          "5": 30
+        },
+        "mean_confidence": 0.9726688265800476,
+        "mean_entropy": 0.10748108255020235
+      }
+    },
+    {
+      "client_id": 93,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 785,
+      "persisted_memory": {
+        "sample_count": 785,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 150,
+          "4": 266,
+          "5": 119
+        },
+        "mean_confidence": 0.9945663213729858,
+        "mean_entropy": 0.03347892441682759
+      },
+      "refit_holdout": {
+        "sample_count": 157,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 30,
+          "4": 53,
+          "5": 24
+        },
+        "mean_confidence": 0.9910082221031189,
+        "mean_entropy": 0.046545585531993096
+      }
+    },
+    {
+      "client_id": 94,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:009ec7c06a860621885733cf905d99eb3006d69affb133c50af74a0d986563f3",
+      "memory_sample_count": 916,
+      "persisted_memory": {
+        "sample_count": 916,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 150,
+          "1": 250,
+          "2": 50,
+          "3": 250,
+          "4": 150,
+          "5": 66
+        },
+        "mean_confidence": 0.9938129186630249,
+        "mean_entropy": 0.037738916388422916
+      },
+      "refit_holdout": {
+        "sample_count": 183,
+        "accuracy": 0.994535519125683,
+        "balanced_accuracy": 0.9944444444444445,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.9666666666666667,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 30,
+          "1": 50,
+          "2": 10,
+          "3": 50,
+          "4": 29,
+          "5": 14
+        },
+        "mean_confidence": 0.9787297248840332,
+        "mean_entropy": 0.07731300286636965
+      }
+    },
+    {
+      "client_id": 95,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:9c67495a6fbdabb3c00c8d7b11bf9fce92d50435d99dc234eda9f7579f400b8c",
+      "memory_sample_count": 863,
+      "persisted_memory": {
+        "sample_count": 863,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "1": 200,
+          "2": 250,
+          "3": 107,
+          "4": 250,
+          "5": 6
+        },
+        "mean_confidence": 0.9941877126693726,
+        "mean_entropy": 0.03918742119703133
+      },
+      "refit_holdout": {
+        "sample_count": 172,
+        "accuracy": 0.9941860465116279,
+        "balanced_accuracy": 0.8333333333333334,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 0.0
+        },
+        "predicted_episode_distribution": {
+          "0": 10,
+          "1": 40,
+          "2": 50,
+          "3": 21,
+          "4": 51
+        },
+        "mean_confidence": 0.9861853122711182,
+        "mean_entropy": 0.06708207320265734
+      }
+    },
+    {
+      "client_id": 96,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:7f50143cb09913796b0ba2481bf7e796aff6191eb6457fe5c3ccfb606a842e24",
+      "memory_sample_count": 949,
+      "persisted_memory": {
+        "sample_count": 949,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 296,
+          "2": 300,
+          "3": 150,
+          "4": 112,
+          "5": 91
+        },
+        "mean_confidence": 0.9905283451080322,
+        "mean_entropy": 0.04639035949376543
+      },
+      "refit_holdout": {
+        "sample_count": 189,
+        "accuracy": 0.9523809523809523,
+        "balanced_accuracy": 0.906060606060606,
+        "per_episode_recall": {
+          "0": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.8636363636363636,
+          "5": 0.6666666666666666
+        },
+        "predicted_episode_distribution": {
+          "0": 59,
+          "2": 60,
+          "3": 30,
+          "4": 25,
+          "5": 15
+        },
+        "mean_confidence": 0.9642317891120911,
+        "mean_entropy": 0.10116393225900014
+      }
+    },
+    {
+      "client_id": 97,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:c393c4c5ee5f1950769c377119c33a4994dc4a911813c65b96f2e3a55dd76ac7",
+      "memory_sample_count": 1219,
+      "persisted_memory": {
+        "sample_count": 1219,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 186,
+          "1": 200,
+          "2": 223,
+          "3": 250,
+          "4": 205,
+          "5": 155
+        },
+        "mean_confidence": 0.9944115877151489,
+        "mean_entropy": 0.03487190238290137
+      },
+      "refit_holdout": {
+        "sample_count": 244,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 37,
+          "1": 40,
+          "2": 45,
+          "3": 50,
+          "4": 41,
+          "5": 31
+        },
+        "mean_confidence": 0.9831060767173767,
+        "mean_entropy": 0.06857991201601411
+      }
+    },
+    {
+      "client_id": 98,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "router_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "calibration_signature": "thresholds:c3d6165b62a5e161a0df090d73c43e249d78bfeb16bed648122890f8cd090496",
+      "memory_sample_count": 1215,
+      "persisted_memory": {
+        "sample_count": 1215,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 244,
+          "1": 250,
+          "2": 250,
+          "3": 200,
+          "4": 200,
+          "5": 71
+        },
+        "mean_confidence": 0.9948185086250305,
+        "mean_entropy": 0.0333730248782906
+      },
+      "refit_holdout": {
+        "sample_count": 243,
+        "accuracy": 0.9876543209876543,
+        "balanced_accuracy": 0.9797619047619048,
+        "per_episode_recall": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 0.95,
+          "5": 0.9285714285714286
+        },
+        "predicted_episode_distribution": {
+          "0": 49,
+          "1": 50,
+          "2": 50,
+          "3": 40,
+          "4": 39,
+          "5": 15
+        },
+        "mean_confidence": 0.979731559753418,
+        "mean_entropy": 0.07164748753268588
+      }
+    },
+    {
+      "client_id": 99,
+      "router_mode": "multiclass",
+      "episode_classes": [
+        0,
+        3,
+        5
+      ],
+      "memory_episodes": [
+        0,
+        3,
+        5
+      ],
+      "router_classes": [
+        0,
+        3,
+        5
+      ],
+      "calibration_signature": "thresholds:d75110532e7bfa60a44b412a3115ed6313861d9428cedbb8c4e25c4af3ab951f",
+      "memory_sample_count": 643,
+      "persisted_memory": {
+        "sample_count": 643,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 250,
+          "3": 290,
+          "5": 103
+        },
+        "mean_confidence": 0.9987666010856628,
+        "mean_entropy": 0.009833110698422035
+      },
+      "refit_holdout": {
+        "sample_count": 129,
+        "accuracy": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_episode_recall": {
+          "0": 1.0,
+          "3": 1.0,
+          "5": 1.0
+        },
+        "predicted_episode_distribution": {
+          "0": 50,
+          "3": 58,
+          "5": 21
+        },
+        "mean_confidence": 0.9981599450111389,
+        "mean_entropy": 0.01364302044902278
+      }
+    }
+  ]
+}

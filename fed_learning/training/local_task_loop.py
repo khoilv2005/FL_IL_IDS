@@ -955,7 +955,12 @@ def _update_local_nice_context_memory(
         return
 
     sample_data = torch.cat(chunks, dim=0).to(device)
-    context_detector.push_activations(model, sample_data, task_id)
+    context_detector.push_activations(
+        model,
+        sample_data,
+        task_id,
+        reference_data=sample_data,
+    )
     context_detector.train_models(task_id)
 
 
