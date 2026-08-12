@@ -1023,6 +1023,28 @@ class TestSharedContextDetector:
 
 
 class TestDeNICEEvaluation:
+    def test_coverage_aware_partition_never_assigns_unsupported_episode(self):
+        import eval_checkpoint
+
+        test_y = torch.tensor([0, 1, 2, 3, 0, 2, 3], dtype=torch.long)
+        task_classes = {0: [0, 1], 1: [2, 3]}
+        coverage = {
+            10: {"supported_episodes": [0]},
+            20: {"supported_episodes": [1]},
+        }
+        partitions, debug = eval_checkpoint._build_coverage_aware_partitions(
+            test_y,
+            [10, 20],
+            task_classes,
+            coverage,
+            seed=7,
+        )
+
+        assert debug["unsupported_sample_count"] == 0
+        assert set(test_y[partitions[10]].tolist()).issubset({0, 1})
+        assert set(test_y[partitions[20]].tolist()).issubset({2, 3})
+        assert sum(len(indices) for indices in partitions.values()) == len(test_y)
+
     def test_partitioned_local_eval_uses_each_global_sample_once(self, monkeypatch):
         import eval_checkpoint
 

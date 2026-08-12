@@ -159,6 +159,113 @@ def _make_model(ckpt: Dict[str, Any], device: str):
     return model, context_detector
 
 
+def _client_router_episode_coverage(
+    ckpt: Dict[str, Any], client_id: int
+) -> Dict[str, Any]:
+    """Return only episodes that a saved local router can legitimately score.
+
+    A local detector is *not* assumed to cover every globally seen task.  The
+    coverage is the intersection of declared episode classes and stored router
+    memory; for the saved multiclass router it must also be a fitted class.
+    """
+    algorithm_states = ckpt.get("client_algorithm_states", {})
+    client_alg = _dict_get_int(algorithm_states, int(client_id), {}) or {}
+    denice_state = client_alg.get("denice", client_alg)
+    detector = denice_state.get("context_detector") or {}
+    episode_classes = {
+        int(ep): [int(cls) for cls in classes]
+        for ep, classes in (detector.get("episode_classes") or {}).items()
+    }
+    memory_episodes = {int(ep) for ep in (detector.get("activation_memory") or {})}
+    router = detector.get("multiclass_router")
+    router_classes = (
+        {int(ep) for ep in getattr(router, "classes_", [])}
+        if router is not None
+        else set()
+    )
+    supported = set(episode_classes).intersection(memory_episodes)
+    if router is not None:
+        supported.intersection_update(router_classes)
+    adapter_contexts = sorted(
+        {
+            int(meta.get("context_id"))
+            for meta in (denice_state.get("adapter_registry") or {}).values()
+            if meta.get("context_id") is not None
+        }
+    )
+    return {
+        "supported_episodes": sorted(supported),
+        "episode_classes": episode_classes,
+        "memory_episodes": sorted(memory_episodes),
+        "router_classes": sorted(router_classes),
+        "adapter_contexts": adapter_contexts,
+    }
+
+
+def _build_coverage_aware_partitions(
+    test_y: torch.Tensor,
+    client_ids: list[int],
+    task_classes: Dict[int, list[int]],
+    coverage_by_client: Dict[int, Dict[str, Any]],
+    *,
+    seed: int,
+) -> tuple[Dict[int, torch.Tensor], Dict[str, Any]]:
+    """Assign every supportable test sample to one client with true-episode coverage.
+
+    This intentionally uses the dataset task map only to construct a valid
+    evaluation assignment.  The evaluator still gives the selected client no
+    oracle route at inference time; it measures that client's predicted router.
+    """
+    class_to_episode = {
+        int(class_id): int(episode)
+        for episode, classes in task_classes.items()
+        for class_id in classes
+    }
+    target_episodes = torch.as_tensor(
+        [class_to_episode.get(int(label), -1) for label in test_y.tolist()], dtype=torch.long
+    )
+    generator = torch.Generator().manual_seed(int(seed))
+    assigned: Dict[int, list[torch.Tensor]] = {int(cid): [] for cid in client_ids}
+    unsupported_by_episode: Dict[str, int] = {}
+    eligible_by_episode: Dict[str, int] = {}
+
+    for episode in sorted(set(int(ep) for ep in target_episodes.tolist())):
+        episode_indices = torch.nonzero(target_episodes == episode, as_tuple=False).flatten()
+        if episode < 0:
+            unsupported_by_episode["unknown"] = int(len(episode_indices))
+            continue
+        eligible = [
+            int(cid)
+            for cid in client_ids
+            if episode in set(coverage_by_client[int(cid)]["supported_episodes"])
+        ]
+        eligible_by_episode[str(episode)] = len(eligible)
+        if not eligible:
+            unsupported_by_episode[str(episode)] = int(len(episode_indices))
+            continue
+        shuffled = episode_indices[torch.randperm(len(episode_indices), generator=generator)]
+        for offset, sample_index in enumerate(shuffled):
+            assigned[eligible[offset % len(eligible)]].append(sample_index.reshape(1))
+
+    partitions = {
+        cid: torch.cat(indices) if indices else torch.empty(0, dtype=torch.long)
+        for cid, indices in assigned.items()
+    }
+    assigned_count = sum(int(indices.numel()) for indices in partitions.values())
+    return partitions, {
+        "partition_protocol": "coverage_aware_disjoint_global_test_per_client",
+        "assignment_seed": int(seed),
+        "class_to_episode": {str(key): int(value) for key, value in class_to_episode.items()},
+        "eligible_client_count_by_episode": eligible_by_episode,
+        "unsupported_sample_count_by_episode": unsupported_by_episode,
+        "unsupported_sample_count": int(sum(unsupported_by_episode.values())),
+        "assigned_sample_count": int(assigned_count),
+        "coverage_by_client": {
+            str(cid): coverage_by_client[int(cid)] for cid in client_ids
+        },
+    }
+
+
 @torch.no_grad()
 def _evaluate_denice_partitioned_clients(
     ckpt: Dict[str, Any],
@@ -172,6 +279,8 @@ def _evaluate_denice_partitioned_clients(
     route_topk: int,
     eval_seed: int,
     task_id: int,
+    partitions: Dict[int, torch.Tensor] | None = None,
+    protocol_debug: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Evaluate one disjoint, reproducible global-test partition per client.
 
@@ -188,7 +297,12 @@ def _evaluate_denice_partitioned_clients(
     seed = int(eval_seed) + int(task_id)
     generator = torch.Generator().manual_seed(seed)
     shuffled = torch.randperm(len(test_y), generator=generator)
-    partitions = torch.tensor_split(shuffled, len(client_ids))
+    if partitions is None:
+        partition_pairs = zip(client_ids, torch.tensor_split(shuffled, len(client_ids)))
+        protocol_name = "random_disjoint_global_test_per_client"
+    else:
+        partition_pairs = ((cid, partitions.get(int(cid), torch.empty(0, dtype=torch.long))) for cid in client_ids)
+        protocol_name = str((protocol_debug or {}).get("partition_protocol", "coverage_aware"))
     criterion = nn.CrossEntropyLoss()
     all_predictions: list[int] = []
     all_targets: list[int] = []
@@ -202,7 +316,7 @@ def _evaluate_denice_partitioned_clients(
     batch_size = int(config.get("eval_batch_size", 8192))
     seen_classes = ckpt.get("seen_classes")
 
-    for client_id, indices in zip(client_ids, partitions):
+    for client_id, indices in partition_pairs:
         partition_sizes[str(client_id)] = int(indices.numel())
         if indices.numel() == 0:
             continue
@@ -311,12 +425,13 @@ def _evaluate_denice_partitioned_clients(
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
         "route_accuracy": route_correct / route_total if route_total else 0.0,
         "route_coverage": route_total / len(y_true) if len(y_true) else 0.0,
-        "partition_protocol": "random_disjoint_global_test_per_client",
+        "partition_protocol": protocol_name,
         "partition_seed": seed,
         "partition_count": len(client_ids),
         "evaluated_client_count": evaluated_client_count,
         "partition_sizes": partition_sizes,
         "debug": compact_debug,
+        "protocol_debug": protocol_debug or {},
     }
 
 
@@ -353,11 +468,28 @@ def evaluate_checkpoint(
             int(cid) for cid in ckpt.get("client_ids", ckpt["client_model_states"].keys())
         ]
         evaluation_mode = str(evaluation_mode or "local").lower()
-        if evaluation_mode not in {"local", "ensemble", "representative", "partitioned_local"}:
+        if evaluation_mode not in {
+            "local", "ensemble", "representative", "partitioned_local", "coverage_aware_local"
+        }:
             raise ValueError(
-                "evaluation_mode must be local, ensemble, representative, or partitioned_local"
+                "evaluation_mode must be local, ensemble, representative, partitioned_local, "
+                "or coverage_aware_local"
             )
-        if evaluation_mode == "partitioned_local":
+        if evaluation_mode in {"partitioned_local", "coverage_aware_local"}:
+            partitions = None
+            protocol_debug = None
+            if evaluation_mode == "coverage_aware_local":
+                coverage_by_client = {
+                    int(cid): _client_router_episode_coverage(ckpt, int(cid))
+                    for cid in client_ids
+                }
+                partitions, protocol_debug = _build_coverage_aware_partitions(
+                    test_y,
+                    client_ids,
+                    data_loader.task_classes,
+                    coverage_by_client,
+                    seed=int(eval_seed) + int(task_id),
+                )
             metrics = _evaluate_denice_partitioned_clients(
                 ckpt,
                 client_ids,
@@ -369,6 +501,8 @@ def evaluate_checkpoint(
                 route_topk=route_topk,
                 eval_seed=eval_seed,
                 task_id=task_id,
+                partitions=partitions,
+                protocol_debug=protocol_debug,
             )
             return {
                 "checkpoint": str(checkpoint_path),
@@ -520,7 +654,9 @@ def main() -> None:
     parser.add_argument(
         "--evaluation-mode",
         default="local",
-        choices=["local", "ensemble", "representative", "partitioned_local"],
+        choices=[
+            "local", "ensemble", "representative", "partitioned_local", "coverage_aware_local"
+        ],
     )
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--eval-seed", type=int, default=42)
