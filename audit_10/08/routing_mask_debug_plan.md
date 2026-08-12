@@ -242,6 +242,11 @@ train full task 0–5 vào output riêng từng seed rồi tự gọi
 16 artifact policy/protocol và full regression pass; chưa đánh dấu P6 xong cho
 đến khi có ba artifact full training thực tế.
 
+Trong `representative_global`, evaluator chỉ chọn representative có đủ router
+coverage cho mọi episode cumulative. Điều này tránh oracle mask violation giả
+từ representative thiếu memory task; smoke E0–E6 representative đã xác nhận
+zero oracle-mask violation sau guard này.
+
 ## 5. Checklist trạng thái tổng hợp
 
 - [x] Baseline checkpoint routing/mask evidence được lưu.

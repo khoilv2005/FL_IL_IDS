@@ -6,6 +6,7 @@ Covers the plan's Phase 1 (model/adapter, novelty, CANC) and Phase 3
 """
 
 from collections import OrderedDict
+import json
 
 import numpy as np
 import torch
@@ -1381,6 +1382,96 @@ class TestDeNICEEvaluation:
             "e5_topk3",
             "e6_adaptive",
         }
+
+    def test_representative_global_requires_full_router_coverage(self, monkeypatch):
+        import eval_checkpoint
+
+        checkpoint = {
+            "config": {"data_dir": "unused", "eval_batch_size": 8},
+            "algorithm": "denice",
+            "task_id": 1,
+            "round_id": 0,
+            "client_ids": [1, 2],
+            "client_model_states": {1: {}, 2: {}},
+            "client_algorithm_states": {
+                1: {"denice": {"context_detector": {
+                    "episode_classes": {0: [0]}, "activation_memory": {0: [[0.0]]},
+                }}},
+                2: {"denice": {"context_detector": {
+                    "episode_classes": {0: [0], 1: [1]},
+                    "activation_memory": {0: [[0.0]], 1: [[1.0]]},
+                }}},
+            },
+            "seen_classes": [0, 1],
+        }
+
+        class DummyLoader:
+            task_classes = {0: [0], 1: [1]}
+            def __init__(self, *_args, **_kwargs): pass
+            def get_test_data(self, *_args, **_kwargs):
+                return torch.zeros((2, 1)), torch.tensor([0, 1])
+
+        monkeypatch.setattr(eval_checkpoint, "_load_checkpoint", lambda *_args: checkpoint)
+        monkeypatch.setattr(eval_checkpoint, "IncrementalDataLoader", DummyLoader)
+        monkeypatch.setattr(
+            eval_checkpoint, "_make_denice_client_model", lambda *_args, **_kwargs: (object(), object())
+        )
+        monkeypatch.setattr(
+            eval_checkpoint, "evaluate_denice_ensemble", lambda pairs, *_args, **_kwargs: {"ensemble_size": len(pairs)}
+        )
+        monkeypatch.setattr(eval_checkpoint.hashlib, "sha256", lambda *_args: type("H", (), {"hexdigest": lambda self: "h"})())
+        monkeypatch.setattr(eval_checkpoint.Path, "read_bytes", lambda *_args: b"x")
+
+        result = eval_checkpoint.evaluate_checkpoint(
+            "unused.pt", data_dir="unused", evaluation_mode="representative_global"
+        )
+        assert result["representative_client_ids"] == [2]
+        assert result["representative_coverage_debug"]["required_episodes"] == [0, 1]
+
+    def test_p6_summary_validator_accepts_three_verified_seeds(self, tmp_path, monkeypatch):
+        import summarize_denice_p6
+
+        policies = tuple(summarize_denice_p6.POLICIES)
+        protocols = tuple(summarize_denice_p6.PROTOCOLS)
+        run_dirs = []
+        for seed in (42, 43, 44):
+            run_dir = tmp_path / f"seed_{seed}"
+            run_dir.mkdir()
+            metric = {
+                "accuracy": 0.50,
+                "f1_macro": 0.40,
+                "f1_weighted": 0.45,
+                "loss": 1.0,
+                "route_accuracy": 0.80,
+                "oracle_mask_violation_count": 0,
+                "checkpoint_sha256": f"checkpoint-{seed}",
+                "config_sha256": f"config-{seed}",
+            }
+            summary = {
+                "training_seed": seed,
+                "summary": {
+                    protocol: {policy: dict(metric) for policy in policies}
+                    for protocol in protocols
+                },
+            }
+            summary["summary"]["coverage_aware_oracle_gap"] = 0.02
+            (run_dir / "p6_evaluation_summary.json").write_text(json.dumps(summary))
+            # The validator reads this detailed E4 artifact for collapse checks.
+            (run_dir / "coverage_aware_local_e4_pred_hard.json").write_text(
+                json.dumps({"metrics": {"debug": {"route_confusion": {"0": {"0": 3, "1": 2}, "1": {"0": 2, "1": 3}}}}})
+            )
+            run_dirs.append(str(run_dir))
+        output = tmp_path / "final.json"
+        monkeypatch.setattr(
+            "sys.argv",
+            ["summarize_denice_p6.py", "--run-dirs", *run_dirs, "--output", str(output)],
+        )
+        summarize_denice_p6.main()
+        report = json.loads(output.read_text())
+
+        assert report["gates"]["three_distinct_seeds"]
+        assert report["gates"]["oracle_mask_violations_zero"]
+        assert report["gates"]["predicted_hard_oracle_gap_le_5_points"]
 
 
 # ---------------------------------------------------------------------------

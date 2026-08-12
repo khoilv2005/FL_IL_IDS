@@ -916,17 +916,51 @@ def evaluate_checkpoint(
         if evaluation_mode in {"ensemble", "representative"}:
             pairs = []
             selected_ids = client_ids
+            representative_coverage_debug: Dict[str, Any] = {}
             if evaluation_mode == "representative":
+                class_to_episode = {
+                    int(class_id): int(episode)
+                    for episode, classes in data_loader.task_classes.items()
+                    for class_id in classes
+                }
+                required_episodes = {
+                    int(class_to_episode[int(label)])
+                    for label in test_y.detach().cpu().tolist()
+                    if int(label) in class_to_episode
+                }
+                coverage_by_client = {
+                    int(cid): _client_router_episode_coverage(ckpt, int(cid))
+                    for cid in client_ids
+                }
+                eligible_ids = [
+                    int(cid)
+                    for cid in client_ids
+                    if required_episodes.issubset(
+                        set(coverage_by_client[int(cid)]["supported_episodes"])
+                    )
+                ]
+                if not eligible_ids:
+                    raise ValueError(
+                        "representative_global has no client with full router episode coverage"
+                    )
                 groups = (ckpt.get("cluster") or {}).get("groups", {})
                 seen_groups = set()
                 selected_ids = []
-                for cid in client_ids:
+                for cid in eligible_ids:
                     group = tuple(sorted(set(int(x) for x in _dict_get_int(groups, int(cid), [cid]))))
                     if group in seen_groups:
                         continue
                     seen_groups.add(group)
-                    selected_ids.append(min(group))
-                selected_ids = [cid for cid in selected_ids if cid in client_ids]
+                    eligible_group = sorted(int(x) for x in group if int(x) in eligible_ids)
+                    selected_ids.append(eligible_group[0])
+                representative_coverage_debug = {
+                    "required_episodes": sorted(required_episodes),
+                    "eligible_client_count": len(eligible_ids),
+                    "eligible_client_ids": eligible_ids,
+                    "coverage_by_representative": {
+                        str(cid): coverage_by_client[int(cid)] for cid in selected_ids
+                    },
+                }
             for cid in selected_ids:
                 pairs.append(_make_denice_client_model(ckpt, cid, device, router_mode=router_mode))
             metrics = evaluate_denice_ensemble(
@@ -952,6 +986,7 @@ def evaluate_checkpoint(
                 "algorithm": "denice",
                 "evaluation_mode": requested_evaluation_mode,
                 "representative_client_ids": selected_ids,
+                "representative_coverage_debug": representative_coverage_debug,
                 "metrics": metrics,
                 "route_mode": route_mode,
                 "inference_policy": inference_policy or "routed_default",
