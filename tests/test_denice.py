@@ -1023,6 +1023,45 @@ class TestSharedContextDetector:
 
 
 class TestDeNICEEvaluation:
+    def test_partitioned_local_eval_uses_each_global_sample_once(self, monkeypatch):
+        import eval_checkpoint
+
+        class DummyModel:
+            pass
+
+        monkeypatch.setattr(
+            eval_checkpoint,
+            "_make_denice_client_model",
+            lambda *_args, **_kwargs: (DummyModel(), object()),
+        )
+
+        def routed_logits(_model, X_batch, _detector, _seen, _device, _mode, _topk):
+            labels = X_batch[:, 0].long()
+            logits = torch.full((len(labels), 3), -10.0)
+            logits[torch.arange(len(labels)), labels] = 10.0
+            return logits, None
+
+        monkeypatch.setattr(eval_checkpoint, "_denice_routed_logits_with_episodes", routed_logits)
+        X = torch.arange(9, dtype=torch.float32).remainder(3).unsqueeze(1)
+        y = X[:, 0].long()
+        metrics = eval_checkpoint._evaluate_denice_partitioned_clients(
+            {"config": {"eval_batch_size": 2}, "seen_classes": [0, 1, 2]},
+            [3, 7, 9],
+            X,
+            y,
+            device="cpu",
+            router_mode="multiclass",
+            route_mode="hard",
+            route_topk=1,
+            eval_seed=42,
+            task_id=5,
+        )
+
+        assert sum(metrics["partition_sizes"].values()) == len(y)
+        assert metrics["partition_count"] == 3
+        assert metrics["accuracy"] == 1.0
+        assert metrics["f1_macro"] == 1.0
+
     def test_checkpoint_loader_normalizes_task_end_schema(self, monkeypatch):
         import eval_checkpoint
 

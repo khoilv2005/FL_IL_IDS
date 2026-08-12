@@ -14,7 +14,10 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict
 
+import numpy as np
 import torch
+import torch.nn as nn
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.models.cnn_gru import CNN_GRU_Model
@@ -25,7 +28,12 @@ from fed_learning.servers.nice_server import ContextDetector
 from fed_learning.strategies.incremental.nice import update_freeze_masks
 from fed_learning.training.checkpoint_state import restore_context_detector
 from fed_learning.training.denice_delta_checkpoint import load_denice_checkpoint
-from fed_learning.training.denice_eval import evaluate_denice_ensemble, evaluate_denice_model
+from fed_learning.training.denice_eval import (
+    _denice_routed_logits_with_episodes,
+    _label_to_episode_map,
+    evaluate_denice_ensemble,
+    evaluate_denice_model,
+)
 from fed_learning.training.der_worker import _reconstruct_model_structure
 from fed_learning.training.local_task_loop import _evaluate_model
 
@@ -151,6 +159,104 @@ def _make_model(ckpt: Dict[str, Any], device: str):
     return model, context_detector
 
 
+@torch.no_grad()
+def _evaluate_denice_partitioned_clients(
+    ckpt: Dict[str, Any],
+    client_ids: list[int],
+    test_X: torch.Tensor,
+    test_y: torch.Tensor,
+    *,
+    device: str,
+    router_mode: str | None,
+    route_mode: str,
+    route_topk: int,
+    eval_seed: int,
+    task_id: int,
+) -> Dict[str, Any]:
+    """Evaluate one disjoint, reproducible global-test partition per client.
+
+    This is a personalized/distributed test protocol, not a global ensemble:
+    every test sample is routed through exactly one saved client model.  Metrics
+    are calculated after concatenating predictions from all partitions, so the
+    reported F1 remains a proper dataset-level metric rather than an average of
+    per-client F1 values.
+    """
+    if not client_ids:
+        raise ValueError("partitioned_local evaluation needs at least one client")
+
+    config = ckpt["config"]
+    seed = int(eval_seed) + int(task_id)
+    generator = torch.Generator().manual_seed(seed)
+    shuffled = torch.randperm(len(test_y), generator=generator)
+    partitions = torch.tensor_split(shuffled, len(client_ids))
+    criterion = nn.CrossEntropyLoss()
+    all_predictions: list[int] = []
+    all_targets: list[int] = []
+    partition_sizes: Dict[str, int] = {}
+    total_loss = 0.0
+    route_correct = 0
+    route_total = 0
+    evaluated_client_count = 0
+    batch_size = int(config.get("eval_batch_size", 8192))
+    seen_classes = ckpt.get("seen_classes")
+
+    for client_id, indices in zip(client_ids, partitions):
+        partition_sizes[str(client_id)] = int(indices.numel())
+        if indices.numel() == 0:
+            continue
+        model, context_detector = _make_denice_client_model(
+            ckpt, client_id, device, router_mode=router_mode
+        )
+        evaluated_client_count += 1
+        X_partition = test_X[indices]
+        y_partition = test_y[indices]
+        label2episode = _label_to_episode_map(context_detector)
+        for start in range(0, len(y_partition), max(1, batch_size)):
+            X_batch = X_partition[start : start + batch_size].to(device)
+            y_batch = y_partition[start : start + batch_size].to(device)
+            logits, episodes = _denice_routed_logits_with_episodes(
+                model,
+                X_batch,
+                context_detector,
+                seen_classes,
+                device,
+                route_mode,
+                route_topk,
+            )
+            total_loss += criterion(logits, y_batch).item() * len(y_batch)
+            all_predictions.extend(logits.argmax(dim=1).detach().cpu().tolist())
+            all_targets.extend(y_batch.detach().cpu().tolist())
+            if episodes is not None and label2episode:
+                true_episodes = np.asarray(
+                    [label2episode.get(int(label), -1) for label in y_batch.cpu().numpy()],
+                    dtype=np.int64,
+                )
+                known = true_episodes >= 0
+                route_total += int(known.sum())
+                route_correct += int((episodes[known] == true_episodes[known]).sum())
+        del model
+        if str(device).startswith("cuda"):
+            torch.cuda.empty_cache()
+
+    y_true = np.asarray(all_targets)
+    y_pred = np.asarray(all_predictions)
+    return {
+        "loss": total_loss / max(1, len(y_true)),
+        "accuracy": accuracy_score(y_true, y_pred),
+        "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
+        "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
+        "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
+        "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
+        "route_accuracy": route_correct / route_total if route_total else 0.0,
+        "route_coverage": route_total / len(y_true) if len(y_true) else 0.0,
+        "partition_protocol": "random_disjoint_global_test_per_client",
+        "partition_seed": seed,
+        "partition_count": len(client_ids),
+        "evaluated_client_count": evaluated_client_count,
+        "partition_sizes": partition_sizes,
+    }
+
+
 def evaluate_checkpoint(
     checkpoint_path: str,
     device: str | None = None,
@@ -184,8 +290,43 @@ def evaluate_checkpoint(
             int(cid) for cid in ckpt.get("client_ids", ckpt["client_model_states"].keys())
         ]
         evaluation_mode = str(evaluation_mode or "local").lower()
-        if evaluation_mode not in {"local", "ensemble", "representative"}:
-            raise ValueError("evaluation_mode must be local, ensemble, or representative")
+        if evaluation_mode not in {"local", "ensemble", "representative", "partitioned_local"}:
+            raise ValueError(
+                "evaluation_mode must be local, ensemble, representative, or partitioned_local"
+            )
+        if evaluation_mode == "partitioned_local":
+            metrics = _evaluate_denice_partitioned_clients(
+                ckpt,
+                client_ids,
+                test_X,
+                test_y,
+                device=device,
+                router_mode=router_mode,
+                route_mode=route_mode,
+                route_topk=route_topk,
+                eval_seed=eval_seed,
+                task_id=task_id,
+            )
+            return {
+                "checkpoint": str(checkpoint_path),
+                "checkpoint_type": ckpt.get("checkpoint_type"),
+                "task_id": task_id,
+                "round_id": ckpt.get("round_id", ckpt.get("final_round_id")),
+                "algorithm": "denice",
+                "evaluation_mode": evaluation_mode,
+                "client_ids": client_ids,
+                "metrics": metrics,
+                "route_mode": route_mode,
+                "route_topk": int(route_topk),
+                "router_mode": router_mode or config.get("denice_router_mode", "chained"),
+                "checkpoint_sha256": hashlib.sha256(Path(checkpoint_path).read_bytes()).hexdigest(),
+                "config_sha256": hashlib.sha256(
+                    json.dumps(config, sort_keys=True, default=str).encode("utf-8")
+                ).hexdigest(),
+                "eval_sample_count": int(len(test_y)),
+                "eval_total_sample_count": total_test_samples,
+                "eval_seed": int(eval_seed),
+            }
         if evaluation_mode in {"ensemble", "representative"}:
             pairs = []
             selected_ids = client_ids
@@ -316,7 +457,7 @@ def main() -> None:
     parser.add_argument(
         "--evaluation-mode",
         default="local",
-        choices=["local", "ensemble", "representative"],
+        choices=["local", "ensemble", "representative", "partitioned_local"],
     )
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--eval-seed", type=int, default=42)
