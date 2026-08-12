@@ -235,6 +235,13 @@ Pass/fail:
 - [ ] Macro-F1 tăng cùng accuracy, không chỉ lợi ích class imbalance.
 - [ ] Protocol final, SHA, config và seed được lưu artifact.
 
+P6 runner đã sẵn sàng: `run_denice_p6_kaggle.py` nhận `DENICE_SEED=42|43|44`,
+train full task 0–5 vào output riêng từng seed rồi tự gọi
+`run_denice_p6_eval.py`. Runner ghi E0–E6 cho cả `coverage_aware_local` và
+`representative_global`, kèm checkpoint/config SHA. Smoke interface đã tạo đủ
+16 artifact policy/protocol và full regression pass; chưa đánh dấu P6 xong cho
+đến khi có ba artifact full training thực tế.
+
 ## 5. Checklist trạng thái tổng hợp
 
 - [x] Baseline checkpoint routing/mask evidence được lưu.

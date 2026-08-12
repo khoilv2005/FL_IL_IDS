@@ -467,7 +467,9 @@ def evaluate_denice_ensemble(
     batch_size: int = 1024,
     route_mode: str = "hard",
     route_topk: int = 1,
-) -> Dict[str, float]:
+    inference_policy: Optional[str] = None,
+    class_to_episode: Optional[Dict[int, int]] = None,
+) -> Dict[str, Any]:
     """Evaluate an equal-probability ensemble of cluster representatives.
 
     Every pair supplies its own model and matching context detector, avoiding
@@ -492,13 +494,36 @@ def evaluate_denice_ensemble(
     total_loss = 0.0
     route_correct = 0
     route_total = 0
+    oracle_mask_violation_count = 0
     for i in range(0, len(y_test), max(1, batch_size)):
         X_batch = X_test[i : i + batch_size].to(device)
         y_batch = y_test[i : i + batch_size].to(device)
         probs = None
         for model, detector in model_detector_pairs:
+            oracle_episodes = None
+            if inference_policy in {"oracle_adapter_nomask", "oracle_hard"}:
+                label_map = class_to_episode or _label_to_episode_map(detector)
+                oracle_episodes = np.asarray(
+                    [label_map.get(int(label), -1) for label in y_batch.detach().cpu().tolist()],
+                    dtype=np.int64,
+                )
+                if np.any(oracle_episodes < 0):
+                    raise ValueError("oracle ensemble evaluation encountered an unmapped test class")
+                if inference_policy == "oracle_hard":
+                    for label, episode in zip(y_batch.detach().cpu().tolist(), oracle_episodes):
+                        allowed = detector.episode_classes.get(int(episode), [])
+                        if int(label) not in {int(cls) for cls in allowed}:
+                            oracle_mask_violation_count += 1
             logits, episodes = _denice_routed_logits_with_episodes(
-                model, X_batch, detector, seen_classes, device, route_mode, route_topk
+                model,
+                X_batch,
+                detector,
+                seen_classes,
+                device,
+                route_mode,
+                route_topk,
+                inference_policy=inference_policy,
+                oracle_episodes=oracle_episodes,
             )
             current = torch.softmax(logits, dim=1)
             probs = current if probs is None else probs + current
@@ -532,4 +557,6 @@ def evaluate_denice_ensemble(
         "route_accuracy": route_correct / route_total if route_total else 0.0,
         "route_coverage": route_total / max(1, len(y_test) * len(model_detector_pairs)),
         "ensemble_size": float(len(model_detector_pairs)),
+        "inference_policy": inference_policy or "routed_default",
+        "oracle_mask_violation_count": int(oracle_mask_violation_count),
     }

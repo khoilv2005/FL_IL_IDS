@@ -846,13 +846,16 @@ def evaluate_checkpoint(
         client_ids = [
             int(cid) for cid in ckpt.get("client_ids", ckpt["client_model_states"].keys())
         ]
-        evaluation_mode = str(evaluation_mode or "local").lower()
+        requested_evaluation_mode = str(evaluation_mode or "local").lower()
+        evaluation_mode = requested_evaluation_mode
+        if requested_evaluation_mode == "representative_global":
+            evaluation_mode = "representative"
         if evaluation_mode not in {
             "local", "ensemble", "representative", "partitioned_local", "coverage_aware_local"
         }:
             raise ValueError(
                 "evaluation_mode must be local, ensemble, representative, partitioned_local, "
-                "or coverage_aware_local"
+                "representative_global, or coverage_aware_local"
             )
         if evaluation_mode in {"partitioned_local", "coverage_aware_local"}:
             partitions = None
@@ -895,7 +898,7 @@ def evaluate_checkpoint(
                 "task_id": task_id,
                 "round_id": ckpt.get("round_id", ckpt.get("final_round_id")),
                 "algorithm": "denice",
-                "evaluation_mode": evaluation_mode,
+                "evaluation_mode": requested_evaluation_mode,
                 "client_ids": client_ids,
                 "metrics": metrics,
                 "route_mode": route_mode,
@@ -934,6 +937,12 @@ def evaluate_checkpoint(
                 batch_size=int(config.get("eval_batch_size", 8192)),
                 route_mode=route_mode,
                 route_topk=route_topk,
+                inference_policy=inference_policy,
+                class_to_episode={
+                    int(class_id): int(episode)
+                    for episode, classes in data_loader.task_classes.items()
+                    for class_id in classes
+                },
             )
             return {
                 "checkpoint": str(checkpoint_path),
@@ -941,10 +950,11 @@ def evaluate_checkpoint(
                 "task_id": task_id,
                 "round_id": ckpt.get("round_id", ckpt.get("final_round_id")),
                 "algorithm": "denice",
-                "evaluation_mode": evaluation_mode,
+                "evaluation_mode": requested_evaluation_mode,
                 "representative_client_ids": selected_ids,
                 "metrics": metrics,
                 "route_mode": route_mode,
+                "inference_policy": inference_policy or "routed_default",
                 "route_topk": int(route_topk),
                 "router_mode": router_mode or config.get("denice_router_mode", "chained"),
                 "checkpoint_sha256": hashlib.sha256(Path(checkpoint_path).read_bytes()).hexdigest(),
@@ -1043,7 +1053,7 @@ def main() -> None:
         "--evaluation-mode",
         default="local",
         choices=[
-            "local", "ensemble", "representative", "partitioned_local", "coverage_aware_local"
+            "local", "ensemble", "representative", "representative_global", "partitioned_local", "coverage_aware_local"
         ],
     )
     parser.add_argument("--max-samples", type=int, default=None)

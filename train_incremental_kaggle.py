@@ -7,7 +7,13 @@ import subprocess
 import sys
 import zipfile
 
-TRAIN_PHASE = 5  # 1: task 0-1, 2: task 2, 3: task 3, 4: task 4-5, 5: task 0-5
+# Environment overrides make P6 multi-seed runs reproducible without editing
+# this file between Kaggle sessions, e.g. DENICE_SEED=43.
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..5
+TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
+TRAIN_OUTPUT_DIR = os.environ.get(
+    "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_seed_{TRAIN_SEED}"
+)
 
 PHASE_CONFIG = {
     1: {
@@ -170,7 +176,7 @@ CONFIG = {
     # Data
     "data_dir": "/kaggle/input/datasets/khoilv2005/100-clients/100-clients",
     # Reproducibility
-    "random_seed": 42,  # Set to None for random behavior
+    "random_seed": TRAIN_SEED,
     # Training Mode
     # Options:
     #   - "fed_il": federated incremental learning
@@ -187,7 +193,7 @@ CONFIG = {
     # Output - Use Kaggle's output directory for persistent storage
     # On Kaggle: /kaggle/working/ persists after training (can download from Output tab)
     # On local: ./results_incremental
-    "output_dir": "/kaggle/working/results_denice_il",
+    "output_dir": TRAIN_OUTPUT_DIR,
 
     # Split-run / continuation state
     # Set TRAIN_PHASE at the top of this file:
@@ -202,7 +208,7 @@ CONFIG = {
     "resume_state_path": target,
     # Always output IL resume artifacts to /kaggle/working/ for persistence
     # (downloadable from the Kaggle Output tab).
-    "resume_output_dir": "/kaggle/working/results_denice_il",
+    "resume_output_dir": TRAIN_OUTPUT_DIR,
     # Save periodic mid-task checkpoint every N rounds (for recovery on timeout/Kaggle crash)
     # None = disable; set to 5 for safe recovery without bloating disk.
     #
@@ -258,7 +264,7 @@ CONFIG = {
     "omega_new": 0.9,
     "buffer_size": 500,
     "replay_ratio": 0.5,
-    "seed": 42,
+    "seed": TRAIN_SEED,
     # DER (Dynamically Expandable Representation)
     "lambda_aux": 1.0,
     "lambda_sparsity": 0.1,

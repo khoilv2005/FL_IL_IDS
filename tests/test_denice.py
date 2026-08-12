@@ -1344,6 +1344,44 @@ class TestDeNICEEvaluation:
         assert 0.0 <= metrics["accuracy"] <= 1.0
         assert np.isfinite(metrics["loss"])
 
+    def test_representative_ensemble_oracle_hard_preserves_true_episode_classes(self, monkeypatch):
+        from fed_learning.servers.nice_server import ContextDetector
+        import fed_learning.training.denice_eval as denice_eval
+
+        model = _make_model()
+        detector = ContextDetector(memo_per_class=10, router_mode="multiclass")
+        detector.episode_classes = {0: [0, 1], 1: [2, 3]}
+        monkeypatch.setattr(
+            denice_eval,
+            "_route_episodes_with_scores",
+            lambda *_args: (np.asarray([1, 0]), None),
+        )
+        metrics = denice_eval.evaluate_denice_ensemble(
+            [(model, detector)],
+            {"X_test": _dummy_batch(2), "y_test": torch.tensor([0, 2])},
+            device="cpu",
+            seen_classes=[0, 1, 2, 3],
+            inference_policy="oracle_hard",
+            class_to_episode={0: 0, 1: 0, 2: 1, 3: 1},
+        )
+
+        assert metrics["inference_policy"] == "oracle_hard"
+        assert metrics["oracle_mask_violation_count"] == 0
+
+    def test_p6_runner_has_complete_policy_matrix(self):
+        from run_denice_p6_eval import POLICIES
+
+        assert set(POLICIES) == {
+            "e0_backbone_nomask",
+            "e1_pred_adapter_nomask",
+            "e2_oracle_adapter_nomask",
+            "e3_oracle_hard",
+            "e4_pred_hard",
+            "e5_topk2",
+            "e5_topk3",
+            "e6_adaptive",
+        }
+
 
 # ---------------------------------------------------------------------------
 # Training smoke test (one short task with adapter)
