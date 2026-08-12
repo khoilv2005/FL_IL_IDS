@@ -288,9 +288,11 @@ CONFIG = {
     "denice_debug": True,
     "denice_save_round_artifacts": False,
     "denice_checkpoint_format": "delta",
-    # Train-time eval guard. Full all-client eval should be run offline after training.
-    "denice_eval_max_clients": 5,
-    "denice_eval_max_samples": 500000,
+    # Quick diagnostic only at the final checkpoint (task 5, round 19).
+    # A stratified, full evaluation matrix still runs offline in P6 afterward.
+    "denice_post_task_eval_tasks": [5],
+    "denice_eval_max_clients": 3,
+    "denice_eval_max_samples": 50000,
     "denice_eval_progress_every_clients": 10,  # in progress mỗi 10 clients
     "denice_eval_progress_every_batches": 0,
     # Store routed, classifier-ceiling (nomask), route confusion and a

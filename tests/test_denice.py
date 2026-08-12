@@ -39,6 +39,10 @@ from fed_learning.training.denice_delta_checkpoint import (
     save_delta_round_checkpoint,
     save_task_base_checkpoint,
 )
+from fed_learning.training.decentralized_denice_il import (
+    _limit_eval_samples,
+    _should_run_post_task_eval,
+)
 
 
 INPUT_SHAPE = (16, 1)
@@ -53,6 +57,23 @@ def _make_model():
 def _dummy_batch(n=8):
     torch.manual_seed(1)
     return torch.randn(n, INPUT_SHAPE[0])
+
+
+class TestDeNICEEvaluationScheduling:
+    def test_post_task_eval_can_be_limited_to_final_task(self):
+        config = {"denice_post_task_eval_tasks": [5]}
+        assert not _should_run_post_task_eval(0, config)
+        assert _should_run_post_task_eval(5, config)
+
+    def test_post_task_eval_is_unrestricted_when_task_list_is_absent(self):
+        assert _should_run_post_task_eval(0, {})
+
+    def test_limited_eval_keeps_each_class_represented(self):
+        X = torch.arange(60).reshape(30, 2)
+        y = torch.tensor([0] * 10 + [1] * 10 + [2] * 10)
+        _, sampled_y, sample_info = _limit_eval_samples(X, y, max_samples=9, seed=7)
+        assert sample_info == {"limited": True, "total": 30, "used": 9}
+        assert torch.bincount(sampled_y, minlength=3).tolist() == [3, 3, 3]
 
 
 # ---------------------------------------------------------------------------

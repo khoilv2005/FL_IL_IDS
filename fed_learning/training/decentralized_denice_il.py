@@ -398,8 +398,55 @@ def _limit_eval_samples(
         return X, y, {"limited": False, "total": total, "used": total}
     used = int(max_samples)
     generator = torch.Generator().manual_seed(int(seed))
-    idx = torch.randperm(total, generator=generator)[:used]
+    labels = torch.unique(y.detach().cpu(), sorted=True)
+    # Keep the fast diagnostic representative of every class instead of
+    # letting a random prefix hide late/rare incremental-task classes.
+    per_class = used // max(1, len(labels))
+    selected_by_class: Dict[int, int] = {}
+    available_by_class: Dict[int, torch.Tensor] = {}
+    selected_chunks: List[torch.Tensor] = []
+    for label in labels.tolist():
+        class_idx = torch.nonzero(y.detach().cpu() == label, as_tuple=False).flatten()
+        class_idx = class_idx[torch.randperm(len(class_idx), generator=generator)]
+        available_by_class[int(label)] = class_idx
+        take = min(per_class, len(class_idx))
+        selected_by_class[int(label)] = int(take)
+        if take:
+            selected_chunks.append(class_idx[:take])
+    remaining = used - sum(selected_by_class.values())
+    # Distribute the remainder round-robin across classes with unused samples.
+    while remaining > 0:
+        progressed = False
+        for label in labels.tolist():
+            label = int(label)
+            class_idx = available_by_class[label]
+            if selected_by_class[label] >= len(class_idx):
+                continue
+            chosen = class_idx[selected_by_class[label]]
+            selected_chunks.append(chosen.reshape(1))
+            selected_by_class[label] += 1
+            remaining -= 1
+            progressed = True
+            if remaining == 0:
+                break
+        if not progressed:
+            break
+    idx = torch.cat(selected_chunks)
+    idx = idx[torch.randperm(len(idx), generator=generator)]
     return X[idx], y[idx], {"limited": True, "total": total, "used": used}
+
+
+def _should_run_post_task_eval(task_id: int, config: Dict[str, Any]) -> bool:
+    """Return whether this task is selected for the lightweight post-task eval.
+
+    ``denice_post_task_eval_tasks`` is optional so existing experiments retain
+    their previous behaviour.  An empty list explicitly disables every
+    post-task evaluation; a non-empty list restricts it to those task IDs.
+    """
+    selected_tasks = config.get("denice_post_task_eval_tasks")
+    if selected_tasks is None:
+        return True
+    return int(task_id) in {int(value) for value in selected_tasks}
 
 def _sample_reference_with_labels(
     X_train: torch.Tensor,
@@ -1949,7 +1996,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         if history.get("round_metrics"):
             final_train_loss = history["round_metrics"][-1].get("train_loss")
 
-        if post_task_eval:
+        run_post_task_eval = post_task_eval and _should_run_post_task_eval(task_id, config)
+        if run_post_task_eval:
             test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
             test_X, test_y, sample_info = _limit_eval_samples(
                 test_X,
@@ -2002,8 +2050,13 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             metrics["eval_sample_limited"] = bool(sample_info["limited"])
             metrics["eval_skipped"] = False
         else:
+            skip_reason = (
+                "task_not_selected_by_denice_post_task_eval_tasks"
+                if post_task_eval
+                else "denice_post_task_eval=False"
+            )
             print(
-                "  Post-task DeNICE eval skipped -> denice_post_task_eval=False",
+                f"  Post-task DeNICE eval skipped -> {skip_reason}",
                 flush=True,
             )
             metrics = {
@@ -2021,7 +2074,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "route_coverage": None,
                 "routing_mode": "skipped",
                 "eval_skipped": True,
-                "eval_reason": "denice_post_task_eval=False",
+                "eval_reason": skip_reason,
                 "per_client": {},
                 "eval_client_count": 0,
                 "eval_total_client_count": len(active_ids),
