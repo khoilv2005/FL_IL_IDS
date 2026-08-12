@@ -193,6 +193,8 @@ def _evaluate_denice_partitioned_clients(
     all_predictions: list[int] = []
     all_targets: list[int] = []
     partition_sizes: Dict[str, int] = {}
+    partition_records: list[Dict[str, Any]] = []
+    route_confusion: Dict[str, Dict[str, int]] = {}
     total_loss = 0.0
     route_correct = 0
     route_total = 0
@@ -211,6 +213,11 @@ def _evaluate_denice_partitioned_clients(
         X_partition = test_X[indices]
         y_partition = test_y[indices]
         label2episode = _label_to_episode_map(context_detector)
+        partition_predictions: list[int] = []
+        partition_targets: list[int] = []
+        partition_loss = 0.0
+        partition_route_correct = 0
+        partition_route_total = 0
         for start in range(0, len(y_partition), max(1, batch_size)):
             X_batch = X_partition[start : start + batch_size].to(device)
             y_batch = y_partition[start : start + batch_size].to(device)
@@ -223,23 +230,78 @@ def _evaluate_denice_partitioned_clients(
                 route_mode,
                 route_topk,
             )
-            total_loss += criterion(logits, y_batch).item() * len(y_batch)
-            all_predictions.extend(logits.argmax(dim=1).detach().cpu().tolist())
-            all_targets.extend(y_batch.detach().cpu().tolist())
+            batch_loss = criterion(logits, y_batch).item() * len(y_batch)
+            total_loss += batch_loss
+            partition_loss += batch_loss
+            batch_predictions = logits.argmax(dim=1).detach().cpu().tolist()
+            batch_targets = y_batch.detach().cpu().tolist()
+            all_predictions.extend(batch_predictions)
+            all_targets.extend(batch_targets)
+            partition_predictions.extend(batch_predictions)
+            partition_targets.extend(batch_targets)
             if episodes is not None and label2episode:
                 true_episodes = np.asarray(
                     [label2episode.get(int(label), -1) for label in y_batch.cpu().numpy()],
                     dtype=np.int64,
                 )
                 known = true_episodes >= 0
-                route_total += int(known.sum())
-                route_correct += int((episodes[known] == true_episodes[known]).sum())
+                known_count = int(known.sum())
+                correct_count = int((episodes[known] == true_episodes[known]).sum())
+                route_total += known_count
+                route_correct += correct_count
+                partition_route_total += known_count
+                partition_route_correct += correct_count
+                for true_episode, predicted_episode in zip(
+                    true_episodes[known], episodes[known]
+                ):
+                    true_key = str(int(true_episode))
+                    predicted_key = str(int(predicted_episode))
+                    row = route_confusion.setdefault(true_key, {})
+                    row[predicted_key] = int(row.get(predicted_key, 0) + 1)
+        partition_targets_np = np.asarray(partition_targets)
+        partition_predictions_np = np.asarray(partition_predictions)
+        partition_records.append(
+            {
+                "client_id": int(client_id),
+                "sample_count": int(len(partition_targets_np)),
+                "unique_target_class_count": int(len(np.unique(partition_targets_np))),
+                "loss": partition_loss / max(1, len(partition_targets_np)),
+                "accuracy": accuracy_score(partition_targets_np, partition_predictions_np),
+                "route_accuracy": (
+                    partition_route_correct / partition_route_total
+                    if partition_route_total
+                    else None
+                ),
+                "route_coverage": partition_route_total / max(1, len(partition_targets_np)),
+            }
+        )
         del model
         if str(device).startswith("cuda"):
             torch.cuda.empty_cache()
 
     y_true = np.asarray(all_targets)
     y_pred = np.asarray(all_predictions)
+    per_class = {}
+    for class_id in sorted(int(c) for c in np.unique(y_true)):
+        class_mask = y_true == class_id
+        per_class[str(class_id)] = {
+            "support": int(class_mask.sum()),
+            "accuracy": float((y_pred[class_mask] == y_true[class_mask]).mean()),
+        }
+    compact_debug = {
+        "per_class": per_class,
+        "route_confusion": route_confusion,
+        "worst_partitions_by_accuracy": sorted(
+            partition_records, key=lambda row: (row["accuracy"], -row["sample_count"])
+        )[:10],
+        "worst_partitions_by_loss": sorted(
+            partition_records, key=lambda row: (-row["loss"], -row["sample_count"])
+        )[:10],
+        "worst_partitions_by_route_accuracy": sorted(
+            (row for row in partition_records if row["route_accuracy"] is not None),
+            key=lambda row: (row["route_accuracy"], -row["sample_count"]),
+        )[:10],
+    }
     return {
         "loss": total_loss / max(1, len(y_true)),
         "accuracy": accuracy_score(y_true, y_pred),
@@ -254,6 +316,7 @@ def _evaluate_denice_partitioned_clients(
         "partition_count": len(client_ids),
         "evaluated_client_count": evaluated_client_count,
         "partition_sizes": partition_sizes,
+        "debug": compact_debug,
     }
 
 

@@ -1061,6 +1061,8 @@ class TestDeNICEEvaluation:
         assert metrics["partition_count"] == 3
         assert metrics["accuracy"] == 1.0
         assert metrics["f1_macro"] == 1.0
+        assert set(metrics["debug"]["per_class"]) == {"0", "1", "2"}
+        assert len(metrics["debug"]["worst_partitions_by_accuracy"]) == 3
 
     def test_checkpoint_loader_normalizes_task_end_schema(self, monkeypatch):
         import eval_checkpoint
