@@ -281,6 +281,8 @@ def _evaluate_denice_partitioned_clients(
     task_id: int,
     partitions: Dict[int, torch.Tensor] | None = None,
     protocol_debug: Dict[str, Any] | None = None,
+    inference_policy: str | None = None,
+    class_to_episode: Dict[int, int] | None = None,
 ) -> Dict[str, Any]:
     """Evaluate one disjoint, reproducible global-test partition per client.
 
@@ -315,6 +317,7 @@ def _evaluate_denice_partitioned_clients(
     evaluated_client_count = 0
     batch_size = int(config.get("eval_batch_size", 8192))
     seen_classes = ckpt.get("seen_classes")
+    mask_violation_count = 0
 
     for client_id, indices in partition_pairs:
         partition_sizes[str(client_id)] = int(indices.numel())
@@ -335,6 +338,21 @@ def _evaluate_denice_partitioned_clients(
         for start in range(0, len(y_partition), max(1, batch_size)):
             X_batch = X_partition[start : start + batch_size].to(device)
             y_batch = y_partition[start : start + batch_size].to(device)
+            oracle_episodes = None
+            if inference_policy in {"oracle_adapter_nomask", "oracle_hard"}:
+                if not class_to_episode:
+                    raise ValueError("oracle evaluation needs a class-to-episode map")
+                oracle_episodes = np.asarray(
+                    [class_to_episode.get(int(label), -1) for label in y_batch.cpu().tolist()],
+                    dtype=np.int64,
+                )
+                if np.any(oracle_episodes < 0):
+                    raise ValueError("oracle evaluation encountered an unmapped test class")
+                if inference_policy == "oracle_hard":
+                    for label, episode in zip(y_batch.cpu().tolist(), oracle_episodes):
+                        allowed = context_detector.episode_classes.get(int(episode), [])
+                        if int(label) not in {int(cls) for cls in allowed}:
+                            mask_violation_count += 1
             logits, episodes = _denice_routed_logits_with_episodes(
                 model,
                 X_batch,
@@ -343,6 +361,8 @@ def _evaluate_denice_partitioned_clients(
                 device,
                 route_mode,
                 route_topk,
+                inference_policy=inference_policy,
+                oracle_episodes=oracle_episodes,
             )
             batch_loss = criterion(logits, y_batch).item() * len(y_batch)
             total_loss += batch_loss
@@ -432,6 +452,8 @@ def _evaluate_denice_partitioned_clients(
         "partition_sizes": partition_sizes,
         "debug": compact_debug,
         "protocol_debug": protocol_debug or {},
+        "inference_policy": inference_policy or "routed_default",
+        "oracle_mask_violation_count": int(mask_violation_count),
     }
 
 
@@ -445,6 +467,7 @@ def evaluate_checkpoint(
     evaluation_mode: str = "local",
     max_samples: int | None = None,
     eval_seed: int = 42,
+    inference_policy: str | None = None,
 ) -> Dict[str, Any]:
     ckpt = _load_checkpoint(checkpoint_path)
     config = dict(ckpt["config"])
@@ -503,6 +526,12 @@ def evaluate_checkpoint(
                 task_id=task_id,
                 partitions=partitions,
                 protocol_debug=protocol_debug,
+                inference_policy=inference_policy,
+                class_to_episode={
+                    int(class_id): int(episode)
+                    for episode, classes in data_loader.task_classes.items()
+                    for class_id in classes
+                },
             )
             return {
                 "checkpoint": str(checkpoint_path),
@@ -514,6 +543,7 @@ def evaluate_checkpoint(
                 "client_ids": client_ids,
                 "metrics": metrics,
                 "route_mode": route_mode,
+                "inference_policy": inference_policy or "routed_default",
                 "route_topk": int(route_topk),
                 "router_mode": router_mode or config.get("denice_router_mode", "chained"),
                 "checkpoint_sha256": hashlib.sha256(Path(checkpoint_path).read_bytes()).hexdigest(),
@@ -661,6 +691,18 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--eval-seed", type=int, default=42)
     parser.add_argument(
+        "--inference-policy",
+        default=None,
+        choices=[
+            "pred_hard",
+            "pred_adapter_nomask",
+            "oracle_adapter_nomask",
+            "oracle_hard",
+            "backbone_nomask",
+        ],
+        help="Component-isolation policy; requires partitioned or coverage-aware local evaluation.",
+    )
+    parser.add_argument(
         "--route-modes",
         default=None,
         help="Comma-separated ablation modes; emits one result per mode on identical checkpoint/data.",
@@ -683,6 +725,7 @@ def main() -> None:
             evaluation_mode=args.evaluation_mode,
             max_samples=args.max_samples,
             eval_seed=args.eval_seed,
+            inference_policy=args.inference_policy,
         )
         for mode in modes
     }

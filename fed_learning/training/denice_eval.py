@@ -95,6 +95,27 @@ def _mask_logits_to_classes(
     logits[:, mask] = fill_value
     return logits
 
+
+INFERENCE_POLICIES = {
+    "pred_hard",
+    "pred_adapter_nomask",
+    "oracle_adapter_nomask",
+    "oracle_hard",
+    "backbone_nomask",
+}
+
+
+def _validate_oracle_episodes(
+    oracle_episodes: Optional[np.ndarray], n: int
+) -> np.ndarray:
+    if oracle_episodes is None:
+        raise ValueError("oracle inference policy requires one episode id per sample")
+    result = np.asarray(oracle_episodes, dtype=np.int64).reshape(-1)
+    if len(result) != n:
+        raise ValueError(f"oracle episode count {len(result)} != batch size {n}")
+    return result
+
+
 @torch.no_grad()
 def _denice_routed_logits_with_episodes(
     model,
@@ -104,6 +125,8 @@ def _denice_routed_logits_with_episodes(
     device: str,
     route_mode: str = "hard",
     route_topk: int = 1,
+    inference_policy: Optional[str] = None,
+    oracle_episodes: Optional[np.ndarray] = None,
 ) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
     """Return logits from the same routed path used for DeNICE prediction.
 
@@ -119,6 +142,10 @@ def _denice_routed_logits_with_episodes(
     In every mode the returned episode array is the top-1 route, so
     ``route_accuracy`` stays comparable across modes.
     """
+    policy = str(inference_policy or "").lower()
+    if policy and policy not in INFERENCE_POLICIES:
+        raise ValueError(f"Unknown DeNICE inference policy: {policy}")
+
     model.eval()
     num_classes = int(model.num_classes)
     n = X_batch.shape[0]
@@ -127,15 +154,35 @@ def _denice_routed_logits_with_episodes(
     )
 
     has_detector = bool(getattr(context_detector, "episode_classes", None))
-    if not has_detector:
+    if policy == "backbone_nomask" or not has_detector:
         model.clear_active_adapters()
         out = model(X_batch)
         unseen = _seen_unseen_mask(num_classes, seen_classes, out.device)
         out[:, unseen] = -100.0
         return out, None
 
-    mode = str(route_mode or "hard").lower()
+    if policy == "pred_hard":
+        mode, adapter_source, mask_source = "hard", "predicted", "predicted"
+    elif policy == "pred_adapter_nomask":
+        mode, adapter_source, mask_source = "nomask", "predicted", "none"
+    elif policy == "oracle_adapter_nomask":
+        mode, adapter_source, mask_source = "nomask", "oracle", "none"
+    elif policy == "oracle_hard":
+        mode, adapter_source, mask_source = "hard", "oracle", "oracle"
+    else:
+        mode, adapter_source, mask_source = str(route_mode or "hard").lower(), "predicted", "predicted"
+
     episodes, chain_probs = _route_episodes_with_scores(model, X_batch, context_detector)
+    active_episodes = (
+        _validate_oracle_episodes(oracle_episodes, n)
+        if adapter_source == "oracle"
+        else np.asarray(episodes, dtype=np.int64)
+    )
+    mask_episodes = (
+        _validate_oracle_episodes(oracle_episodes, n)
+        if mask_source == "oracle"
+        else np.asarray(episodes, dtype=np.int64)
+    )
     unseen = _seen_unseen_mask(num_classes, seen_classes, device)
 
     # Per-sample top-k episode indices (only needed for the topk rule).
@@ -154,14 +201,14 @@ def _denice_routed_logits_with_episodes(
             )
         return allowed_cache[ep]
 
-    for ep in np.unique(episodes):
-        idx_np = np.where(episodes == ep)[0]
+    for ep in np.unique(active_episodes):
+        idx_np = np.where(active_episodes == ep)[0]
         idx = torch.as_tensor(idx_np, dtype=torch.long, device=device)
         model.set_active_context(int(ep))  # adapter follows the top-1 route
         out = model(X_batch.index_select(0, idx))
         out[:, unseen] = -100.0
 
-        if mode == "nomask":
+        if mode == "nomask" or mask_source == "none":
             routed_logits[idx] = out
             continue
 
@@ -181,8 +228,20 @@ def _denice_routed_logits_with_episodes(
             )
             continue
 
-        # hard (default): identical to the original top-1 masking path.
-        routed_logits[idx] = _mask_logits_to_classes(out, _allowed_for(int(ep)))
+        # For oracle_hard, mask rows by their true task episode rather than by
+        # whichever adapter group happened to be active.
+        if mask_source == "oracle":
+            row_masks = []
+            for mask_ep in mask_episodes[idx_np]:
+                row_masks.append(_allowed_for(int(mask_ep)))
+            mask_allow = torch.zeros_like(out, dtype=torch.bool)
+            for row_index, allowed in enumerate(row_masks):
+                if allowed:
+                    mask_allow[row_index, torch.as_tensor(allowed, device=device)] = True
+            routed_logits[idx] = torch.where(mask_allow, out, torch.full_like(out, -100.0))
+        else:
+            # hard (default): identical to the original top-1 masking path.
+            routed_logits[idx] = _mask_logits_to_classes(out, _allowed_for(int(ep)))
 
     model.clear_active_adapters()
     return routed_logits, np.asarray(episodes)

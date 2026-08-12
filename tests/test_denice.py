@@ -1057,7 +1057,7 @@ class TestDeNICEEvaluation:
             lambda *_args, **_kwargs: (DummyModel(), object()),
         )
 
-        def routed_logits(_model, X_batch, _detector, _seen, _device, _mode, _topk):
+        def routed_logits(_model, X_batch, _detector, _seen, _device, _mode, _topk, **_kwargs):
             labels = X_batch[:, 0].long()
             logits = torch.full((len(labels), 3), -10.0)
             logits[torch.arange(len(labels)), labels] = 10.0
@@ -1085,6 +1085,32 @@ class TestDeNICEEvaluation:
         assert metrics["f1_macro"] == 1.0
         assert set(metrics["debug"]["per_class"]) == {"0", "1", "2"}
         assert len(metrics["debug"]["worst_partitions_by_accuracy"]) == 3
+
+    def test_oracle_hard_masks_to_true_episode_classes(self, monkeypatch):
+        from fed_learning.servers.nice_server import ContextDetector
+        import fed_learning.training.denice_eval as denice_eval
+
+        model = _make_model()
+        detector = ContextDetector(memo_per_class=10, router_mode="multiclass")
+        detector.episode_classes = {0: [0, 1], 1: [2, 3]}
+        X = _dummy_batch(2)
+        monkeypatch.setattr(
+            denice_eval,
+            "_route_episodes_with_scores",
+            lambda *_args: (np.asarray([1, 0]), None),
+        )
+        logits, _ = denice_eval._denice_routed_logits_with_episodes(
+            model,
+            X,
+            detector,
+            seen_classes=[0, 1, 2, 3],
+            device="cpu",
+            inference_policy="oracle_hard",
+            oracle_episodes=np.asarray([0, 1]),
+        )
+
+        assert torch.all(logits[0, 2:4] == -100.0)
+        assert torch.all(logits[1, :2] == -100.0)
 
     def test_checkpoint_loader_normalizes_task_end_schema(self, monkeypatch):
         import eval_checkpoint
