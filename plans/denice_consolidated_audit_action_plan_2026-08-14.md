@@ -33,6 +33,15 @@ coverage 1,800/1,800 hợp lệ, nhưng adapter active 0/1,800 samples và
 E3=E3b. Readout nằm trong artifact run; nó xác nhận checkpoint này không thể
 là bằng chứng cho adapter/D2, nhưng không thay thế Stage 1 full seed-42.
 
+Đã chuẩn bị D3-A/D3-B nhưng **chưa chạy**: `denice_batch_sampling=class_balanced`
+là sampler cân bằng theo batch, có replacement nhưng giữ nguyên số lượt train
+mỗi local epoch; `denice_class_weight_mode` nhận `inverse_frequency` hoặc
+`effective_number`, smoothing và clip mặc định [0.25, 4.0]. Cả hai đều tắt mặc
+định (`natural`/`none`), log histogram/unique-source samples và weight min/max
+theo client/round. Validation chặn bật đồng thời A+B, trừ combined-confirmation
+được opt-in rõ ràng. Continuation fixture đã chạy sampler A để kiểm tra RNG
+round-trip; D3 vẫn chờ D1 full hợp lệ và fixed evaluation protocol.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
