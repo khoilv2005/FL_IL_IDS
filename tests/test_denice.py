@@ -2267,6 +2267,40 @@ class TestDeNICEImbalanceControls:
                 }
             )
 
+    def test_d3_analyzer_requires_aligned_trace_and_gates_candidate(self, tmp_path):
+        from tools.analyze_denice_d3 import analyze
+
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "metadata.json").write_text(json.dumps({
+            "task_structure": {"task_classes": {"0": [0], "1": [1]}}
+        }), encoding="utf-8")
+        trace_base = {"source_test_indices": [0, 1, 2, 3], "client_ids": [0, 0, 1, 1],
+                      "targets": [0, 0, 1, 1], "predictions": [0, 1, 1, 0]}
+        trace_win = {**trace_base, "predictions": [0, 0, 1, 1]}
+        def artifact(trace):
+            return {"metrics": {"f1_macro": 0.5, "debug": {"prediction_trace": trace,
+                "per_class": {"0": {"accuracy": 1.0}, "1": {"accuracy": 1.0}}}}}
+        manifest = {"seed": 3, "data_dir": str(data_dir), "task_end": 1, "variants": {}}
+        for name, trace in (("baseline", trace_base), ("class_balanced_batches", trace_win),
+                            ("effective_number_ce", trace_win)):
+            evaluation = tmp_path / name
+            evaluation.mkdir()
+            for policy in ("e3_oracle_routed_system_ceiling", "e4_pred_hard"):
+                payload = artifact(trace)
+                payload["metrics"]["f1_macro"] = 0.5 if name == "baseline" else 1.0
+                (evaluation / f"coverage_aware_local_{policy}.json").write_text(
+                    json.dumps(payload), encoding="utf-8")
+            manifest["variants"][name] = {"evaluation_dir": str(evaluation)}
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        report = analyze(manifest_path, bootstrap_replicates=30)
+        assert report["decision"] == "CANDIDATE_FOR_CONFIRMATION_SEED"
+        assert report["gates"]["bootstrap_positive_candidates"]
+        assert report["recommended_candidate"] in {
+            "class_balanced_batches", "effective_number_ce"
+        }
+
 
 # ---------------------------------------------------------------------------
 # Training smoke test (one short task with adapter)
