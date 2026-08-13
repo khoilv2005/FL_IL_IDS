@@ -12,9 +12,11 @@ Example::
 
     python run_denice_d1_kaggle.py
 
-Use environment variables to adjust the smoke budget without modifying this
-file: ``D1_TASK_END``, ``D1_MAX_CLIENTS``, ``D1_ROUNDS_PER_TASK``,
-``D1_MAX_TRAIN_SAMPLES``, and ``D1_SAMPLES_PER_CLASS``.
+The default is the larger decision run from the consolidated audit (20
+clients, tasks 0--2, five rounds/task).  Use environment variables to adjust
+the budget without modifying this file: ``D1_TASK_END``, ``D1_MAX_CLIENTS``,
+``D1_ROUNDS_PER_TASK``, ``D1_MAX_TRAIN_SAMPLES``, and
+``D1_SAMPLES_PER_CLASS``.
 """
 
 from __future__ import annotations
@@ -34,10 +36,11 @@ DATA_DIR = os.environ.get(
 REPO_DIR = Path(os.environ.get("DENICE_REPO_DIR", "/kaggle/working/FL_IL_IDS"))
 OUTPUT_ROOT = Path(os.environ.get("D1_OUTPUT_ROOT", f"/kaggle/working/denice_d1_seed_{SEED}"))
 TASK_END = int(os.environ.get("D1_TASK_END", "2"))
-MAX_CLIENTS = int(os.environ.get("D1_MAX_CLIENTS", "10"))
-ROUNDS_PER_TASK = int(os.environ.get("D1_ROUNDS_PER_TASK", "3"))
+MAX_CLIENTS = int(os.environ.get("D1_MAX_CLIENTS", "20"))
+ROUNDS_PER_TASK = int(os.environ.get("D1_ROUNDS_PER_TASK", "5"))
 MAX_TRAIN_SAMPLES = int(os.environ.get("D1_MAX_TRAIN_SAMPLES", "300"))
 SAMPLES_PER_CLASS = int(os.environ.get("D1_SAMPLES_PER_CLASS", "100"))
+EVAL_DEVICE = os.environ.get("DENICE_EVAL_DEVICE", "cuda")
 
 
 VARIANTS: Dict[str, Dict[str, Any]] = {
@@ -66,6 +69,9 @@ def _shared_overrides(output_dir: Path) -> Dict[str, Any]:
         "seed": SEED,
         "task_start": 0,
         "task_end": TASK_END,
+        "max_clients": MAX_CLIENTS,
+        "rounds_per_task": ROUNDS_PER_TASK,
+        "eval_device": EVAL_DEVICE,
         "save_resume_after_task": None,
         "resume_state_path": None,
         # The DeNICE runner otherwise appends an algorithm/timestamp suffix,
@@ -120,7 +126,7 @@ def main() -> None:
                 "--checkpoint", str(checkpoint),
                 "--data-dir", DATA_DIR,
                 "--output-dir", str(eval_dir),
-                "--device", "cuda",
+                "--device", EVAL_DEVICE,
                 "--seed", str(SEED),
                 "--protocols", "coverage_aware_local",
                 "--samples-per-class", str(SAMPLES_PER_CLASS),
