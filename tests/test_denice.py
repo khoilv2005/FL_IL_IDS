@@ -63,6 +63,16 @@ def _dummy_batch(n=8):
 
 
 class TestDeNICEEvaluationScheduling:
+    def test_debug_jsonl_appends_one_compact_record_per_call(self, tmp_path):
+        from fed_learning.training.decentralized_denice_il import _append_jsonl
+
+        output = tmp_path / "debug.jsonl"
+        _append_jsonl(str(output), {"task": 0, "round": 0})
+        _append_jsonl(str(output), {"task": 0, "round": 1})
+        rows = [json.loads(line) for line in output.read_text().splitlines()]
+
+        assert rows == [{"task": 0, "round": 0}, {"task": 0, "round": 1}]
+
     def test_post_task_eval_can_be_limited_to_final_task(self):
         config = {"denice_post_task_eval_tasks": [5]}
         assert not _should_run_post_task_eval(0, config)

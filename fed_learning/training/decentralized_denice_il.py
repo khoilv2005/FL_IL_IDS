@@ -115,6 +115,13 @@ def _write_json(path: str, payload: Any) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(_json_safe(payload), f, indent=2, default=str)
 
+
+def _append_jsonl(path: str, payload: Any) -> None:
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(_json_safe(payload), separators=(",", ":"), default=str))
+        f.write("\n")
+
 def _count_histogram(y: torch.Tensor) -> Dict[int, int]:
     if y is None or len(y) == 0:
         return {}
@@ -1388,6 +1395,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     post_task_eval = bool(config.get("denice_post_task_eval", True))
     router_update_schedule = _router_update_schedule(config)
     denice_debug = bool(config.get("denice_debug", False))
+    denice_debug_store_client_details = bool(
+        config.get("denice_debug_store_client_details", False)
+    )
     eval_progress_every_clients = max(
         1, int(config.get("denice_eval_progress_every_clients", 1))
     )
@@ -2100,16 +2110,20 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     "unattributed_time": None,
                 },
                 "loss_stats": _round_float_stats(list(losses.values())),
-                "clients": client_round_debug if denice_debug else {},
+                "clients": (
+                    client_round_debug
+                    if denice_debug and denice_debug_store_client_details
+                    else {}
+                ),
                 "cluster": cluster_summary,
             }
             debug_history.append(debug_round)
             debug_write_time = 0.0
             if denice_debug:
                 debug_write_start = time.perf_counter()
-                _write_json(
-                    os.path.join(output_dir, "denice_debug_history.json"),
-                    debug_history,
+                _append_jsonl(
+                    os.path.join(output_dir, "denice_debug_history.jsonl"),
+                    debug_round,
                 )
                 debug_write_time = time.perf_counter() - debug_write_start
                 round_record["debug_write_time"] = float(debug_write_time)
@@ -2148,7 +2162,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     f"cluster={round_record['clustering_time']:.1f}s, "
                     f"agg={round_record['aggregation_apply_time']:.1f}s, "
                     f"ckpt={round_record['checkpoint_time']:.1f}s, debug_io={debug_write_time:.1f}s, "
-                    f"K={cluster_summary['K_t']}, clusters={cluster_summary.get('cluster_sizes')}"
+                    f"raw/effective_K={cluster_summary.get('raw_K_t')}/{cluster_summary['K_t']}, "
+                    f"sil={cluster_summary.get('silhouette')}, "
+                    f"group_mean/max={cluster_summary.get('group_size_stats', {}).get('mean')}/"
+                    f"{cluster_summary.get('group_size_stats', {}).get('max')}, "
+                    f"policy={cluster_summary.get('effective_policy')}"
                 )
 
         capacity_reserve_released: Dict[int, Dict[str, int]] = {}

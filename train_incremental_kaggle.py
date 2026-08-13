@@ -237,7 +237,7 @@ CONFIG = {
     # eval_every > rounds_per_task -> chỉ eval ở post-task (round cuối mỗi task).
     # Đặt = rounds_per_task nếu muốn bật mid-task eval lại.
     "eval_every": 9999,
-    "round_checkpoint_every": 1,
+    "round_checkpoint_every": 5,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
     "mu_cgofed": 1.0,  # Paper Eq. 9: full gradient projection
@@ -286,6 +286,7 @@ CONFIG = {
     #   ["fc1", "gru", "conv3"] -> Phase 2b
     "denice_adapter_layers": ["fc1", "gru", "conv3"],
     "denice_debug": True,
+    "denice_debug_store_client_details": False,
     "denice_save_round_artifacts": False,
     "denice_checkpoint_format": "delta",
     # Quick diagnostic only at the final checkpoint (task 5, round 19).
@@ -377,7 +378,7 @@ CONFIG = {
     "dfca_debug_assignments": False,
     "dfca_debug_cluster_models": True,
     # Checkpoint / resume (per-round checkpoint inside each task)
-    "round_checkpoint_every": 1,
+    "round_checkpoint_every": 5,
 }
 
 
