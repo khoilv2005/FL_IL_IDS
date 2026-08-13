@@ -547,6 +547,57 @@ class TestNovelty:
         assert invalid["valid"] is False
         assert any("partial coverage" in error for error in invalid["errors"])
 
+    def test_d1_analyzer_requires_confirmation_before_opening_d2(self, tmp_path):
+        from tools.analyze_denice_d1 import analyze_d1
+
+        def make_manifest(root, seed):
+            variants = {}
+            for name, f1 in (("peer_default", 0.08), ("self_only", 0.10), ("peer_self_floor_050", 0.09)):
+                run_dir = root / name
+                eval_dir = run_dir / "d1_evaluation"
+                eval_dir.mkdir(parents=True)
+                (run_dir / "cluster_history.json").write_text(json.dumps([{
+                    "plastic_fc2_row_audit": {"0": [{
+                        "row_drift_l2": 2.0,
+                        "peer_alpha_supported": 0.0,
+                        "peer_alpha_unsupported": 0.5,
+                    }]}
+                }]), encoding="utf-8")
+                coverage = {
+                    "requested_sample_count": 10, "assigned_sample_count": 10,
+                    "unsupported_sample_count": 0, "partial_coverage": False,
+                }
+                summary = {
+                    "summary": {"coverage_aware_local": {
+                        "e3_oracle_routed_system_ceiling": {
+                            "accuracy": 0.2, "f1_macro": f1,
+                            "evaluation_sampling": {"source_index_sha256": "same"},
+                            "coverage_protocol": coverage,
+                        },
+                        "e4_pred_hard": {"accuracy": 0.1, "f1_macro": 0.05},
+                    }}
+                }
+                summary_path = eval_dir / "p6_evaluation_summary.json"
+                summary_path.write_text(json.dumps(summary), encoding="utf-8")
+                checkpoint = run_dir / "checkpoint_task_2_round_4.pt"
+                checkpoint.write_bytes(b"x")
+                variants[name] = {
+                    "checkpoint": str(checkpoint), "evaluation_summary": str(summary_path),
+                }
+            manifest = root / "d1_manifest.json"
+            manifest.write_text(json.dumps({"seed": seed, "variants": variants}), encoding="utf-8")
+            return manifest
+
+        first = make_manifest(tmp_path / "seed42", 42)
+        no_confirmation = analyze_d1(first)
+        assert no_confirmation["decision"] == "KEEP_D2_CLOSED"
+        assert no_confirmation["conditions"]["material_negative_transfer"] is True
+
+        second = make_manifest(tmp_path / "seed43", 43)
+        confirmed = analyze_d1(first, confirmation_manifest_path=second)
+        assert confirmed["decision"] == "OPEN_D2"
+        assert confirmed["d2_eligible"] is True
+
 
 # ---------------------------------------------------------------------------
 # CANC

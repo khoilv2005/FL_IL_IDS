@@ -159,6 +159,19 @@ def main() -> None:
             json.dumps(manifest, indent=2), encoding="utf-8"
         )
 
+    # This is a decision report, not a success/failure check: it exits zero
+    # when D2 correctly remains closed for insufficient evidence.
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPO_DIR / "tools" / "analyze_denice_d1.py"),
+            "--manifest", str(OUTPUT_ROOT / "d1_manifest.json"),
+            "--output", str(OUTPUT_ROOT / "d1_decision_report.json"),
+        ],
+        check=True,
+        env=os.environ,
+    )
+
 
 if __name__ == "__main__":
     main()
