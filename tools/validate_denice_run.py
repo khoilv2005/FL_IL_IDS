@@ -126,7 +126,7 @@ def validate_denice_run(
     evaluation_path = next(
         (
             root / directory / "p6_evaluation_summary.json"
-            for directory in ("d1_evaluation", "d3_evaluation", "p6_evaluation")
+            for directory in ("d1_evaluation", "d3_evaluation", "d4_evaluation", "p6_evaluation")
             if (root / directory / "p6_evaluation_summary.json").exists()
         ),
         root / "p6_evaluation" / "p6_evaluation_summary.json",
