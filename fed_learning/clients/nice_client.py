@@ -131,6 +131,7 @@ class NICEClient(FederatedClient):
         is_last_task = kwargs.get("is_last_task", False)
         phase_offset = int(kwargs.get("phase_offset", 0))
         max_phases_override = kwargs.get("max_phases_override")
+        class_weights = kwargs.get("class_weights")
         if max_phases_override is not None:
             max_phases = max(1, int(max_phases_override))
 
@@ -189,7 +190,11 @@ class NICEClient(FederatedClient):
                         with torch.autocast(device_type="cuda", dtype=torch.float16):
                             output = model.forward_output(X_batch)
                             loss = trainer.compute_loss(
-                                model, output, y_batch, global_params
+                                model,
+                                output,
+                                y_batch,
+                                global_params,
+                                class_weights=class_weights,
                             )
 
                         scaler.scale(loss).backward()
@@ -202,7 +207,11 @@ class NICEClient(FederatedClient):
                     else:
                         output = model.forward_output(X_batch)
                         loss = trainer.compute_loss(
-                            model, output, y_batch, global_params
+                            model,
+                            output,
+                            y_batch,
+                            global_params,
+                            class_weights=class_weights,
                         )
 
                         loss.backward()

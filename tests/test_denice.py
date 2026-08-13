@@ -440,6 +440,7 @@ class TestNovelty:
                 "random_seed": 31, "denice_max_clients": 2,
                 "denice_post_task_eval": False, "round_checkpoint_every": None,
                 "save_resume_after_task": True, "nice_phase_epochs": 1,
+                "denice_batch_sampling": "class_balanced",
                 **overrides,
             }
 
@@ -2212,6 +2213,57 @@ class TestDeNICEEvaluation:
 
 
 # ---------------------------------------------------------------------------
+# D3 imbalance controls
+# ---------------------------------------------------------------------------
+class TestDeNICEImbalanceControls:
+    def test_class_balanced_batches_keep_epoch_budget_and_balance_batches(self):
+        from fed_learning.clients.denice_client import class_balanced_batch_indices
+
+        torch.manual_seed(7)
+        labels = torch.tensor([0] * 8 + [1] * 2)
+        batches = list(class_balanced_batch_indices(labels, batch_size=4))
+
+        assert [len(batch) for batch in batches] == [4, 4, 2]
+        for batch in batches:
+            counts = torch.bincount(labels[batch], minlength=2)
+            assert int((counts.max() - counts.min()).item()) <= 1
+        sampled = torch.cat(batches)
+        sampled_counts = torch.bincount(labels[sampled], minlength=2)
+        assert sampled_counts.tolist() == [5, 5]
+
+    def test_class_weights_are_smoothed_clipped_and_ignore_absent_classes(self):
+        from fed_learning.clients.denice_client import build_denice_class_weights
+
+        labels = torch.tensor([0] * 10 + [1] * 2)
+        weights, audit = build_denice_class_weights(
+            labels,
+            4,
+            mode="inverse_frequency",
+            smoothing=1.0,
+            effective_beta=0.999,
+            clip_min=0.25,
+            clip_max=2.0,
+        )
+
+        assert weights is not None
+        assert weights[1] > weights[0]
+        assert weights[2:].tolist() == [1.0, 1.0]
+        assert 0.25 <= audit["weight_min"] <= audit["weight_max"] <= 2.0
+        assert audit["class_counts"] == {0: 10, 1: 2}
+
+    def test_d3_controls_reject_unregistered_combination(self):
+        from fed_learning.clients.denice_client import normalize_denice_imbalance_config
+
+        with pytest.raises(ValueError, match="one-factor"):
+            normalize_denice_imbalance_config(
+                {
+                    "denice_batch_sampling": "class_balanced",
+                    "denice_class_weight_mode": "effective_number",
+                }
+            )
+
+
+# ---------------------------------------------------------------------------
 # Training smoke test (one short task with adapter)
 # ---------------------------------------------------------------------------
 class TestTrainingSmoke:
@@ -2233,8 +2285,15 @@ class TestTrainingSmoke:
         trainer = DeNICETrainer(max_phases=1, phase_epochs=1)
 
         result = client.train(
-            trainer=trainer, epochs=1, batch_size=16, lr=1e-3, is_last_task=True
+            trainer=trainer,
+            epochs=1,
+            batch_size=16,
+            lr=1e-3,
+            is_last_task=True,
+            denice_batch_sampling="class_balanced",
         )
         assert "adapter_registry" in result
         assert result["adapter_param_count"] > 0
+        assert result["imbalance_control"]["batch_sampling"] == "class_balanced"
+        assert result["imbalance_control"]["sampling_epochs"]
         assert np.isfinite(result["loss"])

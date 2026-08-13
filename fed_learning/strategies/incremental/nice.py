@@ -296,7 +296,15 @@ class NICETrainer(BaseTrainer):
         Slicing to mini-batch classes breaks one-class batches because the
         softmax has one logit and returns zero loss/gradient.
         """
-        return F.cross_entropy(output, target.long())
+        class_weights = kwargs.get("class_weights")
+        if class_weights is not None:
+            class_weights = class_weights.to(device=output.device, dtype=output.dtype)
+            if int(class_weights.numel()) != int(output.shape[1]):
+                raise ValueError(
+                    "NICE class_weights length must match the output dimension: "
+                    f"{class_weights.numel()} != {output.shape[1]}."
+                )
+        return F.cross_entropy(output, target.long(), weight=class_weights)
 
     def pre_step(
         self, model: nn.Module, global_params: Optional[OrderedDict] = None, **kwargs

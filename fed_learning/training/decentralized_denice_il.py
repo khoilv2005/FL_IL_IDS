@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
+from fed_learning.clients.denice_client import normalize_denice_imbalance_config
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.factories.client_factory import create_client, update_client_data
 from fed_learning.models.denice_model import DeNICEModel
@@ -1719,6 +1720,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
     config["input_shape"] = data_loader.input_shape
     config["num_classes"] = config["total_classes"]
+    imbalance_controls = normalize_denice_imbalance_config(config)
+    config.update(imbalance_controls)
     resume_state = None
     if config.get("resume_state_path"):
         resume_state = _load_denice_continuation_state(str(config["resume_state_path"]))
@@ -2179,6 +2182,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             router_fit_time_total = 0.0
             context_reference_sample_count = 0
             nice_loss_semantics: Dict[int, Dict[str, Any]] = {}
+            client_imbalance_controls: Dict[int, Dict[str, Any]] = {}
             for cid in active_ids:
                 model = models[cid]
                 client = clients[cid]
@@ -2193,10 +2197,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     is_last_task=(task_id == num_tasks - 1),
                     phase_offset=round_id,
                     max_phases_override=1,
+                    **imbalance_controls,
                 )
                 client_train_time = time.time() - client_train_start
                 train_time_total += client_train_time
                 losses[cid] = float((result or {}).get("loss", 0.0))
+                client_imbalance_controls[int(cid)] = dict(
+                    (result or {}).get("imbalance_control", {})
+                )
                 if bool(config.get("denice_log_loss_semantics", True)):
                     nice_loss_semantics[int(cid)] = _nice_loss_semantics_diagnostic(
                         model,
@@ -2434,6 +2442,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "num_clients": len(active_ids),
                 "K_t": cluster_summary["K_t"],
                 "silhouette": cluster_summary["silhouette"],
+                "imbalance_controls": {
+                    "configured": dict(imbalance_controls),
+                    "clients": client_imbalance_controls,
+                },
                 "nice_loss_semantics": {
                     "clients": nice_loss_semantics,
                     "mean_nonlearner_probability_mass": _round_float_stats([
