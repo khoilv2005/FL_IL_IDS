@@ -68,6 +68,9 @@ def _shared_overrides(output_dir: Path) -> Dict[str, Any]:
         "task_end": TASK_END,
         "save_resume_after_task": None,
         "resume_state_path": None,
+        # The DeNICE runner otherwise appends an algorithm/timestamp suffix,
+        # which would make the deterministic checkpoint path below ambiguous.
+        "resume_output_dir": str(output_dir),
         "rounds_per_task": ROUNDS_PER_TASK,
         "eval_every": 9999,
         "round_checkpoint_every": ROUNDS_PER_TASK,
