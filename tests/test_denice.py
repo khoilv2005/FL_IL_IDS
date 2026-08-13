@@ -1178,6 +1178,31 @@ class TestDecentralized:
             for row in summary["alpha_debug"].values()
         )
 
+    def test_d1_row_drift_audit_records_supported_peer_weight(self, monkeypatch):
+        import fed_learning.training.decentralized_denice_il as runner
+
+        models = {cid: _make_model() for cid in range(2)}
+        for model in models.values():
+            model.unit_ranks["fc2"][1] = 1
+        capsules = {cid: self._capsule(cid, [0, 1], cid + 1) for cid in models}
+        edges = np.array([[0, 1], [1, 0]], dtype=np.int8)
+        monkeypatch.setattr(
+            runner, "dynamic_ap_cluster", lambda *_args, **_kwargs: {
+                "labels": np.array([0, 0]), "edges": edges, "valid": True,
+                "K_t": 1, "silhouette": 0.3, "similarity": np.ones((2, 2)),
+                "effective_similarity": np.array([[0.0, 0.8], [0.8, 0.0]]),
+            }
+        )
+        summary = runner._aggregate_round(
+            client_ids=[0, 1], models=models, capsules=capsules,
+            config={"denice_d1_row_drift_audit": True}, device=torch.device("cpu"),
+        )
+
+        rows = summary["plastic_fc2_row_audit"][0]
+        row = next(item for item in rows if item["class_id"] == 1)
+        assert row["peer_alpha_supported"] > 0.0
+        assert row["peer_alpha_unsupported"] == 0.0
+
     def test_self_only_ablation_blocks_peer_state_but_keeps_cluster_evidence(self, monkeypatch):
         """D1's control must not leak peer params, adapters, or ages."""
         import fed_learning.training.decentralized_denice_il as runner

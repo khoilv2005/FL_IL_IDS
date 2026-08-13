@@ -84,6 +84,7 @@ def _shared_overrides(output_dir: Path) -> Dict[str, Any]:
         "denice_post_task_eval": False,
         "denice_max_clients": MAX_CLIENTS,
         "denice_max_train_samples_per_client": MAX_TRAIN_SAMPLES,
+        "denice_d1_row_drift_audit": True,
     }
 
 

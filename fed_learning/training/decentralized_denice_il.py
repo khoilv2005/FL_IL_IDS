@@ -1305,6 +1305,50 @@ def _aggregate_round(
     capacity_after_aggregation = {
         int(cid): _capacity_debug(models[cid]) for cid in client_ids
     }
+    plastic_fc2_row_audit: Dict[int, List[Dict[str, Any]]] = {}
+    if bool(config.get("denice_d1_row_drift_audit", False)):
+        for cid in client_ids:
+            ranks = np.asarray(old_ages[cid].get("fc2", []))
+            if not ranks.size:
+                continue
+            old_weight = old_states[cid].get("fc2.weight")
+            new_weight = new_states[cid].get("fc2.weight")
+            old_bias = old_states[cid].get("fc2.bias")
+            new_bias = new_states[cid].get("fc2.bias")
+            if old_weight is None or new_weight is None:
+                continue
+            entries: List[Dict[str, Any]] = []
+            group_ids = groups.get(int(cid), [int(cid)])
+            alphas = alpha_debug[int(cid)]["alphas"]
+            for cls_id in np.flatnonzero(ranks == 1).tolist():
+                peer_weights = [
+                    (int(gid), float(alphas[position]))
+                    for position, gid in enumerate(group_ids)
+                    if int(gid) != int(cid)
+                ]
+                supported = [
+                    (gid, weight)
+                    for gid, weight in peer_weights
+                    if int(cls_id) in set(int(x) for x in capsules[gid].label_set)
+                ]
+                unsupported = [
+                    (gid, weight) for gid, weight in peer_weights if gid not in {x[0] for x in supported}
+                ]
+                drift = float(torch.linalg.vector_norm(
+                    new_weight[int(cls_id)].detach().float().cpu()
+                    - old_weight[int(cls_id)].detach().float().cpu()
+                ).item())
+                if old_bias is not None and new_bias is not None:
+                    drift += abs(float(new_bias[int(cls_id)].detach().cpu()) - float(old_bias[int(cls_id)].detach().cpu()))
+                entries.append({
+                    "class_id": int(cls_id),
+                    "row_drift_l2": drift,
+                    "peer_alpha_supported": float(sum(weight for _gid, weight in supported)),
+                    "peer_alpha_unsupported": float(sum(weight for _gid, weight in unsupported)),
+                    "supported_peer_ids": [gid for gid, _weight in supported],
+                    "unsupported_peer_ids": [gid for gid, _weight in unsupported],
+                })
+            plastic_fc2_row_audit[int(cid)] = entries
     capacity_guardrails: Dict[int, Dict[str, Any]] = {}
     for cid, state in capacity_after_aggregation.items():
         free_by_layer = {layer: float(info.get("rho0", 0.0)) for layer, info in state.items()}
@@ -1360,6 +1404,7 @@ def _aggregate_round(
         "age_peer_promotions": age_peer_promotions,
         "capacity_after_aggregation": capacity_after_aggregation,
         "capacity_guardrails": capacity_guardrails,
+        "plastic_fc2_row_audit": plastic_fc2_row_audit,
         "clustering_time": float(clustering_time),
         "aggregation_apply_time": float(aggregation_apply_time),
         "next_valid_cluster": next_valid_cluster,
