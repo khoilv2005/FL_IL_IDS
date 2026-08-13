@@ -486,6 +486,51 @@ class TestNovelty:
         assert prepared["plan"]["novelty"] == 1.0
         assert "fc1" in prepared["plan"]["adapters_to_add"]
 
+    def test_run_validator_requires_complete_protocol_evidence(self, tmp_path):
+        from tools.validate_denice_run import validate_denice_run
+
+        run_dir = tmp_path / "run"
+        eval_dir = run_dir / "d1_evaluation"
+        eval_dir.mkdir(parents=True)
+        (run_dir / "config.json").write_text(json.dumps({
+            "algorithm": "denice", "mode": "decentralized", "task_start": 0,
+            "task_end": 1, "rounds_per_task": 1, "random_seed": 42,
+        }), encoding="utf-8")
+        (run_dir / "training_history.json").write_text(json.dumps({
+            "task_accuracies": [{"task": 0}, {"task": 1}],
+            "round_metrics": [{"task": 0, "round": 0, "train_loss": 1.0},
+                              {"task": 1, "round": 0, "train_loss": 1.0}],
+        }), encoding="utf-8")
+        (run_dir / "checkpoint_task_1.pt").write_bytes(b"checkpoint")
+        required = [
+            "e0_backbone_nomask", "e1_pred_adapter_nomask", "e2_oracle_adapter_nomask",
+            "e3_oracle_routed_system_ceiling", "e3b_oracle_hard_no_adapter", "e4_pred_hard",
+        ]
+        record = {
+            "accuracy": 0.5, "f1_macro": 0.4, "loss": 1.0,
+            "evaluation_sampling": {"source_index_sha256": "abc"},
+            "coverage_protocol": {
+                "requested_sample_count": 10, "assigned_sample_count": 10,
+                "unsupported_sample_count": 0, "partial_coverage": False,
+            },
+        }
+        (eval_dir / "p6_evaluation_summary.json").write_text(json.dumps({
+            "policies": required,
+            "summary": {"coverage_aware_local": {name: record for name in required}},
+        }), encoding="utf-8")
+
+        valid = validate_denice_run(run_dir, require_evaluation=True)
+        assert valid["valid"] is True
+
+        record["coverage_protocol"]["partial_coverage"] = True
+        (eval_dir / "p6_evaluation_summary.json").write_text(json.dumps({
+            "policies": required,
+            "summary": {"coverage_aware_local": {name: record for name in required}},
+        }), encoding="utf-8")
+        invalid = validate_denice_run(run_dir, require_evaluation=True)
+        assert invalid["valid"] is False
+        assert any("partial coverage" in error for error in invalid["errors"])
+
 
 # ---------------------------------------------------------------------------
 # CANC

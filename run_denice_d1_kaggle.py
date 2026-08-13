@@ -135,10 +135,24 @@ def main() -> None:
             check=True,
             env=env,
         )
+        subprocess.run(
+            [
+                sys.executable,
+                str(REPO_DIR / "tools" / "validate_denice_run.py"),
+                "--run-dir", str(run_dir),
+                "--expected-task-end", str(TASK_END),
+                "--expected-rounds-per-task", str(ROUNDS_PER_TASK),
+                "--require-evaluation",
+                "--output", str(run_dir / "audit_validation.json"),
+            ],
+            check=True,
+            env=env,
+        )
         manifest["variants"][name] = {
             "overrides": overrides,
             "checkpoint": str(checkpoint),
             "evaluation_summary": str(eval_dir / "p6_evaluation_summary.json"),
+            "validation": str(run_dir / "audit_validation.json"),
         }
         (OUTPUT_ROOT / "d1_manifest.json").write_text(
             json.dumps(manifest, indent=2), encoding="utf-8"

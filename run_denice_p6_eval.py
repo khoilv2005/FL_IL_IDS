@@ -40,6 +40,7 @@ POLICIES: Dict[str, Dict[str, Any]] = {
 def _compact(result: Dict[str, Any]) -> Dict[str, Any]:
     metrics = result["metrics"]
     routing = metrics.get("routing_diagnostics", {})
+    protocol_debug = metrics.get("protocol_debug", {})
     return {
         "accuracy": metrics.get("accuracy"),
         "f1_macro": metrics.get("f1_macro"),
@@ -55,6 +56,14 @@ def _compact(result: Dict[str, Any]) -> Dict[str, Any]:
         "eval_sample_count": result.get("eval_sample_count"),
         "eval_total_sample_count": result.get("eval_total_sample_count"),
         "evaluation_sampling": result.get("evaluation_sampling"),
+        "coverage_protocol": {
+            key: protocol_debug.get(key)
+            for key in (
+                "requested_sample_count", "assigned_sample_count",
+                "unsupported_sample_count", "coverage_rate", "partial_coverage",
+            )
+            if key in protocol_debug
+        },
         "per_episode_router_recall": metrics.get("per_episode_router_recall", {}),
         "per_class_recall": {
             class_id: values.get("accuracy")
