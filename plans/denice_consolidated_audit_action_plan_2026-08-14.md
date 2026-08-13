@@ -42,6 +42,12 @@ theo client/round. Validation chặn bật đồng thời A+B, trừ combined-co
 được opt-in rõ ràng. Continuation fixture đã chạy sampler A để kiểm tra RNG
 round-trip; D3 vẫn chờ D1 full hợp lệ và fixed evaluation protocol.
 
+Launcher `run_denice_d3_kaggle.py` hiện tạo baseline, D3-A và D3-B trên cùng
+budget/support, chạy strict validator, và lưu prediction trace có source index
+với client partition. `tools/analyze_denice_d3.py` fail-closed khi trace lệch,
+tính paired-bootstrap E3 và gate old-class recall trước khi chỉ định candidate
+cho seed xác nhận.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:

@@ -105,6 +105,11 @@ def main() -> None:
                                       "evaluation_dir": str(evaluation),
                                       "validation": str(run_dir / "audit_validation.json")}
         (OUTPUT_ROOT / "d3_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    subprocess.run([
+        sys.executable, str(REPO_DIR / "tools" / "analyze_denice_d3.py"),
+        "--manifest", str(OUTPUT_ROOT / "d3_manifest.json"),
+        "--output", str(OUTPUT_ROOT / "d3_decision_report.json"),
+    ], check=True, env=os.environ)
 
 
 if __name__ == "__main__":
