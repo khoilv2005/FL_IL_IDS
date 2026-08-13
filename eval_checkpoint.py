@@ -720,6 +720,7 @@ def _evaluate_denice_partitioned_clients(
     protocol_debug: Dict[str, Any] | None = None,
     inference_policy: str | None = None,
     class_to_episode: Dict[int, int] | None = None,
+    include_prediction_trace: bool = False,
 ) -> Dict[str, Any]:
     """Evaluate one disjoint, reproducible global-test partition per client.
 
@@ -745,6 +746,8 @@ def _evaluate_denice_partitioned_clients(
     criterion = nn.CrossEntropyLoss()
     all_predictions: list[int] = []
     all_targets: list[int] = []
+    all_source_indices: list[int] = []
+    all_client_ids: list[int] = []
     partition_sizes: Dict[str, int] = {}
     partition_records: list[Dict[str, Any]] = []
     route_confusion: Dict[str, Dict[str, int]] = {}
@@ -820,6 +823,10 @@ def _evaluate_denice_partitioned_clients(
             batch_targets = y_batch.detach().cpu().tolist()
             all_predictions.extend(batch_predictions)
             all_targets.extend(batch_targets)
+            if include_prediction_trace:
+                source_indices = indices[start : start + len(batch_targets)].cpu().tolist()
+                all_source_indices.extend(int(index) for index in source_indices)
+                all_client_ids.extend([int(client_id)] * len(batch_targets))
             partition_predictions.extend(batch_predictions)
             partition_targets.extend(batch_targets)
             if episodes is not None and label2episode:
@@ -885,6 +892,19 @@ def _evaluate_denice_partitioned_clients(
             key=lambda row: (row["route_accuracy"], -row["sample_count"]),
         )[:10],
     }
+    if include_prediction_trace:
+        trace_payload = {
+            "source_test_indices": all_source_indices,
+            "client_ids": all_client_ids,
+            "targets": [int(value) for value in all_targets],
+            "predictions": [int(value) for value in all_predictions],
+        }
+        compact_debug["prediction_trace"] = {
+            **trace_payload,
+            "trace_sha256": hashlib.sha256(
+                json.dumps(trace_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest(),
+        }
     per_episode_router_recall = {
         true_episode: float(row.get(true_episode, 0) / max(1, sum(row.values())))
         for true_episode, row in sorted(route_confusion.items(), key=lambda item: int(item[0]))
@@ -926,6 +946,7 @@ def evaluate_checkpoint(
     samples_per_class: int | None = None,
     class_balanced_with_replacement: bool = False,
     allow_partial_coverage: bool = False,
+    include_prediction_trace: bool = False,
 ) -> Dict[str, Any]:
     ckpt = _load_checkpoint(checkpoint_path)
     config = dict(ckpt["config"])
@@ -1024,6 +1045,7 @@ def evaluate_checkpoint(
                     for episode, classes in data_loader.task_classes.items()
                     for class_id in classes
                 },
+                include_prediction_trace=bool(include_prediction_trace),
             )
             return {
                 "checkpoint": str(checkpoint_path),

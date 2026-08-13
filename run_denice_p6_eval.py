@@ -97,6 +97,11 @@ def main() -> None:
         help="Allow coverage-aware metrics with unsupported samples; output is marked partial.",
     )
     parser.add_argument(
+        "--save-prediction-trace",
+        action="store_true",
+        help="Store source-indexed predictions for paired-bootstrap ablations.",
+    )
+    parser.add_argument(
         "--protocols",
         default="coverage_aware_local,representative_global",
         help="Comma-separated evaluation modes",
@@ -127,6 +132,7 @@ def main() -> None:
                 route_topk=int(overrides.get("route_topk", 1)),
                 inference_policy=overrides.get("inference_policy"),
                 allow_partial_coverage=args.allow_partial_coverage,
+                include_prediction_trace=args.save_prediction_trace,
             )
             results[protocol][name] = result
             summary[protocol][name] = _compact(result)

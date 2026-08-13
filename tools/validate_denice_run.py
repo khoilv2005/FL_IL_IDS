@@ -123,9 +123,14 @@ def validate_denice_run(
             if value is not None and not _finite(value):
                 errors.append(f"task {row.get('task')} round {row.get('round')}: non-finite {metric}")
 
-    evaluation_path = root / "d1_evaluation" / "p6_evaluation_summary.json"
-    if not evaluation_path.exists():
-        evaluation_path = root / "p6_evaluation" / "p6_evaluation_summary.json"
+    evaluation_path = next(
+        (
+            root / directory / "p6_evaluation_summary.json"
+            for directory in ("d1_evaluation", "d3_evaluation", "p6_evaluation")
+            if (root / directory / "p6_evaluation_summary.json").exists()
+        ),
+        root / "p6_evaluation" / "p6_evaluation_summary.json",
+    )
     if evaluation_path.exists():
         summary = _read_json(evaluation_path)
         evidence["evaluation_summary"] = str(evaluation_path)

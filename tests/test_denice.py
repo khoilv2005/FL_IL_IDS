@@ -1929,6 +1929,7 @@ class TestDeNICEEvaluation:
             route_topk=1,
             eval_seed=42,
             task_id=5,
+            include_prediction_trace=True,
         )
 
         assert sum(metrics["partition_sizes"].values()) == len(y)
@@ -1937,6 +1938,10 @@ class TestDeNICEEvaluation:
         assert metrics["f1_macro"] == 1.0
         assert set(metrics["debug"]["per_class"]) == {"0", "1", "2"}
         assert len(metrics["debug"]["worst_partitions_by_accuracy"]) == 3
+        trace = metrics["debug"]["prediction_trace"]
+        assert len(trace["source_test_indices"]) == len(y)
+        assert trace["targets"] == trace["predictions"]
+        assert len(trace["trace_sha256"]) == 64
 
     def test_oracle_hard_masks_to_true_episode_classes(self, monkeypatch):
         from fed_learning.servers.nice_server import ContextDetector
