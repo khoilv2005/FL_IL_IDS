@@ -6,6 +6,24 @@
 **Dataset mục tiêu:** `Dataset/2023/federated_splits/100-clients`  
 **Baseline code:** commit `4966350` và ba commit DeNICE ngay trước đó (`663e7b4`, `ac32c75`, `fce3e3f`)
 
+## Trạng thái thực thi (cập nhật 2026-08-14)
+
+Đã hoàn thành Stage 0 và commit theo chuỗi `738a8ce`, `92d6748`,
+`949da1b`, `a140945`, `9b8751e`:
+
+- continuation DeNICE đầy đủ, strict coverage, adaptive-similarity provenance,
+  late-client novelty, E3 semantic split và CANC diagnostics;
+- continuous-vs-split CPU smoke pass; regression suite pass;
+- D1 launcher mặc định đúng 20 clients × 5 rounds/task, strict evaluator và
+  artifact validator;
+- D1 ghi plastic-`fc2` row drift cùng peer support/unsupported alpha để quyết
+  định D2 có bằng chứng.
+
+Stage 1 đầy đủ vẫn cần checkpoint full seed-42 từ audit hoặc một full run mới.
+Larger D1 cần GPU để chạy ở budget đã preregister; môi trường local hiện không
+có CUDA. Artifact D1 smoke cũ là legacy protocol và validator cố ý từ chối nó
+vì thiếu coverage provenance cùng E3 semantic mới.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
