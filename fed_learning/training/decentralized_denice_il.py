@@ -2000,12 +2000,23 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                                     "retired": float(info.get("retired", 0.0)),
                                     "u": float(info.get("u", 0.0)),
                                     "kappa": float(info.get("kappa", 0.0)),
+                                    "pressure_capacity": float(info.get("pressure_capacity", 0.0)),
+                                    "pressure_consumption": float(info.get("pressure_consumption", 0.0)),
+                                    "pressure_validation": float(info.get("pressure_validation", 0.0)),
+                                    "pressure_novelty": float(info.get("pressure_novelty", 0.0)),
                                     "val_loss_delta": float(info.get("val_loss_delta", 0.0)),
                                 }
                                 for name, info in canc_plans[cid].get("layers", {}).items()
                             },
                             "adapters_to_add": list(canc_plans[cid].get("adapters_to_add", [])),
                             "val_loss_delta": float(canc_plans[cid].get("val_loss_delta", 0.0)),
+                            "thresholds": canc_plans[cid].get("thresholds", {}),
+                            "is_global_first_task": bool(
+                                canc_plans[cid].get("is_global_first_task", False)
+                            ),
+                            "has_novelty_baseline": bool(
+                                canc_plans[cid].get("has_novelty_baseline", False)
+                            ),
                             "recycling": canc_plans[cid].get("recycling", {}),
                         }
                         for cid in active_ids

@@ -83,6 +83,11 @@ def main() -> None:
         help="Permit repeated source examples for rare classes under --samples-per-class.",
     )
     parser.add_argument(
+        "--allow-partial-coverage",
+        action="store_true",
+        help="Allow coverage-aware metrics with unsupported samples; output is marked partial.",
+    )
+    parser.add_argument(
         "--protocols",
         default="coverage_aware_local,representative_global",
         help="Comma-separated evaluation modes",
@@ -112,6 +117,7 @@ def main() -> None:
                 route_mode=overrides.get("route_mode", "hard"),
                 route_topk=int(overrides.get("route_topk", 1)),
                 inference_policy=overrides.get("inference_policy"),
+                allow_partial_coverage=args.allow_partial_coverage,
             )
             results[protocol][name] = result
             summary[protocol][name] = _compact(result)
