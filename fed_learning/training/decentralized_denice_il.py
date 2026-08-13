@@ -818,6 +818,60 @@ def _compute_val_loss_delta(
     return float(max(0.0, current - float(baseline)))
 
 
+def _nice_loss_semantics_diagnostic(
+    model: DeNICEModel,
+    X: torch.Tensor,
+    y: torch.Tensor,
+    device: torch.device,
+    *,
+    max_samples: int = 64,
+) -> Dict[str, Any]:
+    """Measure the full-output NICE CE semantics without changing training.
+
+    ``forward_output`` zeroes non-learner logits but keeps them in the softmax
+    denominator.  This diagnostic makes that distinction observable before any
+    objective-changing episode-only CE ablation is considered.
+    """
+    if X is None or y is None or len(y) == 0:
+        return {"sample_count": 0}
+    n = min(int(len(y)), max(1, int(max_samples)))
+    was_training = model.training
+    model.eval()
+    with torch.no_grad():
+        logits = model.forward_output(X[:n].to(device))
+        targets = y[:n].to(device).long()
+        learner_mask = torch.as_tensor(
+            (np.asarray(model.unit_ranks.get("fc2", [])) == 1).tolist(),
+            dtype=torch.bool,
+            device=device,
+        )
+        if learner_mask.numel() != logits.shape[1]:
+            learner_mask = torch.ones(logits.shape[1], dtype=torch.bool, device=device)
+        probs = torch.softmax(logits, dim=1)
+        nonlearner_mass = probs[:, ~learner_mask].sum(dim=1)
+        full_ce = torch.nn.functional.cross_entropy(logits, targets)
+        learner_ids = torch.nonzero(learner_mask, as_tuple=False).flatten()
+        target_is_learner = learner_mask[targets] if len(targets) else torch.empty(0, dtype=torch.bool)
+        learner_ce = None
+        if learner_ids.numel() and bool(target_is_learner.all()):
+            remap = torch.full((logits.shape[1],), -1, dtype=torch.long, device=device)
+            remap[learner_ids] = torch.arange(len(learner_ids), device=device)
+            learner_ce = float(
+                torch.nn.functional.cross_entropy(logits[:, learner_ids], remap[targets]).item()
+            )
+    if was_training:
+        model.train()
+    return {
+        "sample_count": int(n),
+        "learner_output_count": int(learner_mask.sum().item()),
+        "nonlearner_output_count": int((~learner_mask).sum().item()),
+        "mean_nonlearner_probability_mass": float(nonlearner_mass.mean().item()),
+        "full_output_ce": float(full_ce.item()),
+        "learner_only_ce": learner_ce,
+        "all_targets_are_learner_outputs": bool(target_is_learner.all().item()),
+    }
+
+
 def _prepare_client_task(
     *,
     cid: int,
@@ -2026,6 +2080,19 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             canc_plans[cid] = prep["plan"]
             ref_data[cid] = prep["ref_data"]
             ref_labels[cid] = prep.get("ref_labels", torch.empty(0, dtype=torch.long))
+        canc_action_counts: Dict[str, int] = {}
+        for plan in canc_plans.values():
+            for layer_info in plan.get("layers", {}).values():
+                action = str(layer_info.get("action", "UNKNOWN"))
+                canc_action_counts[action] = int(canc_action_counts.get(action, 0)) + 1
+        debug_history.append(
+            {
+                "type": "canc_reachability",
+                "task": int(task_id),
+                "action_counts": canc_action_counts,
+                "thresholds": CANCConfig.from_dict(config).__dict__,
+            }
+        )
         if denice_debug:
             debug_history.append(
                 {
@@ -2111,6 +2178,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             context_encode_time_total = 0.0
             router_fit_time_total = 0.0
             context_reference_sample_count = 0
+            nice_loss_semantics: Dict[int, Dict[str, Any]] = {}
             for cid in active_ids:
                 model = models[cid]
                 client = clients[cid]
@@ -2129,6 +2197,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 client_train_time = time.time() - client_train_start
                 train_time_total += client_train_time
                 losses[cid] = float((result or {}).get("loss", 0.0))
+                if bool(config.get("denice_log_loss_semantics", True)):
+                    nice_loss_semantics[int(cid)] = _nice_loss_semantics_diagnostic(
+                        model,
+                        client.X_train,
+                        client.y_train,
+                        device,
+                        max_samples=int(config.get("denice_loss_semantics_max_samples", 64)),
+                    )
                 # Keep the reserve during the task as well as at task end;
                 # otherwise a single local NICE phase can transiently consume
                 # all plastic units before CANC/aggregation can react.
@@ -2181,6 +2257,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     "adapter_usage": compute_adapter_usage(model),
                     "capacity_after_train": _capacity_debug(model),
                     "capacity_reserve_released": reserve_after_train,
+                    "nice_loss_semantics": nice_loss_semantics.get(int(cid)),
                 }
 
             capsule_start = time.time()
@@ -2357,6 +2434,24 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "num_clients": len(active_ids),
                 "K_t": cluster_summary["K_t"],
                 "silhouette": cluster_summary["silhouette"],
+                "nice_loss_semantics": {
+                    "clients": nice_loss_semantics,
+                    "mean_nonlearner_probability_mass": _round_float_stats([
+                        float(info["mean_nonlearner_probability_mass"])
+                        for info in nice_loss_semantics.values()
+                        if info.get("mean_nonlearner_probability_mass") is not None
+                    ]),
+                    "full_output_ce": _round_float_stats([
+                        float(info["full_output_ce"])
+                        for info in nice_loss_semantics.values()
+                        if info.get("full_output_ce") is not None
+                    ]),
+                    "learner_only_ce": _round_float_stats([
+                        float(info["learner_only_ce"])
+                        for info in nice_loss_semantics.values()
+                        if info.get("learner_only_ce") is not None
+                    ]),
+                },
             }
             history["round_metrics"].append(round_record)
 

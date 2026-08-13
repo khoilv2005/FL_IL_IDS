@@ -486,6 +486,22 @@ class TestNovelty:
         assert prepared["plan"]["novelty"] == 1.0
         assert "fc1" in prepared["plan"]["adapters_to_add"]
 
+    def test_nice_loss_semantics_diagnostic_reports_full_denominator_effect(self):
+        from fed_learning.training.decentralized_denice_il import _nice_loss_semantics_diagnostic
+
+        model = _make_model()
+        model.unit_ranks["fc2"][:] = 0
+        model.unit_ranks["fc2"][:2] = 1
+        diagnostic = _nice_loss_semantics_diagnostic(
+            model, _dummy_batch(8), torch.tensor([0, 1] * 4), torch.device("cpu")
+        )
+
+        assert diagnostic["learner_output_count"] == 2
+        assert diagnostic["nonlearner_output_count"] == NUM_CLASSES - 2
+        assert diagnostic["all_targets_are_learner_outputs"] is True
+        assert diagnostic["mean_nonlearner_probability_mass"] > 0.0
+        assert diagnostic["full_output_ce"] >= diagnostic["learner_only_ce"]
+
     def test_run_validator_requires_complete_protocol_evidence(self, tmp_path):
         from tools.validate_denice_run import validate_denice_run
 
