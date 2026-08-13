@@ -102,9 +102,23 @@ def validate_denice_run(
         expected_tasks = list(range(int((config or {}).get("task_start", 0)), int(end) + 1))
         if task_ids != expected_tasks:
             errors.append(f"task history mismatch: got {task_ids}, expected {expected_tasks}")
-        final_ckpt = root / f"checkpoint_task_{int(end)}.pt"
-        if not final_ckpt.exists():
-            errors.append(f"missing final task checkpoint: {final_ckpt.name}")
+        final_task_ckpt = root / f"checkpoint_task_{int(end)}.pt"
+        final_round_ckpt = None
+        if expected_rounds_per_task is not None:
+            final_round_ckpt = root / (
+                f"checkpoint_task_{int(end)}_round_{int(expected_rounds_per_task) - 1}.pt"
+            )
+        if final_task_ckpt.exists():
+            evidence["final_checkpoint"] = str(final_task_ckpt)
+        elif final_round_ckpt is not None and final_round_ckpt.exists():
+            # Audit launchers intentionally may retain only round checkpoints;
+            # the terminal round checkpoint is a complete, evaluable artifact.
+            evidence["final_checkpoint"] = str(final_round_ckpt)
+        else:
+            accepted = [final_task_ckpt.name]
+            if final_round_ckpt is not None:
+                accepted.append(final_round_ckpt.name)
+            errors.append(f"missing final checkpoint: expected one of {accepted}")
 
     rounds = expected_rounds_per_task
     if rounds is None and config is not None:

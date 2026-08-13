@@ -539,6 +539,16 @@ class TestNovelty:
         valid = validate_denice_run(run_dir, require_evaluation=True)
         assert valid["valid"] is True
 
+        (run_dir / "checkpoint_task_1.pt").unlink()
+        (run_dir / "checkpoint_task_1_round_0.pt").write_bytes(b"round checkpoint")
+        valid_round_only = validate_denice_run(
+            run_dir, expected_rounds_per_task=1, require_evaluation=True
+        )
+        assert valid_round_only["valid"] is True
+        assert valid_round_only["evidence"]["final_checkpoint"].endswith(
+            "checkpoint_task_1_round_0.pt"
+        )
+
         record["coverage_protocol"]["partial_coverage"] = True
         (eval_dir / "p6_evaluation_summary.json").write_text(json.dumps({
             "policies": required,

@@ -103,6 +103,28 @@ def main() -> None:
 
     for name, variant in VARIANTS.items():
         run_dir = OUTPUT_ROOT / name
+        existing_evaluation = run_dir / "d1_evaluation" / "p6_evaluation_summary.json"
+        existing_checkpoint = run_dir / f"checkpoint_task_{TASK_END}_round_{ROUNDS_PER_TASK - 1}.pt"
+        if existing_checkpoint.is_file() and existing_evaluation.is_file():
+            print(f"D1 {name}: reusing completed training/evaluation artifacts.", flush=True)
+            manifest["variants"][name] = {
+                "overrides": {**_shared_overrides(run_dir), **variant},
+                "checkpoint": str(existing_checkpoint),
+                "evaluation_summary": str(existing_evaluation),
+                "validation": str(run_dir / "audit_validation.json"),
+            }
+            subprocess.run(
+                [
+                    sys.executable, str(REPO_DIR / "tools" / "validate_denice_run.py"),
+                    "--run-dir", str(run_dir), "--expected-task-end", str(TASK_END),
+                    "--expected-rounds-per-task", str(ROUNDS_PER_TASK),
+                    "--require-evaluation", "--output", str(run_dir / "audit_validation.json"),
+                ], check=True, env=os.environ,
+            )
+            (OUTPUT_ROOT / "d1_manifest.json").write_text(
+                json.dumps(manifest, indent=2), encoding="utf-8"
+            )
+            continue
         overrides = {**_shared_overrides(run_dir), **variant}
         env = {
             **os.environ,
