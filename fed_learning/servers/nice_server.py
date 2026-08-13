@@ -86,6 +86,27 @@ class ContextDetector:
         # explicit provenance for a common reference encoder; otherwise the
         # calibrated thresholds form a deterministic signature.
         self.calibration_provenance = calibration_provenance
+        # Freshness is explicit because aggregation changes the encoder after
+        # the router sketches were encoded. Intermediate checkpoints may be
+        # valid for resume while their router is intentionally stale for eval.
+        self.router_state_fresh: bool = False
+        self.router_last_refresh_task: Optional[int] = None
+        self.router_last_refresh_round: Optional[int] = None
+        self.router_stale_reason: Optional[str] = "not_initialized"
+
+    def mark_router_stale(self, reason: str) -> None:
+        self.router_state_fresh = False
+        self.router_stale_reason = str(reason)
+
+    def mark_router_fresh(
+        self, task_id: Optional[int] = None, round_id: Optional[int] = None
+    ) -> None:
+        self.router_state_fresh = True
+        self.router_stale_reason = None
+        if task_id is not None:
+            self.router_last_refresh_task = int(task_id)
+        if round_id is not None:
+            self.router_last_refresh_round = int(round_id)
 
     def calibration_signature(self) -> Optional[str]:
         """Stable identifier for the binary feature space used by this router."""
@@ -192,7 +213,12 @@ class ContextDetector:
                 reference_data.detach().cpu().tolist(), dtype=np.float32
             )
 
-    def refresh_activation_memory(self, model: NICEModel) -> Dict[str, int]:
+    def refresh_activation_memory(
+        self,
+        model: NICEModel,
+        task_id: Optional[int] = None,
+        round_id: Optional[int] = None,
+    ) -> Dict[str, float]:
         """Re-encode saved local router references with the current model.
 
         A DeNICE router is fitted on binary backbone activations. After local
@@ -203,6 +229,7 @@ class ContextDetector:
         """
         refreshed = 0
         samples = 0
+        encode_start = time.perf_counter()
         try:
             device = next(model.parameters()).device
         except StopIteration:
@@ -214,9 +241,19 @@ class ContextDetector:
             self.activation_memory[int(episode)] = self._binarize_per_sample(model, inputs)
             refreshed += 1
             samples += int(len(inputs))
+        encode_time = time.perf_counter() - encode_start
+        fit_start = time.perf_counter()
         if refreshed:
             self.train_models(max(self.activation_memory))
-        return {"refreshed_episode_count": refreshed, "reference_sample_count": samples}
+            self.mark_router_fresh(task_id=task_id, round_id=round_id)
+        fit_time = time.perf_counter() - fit_start
+        return {
+            "refreshed_episode_count": int(refreshed),
+            "reference_sample_count": int(samples),
+            "encode_time": float(encode_time),
+            "fit_time": float(fit_time),
+            "total_time": float(encode_time + fit_time),
+        }
 
     def train_models(self, current_episode: int):
         """Fit chained logistic regression models.

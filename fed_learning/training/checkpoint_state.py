@@ -59,6 +59,18 @@ def snapshot_context_detector(context_detector: Any) -> Optional[Dict[str, Any]]
         "episode_classes": _clone_value(
             getattr(context_detector, "episode_classes", {})
         ),
+        "router_state_fresh": bool(
+            getattr(context_detector, "router_state_fresh", False)
+        ),
+        "router_last_refresh_task": getattr(
+            context_detector, "router_last_refresh_task", None
+        ),
+        "router_last_refresh_round": getattr(
+            context_detector, "router_last_refresh_round", None
+        ),
+        "router_stale_reason": getattr(
+            context_detector, "router_stale_reason", None
+        ),
     }
 
 
@@ -84,6 +96,13 @@ def restore_context_detector(context_detector: Any, state: Optional[Dict[str, An
         int(ep) for ep in state.get("multiclass_episodes", [])
     ]
     context_detector.episode_classes = _clone_value(state.get("episode_classes", {}))
+    context_detector.router_state_fresh = bool(state.get("router_state_fresh", False))
+    context_detector.router_last_refresh_task = state.get("router_last_refresh_task")
+    context_detector.router_last_refresh_round = state.get("router_last_refresh_round")
+    context_detector.router_stale_reason = state.get(
+        "router_stale_reason",
+        None if context_detector.router_state_fresh else "checkpoint_missing_freshness_metadata",
+    )
 
 
 def snapshot_nice_state(model: Any, context_detector: Any = None) -> Dict[str, Any]:

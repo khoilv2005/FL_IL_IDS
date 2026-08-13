@@ -1091,14 +1091,36 @@ class TestDeNICEEvaluation:
         old_memory = detector.activation_memory[0].copy()
         with torch.no_grad():
             model.conv1.weight.add_(0.5)
-        summary = detector.refresh_activation_memory(model)
+        detector.mark_router_stale("test_model_change")
+        summary = detector.refresh_activation_memory(model, task_id=1, round_id=4)
 
-        assert summary == {"refreshed_episode_count": 2, "reference_sample_count": 16}
+        assert summary["refreshed_episode_count"] == 2
+        assert summary["reference_sample_count"] == 16
+        assert summary["encode_time"] >= 0.0
+        assert summary["fit_time"] >= 0.0
+        assert summary["total_time"] == summary["encode_time"] + summary["fit_time"]
+        assert detector.router_state_fresh is True
+        assert detector.router_last_refresh_task == 1
+        assert detector.router_last_refresh_round == 4
+        assert detector.router_stale_reason is None
         assert detector.activation_memory[0].shape == old_memory.shape
         state = snapshot_context_detector(detector)
         restored = ContextDetector(memo_per_class=1)
         restore_context_detector(restored, state)
         assert set(restored.reference_input_memory) == {0, 1}
+        assert restored.router_state_fresh is True
+        assert restored.router_last_refresh_task == 1
+        assert restored.router_last_refresh_round == 4
+
+    def test_old_checkpoint_without_freshness_metadata_restores_as_stale(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.checkpoint_state import restore_context_detector
+
+        detector = ContextDetector(memo_per_class=1)
+        restore_context_detector(detector, {"episode_classes": {0: [0]}})
+
+        assert detector.router_state_fresh is False
+        assert detector.router_stale_reason == "checkpoint_missing_freshness_metadata"
 
     def test_balanced_router_audit_subset_has_equal_episode_quota(self):
         import eval_checkpoint

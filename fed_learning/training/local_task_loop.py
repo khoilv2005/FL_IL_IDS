@@ -933,11 +933,17 @@ def _update_local_nice_context_memory(
     task_id: int,
     task_classes: List[int],
     device: str,
-) -> None:
+) -> Dict[str, float]:
     """Update local NICE context memory from train samples, never test data."""
     if X_train is None or y_train is None or len(y_train) == 0:
-        return
+        return {
+            "sample_time": 0.0,
+            "encode_time": 0.0,
+            "fit_time": 0.0,
+            "reference_sample_count": 0,
+        }
 
+    sample_start = time.perf_counter()
     context_detector.episode_classes[task_id] = list(task_classes)
     per_class = max(1, int(getattr(context_detector, "memo_per_class", 50)))
     chunks = []
@@ -952,16 +958,33 @@ def _update_local_nice_context_memory(
         chunks.append(X_train[selected].detach().cpu())
 
     if not chunks:
-        return
+        return {
+            "sample_time": float(time.perf_counter() - sample_start),
+            "encode_time": 0.0,
+            "fit_time": 0.0,
+            "reference_sample_count": 0,
+        }
 
     sample_data = torch.cat(chunks, dim=0).to(device)
+    sample_time = time.perf_counter() - sample_start
+    encode_start = time.perf_counter()
     context_detector.push_activations(
         model,
         sample_data,
         task_id,
         reference_data=sample_data,
     )
+    encode_time = time.perf_counter() - encode_start
+    fit_start = time.perf_counter()
     context_detector.train_models(task_id)
+    fit_time = time.perf_counter() - fit_start
+    context_detector.mark_router_fresh(task_id=task_id)
+    return {
+        "sample_time": float(sample_time),
+        "encode_time": float(encode_time),
+        "fit_time": float(fit_time),
+        "reference_sample_count": int(len(sample_data)),
+    }
 
 
 def _sample_denice_reference(

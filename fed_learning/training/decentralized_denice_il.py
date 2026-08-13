@@ -847,6 +847,7 @@ def _aggregate_round(
     previous_valid_cluster: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Cluster capsules and apply age-aware decentralized aggregation."""
+    aggregate_round_start = time.perf_counter()
     ordered_caps = [capsules[cid] for cid in client_ids]
     # Context graph E_ij = 1 iff clients are context-compatible (proposal section 6).
     # delta<=0 lets clustering derive an adaptive threshold and mutual top-k graph.
@@ -859,6 +860,7 @@ def _aggregate_round(
         min_signal_std=float(config.get("denice_cluster_min_signal_std", 0.02)),
     )
     sim_weights = SimilarityWeights()
+    clustering_start = time.perf_counter()
     cluster_result = dynamic_ap_cluster(
         ordered_caps, config=cluster_config, weights=sim_weights
     )
@@ -875,6 +877,7 @@ def _aggregate_round(
             ),
         )
     )
+    clustering_time = time.perf_counter() - clustering_start
     # When enabled, restrict each collaboration group to context neighbors
     # (s_ij > delta), i.e. G_i = {j | C[j]=C[i] AND s_ij > delta} (Đề xuất §6).
     use_context_edges = bool(config.get("denice_collab_use_context_edges", True))
@@ -1048,6 +1051,9 @@ def _aggregate_round(
     }
     sim_matrix = np.asarray(cluster_result.get("similarity", np.zeros((0, 0))))
     finite_sim = sim_matrix[(sim_matrix > -1e8) & np.isfinite(sim_matrix)]
+    aggregation_apply_time = max(
+        0.0, time.perf_counter() - aggregate_round_start - clustering_time
+    )
     return {
         "K_t": int(len(set(int(x) for x in labels.tolist()))),
         "raw_K_t": int(cluster_result["K_t"]),
@@ -1071,6 +1077,8 @@ def _aggregate_round(
         "age_peer_promotions": age_peer_promotions,
         "capacity_after_aggregation": capacity_after_aggregation,
         "capacity_guardrails": capacity_guardrails,
+        "clustering_time": float(clustering_time),
+        "aggregation_apply_time": float(aggregation_apply_time),
         "next_valid_cluster": next_valid_cluster,
     }
 
@@ -1659,6 +1667,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             client_round_debug: Dict[int, Dict[str, Any]] = {}
             train_time_total = 0.0
             context_time_total = 0.0
+            context_sample_time_total = 0.0
+            context_encode_time_total = 0.0
+            router_fit_time_total = 0.0
+            context_reference_sample_count = 0
             for cid in active_ids:
                 model = models[cid]
                 client = clients[cid]
@@ -1689,7 +1701,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 if hasattr(model, "freeze_bn_for_mature"):
                     model.freeze_bn_for_mature()
                 context_start = time.time()
-                _update_local_nice_context_memory(
+                context_profile = _update_local_nice_context_memory(
                     context_detectors[cid],
                     model,
                     client.X_train,
@@ -1700,10 +1712,17 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 )
                 context_time = time.time() - context_start
                 context_time_total += context_time
+                context_sample_time_total += float(context_profile["sample_time"])
+                context_encode_time_total += float(context_profile["encode_time"])
+                router_fit_time_total += float(context_profile["fit_time"])
+                context_reference_sample_count += int(
+                    context_profile["reference_sample_count"]
+                )
                 client_round_debug[int(cid)] = {
                     "loss": losses[cid],
                     "train_time": client_train_time,
                     "context_update_time": context_time,
+                    "context_profile": context_profile,
                     "num_samples": int(len(client.y_train)),
                     "class_hist": _count_histogram(client.y_train),
                     "adapter_usage": compute_adapter_usage(model),
@@ -1738,12 +1757,28 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             previous_valid_cluster = cluster_summary.pop("next_valid_cluster", None)
             aggregation_time = time.time() - aggregation_start
-            router_refresh: Dict[int, Dict[str, int]] = {}
+            for cid in active_ids:
+                context_detectors[cid].mark_router_stale("encoder_changed_after_aggregation")
+            router_refresh: Dict[int, Dict[str, float]] = {}
+            router_refresh_start = time.perf_counter()
             if bool(config.get("denice_refresh_router_memory_after_aggregation", True)):
                 for cid in active_ids:
                     router_refresh[int(cid)] = context_detectors[cid].refresh_activation_memory(
-                        models[cid]
+                        models[cid], task_id=task_id, round_id=round_id
                     )
+            router_refresh_time = time.perf_counter() - router_refresh_start
+            router_refresh_encode_time = sum(
+                float(profile.get("encode_time", 0.0))
+                for profile in router_refresh.values()
+            )
+            router_refresh_fit_time = sum(
+                float(profile.get("fit_time", 0.0))
+                for profile in router_refresh.values()
+            )
+            router_refresh_sample_count = sum(
+                int(profile.get("reference_sample_count", 0))
+                for profile in router_refresh.values()
+            )
             if cluster_summary.get("capacity_guardrails"):
                 print(
                     "    DeNICE capacity guardrail: "
@@ -1752,6 +1787,22 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 )
             cluster_summary.update({"task": task_id, "round": round_id})
             cluster_summary["router_memory_refresh"] = router_refresh
+            cluster_summary["router_freshness"] = {
+                "fresh_client_count": int(
+                    sum(
+                        bool(context_detectors[cid].router_state_fresh)
+                        for cid in active_ids
+                    )
+                ),
+                "stale_client_count": int(
+                    sum(
+                        not bool(context_detectors[cid].router_state_fresh)
+                        for cid in active_ids
+                    )
+                ),
+                "last_refresh_task": int(task_id),
+                "last_refresh_round": int(round_id),
+            }
             cluster_history.append(cluster_summary)
 
             round_record = {
@@ -1761,9 +1812,24 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "round_time": time.time() - start,
                 "train_time": train_time_total,
                 "context_update_time": context_time_total,
+                "context_sample_time": context_sample_time_total,
+                "context_encode_time": context_encode_time_total,
+                "router_fit_time": router_fit_time_total,
+                "context_reference_sample_count": context_reference_sample_count,
                 "capsule_time": capsule_time,
                 "aggregation_time": aggregation_time,
+                "clustering_time": float(cluster_summary.get("clustering_time", 0.0)),
+                "aggregation_apply_time": float(
+                    cluster_summary.get("aggregation_apply_time", aggregation_time)
+                ),
+                "router_refresh_time": float(router_refresh_time),
+                "router_refresh_encode_time": float(router_refresh_encode_time),
+                "router_refresh_fit_time": float(router_refresh_fit_time),
+                "router_refresh_sample_count": int(router_refresh_sample_count),
                 "checkpoint_time": None,
+                "eval_time": 0.0,
+                "debug_write_time": 0.0,
+                "unattributed_time": None,
                 "test_loss": None,
                 "accuracy": None,
                 "precision_macro": None,
@@ -1778,6 +1844,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             }
             history["round_metrics"].append(round_record)
 
+            eval_start = time.perf_counter()
             if (round_id + 1) % eval_every == 0 and round_id != rounds_per_task - 1:
                 test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
                 test_X, test_y, sample_info = _limit_eval_samples(
@@ -1852,6 +1919,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     f"    Metrics skipped -> train_loss={round_record['train_loss']:.4f}, "
                     f"eval_every={eval_every}"
                 )
+            round_record["eval_time"] = float(time.perf_counter() - eval_start)
 
             save_round_checkpoint = checkpoint_every is not None and (
                 round_id == rounds_per_task - 1 or ((round_id + 1) % checkpoint_every == 0)
@@ -1927,25 +1995,74 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     "round_time": round_record["round_time"],
                     "train_time": train_time_total,
                     "context_update_time": context_time_total,
+                    "context_sample_time": context_sample_time_total,
+                    "context_encode_time": context_encode_time_total,
+                    "router_fit_time": router_fit_time_total,
+                    "context_reference_sample_count": int(
+                        context_reference_sample_count
+                    ),
                     "capsule_time": capsule_time,
                     "aggregation_time": aggregation_time,
+                    "clustering_time": round_record["clustering_time"],
+                    "aggregation_apply_time": round_record["aggregation_apply_time"],
+                    "router_refresh_time": router_refresh_time,
+                    "router_refresh_encode_time": router_refresh_encode_time,
+                    "router_refresh_fit_time": router_refresh_fit_time,
+                    "router_refresh_sample_count": int(router_refresh_sample_count),
+                    "eval_time": round_record["eval_time"],
                     "checkpoint_time": round_record["checkpoint_time"],
+                    "debug_write_time": 0.0,
+                    "unattributed_time": None,
                 },
                 "loss_stats": _round_float_stats(list(losses.values())),
                 "clients": client_round_debug if denice_debug else {},
                 "cluster": cluster_summary,
             }
             debug_history.append(debug_round)
+            debug_write_time = 0.0
             if denice_debug:
+                debug_write_start = time.perf_counter()
                 _write_json(
                     os.path.join(output_dir, "denice_debug_history.json"),
                     debug_history,
                 )
+                debug_write_time = time.perf_counter() - debug_write_start
+                round_record["debug_write_time"] = float(debug_write_time)
+                round_record["round_time"] = time.time() - start
+                detailed_time = sum(
+                    float(round_record.get(key, 0.0) or 0.0)
+                    for key in (
+                        "train_time",
+                        "context_sample_time",
+                        "context_encode_time",
+                        "router_fit_time",
+                        "capsule_time",
+                        "clustering_time",
+                        "aggregation_apply_time",
+                        "router_refresh_time",
+                        "eval_time",
+                        "checkpoint_time",
+                        "debug_write_time",
+                    )
+                )
+                round_record["unattributed_time"] = max(
+                    0.0, float(round_record["round_time"]) - detailed_time
+                )
+                debug_round["timing"].update(
+                    {
+                        "round_time": round_record["round_time"],
+                        "debug_write_time": round_record["debug_write_time"],
+                        "unattributed_time": round_record["unattributed_time"],
+                    }
+                )
                 print(
                     "    DeNICE debug: "
-                    f"train={train_time_total:.1f}s, ctx={context_time_total:.1f}s, "
-                    f"capsule={capsule_time:.1f}s, agg={aggregation_time:.1f}s, "
-                    f"ckpt={round_record['checkpoint_time']:.1f}s, "
+                    f"train={train_time_total:.1f}s, ctx_sample={context_sample_time_total:.1f}s, "
+                    f"ctx_encode={context_encode_time_total:.1f}s, router_fit={router_fit_time_total:.1f}s, "
+                    f"refresh={router_refresh_time:.1f}s, capsule={capsule_time:.1f}s, "
+                    f"cluster={round_record['clustering_time']:.1f}s, "
+                    f"agg={round_record['aggregation_apply_time']:.1f}s, "
+                    f"ckpt={round_record['checkpoint_time']:.1f}s, debug_io={debug_write_time:.1f}s, "
                     f"K={cluster_summary['K_t']}, clusters={cluster_summary.get('cluster_sizes')}"
                 )
 
