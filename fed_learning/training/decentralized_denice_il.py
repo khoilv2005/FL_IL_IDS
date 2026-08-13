@@ -278,6 +278,61 @@ def _effective_cluster_assignment(
     )
 
 
+def _update_collaboration_guard(
+    cluster_summary: Dict[str, Any],
+    active_client_count: int,
+    previous_streak: int,
+    config: Dict[str, Any],
+) -> Tuple[Dict[str, Any], int]:
+    """Track and optionally fail fast when decentralized sharing disappears."""
+    mode = str(config.get("denice_collaboration_guard_mode", "warn")).lower()
+    if mode not in {"off", "warn", "error"}:
+        raise ValueError(
+            "denice_collaboration_guard_mode must be 'off', 'warn', or 'error'"
+        )
+    max_streak = max(
+        1, int(config.get("denice_max_consecutive_self_only_rounds", 2))
+    )
+    min_mean_peer_alpha = max(
+        0.0, float(config.get("denice_min_mean_peer_alpha", 0.0))
+    )
+    effective_k = int(cluster_summary.get("effective_K_t", active_client_count))
+    group_stats = cluster_summary.get("group_size_stats", {}) or {}
+    peer_stats = cluster_summary.get("peer_alpha_sum_stats", {}) or {}
+    group_mean = float(group_stats.get("mean") or 0.0)
+    peer_mean = float(peer_stats.get("mean") or 0.0)
+    peer_max = float(peer_stats.get("max") or 0.0)
+    peer_clients = int(cluster_summary.get("peer_aggregated_client_count", 0))
+
+    checks = {
+        "effective_k_below_active_clients": effective_k < int(active_client_count),
+        "mean_group_size_above_one": group_mean > 1.0,
+        "has_positive_peer_weight": peer_clients > 0 and peer_max > 0.0,
+        "mean_peer_alpha_above_threshold": peer_mean > min_mean_peer_alpha,
+    }
+    collaboration_required = int(active_client_count) > 1
+    collapsed = collaboration_required and not all(checks.values())
+    streak = int(previous_streak) + 1 if collapsed else 0
+    triggered = mode == "error" and collapsed and streak >= max_streak
+    guard = {
+        "mode": mode,
+        "collapsed": bool(collapsed),
+        "triggered": bool(triggered),
+        "consecutive_self_only_rounds": int(streak),
+        "max_consecutive_self_only_rounds": int(max_streak),
+        "min_mean_peer_alpha": float(min_mean_peer_alpha),
+        "active_client_count": int(active_client_count),
+        "effective_K_t": int(effective_k),
+        "mean_group_size": float(group_mean),
+        "mean_peer_alpha": float(peer_mean),
+        "max_peer_alpha": float(peer_max),
+        "peer_aggregated_client_count": int(peer_clients),
+        "checks": checks,
+        "failed_checks": [name for name, passed in checks.items() if not passed],
+    }
+    return guard, streak
+
+
 def _bootstrap_source_client(
     models: Dict[int, DeNICEModel],
     context_detectors: Dict[int, ContextDetector],
@@ -937,6 +992,8 @@ def _aggregate_round(
     age_peer_promotions: Dict[int, Dict[str, int]] = {}
     group_sizes: List[int] = []
     alpha_values: List[float] = []
+    peer_alpha_sums: List[float] = []
+    peer_aggregated_client_count = 0
 
     for idx, cid in enumerate(client_ids):
         neighbors = None
@@ -996,12 +1053,19 @@ def _aggregate_round(
             self_floor=float(config.get("denice_aggregation_self_floor", 0.25)),
         )
         alpha_values.extend(float(a) for a in alphas)
+        peer_alpha_sum = float(
+            sum(float(alphas[pos]) for pos, gid in enumerate(group_ids) if gid != cid)
+        )
+        peer_alpha_sums.append(peer_alpha_sum)
+        if peer_alpha_sum > 0.0:
+            peer_aggregated_client_count += 1
         alpha_debug[int(cid)] = {
             "group_ids": [int(x) for x in group_ids],
             "similarities": [float(x) for x in sims],
             "sample_counts": [float(x) for x in counts],
             "reliabilities": [float(x) for x in rels],
             "alphas": [float(x) for x in alphas],
+            "peer_alpha_sum": peer_alpha_sum,
             "centroid_distances": {
                 int(gid): float(centroid_distances.get(int(gid), 0.0))
                 for gid in group_ids
@@ -1110,6 +1174,8 @@ def _aggregate_round(
         "similarity_stats": _round_float_stats(finite_sim.tolist()),
         "group_size_stats": _round_float_stats([float(x) for x in group_sizes]),
         "alpha_stats": _round_float_stats(alpha_values),
+        "peer_alpha_sum_stats": _round_float_stats(peer_alpha_sums),
+        "peer_aggregated_client_count": int(peer_aggregated_client_count),
         "alpha_debug": alpha_debug,
         "age_peer_promotions": age_peer_promotions,
         "capacity_after_aggregation": capacity_after_aggregation,
@@ -1715,6 +1781,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             print(f"   Task base checkpoint saved: {delta_base_path}")
 
         previous_valid_cluster: Optional[Dict[str, Any]] = None
+        consecutive_self_only_rounds = 0
         for round_id in range(rounds_per_task):
             print(f"  Round {round_id}/{rounds_per_task - 1}")
             start = time.time()
@@ -1825,6 +1892,42 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             previous_valid_cluster = cluster_summary.pop("next_valid_cluster", None)
             aggregation_time = time.time() - aggregation_start
+            collaboration_guard, consecutive_self_only_rounds = (
+                _update_collaboration_guard(
+                    cluster_summary,
+                    len(active_ids),
+                    consecutive_self_only_rounds,
+                    config,
+                )
+            )
+            cluster_summary["collaboration_guard"] = collaboration_guard
+            if collaboration_guard["collapsed"]:
+                print(
+                    "    DeNICE collaboration guard: "
+                    f"streak={collaboration_guard['consecutive_self_only_rounds']}/"
+                    f"{collaboration_guard['max_consecutive_self_only_rounds']}, "
+                    f"failed={collaboration_guard['failed_checks']}, "
+                    f"effective_K={cluster_summary.get('effective_K_t')}/{len(active_ids)}, "
+                    f"group_mean={collaboration_guard['mean_group_size']:.3f}, "
+                    f"peer_alpha_mean={collaboration_guard['mean_peer_alpha']:.6f}",
+                    flush=True,
+                )
+            if collaboration_guard["triggered"]:
+                failure = {
+                    "task": int(task_id),
+                    "round": int(round_id),
+                    "guard": collaboration_guard,
+                    "cluster": cluster_summary,
+                }
+                _write_json(
+                    os.path.join(output_dir, "collaboration_guard_failure.json"),
+                    failure,
+                )
+                raise RuntimeError(
+                    "DeNICE collaboration collapsed to self-only/zero-peer aggregation "
+                    f"for {consecutive_self_only_rounds} consecutive rounds; "
+                    f"see {os.path.join(output_dir, 'collaboration_guard_failure.json')}"
+                )
             for cid in active_ids:
                 context_detectors[cid].mark_router_stale("encoder_changed_after_aggregation")
             router_refresh: Dict[int, Dict[str, float]] = {}
@@ -2166,6 +2269,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     f"sil={cluster_summary.get('silhouette')}, "
                     f"group_mean/max={cluster_summary.get('group_size_stats', {}).get('mean')}/"
                     f"{cluster_summary.get('group_size_stats', {}).get('max')}, "
+                    f"peer_alpha_mean={cluster_summary.get('peer_alpha_sum_stats', {}).get('mean')}, "
+                    f"guard_streak={collaboration_guard.get('consecutive_self_only_rounds')}, "
                     f"policy={cluster_summary.get('effective_policy')}"
                 )
 

@@ -895,6 +895,97 @@ class TestDecentralized:
         )
         assert models[0].unit_ranks["fc1"][0] == 0
 
+    def test_valid_cluster_reports_positive_peer_aggregation(self, monkeypatch):
+        """Peer alpha excludes self and proves collaboration is not a no-op."""
+        import fed_learning.training.decentralized_denice_il as runner
+
+        models = {cid: _make_model() for cid in range(4)}
+        capsules = {
+            cid: self._capsule(cid, [0, 1], cid + 1) for cid in models
+        }
+        edges = np.ones((4, 4), dtype=np.int8)
+        np.fill_diagonal(edges, 0)
+        monkeypatch.setattr(
+            runner,
+            "dynamic_ap_cluster",
+            lambda *_args, **_kwargs: {
+                "labels": np.array([0, 0, 1, 1]),
+                "edges": edges,
+                "valid": True,
+                "K_t": 2,
+                "silhouette": 0.3,
+                "similarity": np.ones((4, 4)),
+            },
+        )
+
+        summary = runner._aggregate_round(
+            client_ids=list(models),
+            models=models,
+            capsules=capsules,
+            config={"denice_age_merge_policy": "consensus"},
+            device=torch.device("cpu"),
+        )
+
+        assert summary["effective_K_t"] == 2
+        assert summary["group_size_stats"]["mean"] == 2.0
+        assert summary["peer_aggregated_client_count"] == 4
+        assert summary["peer_alpha_sum_stats"]["mean"] > 0.0
+        assert all(
+            info["peer_alpha_sum"] > 0.0
+            for info in summary["alpha_debug"].values()
+        )
+
+    def test_collaboration_guard_triggers_on_second_collapsed_round(self):
+        from fed_learning.training.decentralized_denice_il import (
+            _update_collaboration_guard,
+        )
+
+        collapsed = {
+            "effective_K_t": 4,
+            "group_size_stats": {"min": 1.0, "mean": 1.0, "max": 1.0},
+            "peer_alpha_sum_stats": {"min": 0.0, "mean": 0.0, "max": 0.0},
+            "peer_aggregated_client_count": 0,
+        }
+        config = {
+            "denice_collaboration_guard_mode": "error",
+            "denice_max_consecutive_self_only_rounds": 2,
+            "denice_min_mean_peer_alpha": 0.05,
+        }
+        first, streak = _update_collaboration_guard(collapsed, 4, 0, config)
+        second, streak = _update_collaboration_guard(collapsed, 4, streak, config)
+
+        assert first["collapsed"] is True
+        assert first["triggered"] is False
+        assert second["triggered"] is True
+        assert streak == 2
+        assert "has_positive_peer_weight" in second["failed_checks"]
+
+    def test_valid_peer_aggregation_resets_collaboration_guard_streak(self):
+        from fed_learning.training.decentralized_denice_il import (
+            _update_collaboration_guard,
+        )
+
+        valid = {
+            "effective_K_t": 2,
+            "group_size_stats": {"min": 2.0, "mean": 2.0, "max": 2.0},
+            "peer_alpha_sum_stats": {"min": 0.2, "mean": 0.4, "max": 0.6},
+            "peer_aggregated_client_count": 4,
+        }
+        guard, streak = _update_collaboration_guard(
+            valid,
+            4,
+            1,
+            {
+                "denice_collaboration_guard_mode": "error",
+                "denice_min_mean_peer_alpha": 0.05,
+            },
+        )
+
+        assert guard["collapsed"] is False
+        assert guard["triggered"] is False
+        assert guard["failed_checks"] == []
+        assert streak == 0
+
     def test_capacity_reserve_keeps_current_task_units_plastic(self):
         from fed_learning.training.decentralized_denice_il import (
             _enforce_minimum_free_capacity,

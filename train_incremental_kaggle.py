@@ -338,6 +338,9 @@ CONFIG = {
     # Invalid AP output must never drive neighbor aggregation.  A compatible
     # prior valid assignment is reused; otherwise every client is self-only.
     "denice_cluster_invalid_policy": "previous_valid_or_self_only",
+    "denice_collaboration_guard_mode": "error",
+    "denice_max_consecutive_self_only_rounds": 2,
+    "denice_min_mean_peer_alpha": 0.05,
     # Prevent capacity collapse caused by union/max propagation of peer ages.
     "denice_age_merge_policy": "consensus",
     "denice_age_merge_consensus_threshold": 0.5,
