@@ -30,6 +30,7 @@ def main() -> None:
         run_dir = OUTPUT_ROOT / name
         overrides = {"data_dir": DATA_DIR, "output_dir": str(run_dir), "resume_output_dir": str(run_dir),
                      "resume_state_path": str(BASE_CONTINUATION), "task_end": 5, "random_seed": SEED,
+                     "task_start": 5,
                      "seed": SEED, "rounds_per_task": ROUNDS, "eval_every": 9999,
                      "round_checkpoint_every": ROUNDS, "denice_checkpoint_format": "full",
                      "denice_post_task_eval": False, "denice_max_clients": MAX_CLIENTS,
@@ -46,6 +47,10 @@ def main() -> None:
                         "--data-dir", DATA_DIR, "--output-dir", str(evaluation), "--device", EVAL_DEVICE,
                         "--seed", str(SEED), "--protocols", "coverage_aware_local", "--samples-per-class",
                         str(SAMPLES_PER_CLASS), "--class-balanced-with-replacement"], check=True, env=env)
+        subprocess.run([sys.executable, str(REPO_DIR / "tools" / "validate_denice_run.py"),
+                        "--run-dir", str(run_dir), "--expected-task-end", "5",
+                        "--expected-rounds-per-task", str(ROUNDS), "--require-evaluation",
+                        "--output", str(run_dir / "audit_validation.json")], check=True, env=env)
         manifest["variants"][name] = {"reserve": reserve, "checkpoint": str(checkpoint),
                                       "evaluation_dir": str(evaluation)}
         (OUTPUT_ROOT / "d4_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
