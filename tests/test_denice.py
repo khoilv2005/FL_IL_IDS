@@ -900,6 +900,10 @@ class TestDecentralized:
         import fed_learning.training.decentralized_denice_il as runner
 
         models = {cid: _make_model() for cid in range(4)}
+        with torch.no_grad():
+            for cid, model in models.items():
+                model.fc1.weight.fill_(float(cid))
+        receiver_before = models[0].fc1.weight.detach().clone()
         capsules = {
             cid: self._capsule(cid, [0, 1], cid + 1) for cid in models
         }
@@ -934,6 +938,8 @@ class TestDecentralized:
             info["peer_alpha_sum"] > 0.0
             for info in summary["alpha_debug"].values()
         )
+        assert not torch.allclose(models[0].fc1.weight, receiver_before)
+        assert torch.count_nonzero(models[0].fc1.weight).item() > 0
 
     def test_collaboration_guard_triggers_on_second_collapsed_round(self):
         from fed_learning.training.decentralized_denice_il import (
