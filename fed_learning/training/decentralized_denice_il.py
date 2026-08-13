@@ -974,6 +974,9 @@ def _aggregate_round(
     # (s_ij > delta), i.e. G_i = {j | C[j]=C[i] AND s_ij > delta} (Đề xuất §6).
     use_context_edges = bool(config.get("denice_collab_use_context_edges", True))
     require_label_overlap = bool(config.get("denice_require_label_overlap", True))
+    aggregation_mode = str(config.get("denice_aggregation_mode", "peer")).lower()
+    if aggregation_mode not in {"peer", "self_only"}:
+        raise ValueError("denice_aggregation_mode must be 'peer' or 'self_only'")
     centroid_gate_threshold = float(config.get("denice_centroid_gate_threshold", 0.75))
     agg_config = AggregationConfig(
         eta=float(config.get("denice_aggregation_eta", 1.0)),
@@ -1007,6 +1010,11 @@ def _aggregate_round(
             ]
         group_indices = collaboration_group(idx, labels, neighbors=neighbors)
         group_ids = [client_ids[g] for g in group_indices]
+        # D1 control: keep local training, capsules, and clustering fixed while
+        # excluding every peer parameter, adapter, and neuron-age contribution.
+        # This is not equivalent to eta=0, which still merges peer state.
+        if aggregation_mode == "self_only":
+            group_ids = [cid]
         if require_label_overlap:
             group_ids = [
                 gid
@@ -1166,6 +1174,7 @@ def _aggregate_round(
         ),
         "valid": bool(cluster_result["valid"]),
         "raw_valid": bool(cluster_result["valid"]),
+        "aggregation_mode": aggregation_mode,
         "effective_policy": cluster_policy,
         "fallback_reason": fallback_reason,
         "labels": label_map,

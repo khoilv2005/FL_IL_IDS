@@ -3,6 +3,7 @@
 # Download resume state from Google Drive
 # ============================================================ #
 import os
+import json
 import subprocess
 import sys
 import zipfile
@@ -389,6 +390,21 @@ CONFIG = {
     # Checkpoint / resume (per-round checkpoint inside each task)
     "round_checkpoint_every": 5,
 }
+
+# A JSON object supplied by a launcher can override only the fields under
+# investigation without editing this production configuration.  It keeps D1
+# peer/self-only smoke runs exactly comparable and records the effective config
+# in the normal DeNICE artifacts.
+_config_overrides_raw = os.environ.get("DENICE_CONFIG_OVERRIDES")
+if _config_overrides_raw:
+    try:
+        _config_overrides = json.loads(_config_overrides_raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("DENICE_CONFIG_OVERRIDES must be a JSON object") from exc
+    if not isinstance(_config_overrides, dict):
+        raise ValueError("DENICE_CONFIG_OVERRIDES must decode to a JSON object")
+    CONFIG.update(_config_overrides)
+    print("Applied DENICE_CONFIG_OVERRIDES:", sorted(_config_overrides))
 
 
 # =============================================================================

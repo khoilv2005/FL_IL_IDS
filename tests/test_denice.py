@@ -942,6 +942,51 @@ class TestDecentralized:
         assert not torch.allclose(models[0].fc1.weight, receiver_before)
         assert torch.count_nonzero(models[0].fc1.weight).item() > 0
 
+    def test_self_only_ablation_blocks_peer_state_but_keeps_cluster_evidence(self, monkeypatch):
+        """D1's control must not leak peer params, adapters, or ages."""
+        import fed_learning.training.decentralized_denice_il as runner
+
+        models = {cid: _make_model() for cid in range(2)}
+        with torch.no_grad():
+            models[0].fc1.weight.zero_()
+            models[1].fc1.weight.fill_(3.0)
+        before = {
+            cid: OrderedDict((name, value.detach().clone()) for name, value in model.state_dict().items())
+            for cid, model in models.items()
+        }
+        capsules = {cid: self._capsule(cid, [0, 1], cid + 1) for cid in models}
+        monkeypatch.setattr(
+            runner,
+            "dynamic_ap_cluster",
+            lambda *_args, **_kwargs: {
+                "labels": np.array([0, 0]),
+                "edges": np.ones((2, 2), dtype=np.int8),
+                "valid": True,
+                "K_t": 1,
+                "silhouette": 0.3,
+                "similarity": np.ones((2, 2)),
+            },
+        )
+
+        summary = runner._aggregate_round(
+            client_ids=[0, 1],
+            models=models,
+            capsules=capsules,
+            config={"denice_aggregation_mode": "self_only"},
+            device=torch.device("cpu"),
+        )
+
+        assert summary["raw_K_t"] == 1
+        assert summary["aggregation_mode"] == "self_only"
+        assert summary["groups"] == {0: [0], 1: [1]}
+        assert summary["peer_aggregated_client_count"] == 0
+        assert summary["peer_alpha_sum_stats"]["max"] == 0.0
+        assert all(
+            torch.allclose(value, before[cid][name])
+            for cid, model in models.items()
+            for name, value in model.state_dict().items()
+        )
+
     def test_collaboration_guard_triggers_on_second_collapsed_round(self):
         from fed_learning.training.decentralized_denice_il import (
             _update_collaboration_guard,
