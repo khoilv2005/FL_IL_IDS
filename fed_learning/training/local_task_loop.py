@@ -933,7 +933,8 @@ def _update_local_nice_context_memory(
     task_id: int,
     task_classes: List[int],
     device: str,
-) -> Dict[str, float]:
+    fit_router: bool = True,
+) -> Dict[str, Any]:
     """Update local NICE context memory from train samples, never test data."""
     if X_train is None or y_train is None or len(y_train) == 0:
         return {
@@ -976,9 +977,13 @@ def _update_local_nice_context_memory(
     )
     encode_time = time.perf_counter() - encode_start
     fit_start = time.perf_counter()
-    context_detector.train_models(task_id)
+    if fit_router:
+        context_detector.train_models(task_id)
     fit_time = time.perf_counter() - fit_start
-    context_detector.mark_router_fresh(task_id=task_id)
+    if fit_router:
+        context_detector.mark_router_fresh(task_id=task_id)
+    else:
+        context_detector.mark_router_stale("pending_task_end_refresh")
     return {
         "sample_time": float(sample_time),
         "encode_time": float(encode_time),

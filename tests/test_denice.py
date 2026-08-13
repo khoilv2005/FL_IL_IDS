@@ -41,7 +41,10 @@ from fed_learning.training.denice_delta_checkpoint import (
 )
 from fed_learning.training.decentralized_denice_il import (
     _limit_eval_samples,
+    _router_update_schedule,
     _should_run_post_task_eval,
+    _should_refresh_router_after_aggregation,
+    _should_update_local_router_context,
 )
 
 
@@ -74,6 +77,27 @@ class TestDeNICEEvaluationScheduling:
         _, sampled_y, sample_info = _limit_eval_samples(X, y, max_samples=9, seed=7)
         assert sample_info == {"limited": True, "total": 30, "used": 9}
         assert torch.bincount(sampled_y, minlength=3).tolist() == [3, 3, 3]
+
+    def test_task_end_router_schedule_only_samples_once_and_refreshes_final(self):
+        assert _router_update_schedule({"denice_router_update_schedule": "task_end"}) == "task_end"
+        assert _should_update_local_router_context(0, "task_end")
+        assert not _should_update_local_router_context(1, "task_end")
+        assert not _should_refresh_router_after_aggregation(1, 3, 9999, "task_end")
+        assert _should_refresh_router_after_aggregation(2, 3, 9999, "task_end")
+
+    def test_task_end_schedule_refreshes_before_explicit_mid_round_eval(self):
+        assert _should_refresh_router_after_aggregation(1, 5, 2, "task_end")
+
+    def test_every_round_router_schedule_preserves_legacy_behavior(self):
+        assert _router_update_schedule({}) == "every_round"
+        assert _should_update_local_router_context(7, "every_round")
+        assert _should_refresh_router_after_aggregation(7, 20, 9999, "every_round")
+
+    def test_unknown_router_schedule_is_rejected(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="denice_router_update_schedule"):
+            _router_update_schedule({"denice_router_update_schedule": "sometimes"})
 
 
 # ---------------------------------------------------------------------------

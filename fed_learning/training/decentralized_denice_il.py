@@ -448,6 +448,36 @@ def _should_run_post_task_eval(task_id: int, config: Dict[str, Any]) -> bool:
         return True
     return int(task_id) in {int(value) for value in selected_tasks}
 
+
+def _router_update_schedule(config: Dict[str, Any]) -> str:
+    schedule = str(config.get("denice_router_update_schedule", "every_round")).lower()
+    if schedule not in {"every_round", "task_end"}:
+        raise ValueError(
+            "denice_router_update_schedule must be 'every_round' or 'task_end'"
+        )
+    return schedule
+
+
+def _should_update_local_router_context(round_id: int, schedule: str) -> bool:
+    return str(schedule).lower() == "every_round" or int(round_id) == 0
+
+
+def _should_refresh_router_after_aggregation(
+    round_id: int,
+    rounds_per_task: int,
+    eval_every: int,
+    schedule: str,
+) -> bool:
+    is_final_round = int(round_id) == int(rounds_per_task) - 1
+    is_mid_eval_round = (
+        not is_final_round and (int(round_id) + 1) % max(1, int(eval_every)) == 0
+    )
+    return (
+        str(schedule).lower() == "every_round"
+        or is_final_round
+        or is_mid_eval_round
+    )
+
 def _sample_reference_with_labels(
     X_train: torch.Tensor,
     y_train: torch.Tensor,
@@ -1356,6 +1386,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     batch_size = int(config.get("batch_size", 128))
     eval_batch_size = int(config.get("eval_batch_size", 8192))
     post_task_eval = bool(config.get("denice_post_task_eval", True))
+    router_update_schedule = _router_update_schedule(config)
     denice_debug = bool(config.get("denice_debug", False))
     eval_progress_every_clients = max(
         1, int(config.get("denice_eval_progress_every_clients", 1))
@@ -1701,15 +1732,28 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 if hasattr(model, "freeze_bn_for_mature"):
                     model.freeze_bn_for_mature()
                 context_start = time.time()
-                context_profile = _update_local_nice_context_memory(
-                    context_detectors[cid],
-                    model,
-                    client.X_train,
-                    client.y_train,
-                    task_id,
-                    new_classes,
-                    str(device),
-                )
+                if _should_update_local_router_context(
+                    round_id, router_update_schedule
+                ):
+                    context_profile = _update_local_nice_context_memory(
+                        context_detectors[cid],
+                        model,
+                        client.X_train,
+                        client.y_train,
+                        task_id,
+                        new_classes,
+                        str(device),
+                        fit_router=(router_update_schedule == "every_round"),
+                    )
+                else:
+                    context_profile = {
+                        "sample_time": 0.0,
+                        "encode_time": 0.0,
+                        "fit_time": 0.0,
+                        "reference_sample_count": 0,
+                        "skipped": True,
+                        "skip_reason": "task_end_schedule_non_initial_round",
+                    }
                 context_time = time.time() - context_start
                 context_time_total += context_time
                 context_sample_time_total += float(context_profile["sample_time"])
@@ -1761,7 +1805,15 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 context_detectors[cid].mark_router_stale("encoder_changed_after_aggregation")
             router_refresh: Dict[int, Dict[str, float]] = {}
             router_refresh_start = time.perf_counter()
-            if bool(config.get("denice_refresh_router_memory_after_aggregation", True)):
+            should_refresh_router = bool(
+                config.get("denice_refresh_router_memory_after_aggregation", True)
+            ) and _should_refresh_router_after_aggregation(
+                round_id,
+                rounds_per_task,
+                eval_every,
+                router_update_schedule,
+            )
+            if should_refresh_router:
                 for cid in active_ids:
                     router_refresh[int(cid)] = context_detectors[cid].refresh_activation_memory(
                         models[cid], task_id=task_id, round_id=round_id
@@ -1787,7 +1839,23 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 )
             cluster_summary.update({"task": task_id, "round": round_id})
             cluster_summary["router_memory_refresh"] = router_refresh
+            last_refresh_tasks = sorted(
+                {
+                    int(context_detectors[cid].router_last_refresh_task)
+                    for cid in active_ids
+                    if context_detectors[cid].router_last_refresh_task is not None
+                }
+            )
+            last_refresh_rounds = sorted(
+                {
+                    int(context_detectors[cid].router_last_refresh_round)
+                    for cid in active_ids
+                    if context_detectors[cid].router_last_refresh_round is not None
+                }
+            )
             cluster_summary["router_freshness"] = {
+                "schedule": router_update_schedule,
+                "refresh_executed": bool(should_refresh_router),
                 "fresh_client_count": int(
                     sum(
                         bool(context_detectors[cid].router_state_fresh)
@@ -1800,8 +1868,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         for cid in active_ids
                     )
                 ),
-                "last_refresh_task": int(task_id),
-                "last_refresh_round": int(round_id),
+                "last_refresh_tasks": last_refresh_tasks,
+                "last_refresh_rounds": last_refresh_rounds,
             }
             cluster_history.append(cluster_summary)
 
