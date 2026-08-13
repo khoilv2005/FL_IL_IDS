@@ -7,6 +7,8 @@ Covers the plan's Phase 1 (model/adapter, novelty, CANC) and Phase 3
 
 from collections import OrderedDict
 import json
+import os
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -339,6 +341,151 @@ class TestNovelty:
         # Same prototype -> cosine ~1 -> novelty ~0.
         assert info["novelty"] < 0.05
 
+    def test_clone_roundtrip_is_deep_and_preserves_history(self):
+        est = NoveltyEstimator()
+        model = _make_model()
+        x = _dummy_batch(16)
+        est.calibrate_thresholds(model, x)
+        est.store_prototype(0, est.compute_prototype(model, x))
+
+        cloned = est.clone()
+
+        assert cloned.has_history()
+        assert cloned.thresholds == est.thresholds
+        assert np.array_equal(cloned.prototypes[0]["conv1"], est.prototypes[0]["conv1"])
+        cloned.prototypes[0]["conv1"][0] = 123.0
+        assert est.prototypes[0]["conv1"][0] != 123.0
+
+    def test_decentralized_continuation_roundtrip_preserves_non_tensor_state(self, tmp_path):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.checkpoint_state import restore_denice_state
+        from fed_learning.training.decentralized_denice_il import (
+            _build_denice_continuation_state,
+            _load_denice_continuation_state,
+        )
+
+        model = _make_model()
+        model.add_adapter(0, "fc1", set_active=False)
+        model.unit_ranks["fc1"][:2] = [2, 1]
+        model.freeze_masks = {"fc1": np.array([True, False] + [False] * 254)}
+        detector = ContextDetector(memo_per_class=3, router_mode="multiclass")
+        detector.episode_classes = {0: [0, 1]}
+        novelty = NoveltyEstimator()
+        x = _dummy_batch(8)
+        novelty.calibrate_thresholds(model, x)
+        novelty.store_prototype(0, novelty.compute_prototype(model, x))
+
+        payload = _build_denice_continuation_state(
+            task_id=0,
+            config={"total_classes": NUM_CLASSES, "input_shape": INPUT_SHAPE},
+            models={7: model}, context_detectors={7: detector},
+            novelty_estimators={7: novelty}, prev_ages={7: model.get_neuron_ages_state()},
+            old_ref_banks={7: {0: (x, torch.zeros(len(x), dtype=torch.long))}},
+            old_ref_loss_baselines={7: 0.5}, last_active_task={7: 0},
+            history={"task_accuracies": [{"task": 0}], "task_forgetting": [], "round_metrics": []},
+            cluster_history=[{"task": 0}], adapter_history=[], debug_history=[],
+        )
+        path = tmp_path / "continuation_state_task_0.pt"
+        torch.save(payload, path)
+        restored_payload = _load_denice_continuation_state(str(path))
+
+        restored_model = _make_model()
+        restored_detector = ContextDetector(memo_per_class=1)
+        denice_state = restored_payload["client_algorithm_states"][7]
+        restore_denice_state(restored_model, restored_detector, denice_state)
+        missing, unexpected = restored_model.load_state_dict(
+            restored_payload["client_model_states"][7], strict=False
+        )
+        restored_novelty = NoveltyEstimator()
+        restored_novelty.load_state(restored_payload["novelty_states"][7])
+
+        assert not missing and not unexpected
+        assert restored_model.get_adapter_registry_state() == model.get_adapter_registry_state()
+        assert np.array_equal(restored_model.unit_ranks["fc1"], model.unit_ranks["fc1"])
+        assert np.array_equal(restored_model.freeze_masks["fc1"], model.freeze_masks["fc1"])
+        assert restored_detector.episode_classes == {0: [0, 1]}
+        assert restored_novelty.has_history()
+        assert restored_payload["meta"]["resume_from_task"] == 1
+
+    def test_decentralized_split_run_matches_continuous_smoke(self, tmp_path):
+        """A phase boundary must not silently reset DeNICE client state."""
+        from fed_learning.training.decentralized_denice_il import (
+            _load_denice_continuation_state,
+            run_decentralized_denice_il,
+        )
+
+        data_dir = tmp_path / "tiny_split"
+        data_dir.mkdir()
+        metadata = {
+            "task_structure": {"total_classes": 4, "task_classes": {"0": [0, 1], "1": [2, 3]}},
+            "client_allocation": {"task_active_clients": {"0": [0, 1], "1": [0, 1]}},
+        }
+        (data_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+        rng = np.random.default_rng(9)
+        for cid in (0, 1):
+            X = rng.normal(size=(8, 16, 1)).astype(np.float32)
+            y = np.asarray([0, 0, 1, 1, 2, 2, 3, 3], dtype=np.int64)
+            np.savez(data_dir / f"client_{cid}_train.npz", X_train=X, y_train=y)
+        np.savez(
+            data_dir / "global_test_data.npz",
+            X_test=rng.normal(size=(8, 16, 1)).astype(np.float32),
+            y_test=np.asarray([0, 0, 1, 1, 2, 2, 3, 3], dtype=np.int64),
+        )
+
+        def config(output_dir, **overrides):
+            return {
+                "algorithm": "denice", "mode": "decentralized", "data_dir": str(data_dir),
+                "output_dir": str(output_dir), "total_classes": 4,
+                "rounds_per_task": 1, "batch_size": 2, "learning_rate": 0.001,
+                "random_seed": 31, "denice_max_clients": 2,
+                "denice_post_task_eval": False, "round_checkpoint_every": None,
+                "save_resume_after_task": True, "nice_phase_epochs": 1,
+                **overrides,
+            }
+
+        continuous = run_decentralized_denice_il(config(tmp_path / "continuous", task_end=1))
+        split_first = run_decentralized_denice_il(config(tmp_path / "split", task_end=0))
+        split_path = split_first["output_dir"]
+        resumed = run_decentralized_denice_il(config(
+            tmp_path / "ignored", task_end=1,
+            resume_state_path=os.path.join(split_path, "continuation_state_task_0.pt"),
+        ))
+
+        continuous_state = _load_denice_continuation_state(
+            os.path.join(continuous["output_dir"], "continuation_state_task_1.pt")
+        )
+        resumed_state = _load_denice_continuation_state(
+            os.path.join(resumed["output_dir"], "continuation_state_task_1.pt")
+        )
+        assert [row["task"] for row in resumed_state["history"]["task_accuracies"]] == [0, 1]
+        assert continuous_state["last_active_task"] == resumed_state["last_active_task"]
+        for cid in continuous_state["client_ids"]:
+            for name, value in continuous_state["client_model_states"][cid].items():
+                assert torch.allclose(value, resumed_state["client_model_states"][cid][name], atol=1e-6)
+
+    def test_late_client_without_history_is_not_global_first_task(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.decentralized_denice_il import _prepare_client_task
+
+        model = _make_model()
+        model.unit_ranks["fc1"][:] = 2
+        client = SimpleNamespace(
+            X_train=_dummy_batch(8),
+            y_train=torch.tensor([2, 2, 2, 2, 3, 3, 3, 3]),
+        )
+        trainer = get_incremental_strategy("denice")
+        prepared = _prepare_client_task(
+            cid=9, task_id=1, num_tasks=2, new_classes=[2, 3], model=model,
+            client=client, trainer=trainer, config={"denice_adapter_layers": ["fc1"]},
+            device=torch.device("cpu"), context_detector=ContextDetector(memo_per_class=2),
+            novelty_estimator=NoveltyEstimator(), prev_ages=None,
+        )
+
+        assert prepared["plan"]["is_global_first_task"] is False
+        assert prepared["plan"]["has_novelty_baseline"] is False
+        assert prepared["plan"]["novelty"] == 1.0
+        assert "fc1" in prepared["plan"]["adapters_to_add"]
+
 
 # ---------------------------------------------------------------------------
 # CANC
@@ -351,6 +498,16 @@ class TestCANC:
         state = compute_capacity_state(model)
         assert abs(state["fc1"]["rhom"] - 64 / 256) < 1e-6
         assert abs(state["fc1"]["rho0"] - 192 / 256) < 1e-6
+
+    def test_canc_pressure_components_sum_to_kappa_and_emit_thresholds(self):
+        ctrl = CapacityController(CANCConfig(alpha=0.4, beta=0.2, gamma=0.1, delta=0.3))
+        decision = ctrl.decide_layer("fc1", rho0=0.5, rhom=0.2, u=0.25, novelty=0.4, val_loss_delta=0.1)
+        assert decision["kappa"] == pytest.approx(
+            decision["pressure_capacity"] + decision["pressure_consumption"]
+            + decision["pressure_validation"] + decision["pressure_novelty"]
+        )
+        plan = ctrl.plan_task({"fc1": {"rho0": 0.5, "rhom": 0.2}}, novelty=0.4)
+        assert {"kappa_mid", "kappa_high", "kappa_adapter"}.issubset(plan["thresholds"])
 
     def test_first_task_all_nice_only(self):
         ctrl = CapacityController(CANCConfig())
@@ -942,6 +1099,40 @@ class TestDecentralized:
         assert not torch.allclose(models[0].fc1.weight, receiver_before)
         assert torch.count_nonzero(models[0].fc1.weight).item() > 0
 
+    def test_aggregation_uses_clustering_effective_similarity(self, monkeypatch):
+        """Adaptive score provenance must survive from AP to peer alpha."""
+        import fed_learning.training.decentralized_denice_il as runner
+
+        models = {cid: _make_model() for cid in range(2)}
+        capsules = {cid: self._capsule(cid, [0, 1], cid + 1) for cid in models}
+        monkeypatch.setattr(
+            runner,
+            "dynamic_ap_cluster",
+            lambda *_args, **_kwargs: {
+                "labels": np.array([0, 0]),
+                "edges": np.array([[0, 1], [1, 0]], dtype=np.int8),
+                "valid": True,
+                "K_t": 1,
+                "silhouette": 0.3,
+                # Sparse AP matrix is intentionally not the score source.
+                "similarity": np.array([[-1e9, -1e9], [-1e9, -1e9]]),
+                "effective_similarity": np.array([[0.0, 0.8], [0.6, 0.0]]),
+                "effective_weights": {"label": 1.0},
+            },
+        )
+
+        summary = runner._aggregate_round(
+            client_ids=[0, 1], models=models, capsules=capsules,
+            config={}, device=torch.device("cpu"),
+        )
+
+        assert summary["alpha_debug"][0]["similarities"] == [1.0, 0.8]
+        assert summary["alpha_debug"][1]["similarities"] == [0.6, 1.0]
+        assert all(
+            row["similarity_source"] == "clustering_effective_similarity"
+            for row in summary["alpha_debug"].values()
+        )
+
     def test_self_only_ablation_blocks_peer_state_but_keeps_cluster_evidence(self, monkeypatch):
         """D1's control must not leak peer params, adapters, or ages."""
         import fed_learning.training.decentralized_denice_il as runner
@@ -1516,6 +1707,26 @@ class TestDeNICEEvaluation:
         assert set(test_y[partitions[20]].tolist()).issubset({2, 3})
         assert sum(len(indices) for indices in partitions.values()) == len(test_y)
 
+    def test_coverage_aware_partition_fails_closed_when_episode_is_unsupported(self):
+        import eval_checkpoint
+
+        _partitions, debug = eval_checkpoint._build_coverage_aware_partitions(
+            torch.tensor([0, 2], dtype=torch.long),
+            [10],
+            {0: [0], 1: [2]},
+            {10: {"supported_episodes": [0]}},
+            seed=7,
+        )
+
+        with pytest.raises(ValueError, match="incomplete support"):
+            eval_checkpoint._validate_coverage_partition(
+                debug, allow_partial_coverage=False
+            )
+        eval_checkpoint._validate_coverage_partition(debug, allow_partial_coverage=True)
+        assert debug["partial_coverage"] is True
+        assert debug["assigned_sample_count"] == 1
+        assert debug["requested_sample_count"] == 2
+
     def test_class_balanced_test_subset_has_fixed_reproducible_support(self):
         import eval_checkpoint
 
@@ -1612,6 +1823,33 @@ class TestDeNICEEvaluation:
             oracle_episodes=np.asarray([0, 1]),
         )
 
+        assert torch.all(logits[0, 2:4] == -100.0)
+        assert torch.all(logits[1, :2] == -100.0)
+
+    def test_oracle_hard_no_adapter_keeps_oracle_mask_without_adapter(self, monkeypatch):
+        from fed_learning.servers.nice_server import ContextDetector
+        import fed_learning.training.denice_eval as denice_eval
+
+        model = _make_model()
+        model.add_adapter(0, "fc1", set_active=False)
+        detector = ContextDetector(memo_per_class=10, router_mode="multiclass")
+        detector.episode_classes = {0: [0, 1], 1: [2, 3]}
+        calls = []
+        monkeypatch.setattr(
+            model, "set_active_context", lambda episode: calls.append(int(episode))
+        )
+        monkeypatch.setattr(
+            denice_eval,
+            "_route_episodes_with_scores",
+            lambda *_args: (np.asarray([1, 0]), None),
+        )
+        logits, _ = denice_eval._denice_routed_logits_with_episodes(
+            model, _dummy_batch(2), detector, seen_classes=[0, 1, 2, 3],
+            device="cpu", inference_policy="oracle_hard_no_adapter",
+            oracle_episodes=np.asarray([0, 1]),
+        )
+
+        assert calls == []
         assert torch.all(logits[0, 2:4] == -100.0)
         assert torch.all(logits[1, :2] == -100.0)
 
@@ -1737,7 +1975,8 @@ class TestDeNICEEvaluation:
             "e0_backbone_nomask",
             "e1_pred_adapter_nomask",
             "e2_oracle_adapter_nomask",
-            "e3_oracle_hard",
+            "e3_oracle_routed_system_ceiling",
+            "e3b_oracle_hard_no_adapter",
             "e4_pred_hard",
             "e5_topk2",
             "e5_topk3",

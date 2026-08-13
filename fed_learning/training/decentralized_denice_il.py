@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import time
 from collections import OrderedDict
 from dataclasses import asdict, is_dataclass
@@ -76,6 +77,7 @@ from fed_learning.training.denice_delta_checkpoint import (
 from fed_learning.training.denice_usage import compute_adapter_usage
 from fed_learning.training.checkpoint_state import (
     CHECKPOINT_SCHEMA_VERSION,
+    restore_denice_state,
     restore_context_detector,
     snapshot_denice_state,
 )
@@ -84,6 +86,10 @@ from fed_learning.training.local_task_loop import (
 )
 from fed_learning.training.task_loop import _resolve_output_dir
 from fed_learning.utils.seed import set_seed
+
+
+DENICE_CONTINUATION_SCHEMA_VERSION = 1
+DENICE_CONTINUATION_TYPE = "denice_decentralized_continuation"
 
 
 def _state_dict(model: torch.nn.Module) -> "OrderedDict[str, torch.Tensor]":
@@ -844,13 +850,19 @@ def _prepare_client_task(
     )
     revived = revive_due_recycled_neurons(model, task_id, config)
 
-    is_first_task = not novelty_estimator.has_history()
+    # A client joining late is not at the global first incremental task.  It
+    # must therefore be eligible for CANC decisions even if no local novelty
+    # baseline could be recovered.  With no baseline, ``compute_novelty``
+    # returns its documented fully-novel value (1.0) instead of silently
+    # forcing the task-0 NICE-only branch.
+    is_global_first_task = int(task_id) == 0
+    has_novelty_baseline = novelty_estimator.has_history()
     novelty = 0.0
     if ref_data.numel() > 0:
         model.eval()
         if novelty_estimator.thresholds is None:
             novelty_estimator.calibrate_thresholds(model, ref_data)
-        if not is_first_task:
+        if not is_global_first_task:
             novelty = float(novelty_estimator.compute_novelty(model, ref_data)["novelty"])
 
     start_ages = model.get_neuron_ages_state()
@@ -869,9 +881,11 @@ def _prepare_client_task(
         novelty,
         consumption,
         val_loss_delta=val_loss_delta,
-        is_first_task=is_first_task,
+        is_first_task=is_global_first_task,
     )
     plan["novelty"] = novelty
+    plan["is_global_first_task"] = bool(is_global_first_task)
+    plan["has_novelty_baseline"] = bool(has_novelty_baseline)
     plan["val_loss_delta"] = val_loss_delta
     plan["start_ages"] = start_ages
     plan["revived"] = revived
@@ -888,6 +902,132 @@ def _prepare_client_task(
                 model.freeze_masks[low] = np.ones(len(ranks), dtype=bool)
 
     return {"plan": plan, "ref_data": ref_data, "ref_labels": ref_labels}
+
+
+def _resume_clone(value: Any) -> Any:
+    """Deep-copy a continuation value while moving tensors to CPU."""
+    if isinstance(value, torch.Tensor):
+        return value.detach().cpu().clone()
+    if isinstance(value, np.ndarray):
+        return value.copy()
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, OrderedDict):
+        return OrderedDict((k, _resume_clone(v)) for k, v in value.items())
+    if isinstance(value, dict):
+        return {k: _resume_clone(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_resume_clone(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_resume_clone(v) for v in value)
+    if isinstance(value, set):
+        return {_resume_clone(v) for v in value}
+    return value
+
+
+def _snapshot_rng_state() -> Dict[str, Any]:
+    state: Dict[str, Any] = {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+        "torch_cpu": torch.get_rng_state().detach().cpu().clone(),
+    }
+    if torch.cuda.is_available():
+        state["torch_cuda"] = [item.detach().cpu().clone() for item in torch.cuda.get_rng_state_all()]
+    return state
+
+
+def _restore_rng_state(state: Optional[Dict[str, Any]]) -> None:
+    if not state:
+        return
+    if state.get("python") is not None:
+        random.setstate(state["python"])
+    if state.get("numpy") is not None:
+        np.random.set_state(state["numpy"])
+    if state.get("torch_cpu") is not None:
+        torch.set_rng_state(state["torch_cpu"].detach().cpu())
+    if torch.cuda.is_available() and state.get("torch_cuda") is not None:
+        torch.cuda.set_rng_state_all([item.detach().cpu() for item in state["torch_cuda"]])
+
+
+def _build_denice_continuation_state(
+    *,
+    task_id: int,
+    config: Dict[str, Any],
+    models: Dict[int, DeNICEModel],
+    context_detectors: Dict[int, ContextDetector],
+    novelty_estimators: Dict[int, NoveltyEstimator],
+    prev_ages: Dict[int, Optional[Dict[str, np.ndarray]]],
+    old_ref_banks: Dict[int, Dict[int, Tuple[torch.Tensor, torch.Tensor]]],
+    old_ref_loss_baselines: Dict[int, Optional[float]],
+    last_active_task: Dict[int, int],
+    history: Dict[str, Any],
+    cluster_history: List[Dict[str, Any]],
+    adapter_history: List[Dict[str, Any]],
+    debug_history: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Build a self-contained task-boundary continuation payload."""
+    client_ids = sorted(int(cid) for cid in models)
+    return {
+        "continuation_type": DENICE_CONTINUATION_TYPE,
+        "denice_continuation_schema_version": DENICE_CONTINUATION_SCHEMA_VERSION,
+        "meta": {
+            "mode": "decentralized",
+            "algorithm": "denice",
+            "completed_task": int(task_id),
+            "resume_from_task": int(task_id) + 1,
+        },
+        "config": _resume_clone(config),
+        "client_ids": client_ids,
+        "client_model_states": {
+            int(cid): _cpu_state_dict(models[cid]) for cid in client_ids
+        },
+        "client_algorithm_states": _client_algorithm_states(
+            client_ids, models, context_detectors
+        ),
+        "novelty_states": {
+            int(cid): estimator.get_state()
+            for cid, estimator in novelty_estimators.items()
+        },
+        "prev_ages": _resume_clone(prev_ages),
+        "old_ref_banks": _resume_clone(old_ref_banks),
+        "old_ref_loss_baselines": _resume_clone(old_ref_loss_baselines),
+        "last_active_task": _resume_clone(last_active_task),
+        "history": _resume_clone(history),
+        "cluster_history": _resume_clone(cluster_history),
+        "adapter_history": _resume_clone(adapter_history),
+        "debug_history": _resume_clone(debug_history),
+        "rng_state": _snapshot_rng_state(),
+    }
+
+
+def _load_denice_continuation_state(path: str) -> Dict[str, Any]:
+    try:
+        state = torch.load(path, map_location="cpu", weights_only=False)
+    except TypeError:
+        state = torch.load(path, map_location="cpu")
+    if state.get("continuation_type") != DENICE_CONTINUATION_TYPE:
+        raise ValueError(
+            "DeNICE decentralized resume requires a full continuation_state file; "
+            "raw evaluation/round checkpoints do not contain lifecycle, novelty, "
+            "reference-bank, and RNG state."
+        )
+    if int(state.get("denice_continuation_schema_version", -1)) != DENICE_CONTINUATION_SCHEMA_VERSION:
+        raise ValueError(
+            "Unsupported DeNICE continuation schema "
+            f"{state.get('denice_continuation_schema_version')}; expected "
+            f"{DENICE_CONTINUATION_SCHEMA_VERSION}."
+        )
+    meta = state.get("meta") or {}
+    if meta.get("algorithm") != "denice" or meta.get("mode") != "decentralized":
+        raise ValueError("Resume state is not a decentralized DeNICE continuation.")
+    required = (
+        "client_model_states", "client_algorithm_states", "novelty_states",
+        "history", "rng_state",
+    )
+    missing = [name for name in required if name not in state]
+    if missing:
+        raise ValueError(f"Incomplete DeNICE continuation state; missing {missing}.")
+    return state
 
 
 def _build_round_capsule(
@@ -970,6 +1110,17 @@ def _aggregate_round(
         )
     )
     clustering_time = time.perf_counter() - clustering_start
+    # ``similarity`` is sparse by design and contains LARGE_NEG for non-edges.
+    # Aggregation must instead consume the dense score matrix emitted by the
+    # same adaptive-weight clustering pass.  A legacy fallback remains only
+    # for external/test monkeypatches that still return the old result shape.
+    effective_similarity = np.asarray(
+        cluster_result.get("effective_similarity", cluster_result.get("similarity")),
+        dtype=np.float64,
+    )
+    has_effective_similarity = (
+        effective_similarity.shape == (len(client_ids), len(client_ids))
+    )
     # When enabled, restrict each collaboration group to context neighbors
     # (s_ij > delta), i.e. G_i = {j | C[j]=C[i] AND s_ij > delta} (Đề xuất §6).
     use_context_edges = bool(config.get("denice_collab_use_context_edges", True))
@@ -1048,7 +1199,20 @@ def _aggregate_round(
             if gid == cid:
                 sims.append(1.0)
             else:
-                sims.append(max(0.0, context_similarity(capsules[cid], capsules[gid], sim_weights)))
+                gid_idx = client_ids.index(gid)
+                if has_effective_similarity:
+                    score = float(effective_similarity[idx, gid_idx])
+                    # Invalid/non-finite pairs must never gain peer weight.
+                    sims.append(max(0.0, score) if np.isfinite(score) else 0.0)
+                else:
+                    # Compatibility only; normal runs always take the branch
+                    # above and therefore cannot drift from clustering weights.
+                    sims.append(
+                        max(
+                            0.0,
+                            context_similarity(capsules[cid], capsules[gid], sim_weights),
+                        )
+                    )
             counts.append(float(capsules[gid].sample_count))
             rels.append(float(capsules[gid].reliability))
         self_index = group_ids.index(cid)
@@ -1079,6 +1243,11 @@ def _aggregate_round(
                 for gid in group_ids
             },
             "centroid_gate_threshold": float(centroid_gate_threshold),
+            "similarity_source": (
+                "clustering_effective_similarity"
+                if has_effective_similarity
+                else "legacy_recomputed_similarity"
+            ),
         }
 
         target_state = old_states[cid]
@@ -1186,6 +1355,8 @@ def _aggregate_round(
         "peer_alpha_sum_stats": _round_float_stats(peer_alpha_sums),
         "peer_aggregated_client_count": int(peer_aggregated_client_count),
         "alpha_debug": alpha_debug,
+        "effective_weights": cluster_result.get("effective_weights"),
+        "similarity_threshold": cluster_result.get("similarity_threshold"),
         "age_peer_promotions": age_peer_promotions,
         "capacity_after_aggregation": capacity_after_aggregation,
         "capacity_guardrails": capacity_guardrails,
@@ -1449,7 +1620,25 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
     config["input_shape"] = data_loader.input_shape
     config["num_classes"] = config["total_classes"]
-    _write_json(os.path.join(output_dir, "config.json"), config)
+    resume_state = None
+    if config.get("resume_state_path"):
+        resume_state = _load_denice_continuation_state(str(config["resume_state_path"]))
+        saved_config = resume_state.get("config") or {}
+        for key in ("total_classes", "input_shape"):
+            if key in saved_config and key in config and saved_config[key] != config[key]:
+                raise ValueError(
+                    f"DeNICE resume config mismatch for {key}: "
+                    f"{saved_config[key]!r} != {config[key]!r}"
+                )
+        print(
+            "  Restoring DeNICE continuation: "
+            f"completed task {resume_state['meta']['completed_task']}, "
+            f"resume at task {resume_state['meta']['resume_from_task']}"
+        )
+    _write_json(
+        os.path.join(output_dir, "config_phase_resume.json" if resume_state else "config.json"),
+        config,
+    )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     trainer = get_incremental_strategy(
@@ -1548,6 +1737,62 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     num_tasks = data_loader.get_num_tasks()
     task_start = int(config.get("task_start", 0))
     task_end = int(config.get("task_end", num_tasks - 1))
+
+    if resume_state is not None:
+        algorithm_states = resume_state["client_algorithm_states"]
+        for cid_raw in resume_state.get("client_ids", []):
+            cid = int(cid_raw)
+            model_state = resume_state["client_model_states"].get(
+                cid, resume_state["client_model_states"].get(str(cid))
+            )
+            algorithm_state = algorithm_states.get(cid, algorithm_states.get(str(cid), {}))
+            denice_state = (algorithm_state or {}).get("denice", algorithm_state or {})
+            if model_state is None:
+                raise ValueError(f"Continuation missing model state for client {cid}.")
+            model = _make_model(config, device)
+            detector = ContextDetector(
+                memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))),
+                router_mode=denice_router_mode,
+                router_reference_per_class=router_reference_per_class,
+            )
+            # Recreate adapter modules before their tensor state can load.
+            restore_denice_state(model, detector, denice_state)
+            missing, unexpected = model.load_state_dict(model_state, strict=False)
+            if missing or unexpected:
+                raise ValueError(
+                    f"Continuation model mismatch for client {cid}: "
+                    f"missing={list(missing)}, unexpected={list(unexpected)}"
+                )
+            if hasattr(model, "freeze_bn_for_mature"):
+                model.freeze_bn_for_mature()
+            models[cid] = model.to(device)
+            context_detectors[cid] = detector
+            novelty_state = resume_state["novelty_states"].get(
+                cid, resume_state["novelty_states"].get(str(cid))
+            )
+            novelty = NoveltyEstimator(
+                layer_weights=(novelty_state or {}).get(
+                    "layer_weights", getattr(trainer, "novelty_layer_weights", None)
+                )
+            )
+            novelty.load_state(novelty_state)
+            novelty_estimators[cid] = novelty
+
+        prev_ages = _resume_clone(resume_state.get("prev_ages") or {})
+        old_ref_banks = _resume_clone(resume_state.get("old_ref_banks") or {})
+        old_ref_loss_baselines = _resume_clone(
+            resume_state.get("old_ref_loss_baselines") or {}
+        )
+        last_active_task = {
+            int(cid): int(task)
+            for cid, task in (resume_state.get("last_active_task") or {}).items()
+        }
+        history = _resume_clone(resume_state.get("history") or history)
+        cluster_history = _resume_clone(resume_state.get("cluster_history") or [])
+        adapter_history = _resume_clone(resume_state.get("adapter_history") or [])
+        debug_history = _resume_clone(resume_state.get("debug_history") or [])
+        task_start = int(resume_state["meta"]["resume_from_task"])
+        _restore_rng_state(resume_state.get("rng_state"))
 
     for task_id in range(task_start, task_end + 1):
         print(f"\n{'=' * 80}\nTASK {task_id}/{num_tasks - 1} - Decentralized DeNICE-IL\n{'=' * 80}")
@@ -1653,9 +1898,17 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     new_model_init_diffs.append(
                         _param_max_abs_diff(_cpu_state_dict(models[cid]), initial_model_state)
                     )
-                    novelty_estimators[cid] = NoveltyEstimator(
-                        layer_weights=getattr(trainer, "novelty_layer_weights", None)
-                    )
+                    if source_id is not None and source_id in novelty_estimators:
+                        novelty_estimators[cid] = novelty_estimators[source_id].clone()
+                        bootstrap_events[-1]["novelty_bootstrap"] = "source_clone"
+                        bootstrap_events[-1]["novelty_source_has_history"] = bool(
+                            novelty_estimators[source_id].has_history()
+                        )
+                    else:
+                        novelty_estimators[cid] = NoveltyEstimator(
+                            layer_weights=getattr(trainer, "novelty_layer_weights", None)
+                        )
+                        bootstrap_events[-1]["novelty_bootstrap"] = "empty_initial"
                     prev_ages[cid] = None
                     old_ref_banks[cid] = {}
                     old_ref_loss_baselines[cid] = None
@@ -2473,6 +2726,26 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 },
                 os.path.join(output_dir, f"checkpoint_task_{task_id}.pt"),
             )
+            continuation_state = _build_denice_continuation_state(
+                task_id=task_id,
+                config=config,
+                models=models,
+                context_detectors=context_detectors,
+                novelty_estimators=novelty_estimators,
+                prev_ages=prev_ages,
+                old_ref_banks=old_ref_banks,
+                old_ref_loss_baselines=old_ref_loss_baselines,
+                last_active_task=last_active_task,
+                history=history,
+                cluster_history=cluster_history,
+                adapter_history=adapter_history,
+                debug_history=debug_history,
+            )
+            continuation_path = os.path.join(
+                output_dir, f"continuation_state_task_{task_id}.pt"
+            )
+            torch.save(continuation_state, continuation_path)
+            print(f"  DeNICE continuation state saved: {continuation_path}")
         _write_phase_outputs(
             output_dir, history, cluster_history, adapter_history, debug_history, config, task_id
         )

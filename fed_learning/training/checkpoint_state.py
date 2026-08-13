@@ -134,6 +134,38 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
     return state
 
 
+def restore_denice_state(
+    model: Any, context_detector: Any, state: Optional[Dict[str, Any]]
+) -> None:
+    """Restore non-``state_dict`` DeNICE state after adapter reconstruction.
+
+    Callers must create adapters from ``adapter_registry`` before loading model
+    tensor weights.  NICE ranks/masks are Python/NumPy state rather than model
+    buffers, so restoring a tensor checkpoint alone is insufficient.
+    """
+    if model is None or not state:
+        return
+    adapter_registry = state.get("adapter_registry") or {}
+    for meta in adapter_registry.values():
+        if not hasattr(model, "add_adapter"):
+            break
+        layer_name = meta.get("layer_name")
+        context_id = meta.get("context_id")
+        if layer_name is not None and context_id is not None:
+            model.add_adapter(
+                int(context_id), str(layer_name), rank=meta.get("rank"), set_active=False
+            )
+    neuron_ages = state.get("neuron_ages")
+    if neuron_ages and hasattr(model, "set_neuron_ages_state"):
+        model.set_neuron_ages_state(_clone_value(neuron_ages))
+    if "freeze_masks" in state and hasattr(model, "freeze_masks"):
+        model.freeze_masks = _clone_value(state.get("freeze_masks") or {})
+    recycling = state.get("recycling_registry")
+    if recycling and hasattr(model, "set_recycling_state"):
+        model.set_recycling_state(_clone_value(recycling))
+    restore_context_detector(context_detector, state.get("context_detector"))
+
+
 def snapshot_der_state(
     model: Any,
     task_classes_history: Optional[Dict[int, list]] = None,

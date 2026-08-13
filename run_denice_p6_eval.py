@@ -26,7 +26,10 @@ POLICIES: Dict[str, Dict[str, Any]] = {
     "e0_backbone_nomask": {"inference_policy": "backbone_nomask"},
     "e1_pred_adapter_nomask": {"inference_policy": "pred_adapter_nomask"},
     "e2_oracle_adapter_nomask": {"inference_policy": "oracle_adapter_nomask"},
-    "e3_oracle_hard": {"inference_policy": "oracle_hard"},
+    # E3 is a routed-system ceiling (oracle adapter *and* true-episode mask),
+    # not an adapter-only oracle.  Keep the semantic name in emitted artifacts.
+    "e3_oracle_routed_system_ceiling": {"inference_policy": "oracle_hard"},
+    "e3b_oracle_hard_no_adapter": {"inference_policy": "oracle_hard_no_adapter"},
     "e4_pred_hard": {"inference_policy": "pred_hard"},
     "e5_topk2": {"route_mode": "topk", "route_topk": 2},
     "e5_topk3": {"route_mode": "topk", "route_topk": 3},
@@ -116,7 +119,9 @@ def main() -> None:
                 json.dumps(result, indent=2), encoding="utf-8"
             )
 
-    e3 = summary.get("coverage_aware_local", {}).get("e3_oracle_hard", {})
+    e3 = summary.get("coverage_aware_local", {}).get(
+        "e3_oracle_routed_system_ceiling", {}
+    )
     e4 = summary.get("coverage_aware_local", {}).get("e4_pred_hard", {})
     summary["coverage_aware_oracle_gap"] = (
         None
@@ -128,6 +133,10 @@ def main() -> None:
         "checkpoint": str(args.checkpoint),
         "protocols": protocols,
         "policies": list(POLICIES),
+        "policy_semantics": {
+            "e3_oracle_routed_system_ceiling": "oracle adapter + oracle true-episode class mask",
+            "e3b_oracle_hard_no_adapter": "no adapter + oracle true-episode class mask",
+        },
         "summary": summary,
     }
     (output_dir / "p6_evaluation_summary.json").write_text(

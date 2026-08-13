@@ -229,13 +229,19 @@ class CapacityController:
     def pressure(
         self, rho0: float, u: float, novelty: float, val_loss_delta: float = 0.0
     ) -> float:
+        return float(sum(self.pressure_components(rho0, u, novelty, val_loss_delta).values()))
+
+    def pressure_components(
+        self, rho0: float, u: float, novelty: float, val_loss_delta: float = 0.0
+    ) -> Dict[str, float]:
+        """Return the four auditable terms of the CANC pressure equation."""
         c = self.config
-        return float(
-            c.alpha * (1.0 - rho0)
-            + c.beta * u
-            + c.gamma * max(0.0, float(val_loss_delta))
-            + c.delta * novelty
-        )
+        return {
+            "pressure_capacity": float(c.alpha * (1.0 - rho0)),
+            "pressure_consumption": float(c.beta * u),
+            "pressure_validation": float(c.gamma * max(0.0, float(val_loss_delta))),
+            "pressure_novelty": float(c.delta * novelty),
+        }
 
     def decide_layer(
         self,
@@ -248,25 +254,26 @@ class CapacityController:
     ) -> Dict[str, float]:
         """Return ``{action, kappa}`` for a single layer."""
         c = self.config
-        kappa = self.pressure(rho0, u, novelty, val_loss_delta)
+        components = self.pressure_components(rho0, u, novelty, val_loss_delta)
+        kappa = float(sum(components.values()))
         is_low = layer in LOW_LAYERS
 
         # Rule 4: emergency adapter on a depleted low layer under strong shift.
         if is_low and rho0 < c.epsilon_adapter and novelty >= c.xi_high_novelty:
-            return {"action": EMERGENCY_LOW_ADAPTER, "kappa": kappa}
+            return {"action": EMERGENCY_LOW_ADAPTER, "kappa": kappa, **components}
 
         # Rule 3: add micro-adapter.
         if kappa >= c.kappa_adapter or (
             rho0 < c.epsilon_adapter and (novelty >= c.xi_novelty or u >= c.xi_consume)
         ):
-            return {"action": ADD_ADAPTER, "kappa": kappa}
+            return {"action": ADD_ADAPTER, "kappa": kappa, **components}
 
         # Rule 2: low layer depleted but task is still close -> reuse, train high.
         if is_low and rho0 < c.epsilon_free and novelty < c.xi_novelty:
-            return {"action": HIGH_LAYER_ONLY, "kappa": kappa}
+            return {"action": HIGH_LAYER_ONLY, "kappa": kappa, **components}
 
         # Rule 1: NICE only.
-        return {"action": NICE_ONLY, "kappa": kappa}
+        return {"action": NICE_ONLY, "kappa": kappa, **components}
 
     def plan_task(
         self,
@@ -289,6 +296,7 @@ class CapacityController:
                 layers[name] = {
                     "action": NICE_ONLY,
                     "kappa": self.pressure(st["rho0"], 0.0, 0.0),
+                    **self.pressure_components(st["rho0"], 0.0, 0.0),
                     "rho0": st["rho0"],
                     "rhom": st["rhom"],
                     "retired": st.get("retired", 0.0),
@@ -301,6 +309,7 @@ class CapacityController:
                 "freeze_low_layers": False,
                 "recycle_layers": [],
                 "novelty": 0.0,
+                "thresholds": self.thresholds(),
             }
 
         for name, st in capacity_state.items():
@@ -336,6 +345,19 @@ class CapacityController:
             "recycle_layers": recycle_layers,
             "freeze_low_layers": freeze_low,
             "novelty": novelty,
+            "thresholds": self.thresholds(),
+        }
+
+    def thresholds(self) -> Dict[str, float]:
+        """Expose all configured decision thresholds in every CANC artifact."""
+        c = self.config
+        return {
+            name: float(getattr(c, name))
+            for name in (
+                "epsilon_free", "epsilon_adapter", "xi_novelty", "xi_high_novelty",
+                "xi_consume", "kappa_mid", "kappa_high", "kappa_adapter",
+                "kappa_recycle", "epsilon_recycle_free",
+            )
         }
 
     def _resolve_adapters(self, layers: Dict[str, Dict[str, float]]) -> List[str]:

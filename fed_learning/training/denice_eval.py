@@ -101,6 +101,7 @@ INFERENCE_POLICIES = {
     "pred_adapter_nomask",
     "oracle_adapter_nomask",
     "oracle_hard",
+    "oracle_hard_no_adapter",
     "backbone_nomask",
 }
 
@@ -180,6 +181,8 @@ def _denice_routed_logits_with_episodes(
         mode, adapter_source, mask_source = "nomask", "oracle", "none"
     elif policy == "oracle_hard":
         mode, adapter_source, mask_source = "hard", "oracle", "oracle"
+    elif policy == "oracle_hard_no_adapter":
+        mode, adapter_source, mask_source = "hard", "none", "oracle"
     else:
         mode, adapter_source, mask_source = str(route_mode or "hard").lower(), "predicted", "predicted"
     if mode not in {"hard", "topk", "nomask", "adaptive"}:
@@ -189,7 +192,11 @@ def _denice_routed_logits_with_episodes(
     active_episodes = (
         _validate_oracle_episodes(oracle_episodes, n)
         if adapter_source == "oracle"
-        else np.asarray(episodes, dtype=np.int64)
+        else (
+            _validate_oracle_episodes(oracle_episodes, n)
+            if adapter_source == "none" and mask_source == "oracle"
+            else np.asarray(episodes, dtype=np.int64)
+        )
     )
     mask_episodes = (
         _validate_oracle_episodes(oracle_episodes, n)
@@ -220,7 +227,10 @@ def _denice_routed_logits_with_episodes(
     for ep in np.unique(active_episodes):
         idx_np = np.where(active_episodes == ep)[0]
         idx = torch.as_tensor(idx_np, dtype=torch.long, device=device)
-        model.set_active_context(int(ep))  # adapter follows the top-1 route
+        if adapter_source == "none":
+            model.clear_active_adapters()
+        else:
+            model.set_active_context(int(ep))  # adapter follows the top-1 route
         if getattr(model, "active_adapters", {}):
             _increment_route_diagnostic(routing_diagnostics, "adapter_active_sample_count", len(idx_np))
         else:
@@ -290,7 +300,7 @@ def _denice_routed_logits_with_episodes(
             _increment_route_diagnostic(routing_diagnostics, "topk_mask_sample_count", len(idx_np))
             continue
 
-        # For oracle_hard, mask rows by their true task episode rather than by
+        # Oracle-hard policies mask rows by true task episode rather than by
         # whichever adapter group happened to be active.
         if mask_source == "oracle":
             row_masks = []
@@ -501,7 +511,9 @@ def evaluate_denice_ensemble(
         probs = None
         for model, detector in model_detector_pairs:
             oracle_episodes = None
-            if inference_policy in {"oracle_adapter_nomask", "oracle_hard"}:
+            if inference_policy in {
+                "oracle_adapter_nomask", "oracle_hard", "oracle_hard_no_adapter"
+            }:
                 label_map = class_to_episode or _label_to_episode_map(detector)
                 oracle_episodes = np.asarray(
                     [label_map.get(int(label), -1) for label in y_batch.detach().cpu().tolist()],
@@ -509,7 +521,7 @@ def evaluate_denice_ensemble(
                 )
                 if np.any(oracle_episodes < 0):
                     raise ValueError("oracle ensemble evaluation encountered an unmapped test class")
-                if inference_policy == "oracle_hard":
+                if inference_policy in {"oracle_hard", "oracle_hard_no_adapter"}:
                     for label, episode in zip(y_batch.detach().cpu().tolist(), oracle_episodes):
                         allowed = detector.episode_classes.get(int(episode), [])
                         if int(label) not in {int(cls) for cls in allowed}:

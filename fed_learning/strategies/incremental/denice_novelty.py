@@ -90,6 +90,55 @@ class NoveltyEstimator:
     def has_history(self) -> bool:
         return len(self.prototypes) > 0
 
+    def get_state(self) -> Dict[str, object]:
+        """Return a deep, CPU-safe snapshot for bootstrap and continuation.
+
+        Prototype arrays must never be shared between clients: a late joiner
+        can subsequently calibrate/store its own task without mutating the
+        representative from which it was initialized.
+        """
+        return {
+            "layer_weights": {str(k): float(v) for k, v in self.layer_weights.items()},
+            "thresholds": (
+                None
+                if self.thresholds is None
+                else {str(k): float(v) for k, v in self.thresholds.items()}
+            ),
+            "prototypes": {
+                int(task_id): {
+                    str(name): np.asarray(value, dtype=np.float32).copy()
+                    for name, value in layers.items()
+                }
+                for task_id, layers in self.prototypes.items()
+            },
+        }
+
+    def load_state(self, state: Optional[Dict[str, object]]) -> None:
+        """Restore a snapshot created by :meth:`get_state`."""
+        state = state or {}
+        self.layer_weights = {
+            str(k): float(v)
+            for k, v in (state.get("layer_weights") or self.layer_weights).items()
+        }
+        raw_thresholds = state.get("thresholds")
+        self.thresholds = (
+            None
+            if raw_thresholds is None
+            else {str(k): float(v) for k, v in raw_thresholds.items()}
+        )
+        self.prototypes = {
+            int(task_id): {
+                str(name): np.asarray(value, dtype=np.float32).copy()
+                for name, value in (layers or {}).items()
+            }
+            for task_id, layers in (state.get("prototypes") or {}).items()
+        }
+
+    def clone(self) -> "NoveltyEstimator":
+        clone = NoveltyEstimator(layer_weights=self.layer_weights)
+        clone.load_state(self.get_state())
+        return clone
+
     # ------------------------------------------------------------------
     def novelty_from_prototype(
         self, proto: Dict[str, np.ndarray], exclude_task: Optional[int] = None

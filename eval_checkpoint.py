@@ -605,10 +605,32 @@ def _build_coverage_aware_partitions(
         "unsupported_sample_count_by_episode": unsupported_by_episode,
         "unsupported_sample_count": int(sum(unsupported_by_episode.values())),
         "assigned_sample_count": int(assigned_count),
+        "requested_sample_count": int(len(test_y)),
+        "coverage_rate": float(assigned_count / max(1, len(test_y))),
         "coverage_by_client": {
             str(cid): coverage_by_client[int(cid)] for cid in client_ids
         },
     }
+
+
+def _validate_coverage_partition(
+    protocol_debug: Dict[str, Any], *, allow_partial_coverage: bool
+) -> None:
+    """Fail closed unless the caller explicitly accepts a partial denominator."""
+    unsupported = int(protocol_debug.get("unsupported_sample_count", 0))
+    assigned = int(protocol_debug.get("assigned_sample_count", 0))
+    requested = int(protocol_debug.get("requested_sample_count", assigned))
+    if unsupported == 0 and assigned == requested:
+        protocol_debug["partial_coverage"] = False
+        return
+    protocol_debug["partial_coverage"] = True
+    if not allow_partial_coverage:
+        raise ValueError(
+            "coverage-aware evaluation has incomplete support: "
+            f"assigned={assigned}/{requested}, unsupported={unsupported}. "
+            "Pass allow_partial_coverage=True (or --allow-partial-coverage) "
+            "only when reporting the reduced denominator explicitly."
+        )
 
 
 def _select_class_balanced_test_indices(
@@ -763,7 +785,9 @@ def _evaluate_denice_partitioned_clients(
             X_batch = X_partition[start : start + batch_size].to(device)
             y_batch = y_partition[start : start + batch_size].to(device)
             oracle_episodes = None
-            if inference_policy in {"oracle_adapter_nomask", "oracle_hard"}:
+            if inference_policy in {
+                "oracle_adapter_nomask", "oracle_hard", "oracle_hard_no_adapter"
+            }:
                 if not class_to_episode:
                     raise ValueError("oracle evaluation needs a class-to-episode map")
                 oracle_episodes = np.asarray(
@@ -772,7 +796,7 @@ def _evaluate_denice_partitioned_clients(
                 )
                 if np.any(oracle_episodes < 0):
                     raise ValueError("oracle evaluation encountered an unmapped test class")
-                if inference_policy == "oracle_hard":
+                if inference_policy in {"oracle_hard", "oracle_hard_no_adapter"}:
                     for label, episode in zip(y_batch.cpu().tolist(), oracle_episodes):
                         allowed = context_detector.episode_classes.get(int(episode), [])
                         if int(label) not in {int(cls) for cls in allowed}:
@@ -901,6 +925,7 @@ def evaluate_checkpoint(
     inference_policy: str | None = None,
     samples_per_class: int | None = None,
     class_balanced_with_replacement: bool = False,
+    allow_partial_coverage: bool = False,
 ) -> Dict[str, Any]:
     ckpt = _load_checkpoint(checkpoint_path)
     config = dict(ckpt["config"])
@@ -973,6 +998,10 @@ def evaluate_checkpoint(
                     data_loader.task_classes,
                     coverage_by_client,
                     seed=int(eval_seed) + int(task_id),
+                )
+                _validate_coverage_partition(
+                    protocol_debug,
+                    allow_partial_coverage=bool(allow_partial_coverage),
                 )
             protocol_debug = dict(protocol_debug or {})
             protocol_debug["evaluation_sampling"] = sampling_debug
@@ -1210,6 +1239,11 @@ def main() -> None:
         action="store_true",
         help="Allow repeated source examples when a class has fewer than --samples-per-class examples.",
     )
+    parser.add_argument(
+        "--allow-partial-coverage",
+        action="store_true",
+        help="Allow coverage-aware local metrics to omit unsupported samples; result is marked partial.",
+    )
     parser.add_argument("--eval-seed", type=int, default=42)
     parser.add_argument(
         "--inference-policy",
@@ -1219,6 +1253,7 @@ def main() -> None:
             "pred_adapter_nomask",
             "oracle_adapter_nomask",
             "oracle_hard",
+            "oracle_hard_no_adapter",
             "backbone_nomask",
         ],
         help="Component-isolation policy; requires partitioned or coverage-aware local evaluation.",
@@ -1293,6 +1328,7 @@ def main() -> None:
             inference_policy=args.inference_policy,
             samples_per_class=args.samples_per_class,
             class_balanced_with_replacement=args.class_balanced_with_replacement,
+            allow_partial_coverage=args.allow_partial_coverage,
         )
         for mode in modes
     }

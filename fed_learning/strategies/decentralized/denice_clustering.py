@@ -232,8 +232,17 @@ def build_similarity_matrix(
     weights: SimilarityWeights,
     delta_sim: float,
     config: Optional[ClusteringConfig] = None,
+    *,
+    return_details: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Return sparse similarity matrix S and context graph E."""
+    """Return sparse similarity matrix ``S`` and context graph ``E``.
+
+    ``return_details=True`` additionally returns the dense, *adaptive-weighted*
+    score matrix and its provenance.  The sparse matrix is deliberately not a
+    suitable aggregation score source: non-edges are encoded as ``LARGE_NEG``.
+    Keeping the dense score matrix alongside it lets aggregation use exactly
+    the same adaptive similarity definition that formed the graph.
+    """
     config = config or ClusteringConfig(delta_sim=delta_sim)
     n = len(capsules)
     raw_scores = np.full((n, n), LARGE_NEG, dtype=np.float64)
@@ -262,17 +271,31 @@ def build_similarity_matrix(
 
     finite_scores = raw_scores[(raw_scores > LARGE_NEG / 2) & np.isfinite(raw_scores)]
     if finite_scores.size == 0:
-        return raw_scores, np.zeros((n, n), dtype=np.int8)
-    if delta_sim > 0:
-        threshold = float(delta_sim)
+        threshold = None
+        E = np.zeros((n, n), dtype=np.int8)
     else:
-        q = min(0.99, max(0.0, float(config.edge_quantile)))
-        threshold = float(np.quantile(finite_scores, q))
+        if delta_sim > 0:
+            threshold = float(delta_sim)
+        else:
+            q = min(0.99, max(0.0, float(config.edge_quantile)))
+            threshold = float(np.quantile(finite_scores, q))
+        E = _sparse_edges(raw_scores, threshold, int(config.edge_top_k))
 
-    E = _sparse_edges(raw_scores, threshold, int(config.edge_top_k))
     S = np.full((n, n), LARGE_NEG, dtype=np.float64)
     S[E.astype(bool)] = raw_scores[E.astype(bool)]
-    return S, E
+    if not return_details:
+        return S, E
+    return S, E, {
+        "effective_similarity": raw_scores,
+        "effective_weights": {
+            name: float(getattr(effective, name))
+            for name in (
+                "proto", "age", "importance", "label", "capacity",
+                "reliability", "update",
+            )
+        },
+        "similarity_threshold": threshold,
+    }
 
 
 def affinity_propagation(
@@ -425,7 +448,26 @@ def dynamic_ap_cluster(
             "valid": False,
         }
 
-    S, E = build_similarity_matrix(capsules, weights, config.delta_sim, config=config)
+    built = build_similarity_matrix(
+        capsules, weights, config.delta_sim, config=config, return_details=True
+    )
+    # Preserve compatibility with callers/tests that monkeypatch the legacy
+    # two-value builder.  Real clustering always returns the provenance below.
+    if len(built) == 3:
+        S, E, similarity_details = built
+    else:
+        S, E = built
+        similarity_details = {
+            "effective_similarity": S.copy(),
+            "effective_weights": {
+                name: float(getattr(weights, name))
+                for name in (
+                    "proto", "age", "importance", "label", "capacity",
+                    "reliability", "update",
+                )
+            },
+            "similarity_threshold": None,
+        }
     valid = S[E.astype(bool)]
     p0 = float(np.median(valid)) if valid.size > 0 else 0.0
     counts = np.array([max(1, c.sample_count) for c in capsules], dtype=np.float64)
@@ -449,6 +491,9 @@ def dynamic_ap_cluster(
         "K_t": k_t,
         "silhouette": sil,
         "similarity": S,
+        "effective_similarity": similarity_details["effective_similarity"],
+        "effective_weights": similarity_details["effective_weights"],
+        "similarity_threshold": similarity_details["similarity_threshold"],
         "edges": E,
         "valid": bool(is_valid),
     }
