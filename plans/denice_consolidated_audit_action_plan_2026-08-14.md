@@ -26,6 +26,11 @@ Larger D1 cần GPU để chạy ở budget đã preregister; môi trường loc
 có CUDA. Artifact D1 smoke cũ là legacy protocol và validator cố ý từ chối nó
 vì thiếu coverage provenance cùng E3 semantic mới.
 
+Một strict re-evaluation đã chạy trên checkpoint D1 smoke peer-default cũ:
+coverage 1,800/1,800 hợp lệ, nhưng adapter active 0/1,800 samples và
+E3=E3b. Readout nằm trong artifact run; nó xác nhận checkpoint này không thể
+là bằng chứng cho adapter/D2, nhưng không thay thế Stage 1 full seed-42.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
