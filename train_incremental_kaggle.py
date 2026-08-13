@@ -329,6 +329,12 @@ CONFIG = {
     "denice_require_label_overlap": True,
     "denice_centroid_gate_threshold": 0.75,
     "denice_cluster_delta_sim": 0.0,
+    # results.zip: 114/114 raw AP rounds were in [0.2365, 0.4221]; 0.5
+    # rejected all of them and silently reduced training to local-only.
+    "denice_cluster_theta_s": 0.20,
+    "denice_cluster_edge_top_k": 40,
+    "denice_cluster_edge_quantile": 0.25,
+    "denice_cluster_min_signal_std": 0.02,
     # Invalid AP output must never drive neighbor aggregation.  A compatible
     # prior valid assignment is reused; otherwise every client is self-only.
     "denice_cluster_invalid_policy": "previous_valid_or_self_only",

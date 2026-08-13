@@ -592,6 +592,65 @@ class TestDecentralized:
         assert result["K_t"] >= 1
         assert result["labels"].shape == (4,)
 
+    def test_observed_silhouette_is_valid_at_calibrated_threshold(self, monkeypatch):
+        import fed_learning.strategies.decentralized.denice_clustering as clustering
+
+        caps = [self._capsule(i, [0, 1], proto_seed=i) for i in range(4)]
+        similarity = np.ones((4, 4), dtype=np.float64)
+        edges = np.ones((4, 4), dtype=np.int8)
+        np.fill_diagonal(edges, 0)
+        monkeypatch.setattr(
+            clustering,
+            "build_similarity_matrix",
+            lambda *_args, **_kwargs: (similarity, edges),
+        )
+        monkeypatch.setattr(
+            clustering,
+            "affinity_propagation",
+            lambda *_args, **_kwargs: (np.array([0, 0, 1, 1]), [0, 2]),
+        )
+        monkeypatch.setattr(
+            clustering,
+            "silhouette_score_from_similarity",
+            lambda *_args, **_kwargs: 0.2365,
+        )
+
+        result = clustering.dynamic_ap_cluster(
+            caps, config=clustering.ClusteringConfig(theta_s=0.20)
+        )
+
+        assert result["valid"] is True
+        assert result["K_t"] == 2
+
+    def test_nan_silhouette_remains_invalid_after_threshold_calibration(self, monkeypatch):
+        import fed_learning.strategies.decentralized.denice_clustering as clustering
+
+        caps = [self._capsule(i, [0, 1], proto_seed=i) for i in range(4)]
+        similarity = np.ones((4, 4), dtype=np.float64)
+        edges = np.ones((4, 4), dtype=np.int8)
+        np.fill_diagonal(edges, 0)
+        monkeypatch.setattr(
+            clustering,
+            "build_similarity_matrix",
+            lambda *_args, **_kwargs: (similarity, edges),
+        )
+        monkeypatch.setattr(
+            clustering,
+            "affinity_propagation",
+            lambda *_args, **_kwargs: (np.array([0, 0, 1, 1]), [0, 2]),
+        )
+        monkeypatch.setattr(
+            clustering,
+            "silhouette_score_from_similarity",
+            lambda *_args, **_kwargs: float("nan"),
+        )
+
+        result = clustering.dynamic_ap_cluster(
+            caps, config=clustering.ClusteringConfig(theta_s=0.20)
+        )
+
+        assert result["valid"] is False
+
     def test_class_prototype_similarity_requires_shared_class(self):
         from fed_learning.strategies.decentralized import (
             ContextCapsule,
