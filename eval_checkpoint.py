@@ -611,6 +611,76 @@ def _build_coverage_aware_partitions(
     }
 
 
+def _select_class_balanced_test_indices(
+    test_y: torch.Tensor,
+    *,
+    samples_per_class: int,
+    seed: int,
+    with_replacement: bool = False,
+) -> tuple[torch.Tensor, Dict[str, Any]]:
+    """Build a reproducible equal-support test subset across observed classes.
+
+    The original global IDS test split is heavily class-imbalanced.  This helper
+    makes the support of every evaluated class explicit before samples are
+    assigned to coverage-compatible clients.  Sampling with replacement is
+    opt-in: it is useful when a fixed, larger quota is required despite rare
+    test classes, and the returned provenance makes repeated source examples
+    visible in every result artifact.
+    """
+    quota = int(samples_per_class)
+    if quota <= 0:
+        raise ValueError("samples_per_class must be positive")
+    if test_y.ndim != 1:
+        raise ValueError("test_y must be a one-dimensional label tensor")
+
+    generator = torch.Generator().manual_seed(int(seed))
+    selected: list[torch.Tensor] = []
+    source_support: Dict[str, int] = {}
+    selected_support: Dict[str, int] = {}
+    for class_id in sorted(int(label) for label in torch.unique(test_y).tolist()):
+        candidates = torch.nonzero(test_y == int(class_id), as_tuple=False).flatten()
+        available = int(candidates.numel())
+        source_support[str(class_id)] = available
+        if available < quota and not with_replacement:
+            raise ValueError(
+                "class-balanced evaluation needs "
+                f"{quota} examples for class {class_id}, but only {available} are available; "
+                "lower --samples-per-class or use --class-balanced-with-replacement"
+            )
+        if available == 0:
+            raise ValueError(f"class-balanced evaluation found no examples for class {class_id}")
+        if with_replacement:
+            choice = torch.randint(available, (quota,), generator=generator)
+            chosen = candidates[choice]
+        else:
+            chosen = candidates[torch.randperm(available, generator=generator)[:quota]]
+        selected.append(chosen)
+        selected_support[str(class_id)] = int(chosen.numel())
+
+    indices = torch.cat(selected) if selected else torch.empty(0, dtype=torch.long)
+    # Avoid an ordering artifact where every class is processed consecutively.
+    if indices.numel() > 1:
+        indices = indices[torch.randperm(indices.numel(), generator=generator)]
+    unique_count = int(torch.unique(indices).numel())
+    return indices, {
+        "sampling_protocol": (
+            "class_balanced_global_test_with_replacement"
+            if with_replacement
+            else "class_balanced_global_test_without_replacement"
+        ),
+        "selection_seed": int(seed),
+        "requested_samples_per_class": quota,
+        "with_replacement": bool(with_replacement),
+        "source_support_by_class": source_support,
+        "selected_support_by_class": selected_support,
+        "selected_sample_count": int(indices.numel()),
+        "unique_source_sample_count": unique_count,
+        "source_index_sha256": hashlib.sha256(
+            indices.detach().cpu().numpy().astype(np.int64, copy=False).tobytes()
+        ).hexdigest(),
+    }
+
+
 @torch.no_grad()
 def _evaluate_denice_partitioned_clients(
     ckpt: Dict[str, Any],
@@ -791,6 +861,10 @@ def _evaluate_denice_partitioned_clients(
             key=lambda row: (row["route_accuracy"], -row["sample_count"]),
         )[:10],
     }
+    per_episode_router_recall = {
+        true_episode: float(row.get(true_episode, 0) / max(1, sum(row.values())))
+        for true_episode, row in sorted(route_confusion.items(), key=lambda item: int(item[0]))
+    }
     return {
         "loss": total_loss / max(1, len(y_true)),
         "accuracy": accuracy_score(y_true, y_pred),
@@ -800,6 +874,7 @@ def _evaluate_denice_partitioned_clients(
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
         "route_accuracy": route_correct / route_total if route_total else 0.0,
         "route_coverage": route_total / len(y_true) if len(y_true) else 0.0,
+        "per_episode_router_recall": per_episode_router_recall,
         "partition_protocol": protocol_name,
         "partition_seed": seed,
         "partition_count": len(client_ids),
@@ -824,6 +899,8 @@ def evaluate_checkpoint(
     max_samples: int | None = None,
     eval_seed: int = 42,
     inference_policy: str | None = None,
+    samples_per_class: int | None = None,
+    class_balanced_with_replacement: bool = False,
 ) -> Dict[str, Any]:
     ckpt = _load_checkpoint(checkpoint_path)
     config = dict(ckpt["config"])
@@ -837,10 +914,35 @@ def evaluate_checkpoint(
     data_loader = IncrementalDataLoader(data_dir=data_dir)
     test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
     total_test_samples = int(len(test_y))
-    if max_samples is not None and 0 < int(max_samples) < len(test_y):
+    sampling_debug: Dict[str, Any] = {
+        "sampling_protocol": "full_cumulative_global_test",
+        "selected_sample_count": int(len(test_y)),
+        "unique_source_sample_count": int(len(test_y)),
+    }
+    if samples_per_class is not None and max_samples is not None:
+        raise ValueError("max_samples and samples_per_class cannot be used together")
+    if samples_per_class is not None:
+        indices, sampling_debug = _select_class_balanced_test_indices(
+            test_y,
+            samples_per_class=int(samples_per_class),
+            seed=int(eval_seed) + int(task_id),
+            with_replacement=bool(class_balanced_with_replacement),
+        )
+        test_X, test_y = test_X[indices], test_y[indices]
+    elif max_samples is not None and 0 < int(max_samples) < len(test_y):
         generator = torch.Generator().manual_seed(int(eval_seed) + int(task_id))
         indices = torch.randperm(len(test_y), generator=generator)[: int(max_samples)]
         test_X, test_y = test_X[indices], test_y[indices]
+        sampling_debug = {
+            "sampling_protocol": "uniform_random_global_test_without_replacement",
+            "selection_seed": int(eval_seed) + int(task_id),
+            "requested_max_samples": int(max_samples),
+            "selected_sample_count": int(len(test_y)),
+            "unique_source_sample_count": int(len(test_y)),
+            "source_index_sha256": hashlib.sha256(
+                indices.detach().cpu().numpy().astype(np.int64, copy=False).tobytes()
+            ).hexdigest(),
+        }
 
     if ckpt.get("algorithm") == "denice" and "client_model_states" in ckpt:
         client_ids = [
@@ -872,6 +974,8 @@ def evaluate_checkpoint(
                     coverage_by_client,
                     seed=int(eval_seed) + int(task_id),
                 )
+            protocol_debug = dict(protocol_debug or {})
+            protocol_debug["evaluation_sampling"] = sampling_debug
             metrics = _evaluate_denice_partitioned_clients(
                 ckpt,
                 client_ids,
@@ -912,6 +1016,7 @@ def evaluate_checkpoint(
                 "eval_sample_count": int(len(test_y)),
                 "eval_total_sample_count": total_test_samples,
                 "eval_seed": int(eval_seed),
+                "evaluation_sampling": sampling_debug,
             }
         if evaluation_mode in {"ensemble", "representative"}:
             pairs = []
@@ -999,6 +1104,7 @@ def evaluate_checkpoint(
                 "eval_sample_count": int(len(test_y)),
                 "eval_total_sample_count": total_test_samples,
                 "eval_seed": int(eval_seed),
+                "evaluation_sampling": sampling_debug,
             }
 
         per_client = []
@@ -1053,6 +1159,7 @@ def evaluate_checkpoint(
             "eval_sample_count": int(len(test_y)),
             "eval_total_sample_count": total_test_samples,
             "eval_seed": int(eval_seed),
+            "evaluation_sampling": sampling_debug,
         }
 
     model, context_detector = _make_model(ckpt, device)
@@ -1092,6 +1199,17 @@ def main() -> None:
         ],
     )
     parser.add_argument("--max-samples", type=int, default=None)
+    parser.add_argument(
+        "--samples-per-class",
+        type=int,
+        default=None,
+        help="Evaluate an equal, deterministic number of examples from every observed class.",
+    )
+    parser.add_argument(
+        "--class-balanced-with-replacement",
+        action="store_true",
+        help="Allow repeated source examples when a class has fewer than --samples-per-class examples.",
+    )
     parser.add_argument("--eval-seed", type=int, default=42)
     parser.add_argument(
         "--inference-policy",
@@ -1173,6 +1291,8 @@ def main() -> None:
             max_samples=args.max_samples,
             eval_seed=args.eval_seed,
             inference_policy=args.inference_policy,
+            samples_per_class=args.samples_per_class,
+            class_balanced_with_replacement=args.class_balanced_with_replacement,
         )
         for mode in modes
     }

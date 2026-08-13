@@ -51,6 +51,12 @@ def _compact(result: Dict[str, Any]) -> Dict[str, Any]:
         "config_sha256": result.get("config_sha256"),
         "eval_sample_count": result.get("eval_sample_count"),
         "eval_total_sample_count": result.get("eval_total_sample_count"),
+        "evaluation_sampling": result.get("evaluation_sampling"),
+        "per_episode_router_recall": metrics.get("per_episode_router_recall", {}),
+        "per_class_recall": {
+            class_id: values.get("accuracy")
+            for class_id, values in metrics.get("debug", {}).get("per_class", {}).items()
+        },
     }
 
 
@@ -62,6 +68,17 @@ def main() -> None:
     parser.add_argument("--device", default=None)
     parser.add_argument("--seed", type=int, required=True, help="Evaluation/test assignment seed")
     parser.add_argument("--max-samples", type=int, default=None)
+    parser.add_argument(
+        "--samples-per-class",
+        type=int,
+        default=None,
+        help="Use a fixed, equal class support for every policy and protocol.",
+    )
+    parser.add_argument(
+        "--class-balanced-with-replacement",
+        action="store_true",
+        help="Permit repeated source examples for rare classes under --samples-per-class.",
+    )
     parser.add_argument(
         "--protocols",
         default="coverage_aware_local,representative_global",
@@ -86,6 +103,8 @@ def main() -> None:
                 evaluation_mode=protocol,
                 eval_seed=args.seed,
                 max_samples=args.max_samples,
+                samples_per_class=args.samples_per_class,
+                class_balanced_with_replacement=args.class_balanced_with_replacement,
                 router_mode="multiclass",
                 route_mode=overrides.get("route_mode", "hard"),
                 route_topk=int(overrides.get("route_topk", 1)),

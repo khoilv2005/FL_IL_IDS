@@ -9,6 +9,7 @@ from collections import OrderedDict
 import json
 
 import numpy as np
+import pytest
 import torch
 
 from fed_learning.models.denice_model import (
@@ -1469,6 +1470,38 @@ class TestDeNICEEvaluation:
         assert set(test_y[partitions[10]].tolist()).issubset({0, 1})
         assert set(test_y[partitions[20]].tolist()).issubset({2, 3})
         assert sum(len(indices) for indices in partitions.values()) == len(test_y)
+
+    def test_class_balanced_test_subset_has_fixed_reproducible_support(self):
+        import eval_checkpoint
+
+        labels = torch.tensor([0, 0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=torch.long)
+        first, first_debug = eval_checkpoint._select_class_balanced_test_indices(
+            labels, samples_per_class=3, seed=19
+        )
+        second, second_debug = eval_checkpoint._select_class_balanced_test_indices(
+            labels, samples_per_class=3, seed=19
+        )
+
+        assert torch.equal(first, second)
+        assert first_debug == second_debug
+        assert torch.bincount(labels[first], minlength=3).tolist() == [3, 3, 3]
+        assert first_debug["sampling_protocol"] == "class_balanced_global_test_without_replacement"
+        assert first_debug["unique_source_sample_count"] == 9
+
+    def test_class_balanced_test_subset_requires_quota_or_explicit_replacement(self):
+        import eval_checkpoint
+
+        labels = torch.tensor([0, 0, 1], dtype=torch.long)
+        with pytest.raises(ValueError, match="class-balanced evaluation needs 2 examples for class 1"):
+            eval_checkpoint._select_class_balanced_test_indices(
+                labels, samples_per_class=2, seed=3
+            )
+        indices, debug = eval_checkpoint._select_class_balanced_test_indices(
+            labels, samples_per_class=2, seed=3, with_replacement=True
+        )
+        assert torch.bincount(labels[indices], minlength=2).tolist() == [2, 2]
+        assert debug["unique_source_sample_count"] < len(indices)
+        assert debug["with_replacement"] is True
 
     def test_partitioned_local_eval_uses_each_global_sample_once(self, monkeypatch):
         import eval_checkpoint
