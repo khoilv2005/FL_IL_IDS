@@ -20,6 +20,8 @@
   định D2 có bằng chứng.
 - mỗi round ghi CANC action reachability/pressure terms và NICE full-output CE
   so với learner-only diagnostic; chưa thay objective từ các diagnostic này.
+- launcher D1 tạo `d1_decision_report.json`; D2 chỉ mở khi strict protocol,
+  chênh E3 macro-F1 >=1 pp, unsupported-row drift, và seed xác nhận cùng đạt.
 
 Stage 1 đầy đủ vẫn cần checkpoint full seed-42 từ audit hoặc một full run mới.
 Larger D1 cần GPU để chạy ở budget đã preregister; môi trường local hiện không
