@@ -1116,7 +1116,9 @@ class TestDeNICEEvaluation:
         with torch.no_grad():
             model.conv1.weight.add_(0.5)
         detector.mark_router_stale("test_model_change")
-        summary = detector.refresh_activation_memory(model, task_id=1, round_id=4)
+        summary = detector.refresh_activation_memory(
+            model, task_id=1, round_id=4, batch_size=3
+        )
 
         assert summary["refreshed_episode_count"] == 2
         assert summary["reference_sample_count"] == 16
@@ -1135,6 +1137,54 @@ class TestDeNICEEvaluation:
         assert restored.router_state_fresh is True
         assert restored.router_last_refresh_task == 1
         assert restored.router_last_refresh_round == 4
+
+    def test_vectorized_binary_activation_matches_legacy_list_conversion(self):
+        from fed_learning.servers.nice_server import ContextDetector
+
+        model = _make_model().eval()
+        detector = ContextDetector(memo_per_class=4)
+        data = _dummy_batch(7)
+        acts = model.get_context_activations_per_sample(data)
+        legacy = detector.binarize_layer_activations(
+            {
+                name: np.asarray(value.detach().cpu().tolist())
+                for name, value in acts.items()
+            }
+        )
+        vectorized = detector._binarize_per_sample(model, data)
+
+        assert np.array_equal(vectorized, legacy)
+
+    def test_router_reference_quota_is_separate_from_novelty_memory(self):
+        from fed_learning.servers.nice_server import ContextDetector
+        from fed_learning.training.local_task_loop import (
+            _update_local_nice_context_memory,
+        )
+
+        model = _make_model()
+        detector = ContextDetector(
+            memo_per_class=50,
+            router_reference_per_class=2,
+            router_mode="multiclass",
+        )
+        data = _dummy_batch(12)
+        labels = torch.tensor([0] * 6 + [1] * 6)
+        profile = _update_local_nice_context_memory(
+            detector,
+            model,
+            data,
+            labels,
+            task_id=0,
+            task_classes=[0, 1],
+            device="cpu",
+            fit_router=False,
+        )
+
+        assert detector.memo_per_class == 50
+        assert detector.router_reference_per_class == 2
+        assert profile["reference_sample_count"] == 4
+        assert detector.reference_input_memory[0].shape[0] == 4
+        assert detector.router_state_fresh is False
 
     def test_old_checkpoint_without_freshness_metadata_restores_as_stale(self):
         from fed_learning.servers.nice_server import ContextDetector

@@ -315,6 +315,8 @@ CONFIG = {
     # so the router never compares final-model activations with stale sketches.
     "denice_refresh_router_memory_after_aggregation": True,
     "denice_router_update_schedule": "task_end",
+    "denice_router_reference_per_class": 20,
+    "denice_router_refresh_batch_size": 2048,
 
     # DeNICE decentralized aggregation (Đề xuất §6-§7). Mặc định giữ hành vi cũ.
     # denice_aggregation_method: "weighted_mean" | "coordinate_median" | "trimmed_mean"

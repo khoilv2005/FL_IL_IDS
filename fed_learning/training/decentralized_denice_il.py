@@ -1411,6 +1411,18 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     use_shared_context = bool(config.get("denice_shared_context_eval", True))
     shared_context_scope = str(config.get("denice_shared_context_scope", "cluster")).lower()
     denice_router_mode = str(config.get("denice_router_mode", "chained")).lower()
+    router_reference_per_class = max(
+        1,
+        int(
+            config.get(
+                "denice_router_reference_per_class",
+                config.get("nice_memo_per_class", config.get("memo_per_class", 50)),
+            )
+        ),
+    )
+    router_refresh_batch_size = max(
+        1, int(config.get("denice_router_refresh_batch_size", 2048))
+    )
     shared_context_require_compatible_calibration = bool(
         config.get("denice_shared_context_require_compatible_calibration", True)
     )
@@ -1512,6 +1524,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         context_detectors[cid] = ContextDetector(
                             memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))),
                             router_mode=denice_router_mode,
+                            router_reference_per_class=router_reference_per_class,
                         )
                         bootstrap_events.append(
                             {
@@ -1531,6 +1544,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         context_detectors[cid] = ContextDetector(
                             memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))),
                             router_mode=denice_router_mode,
+                            router_reference_per_class=router_reference_per_class,
                         )
                         # The new model is an exact clone at this point, so the
                         # source detector's sketches/calibration are compatible.
@@ -1816,7 +1830,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             if should_refresh_router:
                 for cid in active_ids:
                     router_refresh[int(cid)] = context_detectors[cid].refresh_activation_memory(
-                        models[cid], task_id=task_id, round_id=round_id
+                        models[cid],
+                        task_id=task_id,
+                        round_id=round_id,
+                        batch_size=router_refresh_batch_size,
                     )
             router_refresh_time = time.perf_counter() - router_refresh_start
             router_refresh_encode_time = sum(

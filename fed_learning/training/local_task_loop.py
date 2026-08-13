@@ -946,7 +946,16 @@ def _update_local_nice_context_memory(
 
     sample_start = time.perf_counter()
     context_detector.episode_classes[task_id] = list(task_classes)
-    per_class = max(1, int(getattr(context_detector, "memo_per_class", 50)))
+    per_class = max(
+        1,
+        int(
+            getattr(
+                context_detector,
+                "router_reference_per_class",
+                getattr(context_detector, "memo_per_class", 50),
+            )
+        ),
+    )
     chunks = []
     y_cpu = y_train.detach().cpu()
 

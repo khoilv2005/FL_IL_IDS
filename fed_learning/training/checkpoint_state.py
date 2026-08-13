@@ -37,6 +37,11 @@ def snapshot_context_detector(context_detector: Any) -> Optional[Dict[str, Any]]
         return None
     return {
         "memo_per_class": getattr(context_detector, "memo_per_class", 50),
+        "router_reference_per_class": getattr(
+            context_detector,
+            "router_reference_per_class",
+            getattr(context_detector, "memo_per_class", 50),
+        ),
         "router_mode": getattr(context_detector, "router_mode", "chained"),
         "calibration_provenance": getattr(
             context_detector, "calibration_provenance", None
@@ -78,6 +83,9 @@ def restore_context_detector(context_detector: Any, state: Optional[Dict[str, An
     if context_detector is None or not state:
         return
     context_detector.memo_per_class = int(state.get("memo_per_class", 50))
+    context_detector.router_reference_per_class = int(
+        state.get("router_reference_per_class", context_detector.memo_per_class)
+    )
     context_detector.router_mode = str(state.get("router_mode", "chained")).lower()
     context_detector.calibration_provenance = state.get("calibration_provenance")
     context_detector.activation_memory = _clone_value(

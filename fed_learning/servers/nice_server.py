@@ -55,6 +55,7 @@ class ContextDetector:
         memo_per_class: int = 50,
         router_mode: str = "chained",
         calibration_provenance: Optional[str] = None,
+        router_reference_per_class: Optional[int] = None,
     ):
         """Khởi tạo bộ nhớ activation và các bộ phân loại context theo episode.
 
@@ -68,6 +69,14 @@ class ContextDetector:
           old classes as the number of episodes grows.
         """
         self.memo_per_class = memo_per_class
+        self.router_reference_per_class = max(
+            1,
+            int(
+                memo_per_class
+                if router_reference_per_class is None
+                else router_reference_per_class
+            ),
+        )
         self.router_mode = str(router_mode or "chained").lower()
         self.activation_memory: Dict[int, np.ndarray] = {}
         # Small, client-local raw reference bank used only to re-encode router
@@ -135,7 +144,7 @@ class ContextDetector:
         """
         model.eval()
         layer_acts = {
-            name: np.asarray(act.detach().cpu().tolist())
+            name: act.detach().cpu().numpy()
             for name, act in model.get_context_activations_per_sample(data).items()
         }
         return self.binarize_layer_activations(layer_acts)
@@ -210,14 +219,15 @@ class ContextDetector:
         self.context_masks[episode] = self._get_context_mask(model)
         if reference_data is not None and len(reference_data):
             self.reference_input_memory[int(episode)] = np.asarray(
-                reference_data.detach().cpu().tolist(), dtype=np.float32
-            )
+                reference_data.detach().cpu().numpy(), dtype=np.float32
+            ).copy()
 
     def refresh_activation_memory(
         self,
         model: NICEModel,
         task_id: Optional[int] = None,
         round_id: Optional[int] = None,
+        batch_size: Optional[int] = None,
     ) -> Dict[str, float]:
         """Re-encode saved local router references with the current model.
 
@@ -238,7 +248,18 @@ class ContextDetector:
             inputs = torch.as_tensor(raw_inputs, dtype=torch.float32, device=device)
             if len(inputs) == 0:
                 continue
-            self.activation_memory[int(episode)] = self._binarize_per_sample(model, inputs)
+            effective_batch_size = (
+                len(inputs)
+                if batch_size is None or int(batch_size) <= 0
+                else max(1, int(batch_size))
+            )
+            binary_chunks = [
+                self._binarize_per_sample(model, inputs[start:start + effective_batch_size])
+                for start in range(0, len(inputs), effective_batch_size)
+            ]
+            self.activation_memory[int(episode)] = np.concatenate(
+                binary_chunks, axis=0
+            )
             refreshed += 1
             samples += int(len(inputs))
         encode_time = time.perf_counter() - encode_start
