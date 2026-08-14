@@ -73,6 +73,12 @@ Class-balanced sampler cũng không có lợi ích (CI chứa 0). Decision hợp
 `KEEP_BASELINE`: D3 không thay objective/sampler của full run. Chuyển sang D4
 baseline-reserve branch tại task 5 khi có full continuation task 4.
 
+**D4 base seed-42 đã hoàn tất hợp lệ (artifact `results.zip`):** baseline đã
+chạy tasks 0--4 với 25 round records và tạo
+`continuation_state_task_4.pt`. Validator pass; warning không có P6 là expected
+vì đây chỉ là shared checkpoint preparation, không phải endpoint đánh giá.
+Hai nhánh D4 task-5 (`reserve_010`, `reserve_000`) hiện dùng đúng artifact này.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
