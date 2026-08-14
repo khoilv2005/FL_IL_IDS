@@ -79,6 +79,14 @@ chạy tasks 0--4 với 25 round records và tạo
 vì đây chỉ là shared checkpoint preparation, không phải endpoint đánh giá.
 Hai nhánh D4 task-5 (`reserve_010`, `reserve_000`) hiện dùng đúng artifact này.
 
+**D4 seed-42 đã hoàn tất hợp lệ (artifact `results (2).zip`):** cả hai branch
+pass strict validator, cùng 30 round-history records và strict coverage. E3
+macro-F1 đều 0.319316, E4 macro-F1 đều 0.245002 (route accuracy 0.51853), nên
+reserve 0.10 không cải thiện plasticity/new-class metric. Nó chỉ giữ free
+capacity khoảng 10% ở mọi layer (ví dụ client 0), trong khi reserve 0.00 dùng
+hết capacity; adapter usage giống nhau. Theo gate D4, chọn `reserve_000` cho
+bước sau vì reserve 0.10 không có lợi ích metric chứng minh được.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
