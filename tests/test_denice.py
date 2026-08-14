@@ -1292,6 +1292,39 @@ class TestDecentralized:
         assert row["peer_alpha_supported"] > 0.0
         assert row["peer_alpha_unsupported"] == 0.0
 
+    def test_d2_keeps_plastic_fc2_row_when_peer_lacks_the_class(self, monkeypatch):
+        import fed_learning.training.decentralized_denice_il as runner
+
+        models = {cid: _make_model() for cid in range(2)}
+        for model in models.values():
+            model.unit_ranks["fc2"][1] = 1
+        with torch.no_grad():
+            models[0].fc2.weight[1].zero_()
+            models[1].fc2.weight[1].fill_(7.0)
+            models[0].fc1.weight.zero_()
+            models[1].fc1.weight.fill_(3.0)
+        row_before = models[0].fc2.weight[1].detach().clone()
+        fc1_before = models[0].fc1.weight.detach().clone()
+        capsules = {0: self._capsule(0, [0, 1], 1), 1: self._capsule(1, [0], 2)}
+        monkeypatch.setattr(
+            runner, "dynamic_ap_cluster", lambda *_args, **_kwargs: {
+                "labels": np.array([0, 0]), "edges": np.ones((2, 2), dtype=np.int8),
+                "valid": True, "K_t": 1, "silhouette": 0.3, "similarity": np.ones((2, 2)),
+                "effective_similarity": np.array([[0.0, 0.8], [0.8, 0.0]]),
+            }
+        )
+        summary = runner._aggregate_round(
+            client_ids=[0, 1], models=models, capsules=capsules,
+            config={"denice_selective_fc2_peer_rows": True}, device=torch.device("cpu"),
+        )
+        assert torch.allclose(models[0].fc2.weight[1], row_before)
+        assert not torch.allclose(models[0].fc1.weight, fc1_before)
+        protection = summary["selective_fc2_row_protection"]
+        assert protection["enabled"]
+        assert protection["blocked_row_count"] >= 1
+        row = next(item for item in protection["clients"][0] if item["class_id"] == 1)
+        assert row["blocked_peer_ids"] == [1]
+
     def test_self_only_ablation_blocks_peer_state_but_keeps_cluster_evidence(self, monkeypatch):
         """D1's control must not leak peer params, adapters, or ages."""
         import fed_learning.training.decentralized_denice_il as runner
@@ -2422,6 +2455,47 @@ class TestD6PeerAggregationAblation:
         report = analyze(manifest_path)
         assert report["decision"] == "PEER_HARM_CANDIDATE"
         assert report["deltas_self_only_minus_peer_pp"]["e3_macro_f1"] == pytest.approx(2.0)
+
+
+class TestD2SelectiveAggregationAblation:
+    def test_d2_analyzer_requires_blocked_class_gain_without_old_regression(self, tmp_path):
+        from tools.analyze_denice_d2 import analyze
+
+        manifest = {"seed": 42, "variants": {}}
+        recalls = {
+            "peer_default": {"0": 0.5, "1": 0.2, "30": 0.4},
+            "peer_supported_fc2": {"0": 0.5, "1": 0.3, "30": 0.4},
+        }
+        for name, e3, e4 in (("peer_default", 0.30, 0.22), ("peer_supported_fc2", 0.32, 0.23)):
+            root = tmp_path / name
+            evaluation = root / "d2_evaluation"
+            evaluation.mkdir(parents=True)
+            policy = lambda score, per_class: {
+                "f1_macro": score, "route_accuracy": 0.6, "per_class_recall": per_class,
+                "coverage_protocol": {"requested_sample_count": 10, "assigned_sample_count": 10,
+                                      "unsupported_sample_count": 0},
+                "evaluation_sampling": {"source_index_sha256": "fixed"},
+            }
+            (evaluation / "p6_evaluation_summary.json").write_text(json.dumps({
+                "summary": {"coverage_aware_local": {
+                    "e3_oracle_routed_system_ceiling": policy(e3, recalls[name]),
+                    "e4_pred_hard": policy(e4, recalls[name]),
+                }}
+            }), encoding="utf-8")
+            history = [{"selective_fc2_row_protection": {"clients": {"0": [
+                {"class_id": 1, "blocked": name == "peer_supported_fc2"}
+            ]}}}]
+            history_path = root / "cluster_history.json"
+            history_path.write_text(json.dumps(history), encoding="utf-8")
+            manifest["variants"][name] = {
+                "evaluation_summary": str(evaluation / "p6_evaluation_summary.json"),
+                "cluster_history": str(history_path),
+            }
+        manifest_path = tmp_path / "d2_manifest.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        report = analyze(manifest_path)
+        assert report["decision"] == "D2_CANDIDATE_FOR_CONFIRMATION_SEED"
+        assert report["blocked_class_ids"] == [1]
 
 
 # ---------------------------------------------------------------------------

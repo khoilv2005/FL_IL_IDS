@@ -1124,6 +1124,77 @@ def _build_round_capsule(
     )
 
 
+def _protect_plastic_fc2_rows_from_unsupported_peers(
+    *,
+    target_state: "OrderedDict[str, torch.Tensor]",
+    aggregated_state: "OrderedDict[str, torch.Tensor]",
+    target_ages: Dict[str, np.ndarray],
+    deltas: List["OrderedDict[str, torch.Tensor]"],
+    alphas: np.ndarray,
+    group_ids: List[int],
+    receiver_id: int,
+    capsules: Dict[int, Any],
+    eta: float,
+) -> Tuple["OrderedDict[str, torch.Tensor]", List[Dict[str, Any]]]:
+    """Reaggregate only plastic ``fc2`` class rows with supporting peers.
+
+    The generic DeNICE aggregation is kept for every other parameter.  For a
+    plastic output row ``c``, however, a peer without local class ``c`` support
+    cannot contribute its delta.  The remaining self/supporting-peer weights
+    are renormalized so blocked alpha becomes an explicit self update rather
+    than an unintended learning-rate reduction.
+    """
+    protected = OrderedDict((name, value.detach().clone()) for name, value in aggregated_state.items())
+    ranks = np.asarray(target_ages.get("fc2", []))
+    if not ranks.size:
+        return protected, []
+    self_positions = [pos for pos, gid in enumerate(group_ids) if int(gid) == int(receiver_id)]
+    if len(self_positions) != 1:
+        raise ValueError(f"D2 requires exactly one receiver in group; got {group_ids} for {receiver_id}")
+    self_position = self_positions[0]
+    audit: List[Dict[str, Any]] = []
+    for class_id in np.flatnonzero(ranks == 1).tolist():
+        supported_positions = [
+            pos for pos, gid in enumerate(group_ids)
+            if int(gid) == int(receiver_id)
+            or int(class_id) in {int(label) for label in capsules[int(gid)].label_set}
+        ]
+        blocked_positions = [pos for pos in range(len(group_ids)) if pos not in supported_positions]
+        normalizer = float(sum(float(alphas[pos]) for pos in supported_positions))
+        if normalizer <= 0.0:
+            # The receiver is always eligible; this only protects against an
+            # externally supplied malformed alpha vector.
+            row_alphas = {self_position: 1.0}
+            normalizer = 0.0
+        else:
+            row_alphas = {pos: float(alphas[pos]) / normalizer for pos in supported_positions}
+        for parameter_name in ("fc2.weight", "fc2.bias"):
+            target = target_state.get(parameter_name)
+            if target is None or target.ndim < 1 or int(class_id) >= target.shape[0]:
+                continue
+            update = torch.zeros_like(target[int(class_id)])
+            for pos, weight in row_alphas.items():
+                delta = deltas[pos].get(parameter_name)
+                if delta is not None and delta.shape == target.shape:
+                    update = update + float(weight) * delta[int(class_id)].to(target.device)
+            protected[parameter_name][int(class_id)] = target[int(class_id)] + float(eta) * update
+        supported_peer_ids = [
+            int(group_ids[pos]) for pos in supported_positions if int(group_ids[pos]) != int(receiver_id)
+        ]
+        blocked_peer_ids = [int(group_ids[pos]) for pos in blocked_positions]
+        audit.append({
+            "class_id": int(class_id),
+            "supported_peer_ids": supported_peer_ids,
+            "blocked_peer_ids": blocked_peer_ids,
+            "peer_alpha_before": float(sum(float(alphas[pos]) for pos, gid in enumerate(group_ids) if int(gid) != int(receiver_id))),
+            "supported_peer_alpha_after": float(sum(weight for pos, weight in row_alphas.items() if int(group_ids[pos]) != int(receiver_id))),
+            "blocked_peer_alpha_before": float(sum(float(alphas[pos]) for pos in blocked_positions)),
+            "weight_normalizer": float(normalizer),
+            "blocked": bool(blocked_peer_ids),
+        })
+    return protected, audit
+
+
 def _aggregate_round(
     *,
     client_ids: List[int],
@@ -1203,6 +1274,8 @@ def _aggregate_round(
     alpha_values: List[float] = []
     peer_alpha_sums: List[float] = []
     peer_aggregated_client_count = 0
+    selective_fc2_enabled = bool(config.get("denice_selective_fc2_peer_rows", False))
+    selective_fc2_row_audit: Dict[int, List[Dict[str, Any]]] = {}
 
     for idx, cid in enumerate(client_ids):
         neighbors = None
@@ -1314,6 +1387,20 @@ def _aggregate_round(
             alphas,
             agg_config,
         )
+        if selective_fc2_enabled:
+            new_states[cid], selective_fc2_row_audit[int(cid)] = (
+                _protect_plastic_fc2_rows_from_unsupported_peers(
+                    target_state=target_state,
+                    aggregated_state=new_states[cid],
+                    target_ages=old_ages[cid],
+                    deltas=deltas,
+                    alphas=alphas,
+                    group_ids=group_ids,
+                    receiver_id=cid,
+                    capsules=capsules,
+                    eta=agg_config.eta,
+                )
+            )
         neighbor_adapter_states = []
         neighbor_adapter_weights = []
         for pos, gid in enumerate(group_ids):
@@ -1431,6 +1518,19 @@ def _aggregate_round(
     aggregation_apply_time = max(
         0.0, time.perf_counter() - aggregate_round_start - clustering_time
     )
+    selective_rows = [
+        row for rows in selective_fc2_row_audit.values() for row in rows
+    ]
+    selective_fc2_summary = {
+        "enabled": selective_fc2_enabled,
+        "plastic_row_count": int(len(selective_rows)),
+        "blocked_row_count": int(sum(bool(row["blocked"]) for row in selective_rows)),
+        "blocked_row_ratio": (
+            0.0 if not selective_rows else float(sum(bool(row["blocked"]) for row in selective_rows) / len(selective_rows))
+        ),
+        "blocked_peer_alpha_before_sum": float(sum(row["blocked_peer_alpha_before"] for row in selective_rows)),
+        "clients": selective_fc2_row_audit,
+    }
     return {
         "K_t": int(len(set(int(x) for x in labels.tolist()))),
         "raw_K_t": int(cluster_result["K_t"]),
@@ -1460,6 +1560,7 @@ def _aggregate_round(
         "capacity_after_aggregation": capacity_after_aggregation,
         "capacity_guardrails": capacity_guardrails,
         "plastic_fc2_row_audit": plastic_fc2_row_audit,
+        "selective_fc2_row_protection": selective_fc2_summary,
         "clustering_time": float(clustering_time),
         "aggregation_apply_time": float(aggregation_apply_time),
         "next_valid_cluster": next_valid_cluster,

@@ -570,6 +570,15 @@ Yêu cầu implementation:
 
 Gate giữ D2: cải thiện E3 macro-F1 và unsupported-class recall, không làm supported-class/old-class recall giảm quá 1.0 điểm phần trăm, lặp lại ở ít nhất hai seeds.
 
+**Implementation D2 (chờ seed-42 run):** `denice_selective_fc2_peer_rows=true`
+chỉ thay `fc2.weight[c]`/`fc2.bias[c]` khi receiver row còn plastic. Peer không
+có `c` trong capsule training-label support bị loại; alpha của `{self + peer
+hợp lệ}` được renormalize theo từng row, và row không còn peer hợp lệ giữ đúng
+self update. `run_denice_d2_kaggle.py` chạy `peer_default` và
+`peer_supported_fc2` với schedule D4; analyzer fail-closed kiểm tra strict
+support, E3, blocked-class recall, supported/old-class recall và chỉ cho phép
+seed xác nhận khi toàn bộ gate pass.
+
 ## 11. Stage 7 — Full experiment và xác nhận nhiều seed
 
 1. Freeze config sau D1–D5/D2.
