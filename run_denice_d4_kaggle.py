@@ -28,6 +28,18 @@ def main() -> None:
                 "data_dir": DATA_DIR, "base_continuation": str(BASE_CONTINUATION), "variants": {}}
     for name, reserve in (("reserve_010", 0.10), ("reserve_000", 0.00)):
         run_dir = OUTPUT_ROOT / name
+        checkpoint = run_dir / f"checkpoint_task_5_round_{ROUNDS - 1}.pt"
+        evaluation = run_dir / "d4_evaluation"
+        if checkpoint.is_file() and (evaluation / "p6_evaluation_summary.json").is_file():
+            print(f"D4 {name}: reusing completed training/evaluation artifacts.", flush=True)
+            subprocess.run([sys.executable, str(REPO_DIR / "tools" / "validate_denice_run.py"),
+                            "--run-dir", str(run_dir), "--expected-task-end", "5",
+                            "--expected-rounds-per-task", str(ROUNDS), "--require-evaluation",
+                            "--output", str(run_dir / "audit_validation.json")], check=True, env=os.environ)
+            manifest["variants"][name] = {"reserve": reserve, "checkpoint": str(checkpoint),
+                                          "evaluation_dir": str(evaluation)}
+            (OUTPUT_ROOT / "d4_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+            continue
         overrides = {"data_dir": DATA_DIR, "output_dir": str(run_dir), "resume_output_dir": str(run_dir),
                      "resume_state_path": str(BASE_CONTINUATION), "task_end": 5, "random_seed": SEED,
                      "task_start": 5,
@@ -39,10 +51,8 @@ def main() -> None:
                "DENICE_OUTPUT_DIR": str(run_dir), "DENICE_CONFIG_OVERRIDES": json.dumps(overrides, sort_keys=True)}
         print(f"D4 {name}: resuming exactly {BASE_CONTINUATION.name}; only reserve={reserve} differs.", flush=True)
         subprocess.run([sys.executable, str(REPO_DIR / "train_incremental_kaggle.py")], check=True, env=env)
-        checkpoint = run_dir / f"checkpoint_task_5_round_{ROUNDS - 1}.pt"
         if not checkpoint.is_file():
             raise FileNotFoundError(f"D4 branch did not create {checkpoint}")
-        evaluation = run_dir / "d4_evaluation"
         subprocess.run([sys.executable, str(REPO_DIR / "run_denice_p6_eval.py"), "--checkpoint", str(checkpoint),
                         "--data-dir", DATA_DIR, "--output-dir", str(evaluation), "--device", EVAL_DEVICE,
                         "--seed", str(SEED), "--protocols", "coverage_aware_local", "--samples-per-class",

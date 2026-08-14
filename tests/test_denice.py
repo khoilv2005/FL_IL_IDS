@@ -549,6 +549,17 @@ class TestNovelty:
             "checkpoint_task_1_round_0.pt"
         )
 
+        config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
+        config.update({"task_start": 1, "task_end": 1, "resume_state_path": "state_task_0.pt"})
+        (run_dir / "config.json").write_text(json.dumps(config), encoding="utf-8")
+        resumed_history = json.loads((run_dir / "training_history.json").read_text(encoding="utf-8"))
+        resumed_history["task_accuracies"] = [{"task": 0}, {"task": 1}]
+        (run_dir / "training_history.json").write_text(json.dumps(resumed_history), encoding="utf-8")
+        valid_resumed = validate_denice_run(
+            run_dir, expected_task_end=1, expected_rounds_per_task=1, require_evaluation=True
+        )
+        assert valid_resumed["valid"] is True
+
         record["coverage_protocol"]["partial_coverage"] = True
         (eval_dir / "p6_evaluation_summary.json").write_text(json.dumps({
             "policies": required,

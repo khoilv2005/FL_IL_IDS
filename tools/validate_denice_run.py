@@ -99,7 +99,17 @@ def validate_denice_run(
     if end is None and config is not None:
         end = config.get("task_end")
     if end is not None:
-        expected_tasks = list(range(int((config or {}).get("task_start", 0)), int(end) + 1))
+        configured_start = int((config or {}).get("task_start", 0))
+        # A continuation branch retains prior task history by design.  Its
+        # resolved config names only the newly trained task, so validate the
+        # complete contiguous history rather than falsely requiring [task_end].
+        history_start = task_ids[0] if task_ids else configured_start
+        expected_start = (
+            history_start
+            if (config or {}).get("resume_state_path") and history_start < configured_start
+            else configured_start
+        )
+        expected_tasks = list(range(expected_start, int(end) + 1))
         if task_ids != expected_tasks:
             errors.append(f"task history mismatch: got {task_ids}, expected {expected_tasks}")
         final_task_ckpt = root / f"checkpoint_task_{int(end)}.pt"
