@@ -48,6 +48,15 @@ với client partition. `tools/analyze_denice_d3.py` fail-closed khi trace lệc
 tính paired-bootstrap E3 và gate old-class recall trước khi chỉ định candidate
 cho seed xác nhận.
 
+**D1 seed-42 đã hoàn tất hợp lệ (artifact `results_1408.zip`):** cả ba biến thể
+có 15 round records (3 tasks × 5 rounds), strict coverage 1,800/1,800 và cùng
+source-index hash `6ec098…65082`. E3 macro-F1: peer-default 0.14760,
+self-only 0.20657, peer-self-floor-0.50 0.18929. Vì self-only hơn peer-default
+5.90 pp và unsupported classifier rows có drift trung bình 0.04266 so với
+0.04166 ở supported rows, hai điều kiện first-seed của D2 đạt. Decision report
+giữ `KEEP_D2_CLOSED` đúng preregistration do chưa có seed-43/bootstrap
+confirmation. Bước kế tiếp là D3 một-factor, không mở D2.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
