@@ -164,6 +164,12 @@ class IncrementalServer(FederatedServer):
             "recall_macro": recall_score(
                 y_true, y_pred, average="macro", zero_division=zero_division
             ),
+            "precision_weighted": precision_score(
+                y_true, y_pred, average="weighted", zero_division=zero_division
+            ),
+            "recall_weighted": recall_score(
+                y_true, y_pred, average="weighted", zero_division=zero_division
+            ),
             "f1_macro": f1_score(
                 y_true, y_pred, average="macro", zero_division=zero_division
             ),

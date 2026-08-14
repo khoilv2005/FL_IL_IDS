@@ -309,6 +309,8 @@ def _evaluate_metrics(
             "accuracy": 0.0,
             "precision_macro": 0.0,
             "recall_macro": 0.0,
+            "precision_weighted": 0.0,
+            "recall_weighted": 0.0,
             "f1_macro": 0.0,
             "f1_weighted": 0.0,
         }
@@ -358,6 +360,8 @@ def _evaluate_metrics(
         "accuracy": accuracy_score(y_true, y_pred) if len(y_true) else 0.0,
         "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0) if len(y_true) else 0.0,
         "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0) if len(y_true) else 0.0,
+        "precision_weighted": precision_score(y_true, y_pred, average="weighted", zero_division=0) if len(y_true) else 0.0,
+        "recall_weighted": recall_score(y_true, y_pred, average="weighted", zero_division=0) if len(y_true) else 0.0,
         "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0) if len(y_true) else 0.0,
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0) if len(y_true) else 0.0,
     }

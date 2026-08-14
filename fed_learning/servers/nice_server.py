@@ -1133,6 +1133,12 @@ class NICEServer(IncrementalServer):
             "recall_macro": recall_score(
                 y_true, y_pred, average="macro", zero_division=0
             ),
+            "precision_weighted": precision_score(
+                y_true, y_pred, average="weighted", zero_division=0
+            ),
+            "recall_weighted": recall_score(
+                y_true, y_pred, average="weighted", zero_division=0
+            ),
             "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
             "f1_weighted": f1_score(
                 y_true, y_pred, average="weighted", zero_division=0

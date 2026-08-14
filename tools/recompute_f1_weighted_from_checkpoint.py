@@ -153,6 +153,8 @@ def _evaluate(
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "precision_macro": float(precision_score(y_true, y_pred, average="macro", zero_division=zero_division)),
         "recall_macro": float(recall_score(y_true, y_pred, average="macro", zero_division=zero_division)),
+        "precision_weighted": float(precision_score(y_true, y_pred, average="weighted", zero_division=zero_division)),
+        "recall_weighted": float(recall_score(y_true, y_pred, average="weighted", zero_division=zero_division)),
         "f1_macro": float(f1_score(y_true, y_pred, average="macro", zero_division=zero_division)),
         "f1_weighted": float(f1_score(y_true, y_pred, average="weighted", zero_division=zero_division)),
     }
@@ -243,11 +245,17 @@ def _print_summary(result: Dict[str, Any]) -> None:
     print(f"Samples:    {result['num_test_samples']}")
     print(f"Output:     {result['output_path']}")
     print("\nCheckpoint metrics:")
-    for key in ["loss", "accuracy", "precision_macro", "recall_macro", "f1_macro", "f1_weighted"]:
+    for key in [
+        "loss", "accuracy", "precision_macro", "recall_macro",
+        "precision_weighted", "recall_weighted", "f1_macro", "f1_weighted",
+    ]:
         if key in old:
             print(f"  {key}: {old.get(key)}")
     print("\nRecomputed metrics:")
-    for key in ["loss", "accuracy", "precision_macro", "recall_macro", "f1_macro", "f1_weighted"]:
+    for key in [
+        "loss", "accuracy", "precision_macro", "recall_macro",
+        "precision_weighted", "recall_weighted", "f1_macro", "f1_weighted",
+    ]:
         print(f"  {key}: {new.get(key)}")
     if result.get("load_info", {}).get("strict") is False:
         print("\n[WARN] Model was loaded with strict=False. Inspect load_info in JSON.")

@@ -537,6 +537,8 @@ if __name__ == "__main__":
                             "test_accuracy": hist["test_accuracy"][ri] if ri < len(hist["test_accuracy"]) else None,
                             "test_precision_macro": hist["test_precision_macro"][ri] if ri < len(hist["test_precision_macro"]) else None,
                             "test_recall_macro": hist["test_recall_macro"][ri] if ri < len(hist["test_recall_macro"]) else None,
+                            "test_precision_weighted": hist.get("test_precision_weighted", [])[ri] if ri < len(hist.get("test_precision_weighted", [])) else None,
+                            "test_recall_weighted": hist.get("test_recall_weighted", [])[ri] if ri < len(hist.get("test_recall_weighted", [])) else None,
                             "test_f1_macro": hist["test_f1_macro"][ri] if ri < len(hist["test_f1_macro"]) else None,
                             "test_f1_weighted": hist["test_f1_weighted"][ri] if ri < len(hist["test_f1_weighted"]) else None,
                         }
@@ -585,6 +587,8 @@ if __name__ == "__main__":
                     accuracy = hist["test_accuracy"][ri] if ri < len(hist["test_accuracy"]) else None
                     precision_macro = hist["test_precision_macro"][ri] if ri < len(hist["test_precision_macro"]) else None
                     recall_macro = hist["test_recall_macro"][ri] if ri < len(hist["test_recall_macro"]) else None
+                    precision_weighted = hist.get("test_precision_weighted", [])[ri] if ri < len(hist.get("test_precision_weighted", [])) else None
+                    recall_weighted = hist.get("test_recall_weighted", [])[ri] if ri < len(hist.get("test_recall_weighted", [])) else None
                     f1_macro = hist["test_f1_macro"][ri] if ri < len(hist["test_f1_macro"]) else None
                     f1_weighted = hist["test_f1_weighted"][ri] if ri < len(hist["test_f1_weighted"]) else None
                     rows.append({
@@ -597,6 +601,8 @@ if __name__ == "__main__":
                         "accuracy": accuracy,
                         "precision_macro": precision_macro,
                         "recall_macro": recall_macro,
+                        "precision_weighted": precision_weighted,
+                        "recall_weighted": recall_weighted,
                         "f1_macro": f1_macro,
                         "avg_forgetting": None,
                         "f1_weighted": f1_weighted,
@@ -612,6 +618,8 @@ if __name__ == "__main__":
                         "test_accuracy": accuracy,
                         "test_precision_macro": precision_macro,
                         "test_recall_macro": recall_macro,
+                        "test_precision_weighted": precision_weighted,
+                        "test_recall_weighted": recall_weighted,
                         "test_f1_macro": f1_macro,
                         "test_f1_weighted": f1_weighted,
                     })

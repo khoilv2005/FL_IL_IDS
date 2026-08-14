@@ -914,6 +914,8 @@ def _evaluate_denice_partitioned_clients(
         "accuracy": accuracy_score(y_true, y_pred),
         "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
         "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
+        "precision_weighted": precision_score(y_true, y_pred, average="weighted", zero_division=0),
+        "recall_weighted": recall_score(y_true, y_pred, average="weighted", zero_division=0),
         "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
         "route_accuracy": route_correct / route_total if route_total else 0.0,
@@ -1183,6 +1185,8 @@ def evaluate_checkpoint(
             "accuracy",
             "precision_macro",
             "recall_macro",
+            "precision_weighted",
+            "recall_weighted",
             "f1_macro",
             "f1_weighted",
         ]

@@ -781,6 +781,8 @@ def run_dfca_training(
             "test_accuracy": test_metrics.get("accuracy"),
             "test_precision_macro": test_metrics.get("precision_macro"),
             "test_recall_macro": test_metrics.get("recall_macro"),
+            "test_precision_weighted": test_metrics.get("precision_weighted"),
+            "test_recall_weighted": test_metrics.get("recall_weighted"),
             "test_f1_macro": test_metrics.get("f1_macro"),
             "test_f1_weighted": test_metrics.get("f1_weighted"),
             "msg_log": msg_log,
@@ -801,6 +803,12 @@ def run_dfca_training(
         history["test_accuracy"].append(test_metrics.get("accuracy") if test_metrics else None)
         history["test_precision_macro"].append(test_metrics.get("precision_macro") if test_metrics else None)
         history["test_recall_macro"].append(test_metrics.get("recall_macro") if test_metrics else None)
+        history.setdefault("test_precision_weighted", []).append(
+            test_metrics.get("precision_weighted") if test_metrics else None
+        )
+        history.setdefault("test_recall_weighted", []).append(
+            test_metrics.get("recall_weighted") if test_metrics else None
+        )
         history["test_f1_macro"].append(test_metrics.get("f1_macro") if test_metrics else None)
         history["test_f1_weighted"].append(test_metrics.get("f1_weighted") if test_metrics else None)
 

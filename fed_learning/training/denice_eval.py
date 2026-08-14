@@ -389,6 +389,8 @@ def evaluate_denice_model(
             "accuracy": 0.0,
             "precision_macro": 0.0,
             "recall_macro": 0.0,
+            "precision_weighted": 0.0,
+            "recall_weighted": 0.0,
             "f1_macro": 0.0,
             "f1_weighted": 0.0,
             "route_accuracy": 0.0,
@@ -458,6 +460,8 @@ def evaluate_denice_model(
         "accuracy": accuracy_score(y_true, y_pred),
         "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
         "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
+        "precision_weighted": precision_score(y_true, y_pred, average="weighted", zero_division=0),
+        "recall_weighted": recall_score(y_true, y_pred, average="weighted", zero_division=0),
         "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
         "route_accuracy": (route_correct / route_total) if route_total > 0 else 0.0,
@@ -494,7 +498,8 @@ def evaluate_denice_ensemble(
     if len(y_test) == 0:
         return {
             "loss": 0.0, "accuracy": 0.0, "precision_macro": 0.0,
-            "recall_macro": 0.0, "f1_macro": 0.0, "f1_weighted": 0.0,
+            "recall_macro": 0.0, "precision_weighted": 0.0,
+            "recall_weighted": 0.0, "f1_macro": 0.0, "f1_weighted": 0.0,
             "route_accuracy": 0.0, "route_coverage": 0.0,
             "ensemble_size": float(len(model_detector_pairs)),
         }
@@ -564,6 +569,8 @@ def evaluate_denice_ensemble(
         "accuracy": accuracy_score(y_true, y_pred),
         "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),
         "recall_macro": recall_score(y_true, y_pred, average="macro", zero_division=0),
+        "precision_weighted": precision_score(y_true, y_pred, average="weighted", zero_division=0),
+        "recall_weighted": recall_score(y_true, y_pred, average="weighted", zero_division=0),
         "f1_macro": f1_score(y_true, y_pred, average="macro", zero_division=0),
         "f1_weighted": f1_score(y_true, y_pred, average="weighted", zero_division=0),
         "route_accuracy": route_correct / route_total if route_total else 0.0,

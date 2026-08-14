@@ -308,7 +308,10 @@ def _evaluate_model(
             "accuracy": 0.0,
             "precision_macro": 0.0,
             "recall_macro": 0.0,
+            "precision_weighted": 0.0,
+            "recall_weighted": 0.0,
             "f1_macro": 0.0,
+            "f1_weighted": 0.0,
         }
 
     preds: List[np.ndarray] = []
@@ -365,8 +368,17 @@ def _evaluate_model(
         "recall_macro": recall_score(
             y_true, y_pred, average="macro", zero_division=zero_division
         ),
+        "precision_weighted": precision_score(
+            y_true, y_pred, average="weighted", zero_division=zero_division
+        ),
+        "recall_weighted": recall_score(
+            y_true, y_pred, average="weighted", zero_division=zero_division
+        ),
         "f1_macro": f1_score(
             y_true, y_pred, average="macro", zero_division=zero_division
+        ),
+        "f1_weighted": f1_score(
+            y_true, y_pred, average="weighted", zero_division=zero_division
         ),
     }
 
@@ -702,8 +714,10 @@ def _record_local_round(
         "accuracy": metrics.get("accuracy"),
         "precision_macro": metrics.get("precision_macro"),
         "recall_macro": metrics.get("recall_macro"),
+        "precision_weighted": metrics.get("precision_weighted"),
+        "recall_weighted": metrics.get("recall_weighted"),
         "f1_macro": metrics.get("f1_macro"),
-        "f1_weighted": None,
+        "f1_weighted": metrics.get("f1_weighted"),
         "avg_forgetting": af,
     }
     history["round_metrics"].append(round_record)
@@ -716,7 +730,9 @@ def _record_local_round(
             f"accuracy={metrics['accuracy'] * 100:.2f}%, "
             f"f1={metrics['f1_macro'] * 100:.2f}%, "
             f"precision={metrics['precision_macro'] * 100:.2f}%, "
-            f"recall={metrics['recall_macro'] * 100:.2f}%"
+            f"recall={metrics['recall_macro'] * 100:.2f}%, "
+            f"precision_w={metrics['precision_weighted'] * 100:.2f}%, "
+            f"recall_w={metrics['recall_weighted'] * 100:.2f}%"
         )
     else:
         print(f"    Metrics skipped -> train_loss={train_loss:.4f} (post-task eval)")
@@ -1548,6 +1564,8 @@ def run_local_incremental_training(config: Dict[str, Any]):
                 "accuracy": metrics["accuracy"],
                 "precision_macro": metrics["precision_macro"],
                 "recall_macro": metrics["recall_macro"],
+                "precision_weighted": metrics.get("precision_weighted"),
+                "recall_weighted": metrics.get("recall_weighted"),
                 "f1_macro": metrics["f1_macro"],
                 "f1_weighted": None,
             }

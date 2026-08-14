@@ -20,6 +20,8 @@ METRIC_COLUMNS = [
     "accuracy",
     "precision_macro",
     "recall_macro",
+    "precision_weighted",
+    "recall_weighted",
     "f1_macro",
     "f1_weighted",
     "route_accuracy",
@@ -185,6 +187,12 @@ def write_markdown(raw: pd.DataFrame, summary: pd.DataFrame, missing: pd.DataFra
                 else "",
                 "K": int(row["cluster_K"]) if not pd.isna(row.get("cluster_K")) else "",
                 "accuracy": fmt_pct(row.get("accuracy_mean"), row.get("accuracy_std")),
+                "precision_weighted": fmt_pct(
+                    row.get("precision_weighted_mean"), row.get("precision_weighted_std")
+                ),
+                "recall_weighted": fmt_pct(
+                    row.get("recall_weighted_mean"), row.get("recall_weighted_std")
+                ),
                 "f1_weighted": fmt_pct(row.get("f1_weighted_mean"), row.get("f1_weighted_std")),
                 "f1_macro": fmt_pct(row.get("f1_macro_mean"), row.get("f1_macro_std")),
                 "route_acc": fmt_pct(row.get("route_accuracy_mean"), row.get("route_accuracy_std")),
@@ -231,7 +239,7 @@ Missing task-round-seed entries: `{len(missing)}`
 
 ## Final Round Per Task
 
-{markdown_table(final_df, ['task', 'round', 'seeds', 'clients', 'K', 'accuracy', 'f1_weighted', 'f1_macro', 'route_acc', 'test_loss'])}
+{markdown_table(final_df, ['task', 'round', 'seeds', 'clients', 'K', 'accuracy', 'precision_weighted', 'recall_weighted', 'f1_weighted', 'f1_macro', 'route_acc', 'test_loss'])}
 
 ## Best Round Per Task
 

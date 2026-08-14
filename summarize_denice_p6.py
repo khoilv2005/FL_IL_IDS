@@ -29,7 +29,15 @@ POLICIES = (
     "e6_adaptive",
 )
 PROTOCOLS = ("coverage_aware_local", "representative_global")
-METRICS = ("accuracy", "f1_macro", "f1_weighted", "loss", "route_accuracy")
+METRICS = (
+    "accuracy",
+    "precision_weighted",
+    "recall_weighted",
+    "f1_macro",
+    "f1_weighted",
+    "loss",
+    "route_accuracy",
+)
 
 
 def _load(path: Path) -> Dict[str, Any]:

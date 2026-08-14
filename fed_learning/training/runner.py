@@ -44,6 +44,12 @@ def train_federated_multigpu(server, config: Dict) -> Dict:
             history["test_f1_weighted"].append(metrics["f1_weighted"])
             history["test_precision_macro"].append(metrics["precision_macro"])
             history["test_recall_macro"].append(metrics["recall_macro"])
+            history.setdefault("test_precision_weighted", []).append(
+                metrics.get("precision_weighted")
+            )
+            history.setdefault("test_recall_weighted", []).append(
+                metrics.get("recall_weighted")
+            )
             
             print(f"\n{'='*60}")
             print(f"📊 METRICS SUMMARY - Round {ridx+1}")
@@ -53,6 +59,9 @@ def train_federated_multigpu(server, config: Dict) -> Dict:
             print(f"  F1 (weighted):      {metrics['f1_weighted']*100:.2f}%")
             print(f"  Precision (macro):  {metrics['precision_macro']*100:.2f}%")
             print(f"  Recall (macro):     {metrics['recall_macro']*100:.2f}%")
+            if "precision_weighted" in metrics and "recall_weighted" in metrics:
+                print(f"  Precision (weighted): {metrics['precision_weighted']*100:.2f}%")
+                print(f"  Recall (weighted):    {metrics['recall_weighted']*100:.2f}%")
             print(f"{'='*60}")
     
     return history

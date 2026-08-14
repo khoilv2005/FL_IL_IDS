@@ -43,6 +43,8 @@ def _compact(result: Dict[str, Any]) -> Dict[str, Any]:
     protocol_debug = metrics.get("protocol_debug", {})
     return {
         "accuracy": metrics.get("accuracy"),
+        "precision_weighted": metrics.get("precision_weighted"),
+        "recall_weighted": metrics.get("recall_weighted"),
         "f1_macro": metrics.get("f1_macro"),
         "f1_weighted": metrics.get("f1_weighted"),
         "loss": metrics.get("loss"),

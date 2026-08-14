@@ -1615,7 +1615,10 @@ def _evaluate_clients(
                 route_mode="nomask",
                 route_topk=route_topk,
             )
-            for key in ("loss", "accuracy", "precision_macro", "recall_macro", "f1_macro", "f1_weighted"):
+            for key in (
+                "loss", "accuracy", "precision_macro", "recall_macro",
+                "precision_weighted", "recall_weighted", "f1_macro", "f1_weighted",
+            ):
                 client_metrics[f"nomask_{key}"] = float(nomask_metrics[key])
         metrics.append(client_metrics)
         per_client[int(cid)] = client_metrics
@@ -1640,6 +1643,8 @@ def _evaluate_clients(
             "accuracy": 0.0,
             "precision_macro": 0.0,
             "recall_macro": 0.0,
+            "precision_weighted": 0.0,
+            "recall_weighted": 0.0,
             "f1_macro": 0.0,
             "f1_weighted": 0.0,
             "route_accuracy": 0.0,
@@ -2435,6 +2440,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "accuracy": None,
                 "precision_macro": None,
                 "recall_macro": None,
+                "precision_weighted": None,
+                "recall_weighted": None,
                 "f1_macro": None,
                 "f1_weighted": None,
                 "avg_forgetting": None,
@@ -2528,6 +2535,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         "accuracy": metrics.get("accuracy"),
                         "precision_macro": metrics.get("precision_macro"),
                         "recall_macro": metrics.get("recall_macro"),
+                        "precision_weighted": metrics.get("precision_weighted"),
+                        "recall_weighted": metrics.get("recall_weighted"),
                         "f1_macro": metrics.get("f1_macro"),
                         "f1_weighted": metrics.get("f1_weighted"),
                         "evaluated": True,
@@ -2818,6 +2827,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "accuracy": None,
                 "precision_macro": None,
                 "recall_macro": None,
+                "precision_weighted": None,
+                "recall_weighted": None,
                 "f1_macro": None,
                 "f1_weighted": None,
                 "route_accuracy": None,

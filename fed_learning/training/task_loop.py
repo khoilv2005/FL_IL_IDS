@@ -609,6 +609,8 @@ def _record_fed_round(
         "accuracy": metrics.get("accuracy"),
         "precision_macro": metrics.get("precision_macro"),
         "recall_macro": metrics.get("recall_macro"),
+        "precision_weighted": metrics.get("precision_weighted"),
+        "recall_weighted": metrics.get("recall_weighted"),
         "f1_macro": metrics.get("f1_macro"),
         "f1_weighted": metrics.get("f1_weighted"),
         "avg_forgetting": af,
@@ -1305,6 +1307,8 @@ def run_incremental_training(config: Dict[str, Any]):
                 "accuracy": metrics["accuracy"],
                 "precision_macro": metrics["precision_macro"],
                 "recall_macro": metrics["recall_macro"],
+                "precision_weighted": metrics.get("precision_weighted"),
+                "recall_weighted": metrics.get("recall_weighted"),
                 "f1_macro": metrics["f1_macro"],
                 "f1_weighted": metrics.get("f1_weighted"),
             }
