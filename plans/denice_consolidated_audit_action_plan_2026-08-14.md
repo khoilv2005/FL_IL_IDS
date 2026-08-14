@@ -491,7 +491,14 @@ Chỉ giữ reserve 0.10 nếu nó cải thiện plasticity/new-class metrics m�
 
 - `router_reference_per_class`: 20, 50, 100.
 - Fit/calibration/reference sets tách biệt.
-- Cùng trained model và cùng evaluation support giữa ba mức memory nếu có thể.
+- D5 dựng lại reference bank từ local **training** split của từng client bằng
+  seed cố định và refit router sau khi checkpoint D4 đã hoàn tất. Không chạy
+  optimizer, không đổi tensor model/adapter/capacity; manifest bắt buộc hash
+  toàn bộ `client_model_states` trước/sau để chứng minh invariant này.
+- Sampling không chứa budget trong seed để bank 20 là tập con của 50, và 50 là
+  tập con của 100 (khi local class đủ mẫu). Không được cố "nới" checkpoint
+  router cũ: nó chỉ lưu số raw references đã dùng khi train.
+- Cùng trained model và cùng evaluation support giữa ba mức memory.
 - Báo cáo storage/latency cùng accuracy để tránh chọn 100 chỉ vì dùng nhiều memory hơn.
 
 ### 9.2 Metrics và gate

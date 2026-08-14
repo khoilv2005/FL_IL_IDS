@@ -2326,6 +2326,76 @@ class TestDeNICEImbalanceControls:
 
 
 # ---------------------------------------------------------------------------
+# D5 router-reference ablation helpers
+# ---------------------------------------------------------------------------
+class TestD5RouterReferenceAblation:
+    def test_rebuilt_reference_banks_are_deterministic_and_nested(self):
+        from fed_learning.training.denice_router_ablation import rebuild_reference_input_memory
+
+        class Loader:
+            def get_client_data(self, client_id, task_id):
+                assert client_id == 3
+                assert task_id == 0
+                X = torch.arange(24, dtype=torch.float32).reshape(12, 2)
+                y = torch.tensor([0] * 6 + [1] * 6)
+                return X, y
+
+        kwargs = {
+            "data_loader": Loader(), "client_id": 3,
+            "episode_classes": {0: [0, 1]}, "seed": 11,
+        }
+        memory_2, counts_2 = rebuild_reference_input_memory(**kwargs, budget_per_class=2)
+        memory_4, counts_4 = rebuild_reference_input_memory(**kwargs, budget_per_class=4)
+        repeated_2, _ = rebuild_reference_input_memory(**kwargs, budget_per_class=2)
+
+        assert counts_2 == {0: {0: 2, 1: 2}}
+        assert counts_4 == {0: {0: 4, 1: 4}}
+        assert np.array_equal(memory_2[0], repeated_2[0])
+        assert set(map(tuple, memory_2[0])).issubset(set(map(tuple, memory_4[0])))
+
+    def test_model_state_fingerprint_changes_only_for_model_tensors(self):
+        from fed_learning.training.denice_router_ablation import model_states_sha256
+
+        first = {0: {"weight": torch.tensor([1.0, 2.0])}}
+        same = {0: {"weight": torch.tensor([1.0, 2.0])}}
+        changed = {0: {"weight": torch.tensor([1.0, 3.0])}}
+        assert model_states_sha256(first) == model_states_sha256(same)
+        assert model_states_sha256(first) != model_states_sha256(changed)
+
+    def test_d5_analyzer_requires_fixed_support_and_keeps_smallest_without_gap_gain(self, tmp_path):
+        from tools.analyze_denice_d5 import analyze
+
+        manifest = {
+            "source_checkpoint": "d4.pt", "source_model_state_sha256": "same-model",
+            "variants": {},
+        }
+        for budget, e4 in ((20, 0.60), (50, 0.59)):
+            evaluation = tmp_path / f"reference_{budget:03d}" / "d5_evaluation"
+            evaluation.mkdir(parents=True)
+            compact = lambda f1: {
+                "f1_macro": f1, "route_accuracy": 0.7,
+                "coverage_protocol": {"requested_sample_count": 10, "assigned_sample_count": 10,
+                                      "unsupported_sample_count": 0},
+                "evaluation_sampling": {"source_index_sha256": "fixed-support"},
+            }
+            (evaluation / "p6_evaluation_summary.json").write_text(json.dumps({
+                "summary": {"coverage_aware_local": {
+                    "e3_oracle_routed_system_ceiling": compact(0.70), "e4_pred_hard": compact(e4),
+                }}
+            }), encoding="utf-8")
+            manifest["variants"][f"reference_{budget:03d}"] = {
+                "model_state_sha256": "same-model", "router_reference_per_class": budget,
+                "evaluation_dir": str(evaluation), "router_reference_input_bytes": budget,
+                "router_activation_memory_bytes": budget, "router_refresh_profiles": {},
+            }
+        manifest_path = tmp_path / "d5_manifest.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        report = analyze(manifest_path)
+        assert report["decision"] == "RETAIN_SMALLEST_BUDGET_NO_ORACLE_GAP_REDUCTION"
+        assert report["fixed_support_source_index_sha256"] == "fixed-support"
+
+
+# ---------------------------------------------------------------------------
 # Training smoke test (one short task with adapter)
 # ---------------------------------------------------------------------------
 class TestTrainingSmoke:
