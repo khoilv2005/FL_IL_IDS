@@ -1238,10 +1238,7 @@ def run_incremental_training(config: Dict[str, Any]):
             print(f"\n  === {algo.upper()} Training ({generic_rounds} rounds) ===")
             last_round_record = _run_tracked_rounds(
                 server,
-                lambda _r: server.train_round(
-                    participating_clients=participating_clients,
-                    verbose=True,
-                ),
+                lambda _r: server.train_round(verbose=True),
                 generic_rounds,
                 task_id,
                 output_dir,
