@@ -2395,6 +2395,35 @@ class TestD5RouterReferenceAblation:
         assert report["fixed_support_source_index_sha256"] == "fixed-support"
 
 
+class TestD6PeerAggregationAblation:
+    def test_d6_analyzer_requires_matched_support_and_reports_peer_harm(self, tmp_path):
+        from tools.analyze_denice_d6 import analyze
+
+        manifest = {"seed": 9, "variants": {}}
+        for name, e3, e4 in (("peer", 0.30, 0.22), ("self_only", 0.32, 0.23)):
+            evaluation = tmp_path / name / "d6_evaluation"
+            evaluation.mkdir(parents=True)
+            policy = lambda value: {
+                "f1_macro": value, "route_accuracy": 0.6,
+                "coverage_protocol": {"requested_sample_count": 10, "assigned_sample_count": 10,
+                                      "unsupported_sample_count": 0},
+                "evaluation_sampling": {"source_index_sha256": "matched"},
+            }
+            (evaluation / "p6_evaluation_summary.json").write_text(json.dumps({
+                "summary": {"coverage_aware_local": {
+                    "e3_oracle_routed_system_ceiling": policy(e3),
+                    "e3b_oracle_hard_no_adapter": policy(e3 - 0.01),
+                    "e4_pred_hard": policy(e4),
+                }}
+            }), encoding="utf-8")
+            manifest["variants"][name] = {"evaluation_summary": str(evaluation / "p6_evaluation_summary.json")}
+        manifest_path = tmp_path / "d6_manifest.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        report = analyze(manifest_path)
+        assert report["decision"] == "PEER_HARM_CANDIDATE"
+        assert report["deltas_self_only_minus_peer_pp"]["e3_macro_f1"] == pytest.approx(2.0)
+
+
 # ---------------------------------------------------------------------------
 # Training smoke test (one short task with adapter)
 # ---------------------------------------------------------------------------

@@ -157,7 +157,8 @@ flowchart TD
     M --> L
     L --> N[D4 terminal reserve]
     N --> O[D5 router]
-    O --> P[Full seed 42]
+    O --> R[D6 peer vs self-only diagnosis]
+    R --> P[Full seed 42]
     P --> Q[Seeds 43 and 44]
 ```
 
