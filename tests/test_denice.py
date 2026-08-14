@@ -2192,6 +2192,8 @@ class TestDeNICEEvaluation:
             run_dir.mkdir()
             metric = {
                 "accuracy": 0.50,
+                "precision_weighted": 0.48,
+                "recall_weighted": 0.50,
                 "f1_macro": 0.40,
                 "f1_weighted": 0.45,
                 "loss": 1.0,
