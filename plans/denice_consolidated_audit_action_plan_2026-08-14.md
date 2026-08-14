@@ -114,6 +114,17 @@ khoanh vùng là peer parameter/age/adapter aggregation, không phải router đ
 thuần. Tuy vậy giữ preregistration: chạy lại D6 seed 43 với protocol y hệt
 trước khi thay aggregation method hoặc mở D2.
 
+**D6 seed-43 đã xác nhận (artifact `results (5).zip`, commit chạy `c2aa990`):**
+cả peer và self-only đều validator-valid, đủ 30 rounds và strict coverage
+3,400/3,400 với cùng hash `72cf27…f260d` trong seed này. Self-only tiếp tục hơn
+peer **7.082 pp E3 macro-F1** (0.384173 vs 0.313356) và **5.583 pp E4**
+(0.296722 vs 0.240889). Hai seeds cùng hướng và đều vượt xa materiality gate
+1 pp. Do D6 giữ nguyên D4 budget/reserve schedule và chỉ đổi aggregation mode,
+nó là bằng chứng causal mạnh hơn D1; decision là **OPEN_D2**. D2 được phép thử
+một yếu tố: giữ peer aggregation nhưng self-update cho plastic `fc2` class row
+khi peer không có local support cho class đó. Chưa chọn self-only làm phương
+pháp cuối cùng và chưa chạy full run cho tới khi D2 pass gate hai seeds.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
