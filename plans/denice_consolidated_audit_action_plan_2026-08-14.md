@@ -57,6 +57,14 @@ self-only 0.20657, peer-self-floor-0.50 0.18929. Vì self-only hơn peer-default
 giữ `KEEP_D2_CLOSED` đúng preregistration do chưa có seed-43/bootstrap
 confirmation. Bước kế tiếp là D3 một-factor, không mở D2.
 
+**D3 seed-42 đã hoàn tất hợp lệ (artifact `results_d3.zip`):** ba variants đều
+pass validator (15 round records, strict fixed support). D3-A class-balanced
+batches giảm E3 macro-F1 2.687 pp, bootstrap CI95% [-4.147, -1.357] pp, nên bị
+loại. D3-B effective-number CE tăng E3 macro-F1 1.830 pp, CI95% [0.260, 3.396]
+pp, E4 tăng 0.389 pp và old-class recall tăng 1.50 pp. Chỉ
+`effective_number_ce` là `CANDIDATE_FOR_CONFIRMATION_SEED`; chạy lại D3 ở seed
+43 trước khi chọn D3-B cho full run.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
