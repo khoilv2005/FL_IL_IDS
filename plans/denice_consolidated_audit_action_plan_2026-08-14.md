@@ -87,6 +87,20 @@ capacity khoảng 10% ở mọi layer (ví dụ client 0), trong khi reserve 0.0
 hết capacity; adapter usage giống nhau. Theo gate D4, chọn `reserve_000` cho
 bước sau vì reserve 0.10 không có lợi ích metric chứng minh được.
 
+**D5 seed-42 đã hoàn tất hợp lệ (artifact `results (3).zip`, commit chạy
+`8d285cc`):** ba router-reference budgets 20/50/100 được dựng lại post-hoc từ
+local training split của đúng client, không có optimizer step. Cả ba checkpoint
+có cùng `client_model_states` hash `9c2270…c2e40`, strict coverage 3,400/3,400,
+cùng source-index hash `f0b269…4ca60`, cùng coverage-aware client partition.
+E3 macro-F1 giữ nguyên 0.340049. E4 macro-F1 lần lượt là 0.267432, 0.267147,
+0.268513; tương ứng E3−E4 gap 7.262, 7.290, 7.154 pp. Budget 100 giảm gap
+0.108 pp so với 20, đồng thời E4 tăng 0.108 pp và route accuracy tăng 0.206 pp,
+nhưng tốn 4.44 MiB input bank/58.84 MiB sketches và 100.44 s router refresh,
+so với 0.94 MiB/13.25 MiB/22.39 s ở budget 20. Đây là tín hiệu một-seed rất
+nhỏ; decision đúng là `FOLLOW_UP_FOR_ROUTER_MEMORY_GAIN`, **không** đổi cấu
+hình full run cho tới khi calibration/reference-sampling follow-up xác nhận
+hướng cải thiện.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
