@@ -101,6 +101,19 @@ nhỏ; decision đúng là `FOLLOW_UP_FOR_ROUTER_MEMORY_GAIN`, **không** đổi
 hình full run cho tới khi calibration/reference-sampling follow-up xác nhận
 hướng cải thiện.
 
+**D6 seed-42 đã hoàn tất hợp lệ (artifact `results (4).zip`, commit chạy
+`47d4782`):** đây là causal ablation đúng schedule D4: cả hai nhánh train tasks
+0--4 với reserve 0.10, resume task 5 với reserve 0.00, 20 clients và 5
+rounds/task; khác biệt duy nhất là `denice_aggregation_mode` (`peer` hoặc
+`self_only`). Hai terminal runs đều validator-valid (30 round records), strict
+coverage 3,400/3,400 và cùng source-index hash `f0b269…4ca60`. Self-only cao
+hơn peer **7.677 pp E3 macro-F1** (0.396089 vs 0.319316) và **6.537 pp E4
+macro-F1** (0.310376 vs 0.245002); route accuracy gần như không đổi (0.52206
+vs 0.51853). Đây là `PEER_HARM_CANDIDATE` rất mạnh: bottleneck chính đã được
+khoanh vùng là peer parameter/age/adapter aggregation, không phải router đơn
+thuần. Tuy vậy giữ preregistration: chạy lại D6 seed 43 với protocol y hệt
+trước khi thay aggregation method hoặc mở D2.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
