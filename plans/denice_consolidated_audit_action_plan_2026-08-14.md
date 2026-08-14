@@ -65,6 +65,14 @@ pp, E4 tăng 0.389 pp và old-class recall tăng 1.50 pp. Chỉ
 `effective_number_ce` là `CANDIDATE_FOR_CONFIRMATION_SEED`; chạy lại D3 ở seed
 43 trước khi chọn D3-B cho full run.
 
+**D3 confirmation seed-43 đã hoàn tất hợp lệ (artifact `results_d3_43.zip`):**
+mọi variant pass validator và trace alignment. Effective-number CE không tái
+lập được lợi ích: E3 macro-F1 giảm 1.679 pp, bootstrap CI95% [-2.765, -0.563]
+pp; dù old-class recall chỉ giảm 0.083 pp, CI E3 hoàn toàn âm nên bị loại.
+Class-balanced sampler cũng không có lợi ích (CI chứa 0). Decision hợp lệ là
+`KEEP_BASELINE`: D3 không thay objective/sampler của full run. Chuyển sang D4
+baseline-reserve branch tại task 5 khi có full continuation task 4.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Mục tiêu là biến các nhận xét trong audit thành một chuỗi thay đổi có thể kiểm chứng, trước khi tiếp tục tối ưu metrics. Kế hoạch ưu tiên theo thứ tự:
