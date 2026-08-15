@@ -570,7 +570,7 @@ Yêu cầu implementation:
 
 Gate giữ D2: cải thiện E3 macro-F1 và unsupported-class recall, không làm supported-class/old-class recall giảm quá 1.0 điểm phần trăm, lặp lại ở ít nhất hai seeds.
 
-**Implementation D2 (chờ seed-42 run):** `denice_selective_fc2_peer_rows=true`
+**Implementation D2 (đã chọn sau hai seed):** `denice_selective_fc2_peer_rows=true`
 chỉ thay `fc2.weight[c]`/`fc2.bias[c]` khi receiver row còn plastic. Peer không
 có `c` trong capsule training-label support bị loại; alpha của `{self + peer
 hợp lệ}` được renormalize theo từng row, và row không còn peer hợp lệ giữ đúng
@@ -589,10 +589,24 @@ là fail. Analyzer đã được sửa để safeguard này pass khi tập rỗn
 `D2_CANDIDATE_FOR_CONFIRMATION_SEED`. Notebook được chuyển D2 seed 43 để xác
 nhận, không đổi factor nào khác.
 
+**D2 seed-43 đã xác nhận (artifact `results (7).zip`, commit chạy
+`a50b194`):** hai nhánh đều validator-valid (30 rounds, strict 3,400/3,400,
+cùng fixed-support hash `72cf27…f260d`). So với `peer_default`,
+`peer_supported_fc2` tăng **2.644 pp E3**, **2.006 pp E4**, **2.412 pp
+blocked-class recall**, **2.867 pp old-class recall**, và route accuracy tăng
+1.088 pp. Tập supported-only tiếp tục rỗng vì mọi lớp từng bị block tại ít
+nhất một client/round, nên safeguard này là N/A và pass theo định nghĩa đã sửa.
+Mọi gate đều pass ở seed 42 và 43; quyết định cuối cùng là **KEEP_D2**. Full
+run phải dùng peer aggregation với `denice_selective_fc2_peer_rows=true`,
+không dùng self-only và không chạy thêm D2/D6 diagnostic.
+
 ## 11. Stage 7 — Full experiment và xác nhận nhiều seed
 
-1. Freeze config sau D1–D5/D2.
-2. Full seed 42, toàn bộ task/client budget mục tiêu.
+1. Freeze config sau D1–D5/D2. Cấu hình đã chốt: peer aggregation,
+   `denice_selective_fc2_peer_rows=true`, reserve 0.10 ở tasks 0–4 và 0.0 ở
+   task 5.
+2. Full seed 42, 100 clients × 20 rounds/task, toàn bộ task/client budget mục
+   tiêu. Chạy `run_denice_full_d2_kaggle.py` qua `train.ipynb` mode `FULL_D2`.
 3. Chỉ khi run hợp lệ theo artifact validator mới chạy seeds 43 và 44.
 4. Báo cáo mean ± std và paired deltas so baseline corrected.
 5. Mọi bảng phải phân biệt:
