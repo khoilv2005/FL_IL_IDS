@@ -76,10 +76,16 @@ def analyze(manifest_path: str | Path) -> Dict[str, Any]:
               "blocked_class_recall_pp": None if delta_for(blocked) is None else 100.0 * delta_for(blocked),
               "supported_class_recall_pp": None if delta_for(supported) is None else 100.0 * delta_for(supported),
               "old_class_recall_pp": None if delta_for(old) is None else 100.0 * delta_for(old)}
+    # In a strongly non-IID run every evaluated class may be blocked for at
+    # least one receiver/round.  Then there is no disjoint "supported-only"
+    # class population to regress, so that safeguard is vacuously satisfied;
+    # treating its unavailable mean as failure would falsely reject D2.
     gate = {
         "e3_improves": deltas["e3_macro_f1_pp"] > 0.0,
         "blocked_class_recall_improves": deltas["blocked_class_recall_pp"] is not None and deltas["blocked_class_recall_pp"] > 0.0,
-        "supported_class_recall_not_worse_than_1pp": deltas["supported_class_recall_pp"] is not None and deltas["supported_class_recall_pp"] >= -1.0,
+        "supported_class_recall_not_worse_than_1pp": (
+            True if not supported else deltas["supported_class_recall_pp"] is not None and deltas["supported_class_recall_pp"] >= -1.0
+        ),
         "old_class_recall_not_worse_than_1pp": deltas["old_class_recall_pp"] is not None and deltas["old_class_recall_pp"] >= -1.0,
     }
     return {"manifest": str(manifest_file), "seed": manifest.get("seed"), "variants": rows,

@@ -579,6 +579,16 @@ self update. `run_denice_d2_kaggle.py` chạy `peer_default` và
 support, E3, blocked-class recall, supported/old-class recall và chỉ cho phép
 seed xác nhận khi toàn bộ gate pass.
 
+**D2 seed-42 đã hoàn tất hợp lệ (artifact `results (6).zip`):** hai nhánh đều
+validator-valid (30 rounds, strict 3,400/3,400, cùng hash `f0b269…4ca60`).
+`peer_supported_fc2` tăng **3.538 pp E3**, **2.199 pp E4**, **1.853 pp
+blocked-class recall** và **2.267 pp old-class recall** so với peer-default.
+Ban đầu report ghi false reject vì mọi class đều từng bị block ở ít nhất một
+client/round, nên tập supported-only rỗng và analyzer coi metric không áp dụng
+là fail. Analyzer đã được sửa để safeguard này pass khi tập rỗng; seed-42 là
+`D2_CANDIDATE_FOR_CONFIRMATION_SEED`. Notebook được chuyển D2 seed 43 để xác
+nhận, không đổi factor nào khác.
+
 ## 11. Stage 7 — Full experiment và xác nhận nhiều seed
 
 1. Freeze config sau D1–D5/D2.

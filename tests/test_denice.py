@@ -2497,6 +2497,41 @@ class TestD2SelectiveAggregationAblation:
         assert report["decision"] == "D2_CANDIDATE_FOR_CONFIRMATION_SEED"
         assert report["blocked_class_ids"] == [1]
 
+    def test_d2_analyzer_allows_empty_supported_only_class_set(self, tmp_path):
+        from tools.analyze_denice_d2 import analyze
+
+        manifest = {"seed": 42, "variants": {}}
+        for name, e3, e4 in (("peer_default", 0.30, 0.22), ("peer_supported_fc2", 0.31, 0.23)):
+            root = tmp_path / name
+            evaluation = root / "d2_evaluation"
+            evaluation.mkdir(parents=True)
+            policy = lambda score, recall: {
+                "f1_macro": score, "per_class_recall": {"0": recall},
+                "coverage_protocol": {"requested_sample_count": 10, "assigned_sample_count": 10,
+                                      "unsupported_sample_count": 0},
+                "evaluation_sampling": {"source_index_sha256": "fixed"},
+            }
+            (evaluation / "p6_evaluation_summary.json").write_text(json.dumps({
+                "summary": {"coverage_aware_local": {
+                    "e3_oracle_routed_system_ceiling": policy(e3, 0.2),
+                    "e4_pred_hard": policy(e4, 0.2 if name == "peer_default" else 0.3),
+                }}
+            }), encoding="utf-8")
+            history_path = root / "cluster_history.json"
+            history_path.write_text(json.dumps([{"selective_fc2_row_protection": {"clients": {"0": [
+                {"class_id": 0, "blocked": name == "peer_supported_fc2"}
+            ]}}}]), encoding="utf-8")
+            manifest["variants"][name] = {
+                "evaluation_summary": str(evaluation / "p6_evaluation_summary.json"),
+                "cluster_history": str(history_path),
+            }
+        manifest_path = tmp_path / "d2_manifest.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        report = analyze(manifest_path)
+        assert report["deltas_candidate_minus_baseline_pp"]["supported_class_recall_pp"] is None
+        assert report["gate"]["supported_class_recall_not_worse_than_1pp"]
+        assert report["decision"] == "D2_CANDIDATE_FOR_CONFIRMATION_SEED"
+
 
 # ---------------------------------------------------------------------------
 # Training smoke test (one short task with adapter)
