@@ -600,6 +600,18 @@ Mọi gate đều pass ở seed 42 và 43; quyết định cuối cùng là **KE
 run phải dùng peer aggregation với `denice_selective_fc2_peer_rows=true`,
 không dùng self-only và không chạy thêm D2/D6 diagnostic.
 
+**Full D2 seed-42 đã hoàn tất hợp lệ (artifact `results (8).zip`):** runner
+đúng cấu hình đã freeze (100 clients × 20 rounds/task, selective rows bật,
+reserve 0.10 ở tasks 0–4 và 0.0 ở task 5). Base có 100 round records, terminal
+có 120 round records, checkpoint `task_5_round_19` và cả hai validator pass;
+warning P6-missing ở base là kỳ vọng vì P6 chỉ chạy ở terminal. P6 strict có
+3,400/3,400 samples, 0 unsupported và fixed-support hash `f0b269…4ca60`.
+Kết quả terminal: E3 macro-F1 **0.356759**, E4 macro-F1 **0.260933**, route
+accuracy **0.517647**. E3−E4 = **9.583 pp**, vì vậy router vẫn là bottleneck
+độc lập cần báo cáo, nhưng không vô hiệu hóa D2 hay tính hợp lệ của full run.
+Không thay đổi factor nào trước seed xác nhận; notebook được đặt `FULL_D2`,
+seed 43.
+
 ## 11. Stage 7 — Full experiment và xác nhận nhiều seed
 
 1. Freeze config sau D1–D5/D2. Cấu hình đã chốt: peer aggregation,
