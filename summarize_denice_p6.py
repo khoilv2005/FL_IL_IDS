@@ -1,4 +1,4 @@
-"""Validate and aggregate the three full-run P6 evaluation artifacts.
+"""Validate and aggregate independent full-run P6 evaluation artifacts.
 
 Usage::
 
@@ -22,7 +22,8 @@ POLICIES = (
     "e0_backbone_nomask",
     "e1_pred_adapter_nomask",
     "e2_oracle_adapter_nomask",
-    "e3_oracle_hard",
+    "e3_oracle_routed_system_ceiling",
+    "e3b_oracle_hard_no_adapter",
     "e4_pred_hard",
     "e5_topk2",
     "e5_topk3",
@@ -49,6 +50,25 @@ def _load(path: Path) -> Dict[str, Any]:
 def _mean_std(values: Iterable[float]) -> Dict[str, float]:
     data = [float(value) for value in values]
     return {"mean": float(mean(data)), "std": float(stdev(data)) if len(data) > 1 else 0.0}
+
+
+def _validate_run(summary, protocols):
+    """Fail closed on old evaluation-seed metadata; do not certify training."""
+    if summary.get("training_seed_source") != "checkpoint_config":
+        raise ValueError("Training seed provenance unavailable; regenerate P6 metadata with the fixed runner")
+    hashes = set()
+    for protocol in protocols:
+        policies = summary.get("summary", {}).get(protocol, {})
+        for policy in POLICIES:
+            metric = policies.get(policy, {})
+            if not metric.get("checkpoint_sha256") or not metric.get("config_sha256"):
+                raise ValueError(f"Missing verified {protocol}/{policy} artifact")
+            if metric.get("training_seed") != summary.get("training_seed"):
+                raise ValueError("Policy training seed disagrees with checkpoint provenance")
+            hashes.add(metric["checkpoint_sha256"])
+    if len(hashes) != 1:
+        raise ValueError("Policies in one run must evaluate the same checkpoint")
+    return hashes.pop()
 
 
 def _route_collapse(result_path: Path) -> Dict[str, Any]:
@@ -83,31 +103,32 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-dirs", nargs="+", required=True, help="P6 evaluation directories")
     parser.add_argument("--output", required=True)
+    parser.add_argument("--protocols", nargs="+", choices=PROTOCOLS, default=["coverage_aware_local"])
     args = parser.parse_args()
+    if "coverage_aware_local" not in args.protocols:
+        parser.error("coverage_aware_local is required for the reported local deployment gates")
 
     summaries = []
     seeds = set()
+    checkpoint_hashes = set()
     for raw_dir in args.run_dirs:
         run_dir = Path(raw_dir)
         summary_path = run_dir / "p6_evaluation_summary.json"
         if not summary_path.is_file():
             raise FileNotFoundError(f"Missing P6 summary: {summary_path}")
         summary = _load(summary_path)
+        checkpoint_hash = _validate_run(summary, args.protocols)
+        if checkpoint_hash in checkpoint_hashes:
+            raise ValueError("Same checkpoint reused across purported independent training runs")
+        checkpoint_hashes.add(checkpoint_hash)
         seed = int(summary["training_seed"])
         if seed in seeds:
             raise ValueError(f"Duplicate training seed: {seed}")
         seeds.add(seed)
-        for protocol in PROTOCOLS:
-            if protocol not in summary.get("summary", {}):
-                raise ValueError(f"{summary_path} lacks protocol {protocol}")
-            for policy in POLICIES:
-                metric = summary["summary"][protocol].get(policy)
-                if not metric or not metric.get("checkpoint_sha256") or not metric.get("config_sha256"):
-                    raise ValueError(f"{summary_path} lacks verified {protocol}/{policy} artifact")
         summaries.append((run_dir, summary))
 
     aggregate: Dict[str, Any] = {}
-    for protocol in PROTOCOLS:
+    for protocol in args.protocols:
         aggregate[protocol] = {}
         for policy in POLICIES:
             aggregate[protocol][policy] = {
@@ -132,9 +153,9 @@ def main() -> None:
     all_no_violations = all(
         int(summary["summary"][protocol][policy]["oracle_mask_violation_count"]) == 0
         for _directory, summary in summaries
-        for protocol in PROTOCOLS
+        for protocol in args.protocols
         for policy in POLICIES
-        if policy == "e3_oracle_hard"
+        if policy in ("e3_oracle_routed_system_ceiling", "e3b_oracle_hard_no_adapter")
     )
     report = {
         "training_seeds": sorted(seeds),

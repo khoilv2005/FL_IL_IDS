@@ -10,9 +10,9 @@ import zipfile
 
 # Environment overrides make P6 multi-seed runs reproducible without editing
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
-# Default to the task-5 continuation run.  Override explicitly only when a
+# Default to the 100-client task-0..3 run.  Override explicitly only when a
 # different experimental phase is intended.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "4"))  # 1..5
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "6"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_seed_{TRAIN_SEED}"
@@ -44,12 +44,19 @@ PHASE_CONFIG = {
         "save_resume_after_task": 5,
         "resume_file": "continuation_state_task_4.pt",
     },
-    5:{
+    5: {
         "task_start": 0,
         "task_end": 5,
         "save_resume_after_task": None,
         "resume_file": None,
-    }
+    },
+    6: {
+        # Fresh 100-client run through task 3.
+        "task_start": 0,
+        "task_end": 3,
+        "save_resume_after_task": None,
+        "resume_file": None,
+    },
 }
 
 phase_config = PHASE_CONFIG[TRAIN_PHASE]
@@ -183,7 +190,7 @@ setup_imports()
 # =============================================================================
 CONFIG = {
     # Data
-    "data_dir": "/kaggle/input/datasets/khoilv2005/500-clients/500-clients",
+    "data_dir": "/kaggle/input/datasets/khoilv2005/100-clients/100-clients",
     # Reproducibility
     "random_seed": TRAIN_SEED,
     # Training Mode
@@ -210,6 +217,7 @@ CONFIG = {
     #   2 -> load task_1 state, train task 2, save continuation_state_task_2.pt
     #   3 -> load task_2 state, train task 3, save continuation_state_task_3.pt
     #   4 -> load task_4 state, train task 5 only
+    #   6 -> train tasks 0-3 from scratch with 100 clients
     # These keys are used by IL/non-DFCA modes; pure DFCA ignores task filtering.
     "task_start": phase_config["task_start"],
     "task_end": phase_config["task_end"],
@@ -230,7 +238,7 @@ CONFIG = {
     #"resume_output_dir": None,
     # Incremental Learning - 6 Tasks Distribution
     # Task 0-4: 6 classes each, Task 5: 4 classes (total 34)
-    "num_clients": 500,
+    "num_clients": 100,
     "total_classes": 34,
     "base_classes": 6,       # 6 classes per task (first 5 tasks)
     "classes_per_task": 6,
@@ -238,7 +246,8 @@ CONFIG = {
     # IoT CIC 2023: non-IID Dirichlet α=5.0 (moderate heterogeneity)
     # CGoFed Paper Eq. 14: NO proximal term! Only cross-task regularization A(Θ)
     "mu_fedprox": 0.0,  # 0.0 for CGoFed (paper doesn't have proximal term)
-    "rounds_per_task": 20,  # 20 rounds/task: đủ để model hội tụ, sync thường xuyên giảm client drift
+    # 20 rounds/task => checkpoints round_0 ... round_19 (round 19 included).
+    "rounds_per_task": 20,
     "local_epochs": 1,  # 1 epoch/round: tránh client drift trên non-IID data
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
     "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
@@ -294,16 +303,16 @@ CONFIG = {
     #   ["fc1", "gru", "conv3"] -> Phase 2b
     "denice_adapter_layers": ["fc1", "gru", "conv3"],
     "denice_debug": True,
-    # Train every available client in the 500-client split.  This explicit
+    # Train every available client in the 100-client split.  This explicit
     # cap prevents an accidental fallback to a smaller smoke-run budget.
-    "denice_max_clients": 500,
+    "denice_max_clients": 100,
     "denice_debug_store_client_details": False,
     "denice_save_round_artifacts": False,
     "denice_checkpoint_format": "delta",
-    # Quick diagnostic only at the final checkpoint (task 5, round 19).
+    # Quick diagnostic only at the final checkpoint (task 3, round 19).
     # A stratified, full evaluation matrix still runs offline in P6 afterward.
-    "denice_post_task_eval_tasks": [5],
-    "denice_eval_max_clients": 3,
+    "denice_post_task_eval_tasks": [3],
+    "denice_eval_max_clients": 100,
     "denice_eval_max_samples": 50000,
     "denice_eval_progress_every_clients": 10,  # in progress mỗi 10 clients
     "denice_eval_progress_every_batches": 0,

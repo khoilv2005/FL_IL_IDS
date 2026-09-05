@@ -126,6 +126,16 @@ def snapshot_nice_state(model: Any, context_detector: Any = None) -> Dict[str, A
 def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str, Any]:
     """Snapshot NICE state plus the DeNICE adapter registry metadata."""
     state = snapshot_nice_state(model, context_detector)
+    if model is not None and hasattr(model, "get_masks_state"):
+        state["connection_masks"] = _clone_value(model.get_masks_state())
+    if model is not None:
+        state["active_adapters"] = _clone_value(getattr(model, "active_adapters", {}))
+        state["bn_frozen_state"] = {
+            name: _clone_value(getattr(model, name, {}))
+            for name in (
+                "_bn_frozen_units", "_bn_running_mean_frozen", "_bn_running_var_frozen"
+            )
+        }
     if model is not None and hasattr(model, "get_adapter_registry_state"):
         state["adapter_registry"] = _clone_value(model.get_adapter_registry_state())
         state["architecture_version"] = int(getattr(model, "architecture_version", 1))
@@ -160,6 +170,15 @@ def restore_denice_state(
         model.set_neuron_ages_state(_clone_value(neuron_ages))
     if "freeze_masks" in state and hasattr(model, "freeze_masks"):
         model.freeze_masks = _clone_value(state.get("freeze_masks") or {})
+    # Legacy checkpoints have no connection masks: do not invent a topology
+    # from ages or assume every stored zero was structurally pruned.
+    if "connection_masks" in state and hasattr(model, "set_masks_state"):
+        model.set_masks_state(_clone_value(state["connection_masks"]))
+    if "active_adapters" in state:
+        model.active_adapters = _clone_value(state["active_adapters"])
+    for name, value in (state.get("bn_frozen_state") or {}).items():
+        if name in {"_bn_frozen_units", "_bn_running_mean_frozen", "_bn_running_var_frozen"}:
+            setattr(model, name, _clone_value(value))
     recycling = state.get("recycling_registry")
     if recycling and hasattr(model, "set_recycling_state"):
         model.set_recycling_state(_clone_value(recycling))

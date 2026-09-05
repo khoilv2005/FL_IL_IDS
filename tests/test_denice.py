@@ -2245,9 +2245,11 @@ class TestDeNICEEvaluation:
                 "oracle_mask_violation_count": 0,
                 "checkpoint_sha256": f"checkpoint-{seed}",
                 "config_sha256": f"config-{seed}",
+                "training_seed": seed,
             }
             summary = {
                 "training_seed": seed,
+                "training_seed_source": "checkpoint_config",
                 "summary": {
                     protocol: {policy: dict(metric) for policy in policies}
                     for protocol in protocols

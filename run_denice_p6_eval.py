@@ -42,6 +42,8 @@ def _compact(result: Dict[str, Any]) -> Dict[str, Any]:
     routing = metrics.get("routing_diagnostics", {})
     protocol_debug = metrics.get("protocol_debug", {})
     return {
+        "training_seed": result.get("training_seed"),
+        "evaluation_seed": result.get("eval_seed"),
         "accuracy": metrics.get("accuracy"),
         "precision_weighted": metrics.get("precision_weighted"),
         "recall_weighted": metrics.get("recall_weighted"),
@@ -151,8 +153,17 @@ def main() -> None:
         if e3.get("accuracy") is None or e4.get("accuracy") is None
         else float(e3["accuracy"] - e4["accuracy"])
     )
+    training_seeds = {
+        record["training_seed"] for policies in summary.values()
+        if isinstance(policies, dict)
+        for record in policies.values() if isinstance(record, dict) and "training_seed" in record
+    }
+    if None in training_seeds or len(training_seeds) != 1:
+        raise ValueError("P6 requires a consistent training seed from checkpoint config")
     payload = {
-        "training_seed": int(args.seed),
+        "training_seed": int(next(iter(training_seeds))),
+        "evaluation_seed": int(args.seed),
+        "training_seed_source": "checkpoint_config",
         "checkpoint": str(args.checkpoint),
         "protocols": protocols,
         "policies": list(POLICIES),

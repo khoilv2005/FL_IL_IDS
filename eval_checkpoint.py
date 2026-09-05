@@ -32,7 +32,7 @@ from fed_learning.models.denice_model import DeNICEModel
 from fed_learning.models.nice_model import NICEModel
 from fed_learning.servers.nice_server import ContextDetector
 from fed_learning.strategies.incremental.nice import update_freeze_masks
-from fed_learning.training.checkpoint_state import restore_context_detector
+from fed_learning.training.checkpoint_state import restore_context_detector, restore_denice_state
 from fed_learning.training.denice_delta_checkpoint import load_denice_checkpoint
 from fed_learning.training.denice_eval import (
     _denice_routed_logits_with_episodes,
@@ -434,6 +434,10 @@ def _make_denice_client_model(
     recycling = denice_state.get("recycling_registry")
     if recycling and hasattr(model, "set_recycling_state"):
         model.set_recycling_state(recycling)
+
+    # Share the continuation restore path, including connection masks and BN
+    # freeze snapshots. Tensor weights alone do not define a masked network.
+    restore_denice_state(model, None, denice_state)
 
     state_dict = OrderedDict(
         _dict_get_int(ckpt["client_model_states"], int(client_id), {}) or {}
@@ -1069,6 +1073,7 @@ def evaluate_checkpoint(
                 "eval_sample_count": int(len(test_y)),
                 "eval_total_sample_count": total_test_samples,
                 "eval_seed": int(eval_seed),
+                "training_seed": config.get("random_seed", config.get("seed")),
                 "evaluation_sampling": sampling_debug,
             }
         if evaluation_mode in {"ensemble", "representative"}:
@@ -1157,6 +1162,7 @@ def evaluate_checkpoint(
                 "eval_sample_count": int(len(test_y)),
                 "eval_total_sample_count": total_test_samples,
                 "eval_seed": int(eval_seed),
+                "training_seed": config.get("random_seed", config.get("seed")),
                 "evaluation_sampling": sampling_debug,
             }
 
@@ -1214,6 +1220,7 @@ def evaluate_checkpoint(
             "eval_sample_count": int(len(test_y)),
             "eval_total_sample_count": total_test_samples,
             "eval_seed": int(eval_seed),
+            "training_seed": config.get("random_seed", config.get("seed")),
             "evaluation_sampling": sampling_debug,
         }
 

@@ -375,17 +375,10 @@ def _bootstrap_denice_model(
 ) -> DeNICEModel:
     """Clone a compatible DeNICE representative, including adapter structure."""
     model = _make_model(config, device)
-    for meta in source_model.get_adapter_registry_state().values():
-        model.add_adapter(
-            int(meta["context_id"]),
-            str(meta["layer_name"]),
-            rank=int(meta["rank"]),
-            set_active=False,
-        )
+    # A state_dict clone alone reopens pruned connections. Bootstrap must use
+    # the same complete model-state contract as checkpoint continuation.
+    restore_denice_state(model, None, snapshot_denice_state(source_model))
     model.load_state_dict(_state_dict(source_model), strict=True)
-    model.set_neuron_ages_state(source_model.get_neuron_ages_state())
-    if hasattr(source_model, "get_recycling_state"):
-        model.set_recycling_state(source_model.get_recycling_state())
     update_freeze_masks(model)
     if hasattr(model, "freeze_bn_for_mature"):
         model.freeze_bn_for_mature()

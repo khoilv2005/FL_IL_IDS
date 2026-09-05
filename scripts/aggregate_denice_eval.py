@@ -227,9 +227,13 @@ def write_markdown(raw: pd.DataFrame, summary: pd.DataFrame, missing: pd.DataFra
     if not missing_preview.empty:
         missing_preview = missing_preview.head(30)
 
-    text = f"""# DeNICE 5-Seed Evaluation Summary
+    text = f"""# DeNICE 5 Evaluation-Split Seeds Summary
 
 Protocol: `eval_5.ipynb` proxy evaluation, global cumulative test split equally across active clients, aggregated over seeds `{','.join(map(str, EXPECTED_SEEDS))}`.
+
+These are evaluation partition seeds over saved checkpoints. This report does
+not establish independent training runs; its standard deviation must not be
+reported as training-seed uncertainty.
 
 Raw rows: `{len(raw)}`
 

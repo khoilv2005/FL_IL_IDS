@@ -1,6 +1,12 @@
-# DeNICE 5-Seed Evaluation Summary
+# DeNICE 5 Evaluation-Split Seeds Summary
 
 Protocol: `eval_5.ipynb` proxy evaluation, global cumulative test split equally across active clients, aggregated over seeds `42,43,44,45,46`.
+
+Audit clarification (2026-09-05): these are evaluation partition seeds over
+saved checkpoints, not five independent training runs. Standard deviations
+describe test-to-client assignment variability. Metrics below are preserved.
+The separate FULL_D2 runs in Downloads/42.zip through 46.zip have independent
+training-seed evidence; see `DENICE_AUDIT.md`.
 
 Raw rows: `600`
 

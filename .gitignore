@@ -11,6 +11,7 @@
 /results/
 /results_incremental*/
 /checkpoints/
+/audit_denice/
 
 # ===========================================
 # Temporary training storage
