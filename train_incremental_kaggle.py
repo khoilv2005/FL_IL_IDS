@@ -10,7 +10,9 @@ import zipfile
 
 # Environment overrides make P6 multi-seed runs reproducible without editing
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..5
+# Default to the task-5 continuation run.  Override explicitly only when a
+# different experimental phase is intended.
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "4"))  # 1..5
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_seed_{TRAIN_SEED}"
@@ -36,10 +38,11 @@ PHASE_CONFIG = {
         "resume_file": "continuation_state_task_2.pt",
     },
     4: {
-        "task_start": 4,
+        "task_start": 5,
         "task_end": 5,
-        "save_resume_after_task": None,
-        "resume_file": "continuation_state_task_3.pt",
+        # Keep a self-contained terminal state for recovery/evaluation.
+        "save_resume_after_task": 5,
+        "resume_file": "continuation_state_task_4.pt",
     },
     5:{
         "task_start": 0,
@@ -52,6 +55,11 @@ PHASE_CONFIG = {
 phase_config = PHASE_CONFIG[TRAIN_PHASE]
 desired_resume_file = phase_config["resume_file"]
 target = None
+
+resume_drive_url = os.environ.get(
+    "DENICE_RESUME_DRIVE_URL",
+    "https://drive.google.com/file/d/1gbI_29QAwV6wYgTdfDYKDc1toZnJ_uu-/view?usp=sharing",
+)
 
 if desired_resume_file is None:
     print(f"Phase {TRAIN_PHASE}: no resume state needed.")
@@ -66,7 +74,7 @@ else:
             "-m",
             "gdown",
             "--fuzzy",
-            "https://drive.google.com/file/d/15Ki3iBYinEmGFk5SRsSno46WI44RVtvk/view?usp=drive_link",
+            resume_drive_url,
             "-O",
             archive_path,
         ],
@@ -175,7 +183,7 @@ setup_imports()
 # =============================================================================
 CONFIG = {
     # Data
-    "data_dir": "/kaggle/input/datasets/khoilv2005/100-clients/100-clients",
+    "data_dir": "/kaggle/input/datasets/khoilv2005/500-clients/500-clients",
     # Reproducibility
     "random_seed": TRAIN_SEED,
     # Training Mode
@@ -201,7 +209,7 @@ CONFIG = {
     #   1 -> train tasks 0-1, save continuation_state_task_1.pt
     #   2 -> load task_1 state, train task 2, save continuation_state_task_2.pt
     #   3 -> load task_2 state, train task 3, save continuation_state_task_3.pt
-    #   4 -> load task_3 state, train tasks 4-5 (done)
+    #   4 -> load task_4 state, train task 5 only
     # These keys are used by IL/non-DFCA modes; pure DFCA ignores task filtering.
     "task_start": phase_config["task_start"],
     "task_end": phase_config["task_end"],
@@ -222,7 +230,7 @@ CONFIG = {
     #"resume_output_dir": None,
     # Incremental Learning - 6 Tasks Distribution
     # Task 0-4: 6 classes each, Task 5: 4 classes (total 34)
-    "num_clients": 100,
+    "num_clients": 500,
     "total_classes": 34,
     "base_classes": 6,       # 6 classes per task (first 5 tasks)
     "classes_per_task": 6,
@@ -238,7 +246,6 @@ CONFIG = {
     # eval_every > rounds_per_task -> chỉ eval ở post-task (round cuối mỗi task).
     # Đặt = rounds_per_task nếu muốn bật mid-task eval lại.
     "eval_every": 9999,
-    "round_checkpoint_every": 5,
     # --- Algorithm Specific Params ---
     # CGoFed - RE-TUNED dựa trên training log analysis
     "mu_cgofed": 1.0,  # Paper Eq. 9: full gradient projection
@@ -287,6 +294,9 @@ CONFIG = {
     #   ["fc1", "gru", "conv3"] -> Phase 2b
     "denice_adapter_layers": ["fc1", "gru", "conv3"],
     "denice_debug": True,
+    # Train every available client in the 500-client split.  This explicit
+    # cap prevents an accidental fallback to a smaller smoke-run budget.
+    "denice_max_clients": 500,
     "denice_debug_store_client_details": False,
     "denice_save_round_artifacts": False,
     "denice_checkpoint_format": "delta",
@@ -387,8 +397,8 @@ CONFIG = {
     "dfca_participation_rate": 1.0,
     "dfca_debug_assignments": False,
     "dfca_debug_cluster_models": True,
-    # Checkpoint / resume (per-round checkpoint inside each task)
-    "round_checkpoint_every": 5,
+    # Checkpoint / resume: persist every round (0--19) inside each task.
+    "round_checkpoint_every": 1,
 }
 
 # A JSON object supplied by a launcher can override only the fields under
