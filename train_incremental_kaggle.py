@@ -12,7 +12,7 @@ import zipfile
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
 # Default to the 100-client task-0..3 run.  Override explicitly only when a
 # different experimental phase is intended.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "6"))  # 1..6
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_seed_{TRAIN_SEED}"
@@ -20,10 +20,10 @@ TRAIN_OUTPUT_DIR = os.environ.get(
 
 PHASE_CONFIG = {
     1: {
-        "task_start": 0,
+        "task_start": 1,
         "task_end": 1,
         "save_resume_after_task": 1,
-        "resume_file": None,
+        "resume_file": "continuation_state_task_0.pt",
     },
     2: {
         "task_start": 2,
@@ -38,11 +38,11 @@ PHASE_CONFIG = {
         "resume_file": "continuation_state_task_2.pt",
     },
     4: {
-        "task_start": 5,
+        "task_start": 4,
         "task_end": 5,
         # Keep a self-contained terminal state for recovery/evaluation.
-        "save_resume_after_task": 5,
-        "resume_file": "continuation_state_task_4.pt",
+        "save_resume_after_task": 4,
+        "resume_file": "continuation_state_task_3.pt",
     },
     5: {
         "task_start": 0,
@@ -65,7 +65,7 @@ target = None
 
 resume_drive_url = os.environ.get(
     "DENICE_RESUME_DRIVE_URL",
-    "https://drive.google.com/file/d/1gbI_29QAwV6wYgTdfDYKDc1toZnJ_uu-/view?usp=sharing",
+    "https://drive.google.com/file/d/17NjLkorD7ut4xrUX3pj-SlltqxAwHDE2/view?usp=sharing",
 )
 
 if desired_resume_file is None:
@@ -153,33 +153,30 @@ REPO_PATH = "/tmp/FL_IL_IDS"
 
 
 def setup_imports():
-    """Clone repo from GitHub to get proper nested structure."""
-    import shutil
-
-    # Force fresh clone to avoid any stale bytecode issues
-    if os.path.exists(REPO_PATH):
-        print(f"Removing stale clone at {REPO_PATH}...")
-        shutil.rmtree(REPO_PATH)
-
-    print(f"Cloning from GitHub...")
-    os.system(f"git clone https://github.com/khoilv2005/FL_IL_IDS.git {REPO_PATH}")
-
-    # Remove any Kaggle dataset paths that might override our import
-    kaggle_prefix = "/kaggle/input"
-    new_sys_path = []
-    for p in sys.path:
-        if not p.startswith(kaggle_prefix):
-            new_sys_path.append(p)
-
-    # Put REPO_PATH at the front
-    sys.path = [REPO_PATH] + new_sys_path
-
-    # Clear any cached fed_learning modules
-    to_remove = [k for k in sys.modules.keys() if 'fed_learning' in k]
-    for k in to_remove:
-        del sys.modules[k]
-
-    print(f"sys.path[0]: {sys.path[0]}")
+    """Prefer uploaded source; otherwise clone a requested Git revision."""
+    global REPO_PATH
+    import tempfile
+    local = os.environ.get("DENICE_CODE_DIR")
+    if not local and "__file__" in globals():
+        candidate = os.path.dirname(os.path.abspath(__file__))
+        if os.path.isdir(os.path.join(candidate, "fed_learning")):
+            local = candidate
+    if local:
+        if not os.path.isdir(os.path.join(local, "fed_learning")):
+            raise FileNotFoundError("DENICE_CODE_DIR must contain fed_learning")
+        REPO_PATH = os.path.abspath(local)
+    else:
+        revision = os.environ.get("DENICE_CODE_REF")
+        if not revision:
+            raise ValueError("Set DENICE_CODE_DIR to uploaded patched source, or DENICE_CODE_REF to its Git commit.")
+        REPO_PATH = tempfile.mkdtemp(prefix="denice-source-")
+        subprocess.run(["git", "clone", "https://github.com/khoilv2005/FL_IL_IDS.git", REPO_PATH], check=True)
+        subprocess.run(["git", "-C", REPO_PATH, "checkout", "--detach", revision], check=True)
+    sys.path.insert(0, REPO_PATH)
+    for name in list(sys.modules):
+        if name == "fed_learning" or name.startswith("fed_learning."):
+            del sys.modules[name]
+    print("Training source:", REPO_PATH)
 
 
 setup_imports()
@@ -302,16 +299,31 @@ CONFIG = {
     #   ["fc1", "gru"]          -> Phase 2a
     #   ["fc1", "gru", "conv3"] -> Phase 2b
     "denice_adapter_layers": ["fc1", "gru", "conv3"],
+    # Fresh CANDLE run: protected routing sketches, no old raw reference bank.
+    "denice_structural_protection": True,
+    "denice_fixed_task_allocation": True,
+    "denice_pairwise_young_mask": True,
+    "denice_aggregation_update_mode": "local_delta",
+    "denice_aggregation_rho": "reserve",
+    "denice_memory_policy": "sketches",
+    "denice_canc_schedule": "task_end",
+    "denice_capsule_mode": "paper",
+    "denice_clustering_mode": "paper",
+    "denice_similarity_beta": 0.5,
+    "denice_similarity_threshold": 0.5,
+    "denice_validation_fraction": 0.1,
+    "denice_fisher_samples": 8,
+    "save_continuation_every_task": True,
     "denice_debug": True,
     # Train every available client in the 100-client split.  This explicit
     # cap prevents an accidental fallback to a smaller smoke-run budget.
     "denice_max_clients": 100,
     "denice_debug_store_client_details": False,
     "denice_save_round_artifacts": False,
-    "denice_checkpoint_format": "delta",
+    "denice_checkpoint_format": "full",
     # Quick diagnostic only at the final checkpoint (task 3, round 19).
     # A stratified, full evaluation matrix still runs offline in P6 afterward.
-    "denice_post_task_eval_tasks": [3],
+    "denice_post_task_eval_tasks": [0, 1, 2, 3, 4, 5],
     "denice_eval_max_clients": 100,
     "denice_eval_max_samples": 50000,
     "denice_eval_progress_every_clients": 10,  # in progress mỗi 10 clients
@@ -325,17 +337,17 @@ CONFIG = {
     # DeNICE context routing bank. scope="cluster" follows the proposal:
     # share context capsule/sketches only inside the decentralized collaboration group.
     # Use scope="global" only for ablation/debug.
-    "denice_shared_context_eval": True,
-    "denice_shared_context_scope": "cluster",
+    "denice_shared_context_eval": False,
+    "denice_shared_context_scope": "local",
     "denice_shared_context_max_per_episode": 512,
     # Pool binary context sketches only when all contributors share a verified
     # calibration/provenance; otherwise evaluation safely falls back to local.
     "denice_shared_context_require_compatible_calibration": True,
-    "denice_router_mode": "multiclass",
+    "denice_router_mode": "binary_cosine",
     # Re-encode each small client-local context reference bank after aggregation
     # so the router never compares final-model activations with stale sketches.
-    "denice_refresh_router_memory_after_aggregation": True,
-    "denice_router_update_schedule": "task_end",
+    "denice_refresh_router_memory_after_aggregation": False,
+    "denice_router_update_schedule": "every_round",
     "denice_router_reference_per_class": 20,
     "denice_router_refresh_batch_size": 2048,
 
@@ -343,7 +355,7 @@ CONFIG = {
     # denice_aggregation_method: "weighted_mean" | "coordinate_median" | "trimmed_mean"
     "denice_aggregation_method": "weighted_mean",
     "denice_aggregation_trim_ratio": 0.1,
-    "denice_gamma": 0.15,
+    "denice_gamma": 0.0,
     # G_i = {j | cùng cluster AND s_ij > delta} (§6). True = lọc theo đồ thị context.
     "denice_collab_use_context_edges": True,
     "denice_require_label_overlap": True,
@@ -362,7 +374,7 @@ CONFIG = {
     "denice_max_consecutive_self_only_rounds": 2,
     "denice_min_mean_peer_alpha": 0.05,
     # Prevent capacity collapse caused by union/max propagation of peer ages.
-    "denice_age_merge_policy": "consensus",
+    "denice_age_merge_policy": "none",
     "denice_age_merge_consensus_threshold": 0.5,
     "denice_min_free_capacity_ratio": 0.10,
 
@@ -407,7 +419,7 @@ CONFIG = {
     "dfca_debug_assignments": False,
     "dfca_debug_cluster_models": True,
     # Checkpoint / resume: persist every round (0--19) inside each task.
-    "round_checkpoint_every": 1,
+    "round_checkpoint_every": 20,
 }
 
 # A JSON object supplied by a launcher can override only the fields under

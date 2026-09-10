@@ -27,6 +27,30 @@ from .denice_capsule import CAPSULE_LAYERS, ContextCapsule
 LARGE_NEG = -1e9
 
 
+def paper_context_cluster(capsules, beta=0.5, threshold=0.5):
+    """Eqs. (17)-(18), without AP/top-k/silhouette restrictions."""
+    n = len(capsules)
+    scores = np.eye(n, dtype=np.float64)
+    for i, left in enumerate(capsules):
+        for j in range(i + 1, n):
+            right = capsules[j]
+            common = sorted(set(left.penultimate_prototypes) & set(right.penultimate_prototypes))
+            proto = float(np.mean([_cosine(left.penultimate_prototypes[c], right.penultimate_prototypes[c])
+                                   for c in common])) if common else 0.0
+            layers = sorted(set(left.ternary_ages) & set(right.ternary_ages))
+            equal = [np.asarray(left.ternary_ages[layer]) == np.asarray(right.ternary_ages[layer])
+                     for layer in layers if np.shape(left.ternary_ages[layer]) == np.shape(right.ternary_ages[layer])]
+            age = float(np.concatenate(equal).mean()) if equal else 0.0
+            scores[i, j] = scores[j, i] = float(beta) * proto + (1 - float(beta)) * age
+    edges = (scores >= float(threshold)).astype(np.int8)
+    np.fill_diagonal(edges, 0)
+    return {'labels': np.zeros(n, dtype=np.int64), 'exemplars': [0] if n else [],
+            'K_t': 1 if n else 0, 'silhouette': float('nan'), 'valid': True,
+            'similarity': scores, 'effective_similarity': scores, 'edges': edges,
+            'effective_weights': {'proto': float(beta), 'age': 1-float(beta)},
+            'similarity_threshold': float(threshold)}
+
+
 @dataclass
 class SimilarityWeights:
     """Weights for the context-aware similarity (proposal section 6)."""

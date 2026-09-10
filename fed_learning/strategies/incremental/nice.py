@@ -58,6 +58,8 @@ def select_learner_units(model, tau: float, data: torch.Tensor):
     Mỗi phase, NICE reset các neuron chưa trưởng thành về trạng thái young,
     sau đó dựa vào activation để chọn ra nhóm learner mới.
     """
+    if getattr(model, 'fixed_task_allocation', False):
+        return
     if tau >= 1.0:
         # tau=100%: promote all active young/learner units, but keep retired
         # DeNICE units (age=-1) out of training.
@@ -227,6 +229,10 @@ def update_freeze_masks(model):
         ranks = model.unit_ranks[name]
         # Base freeze mask: mature neurons (age > 1)
         mature_mask = ranks > 1
+        if getattr(model, 'fixed_task_allocation', False):
+            mature_mask = ranks != 1
+        if name in getattr(model, 'task_freeze_layers', []):
+            mature_mask = np.ones_like(ranks, dtype=bool)
         model.freeze_masks[name] = mature_mask
 
 

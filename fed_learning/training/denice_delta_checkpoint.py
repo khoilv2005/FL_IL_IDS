@@ -47,7 +47,7 @@ def _compact_metadata(value: Any, *, preserve_float: bool = False) -> Any:
                 return arr.astype(np.float32)
             arr_min = float(np.nanmin(arr))
             arr_max = float(np.nanmax(arr))
-            if arr_min >= 0.0 and arr_max <= 1.0:
+            if arr_min >= 0.0 and arr_max <= 1.0 and np.all((arr == 0) | (arr == 1)):
                 return arr.astype(np.uint8)
             return arr.astype(np.float32)
         return arr

@@ -40,6 +40,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 from .nice_model import NICEModel
 
@@ -114,6 +115,11 @@ class DeNICEModel(NICEModel):
         self.adapter_registry: Dict[str, Dict] = {}
         self.active_adapters: Dict[str, str] = {}
         self.recycling_registry: Dict[str, Dict[int, Dict[str, int]]] = {}
+        # Opt in for fresh runs; legacy checkpoints keep their original graph.
+        self.structural_protection = False
+        self.fixed_task_allocation = False
+        self.task_freeze_layers = []
+        self.gru_connection_masks = {}
 
         # Dimension used by each adapter (the residual operates on these dims).
         self._adapter_dims = {
@@ -352,7 +358,7 @@ class DeNICEModel(NICEModel):
             x_cnn = self._apply_conv_channel_adapter(x_cnn, "conv3")
         cnn_output = x_cnn.view(x.size(0), -1)
 
-        x_gru, _ = self.gru(x)
+        x_gru, _ = self._run_gru(x)
         gru_output = x_gru[:, -1, :]
         device = gru_output.device
         gru_mask = self.weight_masks["gru"].to(device)
@@ -412,3 +418,42 @@ class DeNICEModel(NICEModel):
     # ``get_output_and_context_activations`` are intentionally NOT overridden.
     # They inherit the adapter-free NICE path so the context detector keeps
     # routing on stable backbone activations (plan section 4 / 10).
+    def _run_gru(self, x):
+        if not self.structural_protection or not self.gru_connection_masks:
+            return self.gru(x)
+        parameters = {
+            name: parameter * self.gru_connection_masks[name].to(parameter.device)
+            if name in self.gru_connection_masks else parameter
+            for name, parameter in self.gru.named_parameters()
+        }
+        # Keep the optimized GRU implementation and legacy parameter names.
+        return torch.func.functional_call(self.gru, parameters, (x,))
+
+    def protect_task_connections(self):
+        """Cut only newly forbidden edges; never reopen consolidated inputs."""
+        if not self.structural_protection:
+            return
+        ranks = np.asarray(self.unit_ranks['gru'])
+        forbidden = ((ranks[:, None] >= 1) & (ranks[None, :] <= 0)) | (
+            (ranks[:, None] >= 2) & (ranks[None, :] < 2)
+        )
+        for name, parameter in self.gru.named_parameters():
+            if name.startswith('weight_hh') or (
+                name.startswith('weight_ih') and name != 'weight_ih_l0'
+            ):
+                keep = torch.as_tensor(~np.tile(forbidden, (3, 1)), dtype=parameter.dtype)
+                previous = self.gru_connection_masks.get(name, torch.ones_like(keep))
+                self.gru_connection_masks[name] = previous.cpu() * keep
+
+    def get_masks_state(self):
+        state = super().get_masks_state()
+        state.update({'recurrent_' + k: v.detach().cpu().clone()
+                      for k, v in self.gru_connection_masks.items()})
+        return state
+
+    def set_masks_state(self, state):
+        super().set_masks_state(state)
+        self.gru_connection_masks = {
+            k[len('recurrent_'):]: v.clone() for k, v in state.items()
+            if k.startswith('recurrent_')
+        }

@@ -43,6 +43,8 @@ def snapshot_context_detector(context_detector: Any) -> Optional[Dict[str, Any]]
             getattr(context_detector, "memo_per_class", 50),
         ),
         "router_mode": getattr(context_detector, "router_mode", "chained"),
+        "retain_reference_inputs": bool(getattr(context_detector, 'retain_reference_inputs', True)),
+        "stable_feature_mask": _clone_value(getattr(context_detector, 'stable_feature_mask', None)),
         "calibration_provenance": getattr(
             context_detector, "calibration_provenance", None
         ),
@@ -87,6 +89,8 @@ def restore_context_detector(context_detector: Any, state: Optional[Dict[str, An
         state.get("router_reference_per_class", context_detector.memo_per_class)
     )
     context_detector.router_mode = str(state.get("router_mode", "chained")).lower()
+    context_detector.retain_reference_inputs = bool(state.get('retain_reference_inputs', True))
+    context_detector.stable_feature_mask = _clone_value(state.get('stable_feature_mask'))
     context_detector.calibration_provenance = state.get("calibration_provenance")
     context_detector.activation_memory = _clone_value(
         state.get("activation_memory", {})
@@ -129,6 +133,10 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
     if model is not None and hasattr(model, "get_masks_state"):
         state["connection_masks"] = _clone_value(model.get_masks_state())
     if model is not None:
+        state['structural_protection'] = bool(getattr(model, 'structural_protection', False))
+        state['fixed_task_allocation'] = bool(getattr(model, 'fixed_task_allocation', False))
+        state['task_freeze_layers'] = list(getattr(model, 'task_freeze_layers', []))
+        state['pending_canc_plan'] = _clone_value(getattr(model, 'pending_canc_plan', None))
         state["active_adapters"] = _clone_value(getattr(model, "active_adapters", {}))
         state["bn_frozen_state"] = {
             name: _clone_value(getattr(model, name, {}))
@@ -155,6 +163,10 @@ def restore_denice_state(
     """
     if model is None or not state:
         return
+    model.structural_protection = bool(state.get('structural_protection', False))
+    model.fixed_task_allocation = bool(state.get('fixed_task_allocation', False))
+    model.task_freeze_layers = list(state.get('task_freeze_layers', []))
+    model.pending_canc_plan = _clone_value(state.get('pending_canc_plan'))
     adapter_registry = state.get("adapter_registry") or {}
     for meta in adapter_registry.values():
         if not hasattr(model, "add_adapter"):

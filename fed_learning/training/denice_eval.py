@@ -377,6 +377,7 @@ def evaluate_denice_model(
     route_mode: str = "hard",
     route_topk: int = 1,
     include_route_diagnostics: bool = False,
+    include_confusion_matrix: bool = False,
 ) -> Dict[str, Any]:
     """Evaluate a DeNICE model with context-routed micro-adapters."""
     model.eval()
@@ -469,6 +470,11 @@ def evaluate_denice_model(
     }
     if include_route_diagnostics:
         metrics["route_confusion"] = route_confusion
+    if include_confusion_matrix:
+        from sklearn.metrics import confusion_matrix
+        metrics['confusion_matrix'] = confusion_matrix(
+            y_true, y_pred, labels=list(range(int(model.num_classes)))
+        ).tolist()
     return metrics
 
 

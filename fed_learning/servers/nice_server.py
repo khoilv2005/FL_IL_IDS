@@ -163,7 +163,11 @@ class ContextDetector:
                 binary = (act > 0).astype(np.float32)
             parts.append(binary)
 
-        return np.concatenate(parts, axis=1)  # [batch, total_features]
+        result = np.concatenate(parts, axis=1)
+        stable_mask = getattr(self, 'stable_feature_mask', None)
+        if stable_mask is not None:
+            result = result * np.asarray(stable_mask, dtype=np.float32)
+        return result
 
     def _get_context_mask(self, model: NICEModel) -> np.ndarray:
         """Official-style context mask: only units allocated by this episode."""
@@ -217,7 +221,8 @@ class ContextDetector:
         binary_vecs = self._binarize_per_sample(model, data)  # [n_samples, features]
         self.activation_memory[episode] = binary_vecs
         self.context_masks[episode] = self._get_context_mask(model)
-        if reference_data is not None and len(reference_data):
+        if (getattr(self, 'retain_reference_inputs', True)
+                and reference_data is not None and len(reference_data)):
             self.reference_input_memory[int(episode)] = np.asarray(
                 reference_data.detach().cpu().numpy(), dtype=np.float32
             ).copy()
@@ -292,6 +297,9 @@ class ContextDetector:
         self.context_learners = []
         self.multiclass_router = None
         self.multiclass_episodes = []
+
+        if getattr(self, 'router_mode', 'chained') == 'binary_cosine':
+            return  # Eq. (25): nearest episode memory, no fitted classifier.
 
         if getattr(self, "router_mode", "chained") == "multiclass":
             self._train_multiclass_router(current_episode)
@@ -490,6 +498,20 @@ class ContextDetector:
             binary_activations = binary_activations.reshape(1, -1)
 
         latest_episode = max(self.episode_classes.keys()) if self.episode_classes else 0
+
+        if getattr(self, 'router_mode', 'chained') == 'binary_cosine':
+            scores = np.full((len(binary_activations), latest_episode + 1), -np.inf)
+            x = np.asarray(binary_activations, dtype=np.float32)
+            for ep, memory in self.activation_memory.items():
+                if len(memory):
+                    prototype = np.asarray(memory, dtype=np.float32).mean(axis=0)
+                    denom = np.linalg.norm(x, axis=1) * np.linalg.norm(prototype)
+                    scores[:, int(ep)] = (x @ prototype) / np.maximum(denom, 1e-8)
+            if not np.isfinite(scores).any():
+                scores[:, latest_episode] = 0
+            probs = np.exp(scores - np.max(scores, axis=1, keepdims=True))
+            probs /= probs.sum(axis=1, keepdims=True)
+            return probs.argmax(axis=1).astype(int), probs.astype(np.float32)
 
         if getattr(self, "router_mode", "chained") == "multiclass":
             return self._predict_multiclass_scores(binary_activations, latest_episode)

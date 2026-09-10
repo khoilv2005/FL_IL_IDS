@@ -296,7 +296,7 @@ class NICEModel(nn.Module):
         cnn_output = x_cnn.view(x.size(0), -1)
 
         # GRU pathway
-        x_gru, _ = self.gru(x)
+        x_gru, _ = self._run_gru(x)
         gru_output = x_gru[:, -1, :]
 
         # Apply GRU output mask
@@ -305,6 +305,9 @@ class NICEModel(nn.Module):
         gru_output = gru_output * gru_mask
 
         return torch.cat([cnn_output, gru_output], dim=1)
+
+    def _run_gru(self, x):
+        return self.gru(x)
 
     def _apply_masked_linear(self, x, linear, layer_name):
         """Apply linear layer with weight masking."""
@@ -367,7 +370,7 @@ class NICEModel(nn.Module):
         x_cnn = self.pool3(self.relu(self.bn3(self.conv3(x_cnn))))
         cnn_output = x_cnn.view(x.size(0), -1)
 
-        x_gru, _ = self.gru(x)
+        x_gru, _ = self._run_gru(x)
         gru_output = x_gru[:, -1, :]
 
         z = torch.cat([cnn_output, gru_output], dim=1)
@@ -404,7 +407,7 @@ class NICEModel(nn.Module):
             activations["conv3"] = x_cnn.abs().mean(dim=(0, 2))
             cnn_output = x_cnn.view(x.size(0), -1)
 
-            x_gru, _ = self.gru(x)
+            x_gru, _ = self._run_gru(x)
             gru_output = x_gru[:, -1, :]
             gru_output = gru_output * self.weight_masks["gru"].to(gru_output.device)
             activations["gru"] = gru_output.abs().mean(dim=0)
@@ -430,7 +433,7 @@ class NICEModel(nn.Module):
             x_cnn = self._apply_masked_conv(x_cnn, self.conv3, self.bn3, self.pool3, "conv3")
             conv3 = x_cnn.abs().mean(dim=2)
 
-            x_gru, _ = self.gru(x)
+            x_gru, _ = self._run_gru(x)
             gru = x_gru[:, -1, :]
             gru = gru * self.weight_masks["gru"].to(gru.device)
 
@@ -453,7 +456,7 @@ class NICEModel(nn.Module):
         conv3 = x_cnn.abs().mean(dim=2)
         cnn_output = x_cnn.view(x.size(0), -1)
 
-        x_gru, _ = self.gru(x)
+        x_gru, _ = self._run_gru(x)
         gru = x_gru[:, -1, :]
         gru = gru * self.weight_masks["gru"].to(gru.device)
 

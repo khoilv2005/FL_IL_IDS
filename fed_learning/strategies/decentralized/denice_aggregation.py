@@ -181,6 +181,11 @@ def age_aware_aggregate(
     alphas: np.ndarray,
     config: Optional[AggregationConfig] = None,
     gru_hidden: int = 100,
+    *,
+    neighbor_ages: Optional[List[Dict[str, np.ndarray]]] = None,
+    neighbor_labels: Optional[List[List[int]]] = None,
+    target_labels: Optional[List[int]] = None,
+    frozen_layers: Optional[List[str]] = None,
 ) -> "OrderedDict[str, torch.Tensor]":
     """Apply masked neighbor deltas to the receiver params.
 
@@ -198,18 +203,53 @@ def age_aware_aggregate(
         else {name: torch.ones_like(p) for name, p in target_params.items()}
     )
     robust = config.method in ("coordinate_median", "trimmed_mean")
+    if neighbor_ages is not None and len(neighbor_ages) != len(neighbor_deltas):
+        raise ValueError('One sender age state is required per delta.')
+
+    def pair_mask(name, param, j):
+        keep = masks[name].to(param.device)
+        layer = _BN_LAYER_MAP.get(name.split('.')[0], name.split('.')[0])
+        if layer in (frozen_layers or []):
+            return torch.zeros_like(keep)
+        if neighbor_ages is None:
+            return keep
+        # Reuse the row expansion helper with every non-young row protected.
+        for ages in (target_ages, neighbor_ages[j]):
+            protected = {k: np.where(np.asarray(v) == 1, 1, 2) for k, v in ages.items()}
+            rows = _mature_mask_for_param(name, param.shape, protected, gru_hidden)
+            if rows is not None:
+                keep = keep.clone()
+                keep[torch.as_tensor(rows, dtype=torch.bool, device=param.device)] = 0
+            elif not name.startswith('adapters.'):
+                return torch.zeros_like(keep)  # Untracked buffers stay local.
+        if layer == 'fc2' and neighbor_labels is not None:
+            supported = set(target_labels or []) & set(neighbor_labels[j])
+            unsupported = [c for c in range(param.shape[0]) if c not in supported]
+            keep = keep.clone()
+            keep[unsupported] = 0
+        return keep
 
     new_params = OrderedDict()
     for name, param in target_params.items():
         if robust:
-            contribs = [
-                delta[name].to(param.device)
-                for delta in neighbor_deltas
-                if name in delta and delta[name].shape == param.shape
-            ]
+            valid = [(j, delta[name].to(param.device)) for j, delta in enumerate(neighbor_deltas)
+                     if name in delta and delta[name].shape == param.shape and float(alphas[j]) > 0]
+            contribs = [torch.where(pair_mask(name, param, j).bool(), d,
+                                   torch.full_like(d, float('nan')))
+                        for j, d in valid] if param.is_floating_point() else []
             if contribs:
                 stacked = torch.stack(contribs, dim=0)
-                agg = _robust_combine(stacked, config.method, config.trim_ratio)
+                if config.method == 'coordinate_median':
+                    agg = torch.nanmedian(stacked, dim=0).values.nan_to_num()
+                else:
+                    # Sort only eligible values; padding NaNs must not count as peers.
+                    ordered = stacked.sort(dim=0).values
+                    count = torch.isfinite(ordered).sum(dim=0)
+                    trim = (count * config.trim_ratio).floor().long()
+                    pos = torch.arange(len(contribs), device=param.device).reshape(
+                        (-1,) + (1,) * param.ndim)
+                    use = (pos >= trim) & (pos < count - trim)
+                    agg = torch.where(use, ordered, 0).nan_to_num().sum(dim=0) / use.sum(dim=0).clamp_min(1)
             else:
                 agg = torch.zeros_like(param)
         else:
@@ -220,7 +260,7 @@ def age_aware_aggregate(
                 d = delta[name]
                 if d.shape != param.shape:
                     continue
-                agg = agg + float(alphas[j]) * d.to(param.device)
+                agg = agg + float(alphas[j]) * pair_mask(name, param, j) * d.to(param.device)
         mask = masks.get(name, torch.ones_like(param)).to(param.device)
         new_params[name] = param + config.eta * (mask * agg)
     return new_params

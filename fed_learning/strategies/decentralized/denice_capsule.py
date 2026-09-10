@@ -50,6 +50,9 @@ class ContextCapsule:
     adapter_registry: Dict[str, Dict] = field(default_factory=dict)
     update_summary: Optional[np.ndarray] = None
     class_activation_prototypes: Dict[int, Dict[str, np.ndarray]] = field(default_factory=dict)
+    penultimate_prototypes: Dict[int, np.ndarray] = field(default_factory=dict)
+    ternary_ages: Dict[str, np.ndarray] = field(default_factory=dict)
+    parameter_fisher: Dict[str, np.ndarray] = field(default_factory=dict)
 
     def proto_vector(self) -> np.ndarray:
         """Flatten class-balanced per-layer prototypes into one vector.
@@ -269,6 +272,8 @@ def build_context_capsule(
     context_detector: Any = None,
     update_summary: Optional[np.ndarray] = None,
     labels: Optional[torch.Tensor] = None,
+    capsule_mode: str = 'legacy',
+    fisher_samples: int = 8,
 ) -> ContextCapsule:
     """Build a :class:`ContextCapsule` from a trained DeNICE/NICE model.
 
@@ -289,6 +294,42 @@ def build_context_capsule(
     if hasattr(model, "get_adapter_registry_state"):
         adapter_registry = model.get_adapter_registry_state()
 
+    penultimate = {}
+    fisher = {}
+    ternary = {}
+    if capsule_mode == 'paper':
+        with torch.no_grad():
+            features = model._forward_backbone(data)
+            embeddings = model.relu(model._apply_masked_linear(features, model.fc1, 'fc1'))
+            if hasattr(model, '_apply_fc1_adapter'):
+                embeddings = model._apply_fc1_adapter(embeddings)
+            if labels is not None:
+                for cls in torch.unique(labels):
+                    penultimate[int(cls)] = embeddings[labels == cls].mean(0).cpu().numpy()
+        ternary = {name: np.clip(np.asarray(ranks), 0, 2).astype(np.int8)
+                   for name, ranks in model.unit_ranks.items()}
+        # Empirical diagonal Fisher E[(d log p(y|x)/d theta)^2], not squared
+        # batch-mean gradients and not activation magnitude. No optimizer step.
+        parameters = [(name, p) for name, p in model.named_parameters() if p.requires_grad]
+        count = min(len(data), max(0, int(fisher_samples))) if labels is not None else 0
+        if count:
+            sums = {name: torch.zeros_like(p) for name, p in parameters}
+            for index in range(count):
+                # Native GRU supports backward in eval mode; cuDNN RNN does not.
+                # Keep BN/dropout in eval so Fisher does not mutate running stats.
+                with torch.backends.cudnn.flags(enabled=False):
+                    loss = torch.nn.functional.cross_entropy(model(data[index:index+1]), labels[index:index+1].long())
+                    gradients = torch.autograd.grad(loss, [p for _, p in parameters], allow_unused=True)
+                for (name, _), gradient in zip(parameters, gradients):
+                    if gradient is not None:
+                        sums[name] += gradient.detach().square() / count
+            from .denice_aggregation import build_compatible_mask
+            young_ages = {name: np.where(np.asarray(age) == 1, 1, 2)
+                         for name, age in model.unit_ranks.items()}
+            young_masks = build_compatible_mask(sums, young_ages)
+            fisher = {name: (value * young_masks[name].to(value.device)).cpu().numpy()
+                      for name, value in sums.items() if not name.startswith('adapters.')}
+
     return ContextCapsule(
         client_id=int(client_id),
         task_id=int(task_id),
@@ -306,4 +347,7 @@ def build_context_capsule(
         adapter_registry=adapter_registry,
         update_summary=update_summary,
         class_activation_prototypes=class_proto,
+        penultimate_prototypes=penultimate,
+        ternary_ages=ternary,
+        parameter_fisher=fisher,
     )

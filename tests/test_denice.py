@@ -1194,6 +1194,7 @@ class TestDecentralized:
         models = {cid: _make_model() for cid in range(4)}
         with torch.no_grad():
             for cid, model in models.items():
+                model.unit_ranks['fc1'][:] = 1  # Only allocated young rows may mix.
                 model.fc1.weight.fill_(float(cid))
         receiver_before = models[0].fc1.weight.detach().clone()
         capsules = {
@@ -1298,6 +1299,7 @@ class TestDecentralized:
         models = {cid: _make_model() for cid in range(2)}
         for model in models.values():
             model.unit_ranks["fc2"][1] = 1
+            model.unit_ranks['fc1'][:] = 1
         with torch.no_grad():
             models[0].fc2.weight[1].zero_()
             models[1].fc2.weight[1].fill_(7.0)

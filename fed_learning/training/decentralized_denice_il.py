@@ -203,6 +203,8 @@ def _enforce_minimum_free_capacity(
     start of this task and remain learners are released back to free; mature
     knowledge from earlier tasks is never reopened.
     """
+    if getattr(model, 'fixed_task_allocation', False):
+        return {}  # Reserve is allocated before optimization, never reclaimed by index.
     ratio = float(minimum_free_ratio)
     if ratio <= 0.0 or not task_start_ages:
         return {}
@@ -754,7 +756,10 @@ def _write_phase_outputs(
 
 
 def _make_model(config: Dict[str, Any], device: torch.device) -> DeNICEModel:
-    return DeNICEModel(config["input_shape"], config["num_classes"]).to(device)
+    model = DeNICEModel(config["input_shape"], config["num_classes"]).to(device)
+    model.structural_protection = bool(config.get('denice_structural_protection', False))
+    model.fixed_task_allocation = bool(config.get('denice_fixed_task_allocation', False))
+    return model
 
 def _compute_reference_ce_loss(
     model: DeNICEModel,
@@ -884,6 +889,7 @@ def _prepare_client_task(
     old_ref_loss_baseline: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Run DeNICE prepare_task / novelty / CANC / adapter activation."""
+    model.task_freeze_layers = []
     if hasattr(trainer, "set_task"):
         trainer.set_task(task_id, new_classes)
 
@@ -931,6 +937,11 @@ def _prepare_client_task(
         val_loss_delta=val_loss_delta,
         is_first_task=is_global_first_task,
     )
+    if config.get('denice_canc_schedule') == 'task_end' and getattr(model, 'pending_canc_plan', None):
+        plan = _resume_clone(model.pending_canc_plan)
+        novelty = float(plan['novelty'])
+        val_loss_delta = float(plan.get('val_loss_delta', 0.0))
+        plan['applied_at_task'] = int(task_id)
     plan["novelty"] = novelty
     plan["is_global_first_task"] = bool(is_global_first_task)
     plan["has_novelty_baseline"] = bool(has_novelty_baseline)
@@ -944,10 +955,27 @@ def _prepare_client_task(
     apply_graceful_recycling(model, ref_data, task_id, plan, config)
 
     if plan["freeze_low_layers"]:
+        model.task_freeze_layers = ['conv1', 'conv2']
         for low in ("conv1", "conv2"):
             ranks = model.unit_ranks.get(low)
             if ranks is not None:
                 model.freeze_masks[low] = np.ones(len(ranks), dtype=bool)
+
+    if model.fixed_task_allocation:
+        from fed_learning.strategies.incremental.nice import drop_young_to_learner
+        allocation = {}
+        for layer, ranks in model.unit_ranks.items():
+            if layer == 'fc2' or layer in model.task_freeze_layers:
+                continue
+            free = np.flatnonzero(ranks == 0)
+            per_class = max(1, int(np.ceil(len(ranks) / model.num_classes)))
+            budget = min(len(free), per_class * len(new_classes))
+            ranks[free[:budget]] = 1
+            allocation[layer] = int(budget)
+        plan['allocation'] = allocation
+        drop_young_to_learner(model)
+        model.protect_task_connections()
+    update_freeze_masks(model)
 
     return {"plan": plan, "ref_data": ref_data, "ref_labels": ref_labels}
 
@@ -1089,7 +1117,9 @@ def _build_round_capsule(
     ref_data: torch.Tensor,
     ref_labels: Optional[torch.Tensor],
     loss: float,
+    config: Optional[Dict[str, Any]] = None,
 ) -> Any:
+    config = config or {}
     reliability = 1.0 / (1.0 + max(0.0, float(loss)))
     labels = sorted(set(int(c) for c in client.y_train.detach().cpu().tolist()))
     sample_count = int(len(client.y_train))
@@ -1101,6 +1131,17 @@ def _build_round_capsule(
         capsule_labels = ref_labels.to(device)
     else:
         capsule_labels = client.y_train[: len(capsule_data)].to(device)
+    if config.get('denice_capsule_mode') == 'paper' and len(getattr(client, 'y_validation', [])):
+        capsule_data = client.X_validation.to(device)
+        capsule_labels = client.y_validation.to(device)
+        # Bound prototype/Fisher work and represent rare validation classes.
+        capsule_data, capsule_labels = _sample_reference_with_labels(
+            capsule_data, capsule_labels, labels,
+            int(config.get('memo_per_class', 50)), device,
+        )
+        with torch.no_grad():
+            validation_loss = torch.nn.functional.cross_entropy(model(capsule_data), capsule_labels.long())
+        reliability = 1.0 / (1.0 + float(validation_loss))
     return build_context_capsule(
         model,
         capsule_data,
@@ -1114,6 +1155,8 @@ def _build_round_capsule(
         thresholds=thresholds,
         context_detector=context_detector,
         labels=capsule_labels,
+        capsule_mode=str(config.get('denice_capsule_mode', 'legacy')),
+        fisher_samples=int(config.get('denice_fisher_samples', 8)),
     )
 
 
@@ -1196,6 +1239,7 @@ def _aggregate_round(
     config: Dict[str, Any],
     device: torch.device,
     previous_valid_cluster: Optional[Dict[str, Any]] = None,
+    before_local_states: Optional[Dict[int, OrderedDict]] = None,
 ) -> Dict[str, Any]:
     """Cluster capsules and apply age-aware decentralized aggregation."""
     aggregate_round_start = time.perf_counter()
@@ -1212,9 +1256,15 @@ def _aggregate_round(
     )
     sim_weights = SimilarityWeights()
     clustering_start = time.perf_counter()
-    cluster_result = dynamic_ap_cluster(
-        ordered_caps, config=cluster_config, weights=sim_weights
-    )
+    paper_graph = config.get('denice_clustering_mode', 'adaptive_ap') == 'paper'
+    if paper_graph:
+        from fed_learning.strategies.decentralized.denice_clustering import paper_context_cluster
+        cluster_result = paper_context_cluster(
+            ordered_caps, beta=float(config.get('denice_similarity_beta', 0.5)),
+            threshold=float(config.get('denice_similarity_threshold', 0.5)),
+        )
+    else:
+        cluster_result = dynamic_ap_cluster(ordered_caps, config=cluster_config, weights=sim_weights)
     raw_labels = np.asarray(cluster_result["labels"], dtype=np.int64)
     labels, context_edges, cluster_policy, fallback_reason, next_valid_cluster = (
         _effective_cluster_assignment(
@@ -1256,6 +1306,9 @@ def _aggregate_round(
     )
 
     old_states = {cid: _state_dict(models[cid]) for cid in client_ids}
+    local_delta_mode = config.get('denice_aggregation_update_mode', 'model_mix') == 'local_delta'
+    if local_delta_mode and (before_local_states is None or any(cid not in before_local_states for cid in client_ids)):
+        raise ValueError('Local-delta aggregation requires each client pre-training snapshot.')
     old_ages = {cid: models[cid].get_neuron_ages_state() for cid in client_ids}
     old_adapter_states = {cid: _adapter_states(models[cid]) for cid in client_ids}
     new_states: Dict[int, OrderedDict] = {}
@@ -1300,7 +1353,7 @@ def _aggregate_round(
         centroid_distances = _cosine_distance_to_centroid(
             {gid: capsules[gid].proto_vector() for gid in group_ids}
         )
-        if centroid_gate_threshold > 0 and len(group_ids) > 2:
+        if not paper_graph and centroid_gate_threshold > 0 and len(group_ids) > 2:
             group_ids = [
                 gid
                 for gid in group_ids
@@ -1335,15 +1388,19 @@ def _aggregate_round(
                         )
                     )
             counts.append(float(capsules[gid].sample_count))
-            rels.append(float(capsules[gid].reliability))
+            if config.get('denice_aggregation_rho', 'validation') == 'reserve':
+                ranks = np.concatenate([np.asarray(v).reshape(-1) for v in old_ages[gid].values()])
+                rels.append(float(np.mean(ranks == 0)))
+            else:
+                rels.append(float(capsules[gid].reliability))
         self_index = group_ids.index(cid)
         alphas = aggregation_weights(
-            sims,
+            [1.0] * len(sims) if paper_graph else sims,
             counts,
             rels,
             self_index=self_index,
-            count_transform=str(config.get("denice_aggregation_count_transform", "log")),
-            self_floor=float(config.get("denice_aggregation_self_floor", 0.25)),
+            count_transform=str(config.get("denice_aggregation_count_transform", 'raw' if paper_graph else "log")),
+            self_floor=float(config.get("denice_aggregation_self_floor", 0.0 if paper_graph else 0.25)),
         )
         alpha_values.extend(float(a) for a in alphas)
         peer_alpha_sum = float(
@@ -1371,14 +1428,20 @@ def _aggregate_round(
             ),
         }
 
-        target_state = old_states[cid]
-        deltas = [_delta_to_target(target_state, old_states[gid]) for gid in group_ids]
+        target_state = before_local_states[cid] if local_delta_mode else old_states[cid]
+        deltas = ([_delta_to_target(before_local_states[gid], old_states[gid]) for gid in group_ids]
+                  if local_delta_mode else [_delta_to_target(target_state, old_states[gid]) for gid in group_ids])
         new_states[cid] = age_aware_aggregate(
             target_state,
             old_ages[cid],
             deltas,
             alphas,
             agg_config,
+            neighbor_ages=([old_ages[gid] for gid in group_ids]
+                           if config.get('denice_pairwise_young_mask', True) else None),
+            neighbor_labels=[capsules[gid].label_set for gid in group_ids],
+            target_labels=capsules[cid].label_set,
+            frozen_layers=getattr(models[cid], 'task_freeze_layers', []),
         )
         if selective_fc2_enabled:
             new_states[cid], selective_fc2_row_audit[int(cid)] = (
@@ -1407,7 +1470,13 @@ def _aggregate_round(
             neighbor_adapter_weights,
             target_weight=float(alphas[self_index]),
         )
-        age_merge_policy = str(config.get("denice_age_merge_policy", "consensus"))
+        # Consolidated episode adapters must never be averaged in a later task.
+        current_task = int(getattr(capsules[cid], 'task_id', -1))
+        for key in list(merged_adapters):
+            meta = getattr(models[cid], 'adapter_registry', {}).get(key, {})
+            if int(meta.get('context_id', -1)) != current_task:
+                merged_adapters[key] = old_adapter_states[cid][key]
+        age_merge_policy = str(config.get("denice_age_merge_policy", "none"))
         age_consensus_threshold = float(
             config.get("denice_age_merge_consensus_threshold", 0.5)
         )
@@ -1811,6 +1880,13 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     set_seed(config.get("random_seed", config.get("seed", 42)))
     output_dir = _resolve_output_dir(config, "decentralized", "denice")
     os.makedirs(output_dir, exist_ok=True)
+    from fed_learning.training.denice_provenance import source_identity
+    config.update(source_identity())
+    if config.get('denice_memory_policy') == 'sketches':
+        if not (config.get('denice_structural_protection') and config.get('denice_fixed_task_allocation')):
+            raise ValueError('Sketch-only routing requires protected structure and fixed allocation.')
+        if config.get('denice_refresh_router_memory_after_aggregation', False):
+            raise ValueError('Sketch-only protocol cannot refresh historical raw inputs.')
 
     print("\n" + "=" * 80)
     print("DECENTRALIZED DeNICE-IL")
@@ -1825,12 +1901,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     if config.get("resume_state_path"):
         resume_state = _load_denice_continuation_state(str(config["resume_state_path"]))
         saved_config = resume_state.get("config") or {}
-        for key in ("total_classes", "input_shape"):
+        for key in ("total_classes", "input_shape", "num_clients", "denice_structural_protection",
+                    "denice_fixed_task_allocation", "denice_memory_policy"):
             if key in saved_config and key in config and saved_config[key] != config[key]:
                 raise ValueError(
                     f"DeNICE resume config mismatch for {key}: "
                     f"{saved_config[key]!r} != {config[key]!r}"
                 )
+        for key in ('denice_structural_protection', 'denice_fixed_task_allocation', 'denice_memory_policy'):
+            if key in config and key not in saved_config and config[key] not in (False, 'references'):
+                raise ValueError(f'Fresh training required to enable {key}; legacy continuation has no such invariant.')
         print(
             "  Restoring DeNICE continuation: "
             f"completed task {resume_state['meta']['completed_task']}, "
@@ -2035,6 +2115,20 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     "class_hist": _count_histogram(y),
                     "labels": sorted(int(c) for c in set(y.detach().cpu().tolist())),
                 }
+                validation_idx = []
+                fraction = float(config.get('denice_validation_fraction', 0.0))
+                if not 0 <= fraction < 1:
+                    raise ValueError('denice_validation_fraction must be in [0, 1).')
+                generator = torch.Generator().manual_seed(int(config.get('seed', 42)) + task_id * 10000 + int(cid))
+                for label in torch.unique(y):
+                    indices = torch.nonzero(y == label, as_tuple=False).flatten()
+                    take = min(len(indices) - 1, max(1, int(len(indices) * fraction))) if fraction and len(indices) > 1 else 0
+                    if take:
+                        validation_idx.extend(indices[torch.randperm(len(indices), generator=generator)[:take]].tolist())
+                keep = torch.ones(len(y), dtype=torch.bool)
+                keep[validation_idx] = False
+                validation_X, validation_y = X[validation_idx], y[validation_idx]
+                X, y = X[keep], y[keep]
                 data = {"X_train": X, "y_train": y}
                 if cid not in clients:
                     clients[cid] = create_client(cid, X, y, {**config, "algorithm": "denice"})
@@ -2072,6 +2166,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         source_detector_state = snapshot_denice_state(
                             models[source_id], context_detectors[source_id]
                         ).get("context_detector")
+                        # Binary descriptors may travel; raw inputs never cross clients.
+                        if source_detector_state:
+                            source_detector_state['reference_input_memory'] = {}
                         context_detectors[cid] = ContextDetector(
                             memo_per_class=int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))),
                             router_mode=denice_router_mode,
@@ -2132,6 +2229,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         )
                 last_active_task[int(cid)] = int(task_id)
 
+                clients[cid].X_validation = validation_X
+                clients[cid].y_validation = validation_y
+
         active_ids = sorted(active_ids)
         print(f"  Active DeNICE clients: {len(active_ids)}")
         if not active_ids:
@@ -2182,6 +2282,20 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             canc_plans[cid] = prep["plan"]
             ref_data[cid] = prep["ref_data"]
             ref_labels[cid] = prep.get("ref_labels", torch.empty(0, dtype=torch.long))
+            if config.get('denice_memory_policy', 'references') == 'sketches':
+                detector = context_detectors[cid]
+                detector.retain_reference_inputs = False
+                detector.reference_input_memory = {}
+                old_ref_banks[cid] = {}
+                old_ref_loss_baselines[cid] = None
+                if getattr(detector, 'stable_feature_mask', None) is None:
+                    # First-task selected units become the permanent routing subspace.
+                    detector.stable_feature_mask = np.concatenate([
+                        np.asarray(models[cid].unit_ranks[layer]) >= 1
+                        for layer in ('conv1', 'conv2', 'conv3', 'gru')
+                    ])
+                    if not detector.stable_feature_mask.any():
+                        raise ValueError('Sketch routing requires a nonempty protected feature subspace.')
         canc_action_counts: Dict[str, int] = {}
         for plan in canc_plans.values():
             for layer_info in plan.get("layers", {}).values():
@@ -2282,6 +2396,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             context_reference_sample_count = 0
             nice_loss_semantics: Dict[int, Dict[str, Any]] = {}
             client_imbalance_controls: Dict[int, Dict[str, Any]] = {}
+            before_local_states = ({cid: _state_dict(models[cid]) for cid in active_ids}
+                                   if config.get('denice_aggregation_update_mode') == 'local_delta' else None)
             for cid in active_ids:
                 model = models[cid]
                 client = clients[cid]
@@ -2379,6 +2495,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     ref_data=ref_data[cid],
                     ref_labels=ref_labels.get(cid),
                     loss=losses[cid],
+                    config=config,
                 )
                 for cid in active_ids
             }
@@ -2391,6 +2508,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 config=config,
                 device=device,
                 previous_valid_cluster=previous_valid_cluster,
+                before_local_states=before_local_states,
             )
             previous_valid_cluster = cluster_summary.pop("next_valid_cluster", None)
             aggregation_time = time.time() - aggregation_start
@@ -2432,6 +2550,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 )
             for cid in active_ids:
                 context_detectors[cid].mark_router_stale("encoder_changed_after_aggregation")
+                if config.get('denice_memory_policy', 'references') == 'sketches':
+                    _update_local_nice_context_memory(
+                        context_detectors[cid], models[cid], clients[cid].X_train,
+                        clients[cid].y_train, task_id, new_classes, str(device), fit_router=True,
+                    )
+                    context_detectors[cid].mark_router_fresh(task_id=task_id, round_id=round_id)
             router_refresh: Dict[int, Dict[str, float]] = {}
             router_refresh_start = time.perf_counter()
             should_refresh_router = bool(
@@ -2819,11 +2943,30 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 model.freeze_bn_for_mature()
             if ref_data[cid].numel() > 0:
                 proto = novelty_estimators[cid].compute_prototype(model, ref_data[cid])
+                if config.get('denice_canc_schedule') == 'task_end':
+                    drift = novelty_estimators[cid].novelty_from_prototype(proto)['novelty']
+                    # Compare before/after on the identical old reference bank only
+                    # in the explicitly reference-backed ablation.
+                    loss_delta = _compute_val_loss_delta(
+                        model, old_ref_banks.get(cid), old_ref_loss_baselines.get(cid),
+                        device, batch_size=eval_batch_size,
+                    )
+                    controller = CapacityController(CANCConfig.from_dict(config))
+                    model.pending_canc_plan = controller.plan_task(
+                        compute_capacity_state(model), float(drift),
+                        compute_consumption(canc_plans[cid]['start_ages'], model.get_neuron_ages_state()),
+                        val_loss_delta=loss_delta,
+                    )
+                    model.pending_canc_plan.update({
+                        'measured_at_task': int(task_id), 'val_loss_delta': float(loss_delta),
+                        'novelty_definition': 'binary_cosine_no_shared_class_fallback',
+                    })
                 novelty_estimators[cid].store_prototype(task_id, proto)
-                old_ref_banks.setdefault(cid, {})[int(task_id)] = (
+                if config.get('denice_memory_policy', 'references') != 'sketches':
+                    old_ref_banks.setdefault(cid, {})[int(task_id)] = (
                     ref_data[cid].detach().cpu(),
                     ref_labels[cid].detach().cpu().long(),
-                )
+                    )
                 old_ref_loss_baselines[cid] = _compute_reference_ce_loss(
                     model,
                     old_ref_banks.get(cid),
@@ -2969,7 +3112,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 f"(routing={metrics.get('routing_mode', 'per-client')})"
             )
 
-        if bool(config.get("save_resume_after_task", True)):
+        if bool(config.get('save_continuation_every_task', config.get("save_resume_after_task", True))):
             torch.save(
                 {
                     "task": task_id,
