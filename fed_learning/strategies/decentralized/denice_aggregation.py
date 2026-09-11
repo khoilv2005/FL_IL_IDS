@@ -336,13 +336,46 @@ def aggregate_adapters(
     neighbor_adapter_states: List[Dict[str, "OrderedDict[str, torch.Tensor]"]],
     neighbor_weights: List[float],
     target_weight: float = 1.0,
+    *,
+    target_reference: Optional[Dict[str, "OrderedDict[str, torch.Tensor]"]] = None,
+    neighbor_references: Optional[List[Dict[str, "OrderedDict[str, torch.Tensor]"]]] = None,
+    eta: float = 1.0,
 ) -> Dict[str, "OrderedDict[str, torch.Tensor]"]:
-    """FedAvg adapters, matched strictly by adapter key (plan section 2.5).
+    """Aggregate adapters matched strictly by key and parameter shape.
 
     A neighbor only contributes to an adapter it actually owns (same key ->
     same context_id / layer / rank / architecture_version). Clients without the
     adapter are skipped for that adapter's average.
+
+    With pre-local references, use CANDLE's weighted local deltas instead.
+    Weights already include the full neighborhood denominator in Eq. (19);
+    missing adapters contribute zero, without renormalizing that denominator.
     """
+    # CANDLE Eq. (19): apply each sender's local delta to the receiver's
+    # pre-local reference. Model averaging is only the legacy mode.
+    if target_reference is not None:
+        if neighbor_references is None or len(neighbor_references) != len(neighbor_adapter_states):
+            raise ValueError('Adapter delta aggregation requires every sender reference.')
+        merged = {}
+        for key, after in target_adapter_states.items():
+            before = target_reference[key]
+            values = OrderedDict((p, before[p].clone()) for p in after)
+            senders = [(after, before, target_weight)]
+            senders += [(states.get(key), refs.get(key), weight)
+                        for states, refs, weight in zip(neighbor_adapter_states, neighbor_references, neighbor_weights)]
+            for state, reference, weight in senders:
+                if state is None or reference is None or weight <= 0:
+                    continue
+                if any(p not in state or p not in reference
+                       or state[p].shape != value.shape or reference[p].shape != value.shape
+                       for p, value in values.items()):
+                    continue
+                for p, value in values.items():
+                    values[p] = value + float(eta) * float(weight) * (
+                        state[p].to(value.device) - reference[p].to(value.device))
+            merged[key] = values
+        return merged
+
     merged: Dict[str, OrderedDict] = {}
     target_weight = max(0.0, float(target_weight))
     for key, target_state in target_adapter_states.items():

@@ -603,6 +603,14 @@ class NICEModel(nn.Module):
                     dtype=torch.bool,
                     device=bn.running_mean.device,
                 )
+                if layer_name in getattr(self, 'task_freeze_layers', []):
+                    mature = torch.ones_like(mature)
+                if not mature.any():
+                    # A CANC layer freeze can be temporary. Drop its cached
+                    # statistics when this task allows the layer to learn again.
+                    self._bn_frozen_units.pop(layer_name, None)
+                    self._bn_running_mean_frozen.pop(layer_name, None)
+                    self._bn_running_var_frozen.pop(layer_name, None)
                 if mature.any():
                     prev = self._bn_frozen_units.get(layer_name)
                     if prev is None:

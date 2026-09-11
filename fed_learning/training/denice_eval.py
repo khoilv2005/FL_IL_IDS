@@ -410,6 +410,7 @@ def evaluate_denice_model(
     label2episode = _label_to_episode_map(context_detector)
     route_correct = 0
     route_total = 0
+    classification_correct_on_correct_route = 0
     route_confusion: Dict[str, Dict[str, int]] = {}
 
     for batch_idx, i in enumerate(range(0, len(y_test), batch_size), start=1):
@@ -432,6 +433,9 @@ def evaluate_denice_model(
             known = true_eps >= 0
             route_total += int(known.sum())
             route_correct += int((episodes[known] == true_eps[known]).sum())
+            correct_route = known & (episodes == true_eps)
+            classification_correct_on_correct_route += int((
+                correct_route & (preds.detach().cpu().numpy() == y_np)).sum())
             if include_route_diagnostics:
                 for true_ep, pred_ep in zip(true_eps[known], episodes[known]):
                     true_key = str(int(true_ep))
@@ -470,6 +474,20 @@ def evaluate_denice_model(
     }
     if include_route_diagnostics:
         metrics["route_confusion"] = route_confusion
+        metrics['accuracy_given_correct_route'] = (
+            classification_correct_on_correct_route / route_correct if route_correct else 0.0)
+        metrics['correct_route_sample_count'] = route_correct
+        metrics['per_task'] = {}
+        for episode in sorted(set(label2episode.values())):
+            selected = np.array([label2episode.get(int(y), -1) == episode for y in y_true])
+            if selected.any():
+                task_labels = sorted(c for c, ep in label2episode.items() if ep == episode)
+                metrics['per_task'][int(episode)] = {
+                    'sample_count': int(selected.sum()),
+                    'accuracy': float(accuracy_score(y_true[selected], y_pred[selected])),
+                    'f1_macro': float(f1_score(y_true[selected], y_pred[selected],
+                                              labels=task_labels, average='macro', zero_division=0)),
+                }
     if include_confusion_matrix:
         from sklearn.metrics import confusion_matrix
         metrics['confusion_matrix'] = confusion_matrix(

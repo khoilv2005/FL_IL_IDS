@@ -10,9 +10,10 @@ import zipfile
 
 # Environment overrides make P6 multi-seed runs reproducible without editing
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
-# Default to the 100-client task-0..3 run.  Override explicitly only when a
-# different experimental phase is intended.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
+# Default phase 1 starts tasks 0-1 on 100 clients. Use phase 5 for all six tasks.
+# On Kaggle set DENICE_CODE_DIR to the extracted source bundle to train these
+# local fixes; cloning main only includes changes already pushed to GitHub.
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "1"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_seed_{TRAIN_SEED}"
@@ -20,10 +21,10 @@ TRAIN_OUTPUT_DIR = os.environ.get(
 
 PHASE_CONFIG = {
     1: {
-        "task_start": 1,
+        "task_start": 0,
         "task_end": 1,
         "save_resume_after_task": 1,
-        "resume_file": "continuation_state_task_0.pt",
+        "resume_file": None,
     },
     2: {
         "task_start": 2,
@@ -166,9 +167,8 @@ def setup_imports():
             raise FileNotFoundError("DENICE_CODE_DIR must contain fed_learning")
         REPO_PATH = os.path.abspath(local)
     else:
-        revision = os.environ.get("DENICE_CODE_REF")
-        if not revision:
-            raise ValueError("Set DENICE_CODE_DIR to uploaded patched source, or DENICE_CODE_REF to its Git commit.")
+        # No local source or pinned ref supplied: fall back to the latest main.
+        revision = os.environ.get("DENICE_CODE_REF", "main")
         REPO_PATH = tempfile.mkdtemp(prefix="denice-source-")
         subprocess.run(["git", "clone", "https://github.com/khoilv2005/FL_IL_IDS.git", REPO_PATH], check=True)
         subprocess.run(["git", "-C", REPO_PATH, "checkout", "--detach", revision], check=True)
@@ -213,7 +213,8 @@ CONFIG = {
     #   1 -> train tasks 0-1, save continuation_state_task_1.pt
     #   2 -> load task_1 state, train task 2, save continuation_state_task_2.pt
     #   3 -> load task_2 state, train task 3, save continuation_state_task_3.pt
-    #   4 -> load task_4 state, train task 5 only
+    #   4 -> load task_3 state, train tasks 4-5
+    #   5 -> train all tasks 0-5 from scratch
     #   6 -> train tasks 0-3 from scratch with 100 clients
     # These keys are used by IL/non-DFCA modes; pure DFCA ignores task filtering.
     "task_start": phase_config["task_start"],
@@ -247,8 +248,8 @@ CONFIG = {
     "rounds_per_task": 20,
     "local_epochs": 1,  # 1 epoch/round: tránh client drift trên non-IID data
     # Giảm batch size + LR tương ứng để gradient updates nhiều hơn
-    "learning_rate": 0.001,  # Giảm từ 0.001: stable gradient với EWC regularization
-    "batch_size": 2048,  # Giảm từ 512: nhiều gradient steps/epoch hơn, tốt cho client ít data
+    "learning_rate": 0.001,  # CANDLE Table 3
+    "batch_size": 2048,  # CANDLE Table 3; unchanged for comparable experiments
     # eval_every > rounds_per_task -> chỉ eval ở post-task (round cuối mỗi task).
     # Đặt = rounds_per_task nếu muốn bật mid-task eval lại.
     "eval_every": 9999,

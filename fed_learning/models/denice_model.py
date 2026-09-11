@@ -120,6 +120,7 @@ class DeNICEModel(NICEModel):
         self.fixed_task_allocation = False
         self.task_freeze_layers = []
         self.gru_connection_masks = {}
+        self.adapter_input_masks = {}
 
         # Dimension used by each adapter (the residual operates on these dims).
         self._adapter_dims = {
@@ -182,10 +183,13 @@ class DeNICEModel(NICEModel):
             self.active_adapters.pop(layer_name, None)
             return None
 
-        dim = self._adapter_dims[layer_name]
-        r = default_rank(dim)
-        key = adapter_key(context_id, layer_name, r, self.architecture_version)
-        if key in self.adapters:
+        keys = [key for key, meta in self.adapter_registry.items()
+                if int(meta['context_id']) == int(context_id)
+                and meta['layer_name'] == layer_name and key in self.adapters]
+        if len(keys) > 1:
+            raise ValueError(f'Ambiguous adapters for context {context_id}, layer {layer_name}: {keys}')
+        if keys:
+            key = keys[0]
             self.active_adapters[layer_name] = key
             return key
         # No adapter for that context -> disable on this layer.
@@ -327,6 +331,27 @@ class DeNICEModel(NICEModel):
     # Adapter-aware forward
     # ========================================================================
 
+    def protect_active_adapter_inputs(self):
+        """Bind each new adapter to the features consolidated with its task.
+
+        A frozen V/U pair is not stable if V can read reserve neurons trained
+        later. Capture support after reserve promotion, once per adapter.
+        Legacy adapters without a saved mask retain their original behavior.
+        """
+        if not self.structural_protection:
+            return
+        for layer, key in self.active_adapters.items():
+            if key not in self.adapter_input_masks:
+                self.adapter_input_masks[key] = torch.as_tensor(
+                    np.asarray(self.unit_ranks[layer]) >= 1, dtype=torch.bool)
+
+    def _adapter_residual(self, h, layer):
+        key = self.active_adapters[layer]
+        mask = self.adapter_input_masks.get(key)
+        if mask is not None:
+            h = h * mask.to(device=h.device, dtype=h.dtype)
+        return self.adapters[key](h)
+
     def _apply_conv_channel_adapter(self, x: torch.Tensor, layer_name: str) -> torch.Tensor:
         """Channel-wise residual adapter for conv layers.
 
@@ -338,7 +363,7 @@ class DeNICEModel(NICEModel):
             return x
         # [B, C, L] -> [B, L, C] -> adapter -> [B, C, L]
         h = x.permute(0, 2, 1)
-        residual = adapter(h)
+        residual = self._adapter_residual(h, layer_name)
         return x + residual.permute(0, 2, 1)
 
     def _forward_backbone(self, x):
@@ -366,7 +391,7 @@ class DeNICEModel(NICEModel):
 
         gru_adapter = self.get_active_adapter("gru")
         if gru_adapter is not None:
-            gru_output = gru_output + gru_adapter(gru_output)
+            gru_output = gru_output + self._adapter_residual(gru_output, 'gru')
 
         return torch.cat([cnn_output, gru_output], dim=1)
 
@@ -374,7 +399,7 @@ class DeNICEModel(NICEModel):
         adapter = self.get_active_adapter("fc1")
         if adapter is None:
             return z
-        return z + adapter(z)
+        return z + self._adapter_residual(z, 'fc1')
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Inference forward with active adapters (fc1 residual on penultimate)."""
@@ -449,6 +474,8 @@ class DeNICEModel(NICEModel):
         state = super().get_masks_state()
         state.update({'recurrent_' + k: v.detach().cpu().clone()
                       for k, v in self.gru_connection_masks.items()})
+        state.update({'adapter_input_' + k: v.detach().cpu().clone()
+                      for k, v in self.adapter_input_masks.items()})
         return state
 
     def set_masks_state(self, state):
@@ -456,4 +483,8 @@ class DeNICEModel(NICEModel):
         self.gru_connection_masks = {
             k[len('recurrent_'):]: v.clone() for k, v in state.items()
             if k.startswith('recurrent_')
+        }
+        self.adapter_input_masks = {
+            k[len('adapter_input_'):]: v.clone().bool() for k, v in state.items()
+            if k.startswith('adapter_input_')
         }

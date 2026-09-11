@@ -637,9 +637,10 @@ def _client_algorithm_states(
         for cid in client_ids
     }
 
-def _adapter_states(model: DeNICEModel) -> Dict[str, "OrderedDict[str, torch.Tensor]"]:
+def _adapter_states(model: DeNICEModel, full_state=None) -> Dict[str, "OrderedDict[str, torch.Tensor]"]:
     return {
-        key: OrderedDict((k, v.detach().clone()) for k, v in adapter.state_dict().items())
+        key: OrderedDict((k, (v if full_state is None else full_state[f'adapters.{key}.{k}']).detach().clone())
+                         for k, v in adapter.state_dict().items())
         for key, adapter in getattr(model, "adapters", {}).items()
     }
 
@@ -975,6 +976,7 @@ def _prepare_client_task(
         plan['allocation'] = allocation
         drop_young_to_learner(model)
         model.protect_task_connections()
+        model.protect_active_adapter_inputs()
     update_freeze_masks(model)
 
     return {"plan": plan, "ref_data": ref_data, "ref_labels": ref_labels}
@@ -1311,6 +1313,8 @@ def _aggregate_round(
         raise ValueError('Local-delta aggregation requires each client pre-training snapshot.')
     old_ages = {cid: models[cid].get_neuron_ages_state() for cid in client_ids}
     old_adapter_states = {cid: _adapter_states(models[cid]) for cid in client_ids}
+    before_adapter_states = ({cid: _adapter_states(models[cid], before_local_states[cid])
+                              for cid in client_ids} if local_delta_mode else {})
     new_states: Dict[int, OrderedDict] = {}
     new_ages: Dict[int, Dict[str, np.ndarray]] = {}
     groups: Dict[int, List[int]] = {}
@@ -1459,16 +1463,31 @@ def _aggregate_round(
             )
         neighbor_adapter_states = []
         neighbor_adapter_weights = []
+        neighbor_adapter_references = []
         for pos, gid in enumerate(group_ids):
             if gid == cid:
                 continue
-            neighbor_adapter_states.append(old_adapter_states[gid])
+            compatible = {}
+            for key, state in old_adapter_states[gid].items():
+                target_mask = models[cid].adapter_input_masks.get(key)
+                sender_mask = models[gid].adapter_input_masks.get(key)
+                if (target_mask is None) != (sender_mask is None):
+                    continue
+                if target_mask is not None and not torch.equal(target_mask.cpu(), sender_mask.cpu()):
+                    continue
+                compatible[key] = state
+            neighbor_adapter_states.append(compatible)
             neighbor_adapter_weights.append(float(alphas[pos]))
+            if local_delta_mode:
+                neighbor_adapter_references.append(before_adapter_states[gid])
         merged_adapters = aggregate_adapters(
             old_adapter_states[cid],
             neighbor_adapter_states,
             neighbor_adapter_weights,
             target_weight=float(alphas[self_index]),
+            target_reference=before_adapter_states.get(cid),
+            neighbor_references=(neighbor_adapter_references if local_delta_mode else None),
+            eta=agg_config.eta,
         )
         # Consolidated episode adapters must never be averaged in a later task.
         current_task = int(getattr(capsules[cid], 'task_id', -1))
