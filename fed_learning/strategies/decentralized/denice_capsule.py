@@ -8,7 +8,7 @@ Each client builds a capsule and sends it to neighbors (no raw data)::
         class_activation_prototypes,# P_i,c^t : per-class binary activation prototype
         age_mask,                   # M_i^t : selected/age mask per layer
         neuron_importance,          # A_i^t : activation-based importance per layer
-        reliability,                # R_i^t : local validation reliability
+        reliability,                # paper: reserve fraction rho; legacy: validation reliability
         context_detector_summary,   # Q_i^t : episode -> classes summary
         capacity_histogram,         # H_i^t : young/learner/mature ratio per layer
         label_histogram,            # Y_i^t : class distribution
@@ -257,6 +257,35 @@ def _context_detector_summary(context_detector: Any) -> Dict[str, Any]:
     }
 
 
+def class_penultimate_prototypes(model, data, labels):
+    """Eq. (15), using the same adapter-aware embedding as the classifier."""
+    with torch.no_grad():
+        features = model._forward_backbone(data)
+        embeddings = model.relu(model._apply_masked_linear(features, model.fc1, 'fc1'))
+        if hasattr(model, '_apply_fc1_adapter'):
+            embeddings = model._apply_fc1_adapter(embeddings)
+        return {int(cls): embeddings[labels == cls].mean(0).cpu().numpy()
+                for cls in torch.unique(labels)}
+
+
+def fisher_sample_indices(labels, count, round_id=0):
+    """Interleave classes so a class-grouped reference bank cannot bias Fisher."""
+    classes = torch.unique(labels, sorted=True)
+    if not len(classes) or count <= 0:
+        return []
+    classes = torch.roll(classes, -((int(round_id) * int(count)) % len(classes)))
+    pools = [torch.nonzero(labels == c, as_tuple=False).flatten().tolist() for c in classes]
+    selected, offset = [], 0
+    while len(selected) < min(int(count), len(labels)):
+        for pool in pools:
+            if offset < len(pool):
+                selected.append(pool[offset])
+                if len(selected) == min(int(count), len(labels)):
+                    break
+        offset += 1
+    return selected
+
+
 def build_context_capsule(
     model,
     data: torch.Tensor,
@@ -298,14 +327,12 @@ def build_context_capsule(
     fisher = {}
     ternary = {}
     if capsule_mode == 'paper':
-        with torch.no_grad():
-            features = model._forward_backbone(data)
-            embeddings = model.relu(model._apply_masked_linear(features, model.fc1, 'fc1'))
-            if hasattr(model, '_apply_fc1_adapter'):
-                embeddings = model._apply_fc1_adapter(embeddings)
-            if labels is not None:
-                for cls in torch.unique(labels):
-                    penultimate[int(cls)] = embeddings[labels == cls].mean(0).cpu().numpy()
+        # Eq. (16): rho is free capacity, not a transformation of validation
+        # loss. This implementation stores ages at neuron granularity.
+        ranks = np.concatenate([np.asarray(v).reshape(-1) for v in model.unit_ranks.values()])
+        reliability = float(np.mean(ranks == 0)) if ranks.size else 0.0
+        if labels is not None:
+            penultimate = class_penultimate_prototypes(model, data, labels)
         ternary = {name: np.clip(np.asarray(ranks), 0, 2).astype(np.int8)
                    for name, ranks in model.unit_ranks.items()}
         # Empirical diagonal Fisher E[(d log p(y|x)/d theta)^2], not squared
@@ -314,7 +341,7 @@ def build_context_capsule(
         count = min(len(data), max(0, int(fisher_samples))) if labels is not None else 0
         if count:
             sums = {name: torch.zeros_like(p) for name, p in parameters}
-            for index in range(count):
+            for index in fisher_sample_indices(labels, count, round_id):
                 # Native GRU supports backward in eval mode; cuDNN RNN does not.
                 # Keep BN/dropout in eval so Fisher does not mutate running stats.
                 with torch.backends.cudnn.flags(enabled=False):

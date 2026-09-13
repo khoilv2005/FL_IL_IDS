@@ -127,6 +127,63 @@ class CANCConfig:
 CAPACITY_LAYERS: List[str] = ["conv1", "conv2", "conv3", "gru", "fc1"]
 
 
+def candle_prototype_drift(previous: Dict, current: Dict) -> Dict:
+    """Eq. (20): Euclidean drift of means over the identical shared classes.
+
+    Disjoint tasks do not define the two common-class means. Report that case
+    explicitly; zero is the neutral controller fallback, not a measured drift.
+    """
+    shared = sorted(set(previous) & set(current))
+    if not shared:
+        return {'value': 0.0, 'defined': False, 'shared_classes': []}
+    before = np.stack([np.asarray(previous[c], dtype=np.float64) for c in shared])
+    after = np.stack([np.asarray(current[c], dtype=np.float64) for c in shared])
+    if before.shape != after.shape or not np.isfinite(before).all() or not np.isfinite(after).all():
+        raise ValueError('CANDLE drift requires finite prototypes in the same feature space.')
+    return {'value': float(np.linalg.norm(after.mean(0) - before.mean(0))),
+            'defined': True, 'shared_classes': shared}
+
+
+def candle_capacity_plan(capacity, drift, consumption, config, *, previous_consumption=None):
+    """Eqs. (20)-(22). Numeric thresholds/budgets are explicit implementation settings."""
+    theta1 = float(config.get('denice_canc_theta1', 0.8))
+    theta2 = float(config.get('denice_canc_theta2', 0.35))
+    if not 0 <= theta1 <= 1 or not np.isfinite(theta2) or theta2 < 0:
+        raise ValueError('CANDLE theta1 must be in [0,1] and theta2 finite/nonnegative.')
+    total = sum(st['total'] for st in capacity.values())
+    free = sum(st['free'] for st in capacity.values())
+    utilization = 1 - free / total if total else 1.0
+    shift = bool(drift['defined'] and drift['value'] >= theta2)
+    action = ('Recycle' if free == 0 else
+              'Expand' if utilization >= theta1 or shift else 'Reuse')
+    controller = CapacityController(CANCConfig.from_dict(config))
+    layers, adapters, promote = {}, [], {}
+    for layer, st in capacity.items():
+        components = controller.pressure_components(
+            st['rho0'], (previous_consumption or {}).get(layer, 0.0), drift['value'], 0.0)
+        layers[layer] = {**st, **components, 'action': action,
+                         'kappa': sum(components.values()), 'u': consumption.get(layer, 0.0),
+                         'novelty': drift['value'], 'val_loss_delta': 0.0}
+        if action == 'Expand':
+            if shift and layer in controller.config.enabled_adapter_layers:
+                adapters.append(layer)
+            elif st['free'] > 0:
+                # Additional reserve budget, separate from new-class activation.
+                configured = config.get('denice_canc_expand_per_layer', 1)
+                count = configured.get(layer, 1) if isinstance(configured, dict) else configured
+                if int(count) != count or count < 1:
+                    raise ValueError('CANDLE expansion budget must be a positive integer.')
+                promote[layer] = min(int(st['free']), int(count))
+    return {'action': action, 'utilization': utilization, 'drift': drift,
+            'novelty': drift['value'], 'layers': layers,
+            'adapters_to_add': sorted(adapters, key=ADAPTER_PRIORITY.index),
+            'reserve_to_promote': promote, 'freeze_low_layers': False,
+            'recycle_layers': list(capacity) if action == 'Recycle' else [],
+            'thresholds': {'theta1': theta1, 'theta2': theta2},
+            'validation_delta_defined': False,
+            'controller': 'candle_eq21'}
+
+
 def _parse_adapter_layers(value) -> List[str]:
     """Parse adapter layer config from sequence or comma-separated string."""
     if value is None:

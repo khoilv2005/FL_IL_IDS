@@ -119,6 +119,8 @@ class DeNICEModel(NICEModel):
         self.structural_protection = False
         self.fixed_task_allocation = False
         self.allocation_policy = 'class_blocks'
+        self.capacity_per_class = {}
+        self.candle_state = {}
         self.task_freeze_layers = []
         self.gru_connection_masks = {}
         self.adapter_input_masks = {}
@@ -137,9 +139,10 @@ class DeNICEModel(NICEModel):
     # ========================================================================
 
     def allocate_task_neurons(self, classes: List[int]) -> Dict[str, int]:
-        """Allocate disjoint global-class blocks without cumulative rounding.
+        """Promote reserve units using the configured per-class policy.
 
-        Global label boundaries also align coordinates when clients skip tasks.
+        ``fixed_per_class`` implements Eq. (12)'s constant integer budget.
+        ``class_blocks`` retains global-coordinate alignment as a legacy ablation.
         Existing learners/mature units are never reset, including on resume.
         """
         classes = sorted(set(int(c) for c in classes))
@@ -150,9 +153,12 @@ class DeNICEModel(NICEModel):
             if layer == 'fc2' or layer in self.task_freeze_layers:
                 continue
             selected = np.zeros(len(ranks), dtype=bool)
-            if self.allocation_policy == 'legacy_sequential':
+            if self.allocation_policy in ('legacy_sequential', 'fixed_per_class'):
                 free = np.flatnonzero(ranks == 0)
-                budget = int(np.ceil(len(ranks) / self.num_classes)) * len(classes)
+                per_class = self.capacity_per_class.get(layer, int(np.ceil(len(ranks) / self.num_classes)))
+                if int(per_class) != per_class or per_class < 1:
+                    raise ValueError('capacity_per_class must contain positive integer budgets.')
+                budget = int(per_class) * len(classes)
                 selected[free[:budget]] = True
             elif self.allocation_policy == 'class_blocks':
                 for cls in classes:

@@ -96,7 +96,8 @@ def test_notebook_uses_shared_helper_and_all_client_confusion():
     assert 'require_compatible_calibration=bool(config.get(' in source
 
 
-def test_two_task_candle_continuation_without_raw_bank(tmp_path):
+@pytest.mark.parametrize('controller', ['legacy', 'paper'])
+def test_two_task_candle_continuation_without_raw_bank(tmp_path, controller):
     from fed_learning.training.decentralized_denice_il import run_decentralized_denice_il
     data = tmp_path / 'data'
     data.mkdir()
@@ -124,6 +125,8 @@ def test_two_task_candle_continuation_without_raw_bank(tmp_path):
                   denice_aggregation_update_mode='local_delta', denice_aggregation_rho='reserve',
                   denice_fisher_samples=2, denice_canc_schedule='task_end',
                   denice_collaboration_guard_mode='warn')
+    if controller == 'paper':
+        config.update(denice_canc_mode='paper', denice_allocation_policy='fixed_per_class')
     result = run_decentralized_denice_il(config)
     checkpoint = torch.load(Path(result['output_dir'])/'continuation_state_task_1.pt', weights_only=False)
     assert all(not bank for bank in checkpoint['old_ref_banks'].values())
@@ -131,6 +134,11 @@ def test_two_task_candle_continuation_without_raw_bank(tmp_path):
         state = state.get('denice', state)
         assert state['structural_protection']
         assert state['pending_canc_plan']['measured_at_task'] == 1
+        if controller == 'paper':
+            assert state['pending_canc_plan']['controller'] == 'candle_eq21'
+            assert state['candle_state']['task_id'] == 1
+            assert state['candle_state']['fisher']
+            assert not state['pending_canc_plan']['drift']['defined']
         detector = state['context_detector']
         assert detector['reference_input_memory'] == {}
         assert detector['router_state_fresh']

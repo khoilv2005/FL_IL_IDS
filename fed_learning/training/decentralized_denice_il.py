@@ -761,6 +761,7 @@ def _make_model(config: Dict[str, Any], device: torch.device) -> DeNICEModel:
     model.structural_protection = bool(config.get('denice_structural_protection', False))
     model.fixed_task_allocation = bool(config.get('denice_fixed_task_allocation', False))
     model.allocation_policy = config.get('denice_allocation_policy', 'class_blocks')
+    model.capacity_per_class = dict(config.get('denice_capacity_per_class', {}))
     return model
 
 def _compute_reference_ce_loss(
@@ -892,17 +893,24 @@ def _prepare_client_task(
 ) -> Dict[str, Any]:
     """Run DeNICE prepare_task / novelty / CANC / adapter activation."""
     model.task_freeze_layers = []
+    paper_canc = config.get('denice_canc_mode') == 'paper'
+    task_classes = list(new_classes)
+    if paper_canc:
+        # Eq. (12): new to this participant, not just declared in the task.
+        supported = set(int(c) for c in client.y_train.detach().cpu().tolist())
+        task_classes = sorted(supported.intersection(new_classes))
+        new_classes = [c for c in task_classes if model.unit_ranks['fc2'][c] == 0]
     if hasattr(trainer, "set_task"):
         trainer.set_task(task_id, new_classes)
 
     for cls_id in new_classes:
         if 0 <= int(cls_id) < model.num_classes:
             model.unit_ranks["fc2"][int(cls_id)] = 1
-    context_detector.episode_classes[task_id] = list(int(c) for c in new_classes)
+    context_detector.episode_classes[task_id] = list(int(c) for c in task_classes)
 
     per_class = max(1, int(config.get("nice_memo_per_class", config.get("memo_per_class", 50))))
     ref_data, ref_labels = _sample_reference_with_labels(
-        client.X_train, client.y_train, list(new_classes), per_class, device
+        client.X_train, client.y_train, task_classes, per_class, device
     )
     revived = revive_due_recycled_neurons(model, task_id, config)
 
@@ -914,7 +922,7 @@ def _prepare_client_task(
     is_global_first_task = int(task_id) == 0
     has_novelty_baseline = novelty_estimator.has_history()
     novelty = 0.0
-    if ref_data.numel() > 0:
+    if ref_data.numel() > 0 and not paper_canc:
         model.eval()
         if novelty_estimator.thresholds is None:
             novelty_estimator.calibrate_thresholds(model, ref_data)
@@ -939,11 +947,20 @@ def _prepare_client_task(
         val_loss_delta=val_loss_delta,
         is_first_task=is_global_first_task,
     )
+    if paper_canc:
+        plan = {'layers': {}, 'adapters_to_add': [], 'recycle_layers': [],
+                'freeze_low_layers': False, 'novelty': 0., 'action': 'Reuse',
+                'controller': 'candle_eq21', 'reserve_to_promote': {}}
     if config.get('denice_canc_schedule') == 'task_end' and getattr(model, 'pending_canc_plan', None):
         plan = _resume_clone(model.pending_canc_plan)
         novelty = float(plan['novelty'])
         val_loss_delta = float(plan.get('val_loss_delta', 0.0))
         plan['applied_at_task'] = int(task_id)
+    if paper_canc and not new_classes:
+        # Eq. (12) explicitly carries the mask unchanged when no new class
+        # arrives. A previously queued expansion must not bypass that rule.
+        plan.update(action='Reuse', adapters_to_add=[], recycle_layers=[],
+                    reserve_to_promote={}, no_new_local_classes=True)
     plan["novelty"] = novelty
     plan["is_global_first_task"] = bool(is_global_first_task)
     plan["has_novelty_baseline"] = bool(has_novelty_baseline)
@@ -954,7 +971,13 @@ def _prepare_client_task(
     model.clear_active_adapters()
     for layer in plan["adapters_to_add"]:
         model.add_adapter(task_id, layer, set_active=True)
-    apply_graceful_recycling(model, ref_data, task_id, plan, config)
+    if paper_canc:
+        from fed_learning.strategies.incremental.denice_recycling import apply_candle_recycling
+        plan['recycling'] = apply_candle_recycling(
+            model, plan, getattr(context_detector, 'stable_feature_mask', None),
+            config.get('denice_canc_recycle_percentile', 2.0))
+    else:
+        apply_graceful_recycling(model, ref_data, task_id, plan, config)
 
     if plan["freeze_low_layers"]:
         model.task_freeze_layers = ['conv1', 'conv2']
@@ -966,6 +989,15 @@ def _prepare_client_task(
     if model.fixed_task_allocation:
         from fed_learning.strategies.incremental.nice import drop_young_to_learner
         plan['allocation'] = model.allocate_task_neurons(new_classes)
+        plan['new_local_classes'] = list(new_classes)
+        if paper_canc:
+            extra = {}
+            for layer, count in plan.get('reserve_to_promote', {}).items():
+                free = np.flatnonzero(model.unit_ranks[layer] == 0)
+                selected = free[:int(count)]
+                model.unit_ranks[layer][selected] = 1
+                extra[layer] = len(selected)
+            plan['canc_extra_allocation'] = extra
         drop_young_to_learner(model)
         model.protect_task_connections()
         model.protect_active_adapter_inputs()
@@ -1133,9 +1165,6 @@ def _build_round_capsule(
             capsule_data, capsule_labels, labels,
             int(config.get('memo_per_class', 50)), device,
         )
-        with torch.no_grad():
-            validation_loss = torch.nn.functional.cross_entropy(model(capsule_data), capsule_labels.long())
-        reliability = 1.0 / (1.0 + float(validation_loss))
     return build_context_capsule(
         model,
         capsule_data,
@@ -1152,6 +1181,30 @@ def _build_round_capsule(
         capsule_mode=str(config.get('denice_capsule_mode', 'legacy')),
         fisher_samples=int(config.get('denice_fisher_samples', 8)),
     )
+
+
+def _finalize_candle_task(model, capsule, start_ages, task_id, config):
+    """Finalize post-aggregation descriptors before young-to-mature transition."""
+    from fed_learning.strategies.incremental.denice_capacity import candle_prototype_drift, candle_capacity_plan
+    from fed_learning.strategies.decentralized.denice_aggregation import build_compatible_mask
+    previous = model.candle_state
+    drift = candle_prototype_drift(previous.get('prototypes', {}), capsule.penultimate_prototypes)
+    consumption = compute_consumption(start_ages, model.get_neuron_ages_state())
+    plan = candle_capacity_plan(compute_capacity_state(model), drift, consumption, config,
+                                previous_consumption=previous.get('consumption', {}))
+    fisher = _resume_clone(previous.get('fisher', {}))
+    current = OrderedDict((name, torch.as_tensor(value)) for name, value in capsule.parameter_fisher.items())
+    ages = {name: np.where(np.asarray(age) == 1, 1, 2) for name, age in model.unit_ranks.items()}
+    masks = build_compatible_mask(current, ages)
+    for name, value in current.items():
+        old = fisher.get(name, np.zeros_like(value.numpy()))
+        fisher[name] = np.where(masks[name].numpy().astype(bool), value.numpy(), old)
+    model.candle_state = {'task_id': int(task_id), 'prototypes': _resume_clone(capsule.penultimate_prototypes),
+                          'fisher': fisher, 'consumption': consumption}
+    plan.update(measured_at_task=int(task_id), novelty_definition='shared_class_penultimate_euclidean',
+                val_loss_delta=0.0)
+    model.pending_canc_plan = plan
+    return plan
 
 
 def _protect_plastic_fc2_rows_from_unsupported_peers(
@@ -1336,7 +1389,9 @@ def _aggregate_round(
         # This is not equivalent to eta=0, which still merges peer state.
         if aggregation_mode == "self_only":
             group_ids = [cid]
-        if require_label_overlap:
+        # Eq. (19) normalizes over the Eq. (18) neighborhood. Disjoint-label
+        # senders contribute zero through pair masks, without renormalization.
+        if require_label_overlap and not paper_graph:
             group_ids = [
                 gid
                 for gid in group_ids
@@ -1439,6 +1494,11 @@ def _aggregate_round(
             target_labels=capsules[cid].label_set,
             frozen_layers=getattr(models[cid], 'task_freeze_layers', []),
         )
+        if local_delta_mode:
+            # Eq. (19) exchanges parameter updates. BN statistics/counters are
+            # local observations, not gradients; retain their post-local values.
+            for name, _ in models[cid].named_buffers():
+                new_states[cid][name] = old_states[cid][name].clone()
         if selective_fc2_enabled:
             new_states[cid], selective_fc2_row_audit[int(cid)] = (
                 _protect_plastic_fc2_rows_from_unsupported_peers(
@@ -1461,6 +1521,8 @@ def _aggregate_round(
                 continue
             compatible = {}
             for key, state in old_adapter_states[gid].items():
+                if not set(capsules[cid].label_set).intersection(capsules[gid].label_set):
+                    continue
                 target_mask = models[cid].adapter_input_masks.get(key)
                 sender_mask = models[gid].adapter_input_masks.get(key)
                 if (target_mask is None) != (sender_mask is None):
@@ -1916,6 +1978,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         if config.get('denice_allocation_policy', saved_allocation) != saved_allocation:
             raise ValueError('Fresh training required to change denice_allocation_policy.')
         config['denice_allocation_policy'] = saved_allocation
+        for key, default in (('denice_canc_mode', 'legacy'), ('denice_capacity_per_class', {})):
+            saved_value = saved_config.get(key, default)
+            if config.get(key, saved_value) != saved_value:
+                raise ValueError(f'Fresh training required to change {key}.')
+            config[key] = saved_value
         for key in ("total_classes", "input_shape", "num_clients", "denice_structural_protection",
                     "denice_fixed_task_allocation", "denice_memory_policy"):
             if key in saved_config and key in config and saved_config[key] != config[key]:
@@ -1932,8 +1999,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             f"resume at task {resume_state['meta']['resume_from_task']}"
         )
     config.setdefault('denice_allocation_policy', 'class_blocks')
-    if config['denice_allocation_policy'] not in ('class_blocks', 'legacy_sequential'):
+    if config.get('denice_canc_mode', 'legacy') not in ('legacy', 'paper'):
+        raise ValueError('denice_canc_mode must be legacy or paper.')
+    if config['denice_allocation_policy'] not in ('class_blocks', 'legacy_sequential', 'fixed_per_class'):
         raise ValueError('Unknown denice_allocation_policy.')
+    if config.get('denice_canc_mode') == 'paper':
+        required = {'denice_fixed_task_allocation': True, 'denice_canc_schedule': 'task_end',
+                    'denice_capsule_mode': 'paper'}
+        for key, expected in required.items():
+            if config.get(key) != expected:
+                raise ValueError(f'CANDLE paper controller requires {key}={expected!r}.')
     _write_json(
         os.path.join(output_dir, "config_phase_resume.json" if resume_state else "config.json"),
         config,
@@ -2467,7 +2542,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         client.X_train,
                         client.y_train,
                         task_id,
-                        new_classes,
+                        context_detectors[cid].episode_classes[task_id],
                         str(device),
                         fit_router=(router_update_schedule == "every_round"),
                     )
@@ -2571,7 +2646,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 if config.get('denice_memory_policy', 'references') == 'sketches':
                     _update_local_nice_context_memory(
                         context_detectors[cid], models[cid], clients[cid].X_train,
-                        clients[cid].y_train, task_id, new_classes, str(device), fit_router=True,
+                        clients[cid].y_train, task_id, context_detectors[cid].episode_classes[task_id], str(device), fit_router=True,
                     )
                     context_detectors[cid].mark_router_fresh(task_id=task_id, round_id=round_id)
             router_refresh: Dict[int, Dict[str, float]] = {}
@@ -2955,13 +3030,21 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 canc_plans.get(cid, {}).get("start_ages", prev_ages.get(cid)),
                 minimum_free_capacity_ratio,
             )
+            if config.get('denice_canc_mode') == 'paper':
+                # Step 6 precedes Step 7. Recompute after the last peer update,
+                # while Fisher can still identify this task's young coordinates.
+                final_capsule = _build_round_capsule(
+                    cid=cid, task_id=task_id, round_id=rounds_per_task - 1, model=model,
+                    client=clients[cid], context_detector=context_detectors[cid],
+                    ref_data=ref_data[cid], ref_labels=ref_labels[cid], loss=losses[cid], config=config)
+                _finalize_candle_task(model, final_capsule, canc_plans[cid]['start_ages'], task_id, config)
             increase_unit_ranks(model)
             update_freeze_masks(model)
             if hasattr(model, "freeze_bn_for_mature"):
                 model.freeze_bn_for_mature()
             if ref_data[cid].numel() > 0:
                 proto = novelty_estimators[cid].compute_prototype(model, ref_data[cid])
-                if config.get('denice_canc_schedule') == 'task_end':
+                if config.get('denice_canc_schedule') == 'task_end' and config.get('denice_canc_mode') != 'paper':
                     drift = novelty_estimators[cid].novelty_from_prototype(proto)['novelty']
                     # Compare before/after on the identical old reference bank only
                     # in the explicitly reference-backed ablation.

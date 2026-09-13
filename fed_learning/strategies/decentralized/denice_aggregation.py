@@ -205,9 +205,14 @@ def age_aware_aggregate(
     robust = config.method in ("coordinate_median", "trimmed_mean")
     if neighbor_ages is not None and len(neighbor_ages) != len(neighbor_deltas):
         raise ValueError('One sender age state is required per delta.')
+    if neighbor_labels is not None and len(neighbor_labels) != len(neighbor_deltas):
+        raise ValueError('One sender label set is required per delta.')
 
     def pair_mask(name, param, j):
         keep = masks[name].to(param.device)
+        if neighbor_labels is not None and target_labels is not None:
+            if not set(target_labels).intersection(neighbor_labels[j]):
+                return torch.zeros_like(keep)
         layer = _BN_LAYER_MAP.get(name.split('.')[0], name.split('.')[0])
         if layer in (frozen_layers or []):
             return torch.zeros_like(keep)
@@ -231,6 +236,9 @@ def age_aware_aggregate(
 
     new_params = OrderedDict()
     for name, param in target_params.items():
+        if not param.is_floating_point():
+            new_params[name] = param.clone()
+            continue
         if robust:
             valid = [(j, delta[name].to(param.device)) for j, delta in enumerate(neighbor_deltas)
                      if name in delta and delta[name].shape == param.shape and float(alphas[j]) > 0]

@@ -18,6 +18,81 @@ import torch
 
 from .denice_capacity import CANCConfig
 
+def apply_candle_recycling(model, plan, stable_feature_mask=None, percentile=2.0):
+    """Recycle low-Fisher mature units before next-task activation (Step 6).
+
+    Preserve the routing anchor: old sketches cannot be refreshed without old
+    traffic. Tie-breaking limits reclamation to the requested percentile.
+    """
+    if not 0 < float(percentile) <= 100:
+        raise ValueError('CANDLE recycling percentile must be in (0,100].')
+    fisher = getattr(model, 'candle_state', {}).get('fisher', {})
+    protected, offset = {}, 0
+    for layer in ('conv1', 'conv2', 'conv3', 'gru'):
+        width = len(model.unit_ranks[layer])
+        if stable_feature_mask is not None:
+            protected[layer] = np.asarray(stable_feature_mask, dtype=bool)[offset:offset + width]
+        offset += width
+    recycled = {}
+    with torch.no_grad():
+        for layer in plan.get('recycle_layers', []):
+            if layer == 'fc2' or layer not in model.unit_ranks:
+                continue
+            ranks = model.unit_ranks[layer]
+            score = np.zeros(len(ranks), dtype=np.float64)
+            matched = []
+            prefixes = {layer, model.BN_LAYER_MAP.get(layer, '')}
+            for name, parameter in model.named_parameters():
+                if name.split('.')[0] not in prefixes or name not in fisher:
+                    continue
+                values = np.asarray(fisher[name])
+                if values.shape != tuple(parameter.shape):
+                    continue
+                rows = values.reshape(values.shape[0], -1).sum(1)
+                if layer == 'gru':
+                    rows = rows.reshape(3, len(ranks)).sum(0)
+                score += rows
+                matched.append((name, parameter))
+            eligible = ranks >= 2
+            if layer in protected:
+                eligible &= ~protected[layer]
+            candidates = np.flatnonzero(eligible)
+            if not len(candidates) or not matched:
+                continue
+            count = max(1, int(np.ceil(len(candidates) * percentile / 100)))
+            order = candidates[np.argsort(score[candidates], kind='stable')]
+            threshold = np.percentile(score[candidates], percentile)
+            chosen = order[score[order] <= threshold][:count]
+            ranks[chosen] = 0
+            recycled[layer] = chosen.tolist()
+            for name, parameter in matched:
+                rows = (np.concatenate([chosen + gate * len(ranks) for gate in range(3)])
+                        if layer == 'gru' else chosen)
+                ids = torch.as_tensor(rows, device=parameter.device)
+                if name.split('.')[0] in model.BN_LAYER_MAP.values():
+                    parameter[ids] = 1.0 if name.endswith('weight') else 0.0
+                else:
+                    fan = (len(ranks) if layer == 'gru' else
+                           int(np.prod(parameter.shape[1:])) if parameter.ndim > 1 else
+                           getattr(model, layer).weight[0].numel())
+                    parameter[ids] = torch.empty_like(parameter[ids]).uniform_(-fan ** -0.5, fan ** -0.5)
+                model.candle_state['fisher'][name][rows] = 0
+                recurrent_name = name.split('.', 1)[1]
+                if name.startswith('gru.weight') and recurrent_name in model.gru_connection_masks:
+                    model.gru_connection_masks[recurrent_name][rows] = 1
+            model.weight_masks[layer][chosen] = 1
+            model.bias_masks[layer][chosen] = 1
+            if layer in model.BN_LAYER_MAP:
+                bn = getattr(model, model.BN_LAYER_MAP[layer])
+                bn.running_mean[chosen] = 0
+                bn.running_var[chosen] = 1
+            for key, meta in model.adapter_registry.items():
+                if meta['layer_name'] == layer and key in model.adapter_input_masks:
+                    model.adapter_input_masks[key][chosen] = False
+    return {'recycled': recycled, 'criterion': 'mature_parameter_fisher_percentile',
+            'percentile': float(percentile), 'router_anchor_protected': True}
+
+
 def _activation_scores(model: Any, data: torch.Tensor) -> Dict[str, np.ndarray]:
     if data is None or data.numel() == 0:
         return {}

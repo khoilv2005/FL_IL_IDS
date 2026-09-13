@@ -303,11 +303,22 @@ CONFIG = {
     # Fresh CANDLE run: protected routing sketches, no old raw reference bank.
     "denice_structural_protection": True,
     "denice_fixed_task_allocation": True,
+    # CANDLE Eq. (12): fixed integer capacity budget per locally new class.
+    # Missing layer budgets use ceil(layer_width / total_classes), held fixed.
+    "denice_allocation_policy": "fixed_per_class",
+    "denice_capacity_per_class": {},
     "denice_pairwise_young_mask": True,
     "denice_aggregation_update_mode": "local_delta",
     "denice_aggregation_rho": "reserve",
     "denice_memory_policy": "sketches",
     "denice_canc_schedule": "task_end",
+    "denice_canc_mode": "paper",
+    # Eqs. (20)-(21). The PDF gives symbolic thresholds, not numeric values;
+    # these are explicit implementation settings, not claimed paper constants.
+    "denice_canc_theta1": 0.8,
+    "denice_canc_theta2": 0.35,
+    "denice_canc_expand_per_layer": 1,
+    "denice_canc_recycle_percentile": 2.0,
     "denice_capsule_mode": "paper",
     "denice_clustering_mode": "paper",
     "denice_similarity_beta": 0.5,
@@ -379,8 +390,8 @@ CONFIG = {
     "denice_age_merge_consensus_threshold": 0.5,
     "denice_min_free_capacity_ratio": 0.10,
 
-    # DeNICE Phase 4 graceful recycling. Keep disabled for main runs unless
-    # ablation explicitly tests retired-neuron reuse.
+    # Legacy graceful-recycling switch only. Paper CANC uses its Recycle branch
+    # when reserve is exhausted, with denice_canc_recycle_percentile above.
     "denice_enable_recycling": False,
     "denice_recycle_ratio": 0.02,
     "denice_recycle_min": 1,
