@@ -74,21 +74,21 @@ def analyze(manifest_path: str | Path, *, bootstrap_replicates: int = 2000) -> D
         raise ValueError(f"D3 manifest lacks variants: {missing}")
     e3 = {name: _policy(variants[name], "e3_oracle_routed_system_ceiling") for name in REQUIRED}
     e4 = {name: _policy(variants[name], "e4_pred_hard") for name in REQUIRED}
-    baseline_trace = _trace(e3["baseline"])
-    baseline_metrics = e3["baseline"]["metrics"]
+    baseline_trace = _trace(e4["baseline"])
+    baseline_metrics = e4["baseline"]["metrics"]
     old_classes = _old_classes(manifest)
     baseline_old_recall = _mean_recall(baseline_metrics, old_classes)
     report: Dict[str, Any] = {"manifest": str(manifest_path), "decision": "KEEP_BASELINE",
-                              "variants": {}, "gates": {}}
+                              "selection_policy": "e4_pred_hard", "variants": {}, "gates": {}}
     eligible = []
     for offset, name in enumerate(REQUIRED[1:], start=1):
-        candidate_metrics = e3[name]["metrics"]
-        bootstrap = _bootstrap_delta(baseline_trace, _trace(e3[name]),
+        candidate_metrics = e4[name]["metrics"]
+        bootstrap = _bootstrap_delta(baseline_trace, _trace(e4[name]),
                                      seed=int(manifest.get("seed", 42)) + offset,
                                      reps=bootstrap_replicates)
         old_delta = _mean_recall(candidate_metrics, old_classes) - baseline_old_recall
         report["variants"][name] = {
-            "e3_f1_macro_delta": float(candidate_metrics["f1_macro"] - baseline_metrics["f1_macro"]),
+            "e3_f1_macro_delta": float(e3[name]["metrics"]["f1_macro"] - e3["baseline"]["metrics"]["f1_macro"]),
             "e4_f1_macro_delta": float(e4[name]["metrics"]["f1_macro"] - e4["baseline"]["metrics"]["f1_macro"]),
             "paired_bootstrap": bootstrap, "old_class_recall_delta": old_delta,
             "minimum_per_class_recall": min(v["accuracy"] for v in candidate_metrics["debug"]["per_class"].values()),
@@ -99,7 +99,7 @@ def analyze(manifest_path: str | Path, *, bootstrap_replicates: int = 2000) -> D
     report["gates"]["bootstrap_positive_candidates"] = eligible
     if eligible:
         report["decision"] = "CANDIDATE_FOR_CONFIRMATION_SEED"
-        report["recommended_candidate"] = max(eligible, key=lambda item: report["variants"][item]["e3_f1_macro_delta"])
+        report["recommended_candidate"] = max(eligible, key=lambda item: report["variants"][item]["e4_f1_macro_delta"])
     return report
 
 

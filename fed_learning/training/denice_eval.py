@@ -81,6 +81,18 @@ def _allowed_classes_for_episode(
     return sorted(c for c in seen_set if 0 <= c < num_classes)
 
 
+def _mask_logits_to_allowed(logits, allowed, fill_value=-100.0):
+    """Use a finite floor strictly below allowed scores, even for extreme logits."""
+    allowed = allowed.to(device=logits.device, dtype=torch.bool)
+    minimum = logits.masked_fill(~allowed, float('inf')).amin(dim=1, keepdim=True)
+    below = torch.minimum(
+        minimum - max(100.0, abs(fill_value)),
+        torch.nextafter(minimum, torch.full_like(minimum, -float('inf'))))
+    floor = torch.where(minimum <= fill_value, below, torch.full_like(minimum, fill_value))
+    floor = floor.clamp_min(torch.finfo(logits.dtype).min)
+    return torch.where(allowed, logits, floor)
+
+
 def _mask_logits_to_classes(
     logits: torch.Tensor,
     allowed_classes: List[int],
@@ -92,8 +104,7 @@ def _mask_logits_to_classes(
     mask = torch.ones(logits.shape[1], dtype=torch.bool, device=logits.device)
     allowed_t = torch.as_tensor(allowed_classes, dtype=torch.long, device=logits.device)
     mask[allowed_t] = False
-    logits[:, mask] = fill_value
-    return logits
+    return _mask_logits_to_allowed(logits, ~mask, fill_value)
 
 
 INFERENCE_POLICIES = {
@@ -145,7 +156,7 @@ def _denice_routed_logits_with_episodes(
     ``route_mode`` controls how routing translates into the class mask:
 
     - ``"hard"`` (default): top-1 episode; classes outside that episode are
-      masked to ``-100`` (original DeNICE behaviour, unchanged).
+      masked to a finite floor below every allowed score (normally ``-100``).
     - ``"topk"``: keep the union of allowed classes over the sample's top-k
       episodes (``route_topk``). The adapter still follows the top-1 episode.
     - ``"nomask"``: diagnostic upper bound - predict over all seen classes with
@@ -170,7 +181,7 @@ def _denice_routed_logits_with_episodes(
         model.clear_active_adapters()
         out = model(X_batch)
         unseen = _seen_unseen_mask(num_classes, seen_classes, out.device)
-        out[:, unseen] = -100.0
+        out = _mask_logits_to_allowed(out, ~unseen)
         return out, None
 
     if policy == "pred_hard":
@@ -236,7 +247,7 @@ def _denice_routed_logits_with_episodes(
         else:
             _increment_route_diagnostic(routing_diagnostics, "missing_adapter_sample_count", len(idx_np))
         out = model(X_batch.index_select(0, idx))
-        out[:, unseen] = -100.0
+        out = _mask_logits_to_allowed(out, ~unseen)
 
         if mode == "nomask" or mask_source == "none":
             routed_logits[idx] = out
@@ -271,11 +282,8 @@ def _denice_routed_logits_with_episodes(
                         allowed = _allowed_for(int(candidate_ep))
                         if local_rows.size and allowed:
                             allow[np.ix_(local_rows, np.asarray(allowed, dtype=np.int64))] = True
-                routed_logits[idx[topk_rows]] = torch.where(
-                    torch.as_tensor(allow, dtype=torch.bool, device=device),
-                    out[topk_rows],
-                    torch.full_like(out[topk_rows], -100.0),
-                )
+                routed_logits[idx[topk_rows]] = _mask_logits_to_allowed(
+                    out[topk_rows], torch.as_tensor(allow, dtype=torch.bool, device=device))
             if nomask_rows.size:
                 routed_logits[idx[nomask_rows]] = out[nomask_rows]
             _increment_route_diagnostic(routing_diagnostics, "adaptive_hard_sample_count", len(hard_rows))
@@ -294,9 +302,7 @@ def _denice_routed_logits_with_episodes(
                     if rows.size and cols:
                         allow[np.ix_(rows, np.asarray(cols, dtype=np.int64))] = True
             allow_t = torch.as_tensor(allow, dtype=torch.bool, device=device)
-            routed_logits[idx] = torch.where(
-                allow_t, out, torch.full_like(out, -100.0)
-            )
+            routed_logits[idx] = _mask_logits_to_allowed(out, allow_t)
             _increment_route_diagnostic(routing_diagnostics, "topk_mask_sample_count", len(idx_np))
             continue
 
@@ -310,7 +316,7 @@ def _denice_routed_logits_with_episodes(
             for row_index, allowed in enumerate(row_masks):
                 if allowed:
                     mask_allow[row_index, torch.as_tensor(allowed, device=device)] = True
-            routed_logits[idx] = torch.where(mask_allow, out, torch.full_like(out, -100.0))
+            routed_logits[idx] = _mask_logits_to_allowed(out, mask_allow)
         else:
             # hard (default): identical to the original top-1 masking path.
             routed_logits[idx] = _mask_logits_to_classes(out, _allowed_for(int(ep)))

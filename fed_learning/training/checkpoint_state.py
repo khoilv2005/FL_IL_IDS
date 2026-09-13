@@ -135,6 +135,7 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
     if model is not None:
         state['structural_protection'] = bool(getattr(model, 'structural_protection', False))
         state['fixed_task_allocation'] = bool(getattr(model, 'fixed_task_allocation', False))
+        state['allocation_policy'] = getattr(model, 'allocation_policy', 'legacy_sequential')
         state['task_freeze_layers'] = list(getattr(model, 'task_freeze_layers', []))
         state['pending_canc_plan'] = _clone_value(getattr(model, 'pending_canc_plan', None))
         state["active_adapters"] = _clone_value(getattr(model, "active_adapters", {}))
@@ -165,6 +166,7 @@ def restore_denice_state(
         return
     model.structural_protection = bool(state.get('structural_protection', False))
     model.fixed_task_allocation = bool(state.get('fixed_task_allocation', False))
+    model.allocation_policy = state.get('allocation_policy', 'legacy_sequential')
     model.task_freeze_layers = list(state.get('task_freeze_layers', []))
     model.pending_canc_plan = _clone_value(state.get('pending_canc_plan'))
     adapter_registry = state.get("adapter_registry") or {}

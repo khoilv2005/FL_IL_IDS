@@ -760,6 +760,7 @@ def _make_model(config: Dict[str, Any], device: torch.device) -> DeNICEModel:
     model = DeNICEModel(config["input_shape"], config["num_classes"]).to(device)
     model.structural_protection = bool(config.get('denice_structural_protection', False))
     model.fixed_task_allocation = bool(config.get('denice_fixed_task_allocation', False))
+    model.allocation_policy = config.get('denice_allocation_policy', 'class_blocks')
     return model
 
 def _compute_reference_ce_loss(
@@ -964,16 +965,7 @@ def _prepare_client_task(
 
     if model.fixed_task_allocation:
         from fed_learning.strategies.incremental.nice import drop_young_to_learner
-        allocation = {}
-        for layer, ranks in model.unit_ranks.items():
-            if layer == 'fc2' or layer in model.task_freeze_layers:
-                continue
-            free = np.flatnonzero(ranks == 0)
-            per_class = max(1, int(np.ceil(len(ranks) / model.num_classes)))
-            budget = min(len(free), per_class * len(new_classes))
-            ranks[free[:budget]] = 1
-            allocation[layer] = int(budget)
-        plan['allocation'] = allocation
+        plan['allocation'] = model.allocate_task_neurons(new_classes)
         drop_young_to_learner(model)
         model.protect_task_connections()
         model.protect_active_adapter_inputs()
@@ -1920,6 +1912,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     if config.get("resume_state_path"):
         resume_state = _load_denice_continuation_state(str(config["resume_state_path"]))
         saved_config = resume_state.get("config") or {}
+        saved_allocation = saved_config.get('denice_allocation_policy', 'legacy_sequential')
+        if config.get('denice_allocation_policy', saved_allocation) != saved_allocation:
+            raise ValueError('Fresh training required to change denice_allocation_policy.')
+        config['denice_allocation_policy'] = saved_allocation
         for key in ("total_classes", "input_shape", "num_clients", "denice_structural_protection",
                     "denice_fixed_task_allocation", "denice_memory_policy"):
             if key in saved_config and key in config and saved_config[key] != config[key]:
@@ -1935,6 +1931,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             f"completed task {resume_state['meta']['completed_task']}, "
             f"resume at task {resume_state['meta']['resume_from_task']}"
         )
+    config.setdefault('denice_allocation_policy', 'class_blocks')
+    if config['denice_allocation_policy'] not in ('class_blocks', 'legacy_sequential'):
+        raise ValueError('Unknown denice_allocation_policy.')
     _write_json(
         os.path.join(output_dir, "config_phase_resume.json" if resume_state else "config.json"),
         config,

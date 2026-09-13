@@ -213,9 +213,23 @@ class ContextDetector:
         if self.binarize_thresholds is None:
             acts = model.get_context_activations_per_sample(data)
             self.binarize_thresholds = {}
+            stable_mask = getattr(self, 'stable_feature_mask', None)
+            offset = 0
             for name in ["conv1", "conv2", "conv3", "gru"]:
                 act = acts[name].cpu()
-                self.binarize_thresholds[name] = (act.mean() + act.std()).item()
+                width = act.shape[1]
+                if stable_mask is not None:
+                    selected = torch.as_tensor(
+                        np.asarray(stable_mask)[offset:offset + width], dtype=torch.bool)
+                    act = act[:, selected]
+                offset += width
+                # Excluded reserve features must not set the threshold of the
+                # protected routing subspace. An empty layer contributes no bits.
+                if act.numel() == 0:
+                    self.binarize_thresholds[name] = 0.0
+                else:
+                    std = act.std() if act.numel() > 1 else torch.zeros_like(act.mean())
+                    self.binarize_thresholds[name] = (act.mean() + std).item()
 
         # Store per-sample binary activations
         binary_vecs = self._binarize_per_sample(model, data)  # [n_samples, features]

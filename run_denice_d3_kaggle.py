@@ -59,7 +59,7 @@ def _shared_overrides(output_dir: Path) -> Dict[str, Any]:
         "denice_checkpoint_format": "full",
         "denice_post_task_eval": False,
         "denice_max_clients": MAX_CLIENTS,
-        "denice_max_train_samples_per_client": MAX_TRAIN_SAMPLES,
+        "denice_max_train_samples_per_client": MAX_TRAIN_SAMPLES if MAX_TRAIN_SAMPLES > 0 else None,
         "denice_d1_row_drift_audit": True,
     }
 

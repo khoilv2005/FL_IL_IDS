@@ -118,6 +118,7 @@ class DeNICEModel(NICEModel):
         # Opt in for fresh runs; legacy checkpoints keep their original graph.
         self.structural_protection = False
         self.fixed_task_allocation = False
+        self.allocation_policy = 'class_blocks'
         self.task_freeze_layers = []
         self.gru_connection_masks = {}
         self.adapter_input_masks = {}
@@ -134,6 +135,36 @@ class DeNICEModel(NICEModel):
     # ========================================================================
     # Adapter registry management
     # ========================================================================
+
+    def allocate_task_neurons(self, classes: List[int]) -> Dict[str, int]:
+        """Allocate disjoint global-class blocks without cumulative rounding.
+
+        Global label boundaries also align coordinates when clients skip tasks.
+        Existing learners/mature units are never reset, including on resume.
+        """
+        classes = sorted(set(int(c) for c in classes))
+        if any(c < 0 or c >= self.num_classes for c in classes):
+            raise ValueError('Task classes are outside the model output range.')
+        allocation = {}
+        for layer, ranks in self.unit_ranks.items():
+            if layer == 'fc2' or layer in self.task_freeze_layers:
+                continue
+            selected = np.zeros(len(ranks), dtype=bool)
+            if self.allocation_policy == 'legacy_sequential':
+                free = np.flatnonzero(ranks == 0)
+                budget = int(np.ceil(len(ranks) / self.num_classes)) * len(classes)
+                selected[free[:budget]] = True
+            elif self.allocation_policy == 'class_blocks':
+                for cls in classes:
+                    start = cls * len(ranks) // self.num_classes
+                    end = (cls + 1) * len(ranks) // self.num_classes
+                    selected[start:end] = True
+            else:
+                raise ValueError(f'Unknown allocation policy: {self.allocation_policy}')
+            selected &= ranks == 0
+            ranks[selected] = 1
+            allocation[layer] = int(selected.sum())
+        return allocation
 
     def add_adapter(
         self,
