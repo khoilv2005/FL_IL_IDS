@@ -300,6 +300,9 @@ CONFIG = {
     #   ["fc1", "gru"]          -> Phase 2a
     #   ["fc1", "gru", "conv3"] -> Phase 2b
     "denice_adapter_layers": ["fc1", "gru", "conv3"],
+    # Eq. (23): low-rank linear residual on layer inputs; architecture v2.
+    # Fresh task-0 run required; old checkpoints keep legacy_output adapters.
+    "denice_adapter_mode": os.environ.get("DENICE_ADAPTER_MODE", "linear_input"),
     # Fresh CANDLE run: protected routing sketches, no old raw reference bank.
     "denice_structural_protection": True,
     "denice_fixed_task_allocation": True,

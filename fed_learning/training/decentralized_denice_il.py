@@ -394,16 +394,20 @@ def _catch_up_rejoining_model(
     device: torch.device,
 ) -> float:
     """Synchronize only target-plastic parameters from a current representative."""
-    for meta in source_model.get_adapter_registry_state().values():
-        if not target_model.has_adapter(
-            int(meta["context_id"]), str(meta["layer_name"]), int(meta["rank"])
-        ):
-            target_model.add_adapter(
+    for source_key, meta in source_model.get_adapter_registry_state().items():
+        if source_key not in target_model.adapters:
+            key = target_model.add_adapter(
                 int(meta["context_id"]),
                 str(meta["layer_name"]),
                 rank=int(meta["rank"]),
                 set_active=False,
+                mode=meta.get('mode', 'legacy_output'),
+                architecture_version=meta.get('architecture_version', 1),
             )
+            for attribute in ('adapter_input_masks', 'adapter_output_masks'):
+                source_masks = getattr(source_model, attribute)
+                if source_key in source_masks:
+                    getattr(target_model, attribute)[key] = source_masks[source_key].clone()
     before = _state_dict(target_model)
     source = _state_dict(source_model)
     updated = age_aware_aggregate(
@@ -762,6 +766,7 @@ def _make_model(config: Dict[str, Any], device: torch.device) -> DeNICEModel:
     model.fixed_task_allocation = bool(config.get('denice_fixed_task_allocation', False))
     model.allocation_policy = config.get('denice_allocation_policy', 'class_blocks')
     model.capacity_per_class = dict(config.get('denice_capacity_per_class', {}))
+    model.configure_adapter_mode(config.get('denice_adapter_mode', 'legacy_output'))
     return model
 
 def _compute_reference_ce_loss(
@@ -1523,11 +1528,15 @@ def _aggregate_round(
             for key, state in old_adapter_states[gid].items():
                 if not set(capsules[cid].label_set).intersection(capsules[gid].label_set):
                     continue
-                target_mask = models[cid].adapter_input_masks.get(key)
-                sender_mask = models[gid].adapter_input_masks.get(key)
-                if (target_mask is None) != (sender_mask is None):
-                    continue
-                if target_mask is not None and not torch.equal(target_mask.cpu(), sender_mask.cpu()):
+                supports_match = True
+                for attribute in ('adapter_input_masks', 'adapter_output_masks'):
+                    target_mask = getattr(models[cid], attribute).get(key)
+                    sender_mask = getattr(models[gid], attribute).get(key)
+                    if ((target_mask is None) != (sender_mask is None) or
+                            target_mask is not None and not torch.equal(target_mask.cpu(), sender_mask.cpu())):
+                        supports_match = False
+                        break
+                if not supports_match:
                     continue
                 compatible[key] = state
             neighbor_adapter_states.append(compatible)
@@ -1978,7 +1987,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         if config.get('denice_allocation_policy', saved_allocation) != saved_allocation:
             raise ValueError('Fresh training required to change denice_allocation_policy.')
         config['denice_allocation_policy'] = saved_allocation
-        for key, default in (('denice_canc_mode', 'legacy'), ('denice_capacity_per_class', {})):
+        for key, default in (('denice_canc_mode', 'legacy'), ('denice_capacity_per_class', {}),
+                             ('denice_adapter_mode', 'legacy_output')):
             saved_value = saved_config.get(key, default)
             if config.get(key, saved_value) != saved_value:
                 raise ValueError(f'Fresh training required to change {key}.')

@@ -1,7 +1,14 @@
 """
 DeNICE Model - NICE backbone extended with capacity-aware micro-adapters.
 
-This implements section 2.1 of ``DeNICE_micro_adapter_implementation_plan.md``:
+The fresh CANDLE configuration uses ``linear_input`` (architecture v2),
+implementing Eq. (23) as U(V(x)) on each adapted block's input. CNN adapters
+project adjacent input positions to match stride-two pooling; the GRU adapter
+projects the flattened input sequence; fc1 uses concatenated backbone features.
+These sequence alignment choices are explicit implementation details, not
+hyperparameters specified by the PDF.
+
+Legacy ``legacy_output`` (v1) retains section 2.1 of the earlier implementation plan:
 
     - Inherits ``NICEModel`` (neuron-age management, weight masks, context
       activations stay unchanged).
@@ -97,6 +104,21 @@ class MicroAdapter(nn.Module):
         return self.U(torch.sigmoid(self.V(h)))
 
 
+class LinearInputAdapter(nn.Module):
+    """CANDLE Eq. (23): bias-free U(V(x)) on the layer input."""
+
+    def __init__(self, input_dim: int, dim: int, rank: int):
+        super().__init__()
+        self.dim, self.rank = int(dim), int(rank)
+        self.V = nn.Linear(int(input_dim), self.rank, bias=False)
+        self.U = nn.Linear(self.rank, self.dim, bias=False)
+        nn.init.kaiming_uniform_(self.V.weight, a=5 ** 0.5)
+        nn.init.zeros_(self.U.weight)
+
+    def forward(self, x):
+        return self.U(self.V(x))
+
+
 class DeNICEModel(NICEModel):
     """NICE backbone + per-context micro-adapter registry.
 
@@ -111,6 +133,7 @@ class DeNICEModel(NICEModel):
         super().__init__(input_shape, num_classes)
 
         self.architecture_version = ARCHITECTURE_VERSION
+        self.adapter_mode = 'legacy_output'
         self.adapters = nn.ModuleDict()
         self.adapter_registry: Dict[str, Dict] = {}
         self.active_adapters: Dict[str, str] = {}
@@ -124,6 +147,7 @@ class DeNICEModel(NICEModel):
         self.task_freeze_layers = []
         self.gru_connection_masks = {}
         self.adapter_input_masks = {}
+        self.adapter_output_masks = {}
 
         # Dimension used by each adapter (the residual operates on these dims).
         self._adapter_dims = {
@@ -178,6 +202,9 @@ class DeNICEModel(NICEModel):
         layer_name: str,
         rank: Optional[int] = None,
         set_active: bool = True,
+        *,
+        mode: Optional[str] = None,
+        architecture_version: Optional[int] = None,
     ) -> str:
         """Create (or reuse) the micro-adapter for ``(context_id, layer_name)``.
 
@@ -190,21 +217,33 @@ class DeNICEModel(NICEModel):
                 f"Supported: {sorted(self._adapter_dims)}"
             )
 
+        mode = mode or self.adapter_mode
+        if mode not in ('legacy_output', 'linear_input'):
+            raise ValueError('Unknown adapter mode.')
         dim = self._adapter_dims[layer_name]
-        r = int(rank) if rank is not None else default_rank(dim)
-        key = adapter_key(context_id, layer_name, r, self.architecture_version)
+        input_dim = self._adapter_input_dim(layer_name) if mode == 'linear_input' else dim
+        r = int(rank) if rank is not None else min(default_rank(dim), input_dim, dim)
+        if r < 1:
+            raise ValueError('Adapter rank must be positive.')
+        version = architecture_version if architecture_version is not None else (2 if mode == 'linear_input' else 1)
+        key = adapter_key(context_id, layer_name, r, version)
 
         if key not in self.adapters:
             device = next(self.parameters()).device
-            self.adapters[key] = MicroAdapter(dim, r).to(device)
+            self.adapters[key] = (LinearInputAdapter(input_dim, dim, r) if mode == 'linear_input'
+                                  else MicroAdapter(dim, r)).to(device)
             self.adapter_registry[key] = {
                 "context_id": int(context_id),
                 "layer_name": layer_name,
                 "rank": r,
-                "architecture_version": int(self.architecture_version),
+                "architecture_version": int(version),
                 "dim": int(dim),
-                "param_count": int(2 * dim * r),
+                "param_count": int((input_dim + dim) * r),
             }
+            if mode == 'linear_input':
+                self.adapter_registry[key].update(mode=mode, input_dim=input_dim)
+        elif self.adapter_registry[key].get('mode', 'legacy_output') != mode:
+            raise ValueError('Adapter key already belongs to a different architecture.')
 
         if set_active:
             self.active_adapters[layer_name] = key
@@ -259,7 +298,8 @@ class DeNICEModel(NICEModel):
 
     def has_adapter(self, context_id: int, layer_name: str, rank: Optional[int] = None) -> bool:
         dim = self._adapter_dims[layer_name]
-        r = int(rank) if rank is not None else default_rank(dim)
+        input_dim = self._adapter_input_dim(layer_name) if self.adapter_mode == 'linear_input' else dim
+        r = int(rank) if rank is not None else min(default_rank(dim), input_dim, dim)
         key = adapter_key(context_id, layer_name, r, self.architecture_version)
         return key in self.adapters
 
@@ -375,21 +415,58 @@ class DeNICEModel(NICEModel):
         later. Capture support after reserve promotion, once per adapter.
         Legacy adapters without a saved mask retain their original behavior.
         """
-        if not self.structural_protection:
-            return
         for layer, key in self.active_adapters.items():
-            if key not in self.adapter_input_masks:
+            if self.adapter_registry[key].get('mode') == 'linear_input':
+                if key not in self.adapter_output_masks:
+                    self.adapter_output_masks[key] = torch.as_tensor(
+                        self.unit_ranks[layer] == 1, dtype=torch.bool)
+                if self.structural_protection and key not in self.adapter_input_masks:
+                    self.adapter_input_masks[key] = torch.as_tensor(
+                        self._linear_adapter_input_support(layer), dtype=torch.bool)
+            elif self.structural_protection and key not in self.adapter_input_masks:
                 self.adapter_input_masks[key] = torch.as_tensor(
                     np.asarray(self.unit_ranks[layer]) >= 1, dtype=torch.bool)
+
+    def _linear_adapter_input_support(self, layer):
+        """Support in the exact flattening order consumed by the adapter."""
+        if layer in ('conv1', 'gru'):
+            return np.ones(self._adapter_input_dim(layer), dtype=bool)
+        if layer in ('conv2', 'conv3'):
+            previous = 'conv1' if layer == 'conv2' else 'conv2'
+            return np.repeat(self.unit_ranks[previous] >= 1, 2)
+        return np.concatenate([np.repeat(self.unit_ranks['conv3'] >= 1, self.seq_length // 8),
+                               self.unit_ranks['gru'] >= 1])
+
+    def remove_recycled_adapter_support(self, layer, chosen):
+        """Disconnect recycled features from older adapters and their outputs."""
+        for key, meta in self.adapter_registry.items():
+            adapter_layer = meta['layer_name']
+            if meta.get('mode') == 'linear_input':
+                if key in self.adapter_input_masks:
+                    self.adapter_input_masks[key] &= torch.as_tensor(
+                        self._linear_adapter_input_support(adapter_layer))
+                if adapter_layer == layer and key in self.adapter_output_masks:
+                    self.adapter_output_masks[key][chosen] = False
+            elif adapter_layer == layer and key in self.adapter_input_masks:
+                self.adapter_input_masks[key][chosen] = False
 
     def _adapter_residual(self, h, layer):
         key = self.active_adapters[layer]
         mask = self.adapter_input_masks.get(key)
         if mask is not None:
             h = h * mask.to(device=h.device, dtype=h.dtype)
-        return self.adapters[key](h)
+        residual = self.adapters[key](h)
+        output_mask = self.adapter_output_masks.get(key)
+        if output_mask is not None:
+            residual = residual * output_mask.to(device=h.device, dtype=h.dtype)
+        return residual
 
-    def _apply_conv_channel_adapter(self, x: torch.Tensor, layer_name: str) -> torch.Tensor:
+    def _linear_input_adapter_active(self, layer):
+        key = self.active_adapters.get(layer)
+        return key is not None and self.adapter_registry[key].get('mode') == 'linear_input'
+
+    def _apply_conv_channel_adapter(self, x: torch.Tensor, layer_name: str,
+                                    layer_input=None) -> torch.Tensor:
         """Channel-wise residual adapter for conv layers.
 
         ``x`` is ``[batch, channels, length]``. The adapter acts on the channel
@@ -399,7 +476,13 @@ class DeNICEModel(NICEModel):
         if adapter is None:
             return x
         # [B, C, L] -> [B, L, C] -> adapter -> [B, C, L]
-        h = x.permute(0, 2, 1)
+        if self._linear_input_adapter_active(layer_name):
+            if layer_input is None:
+                raise ValueError('Linear adapter requires its layer input.')
+            windows = layer_input.unfold(-1, 2, 2).permute(0, 2, 1, 3)
+            h = windows.reshape(windows.shape[0], windows.shape[1], -1)
+        else:
+            h = x.permute(0, 2, 1)
         residual = self._adapter_residual(h, layer_name)
         return x + residual.permute(0, 2, 1)
 
@@ -409,15 +492,13 @@ class DeNICEModel(NICEModel):
             x = x.unsqueeze(-1)
 
         x_cnn = x.permute(0, 2, 1)
-        x_cnn = self._apply_masked_conv(x_cnn, self.conv1, self.bn1, self.pool1, "conv1")
-        if "conv1" in self.active_adapters:
-            x_cnn = self._apply_conv_channel_adapter(x_cnn, "conv1")
-        x_cnn = self._apply_masked_conv(x_cnn, self.conv2, self.bn2, self.pool2, "conv2")
-        if "conv2" in self.active_adapters:
-            x_cnn = self._apply_conv_channel_adapter(x_cnn, "conv2")
-        x_cnn = self._apply_masked_conv(x_cnn, self.conv3, self.bn3, self.pool3, "conv3")
-        if "conv3" in self.active_adapters:
-            x_cnn = self._apply_conv_channel_adapter(x_cnn, "conv3")
+        for index in (1, 2, 3):
+            layer = f'conv{index}'
+            layer_input = x_cnn
+            x_cnn = self._apply_masked_conv(layer_input, getattr(self, layer),
+                                           getattr(self, f'bn{index}'), getattr(self, f'pool{index}'), layer)
+            if layer in self.active_adapters:
+                x_cnn = self._apply_conv_channel_adapter(x_cnn, layer, layer_input)
         cnn_output = x_cnn.view(x.size(0), -1)
 
         x_gru, _ = self._run_gru(x)
@@ -428,21 +509,29 @@ class DeNICEModel(NICEModel):
 
         gru_adapter = self.get_active_adapter("gru")
         if gru_adapter is not None:
-            gru_output = gru_output + self._adapter_residual(gru_output, 'gru')
+            adapter_input = x.reshape(x.shape[0], -1) if self._linear_input_adapter_active('gru') else gru_output
+            gru_output = gru_output + self._adapter_residual(adapter_input, 'gru')
 
         return torch.cat([cnn_output, gru_output], dim=1)
 
-    def _apply_fc1_adapter(self, z: torch.Tensor) -> torch.Tensor:
+    def _apply_fc1_adapter(self, z: torch.Tensor, features=None) -> torch.Tensor:
         adapter = self.get_active_adapter("fc1")
         if adapter is None:
             return z
+        if self._linear_input_adapter_active('fc1'):
+            if features is None:
+                raise ValueError('Linear fc1 adapter requires backbone features.')
+            return z + self._adapter_residual(features, 'fc1')
         return z + self._adapter_residual(z, 'fc1')
+
+    def penultimate_features(self, x):
+        features = self._forward_backbone(x)
+        z = self.relu(self._apply_masked_linear(features, self.fc1, 'fc1'))
+        return self._apply_fc1_adapter(z, features)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Inference forward with active adapters (fc1 residual on penultimate)."""
-        features = self._forward_backbone(x)
-        z = self.relu(self._apply_masked_linear(features, self.fc1, "fc1"))
-        z = self._apply_fc1_adapter(z)
+        z = self.penultimate_features(x)
         z = self.dropout(z)
         z = self._apply_masked_linear(z, self.fc2, "fc2")
         return z
@@ -451,9 +540,7 @@ class DeNICEModel(NICEModel):
         """Training forward (Let_Learner + MaskedOut_Young) with active adapters."""
         from .nice_model import MaskedOutYoung, LetLearner
 
-        features = self._forward_backbone(x)
-        z = self.relu(self._apply_masked_linear(features, self.fc1, "fc1"))
-        z = self._apply_fc1_adapter(z)
+        z = self.penultimate_features(x)
 
         young_fc1 = torch.as_tensor(
             (self.unit_ranks["fc1"] == 0).tolist(),
@@ -476,10 +563,12 @@ class DeNICEModel(NICEModel):
 
         return z
 
-    # NOTE: ``get_context_activations_per_sample`` and
-    # ``get_output_and_context_activations`` are intentionally NOT overridden.
-    # They inherit the adapter-free NICE path so the context detector keeps
-    # routing on stable backbone activations (plan section 4 / 10).
+    def get_output_and_context_activations(self, x):
+        """Classifier honors active adapters; routing uses the stable backbone."""
+        logits, activations = super().get_output_and_context_activations(x)
+        return (self(x) if self.active_adapters else logits), activations
+
+    # get_context_activations_per_sample retains the adapter-free NICE path.
     def _run_gru(self, x):
         if not self.structural_protection or not self.gru_connection_masks:
             return self.gru(x)
@@ -513,6 +602,8 @@ class DeNICEModel(NICEModel):
                       for k, v in self.gru_connection_masks.items()})
         state.update({'adapter_input_' + k: v.detach().cpu().clone()
                       for k, v in self.adapter_input_masks.items()})
+        state.update({'adapter_output_' + k: v.detach().cpu().clone()
+                      for k, v in self.adapter_output_masks.items()})
         return state
 
     def set_masks_state(self, state):
@@ -525,3 +616,22 @@ class DeNICEModel(NICEModel):
             k[len('adapter_input_'):]: v.clone().bool() for k, v in state.items()
             if k.startswith('adapter_input_')
         }
+        self.adapter_output_masks = {
+            k[len('adapter_output_'):]: v.clone().bool() for k, v in state.items()
+            if k.startswith('adapter_output_')
+        }
+
+    def configure_adapter_mode(self, mode):
+        if mode not in ('legacy_output', 'linear_input'):
+            raise ValueError('adapter_mode must be legacy_output or linear_input.')
+        self.adapter_mode = mode
+        self.architecture_version = 2 if mode == 'linear_input' else 1
+
+    def _adapter_input_dim(self, layer):
+        if layer.startswith('conv'):
+            # A linear projection of adjacent input positions matches the
+            # CNN block's stride-two pooling, including odd sequence lengths.
+            return 2 * self._layer_in_dims[layer]
+        if layer == 'gru':
+            return self.seq_length * self.num_features
+        return self._layer_in_dims[layer]

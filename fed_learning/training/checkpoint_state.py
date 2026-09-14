@@ -137,6 +137,7 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
         state['fixed_task_allocation'] = bool(getattr(model, 'fixed_task_allocation', False))
         state['allocation_policy'] = getattr(model, 'allocation_policy', 'legacy_sequential')
         state['capacity_per_class'] = _clone_value(getattr(model, 'capacity_per_class', {}))
+        state['adapter_mode'] = getattr(model, 'adapter_mode', 'legacy_output')
         state['candle_state'] = _clone_value(getattr(model, 'candle_state', {}))
         state['task_freeze_layers'] = list(getattr(model, 'task_freeze_layers', []))
         state['pending_canc_plan'] = _clone_value(getattr(model, 'pending_canc_plan', None))
@@ -170,6 +171,8 @@ def restore_denice_state(
     model.fixed_task_allocation = bool(state.get('fixed_task_allocation', False))
     model.allocation_policy = state.get('allocation_policy', 'legacy_sequential')
     model.capacity_per_class = _clone_value(state.get('capacity_per_class', {}))
+    model.configure_adapter_mode(state.get('adapter_mode', 'legacy_output'))
+    model.architecture_version = int(state.get('architecture_version', model.architecture_version))
     model.candle_state = _clone_value(state.get('candle_state', {}))
     model.task_freeze_layers = list(state.get('task_freeze_layers', []))
     model.pending_canc_plan = _clone_value(state.get('pending_canc_plan'))
@@ -181,7 +184,8 @@ def restore_denice_state(
         context_id = meta.get("context_id")
         if layer_name is not None and context_id is not None:
             model.add_adapter(
-                int(context_id), str(layer_name), rank=meta.get("rank"), set_active=False
+                int(context_id), str(layer_name), rank=meta.get("rank"), set_active=False,
+                mode=meta.get('mode', 'legacy_output'), architecture_version=meta.get('architecture_version', 1)
             )
     neuron_ages = state.get("neuron_ages")
     if neuron_ages and hasattr(model, "set_neuron_ages_state"):

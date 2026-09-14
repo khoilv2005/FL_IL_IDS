@@ -86,9 +86,7 @@ def apply_candle_recycling(model, plan, stable_feature_mask=None, percentile=2.0
                 bn = getattr(model, model.BN_LAYER_MAP[layer])
                 bn.running_mean[chosen] = 0
                 bn.running_var[chosen] = 1
-            for key, meta in model.adapter_registry.items():
-                if meta['layer_name'] == layer and key in model.adapter_input_masks:
-                    model.adapter_input_masks[key][chosen] = False
+            model.remove_recycled_adapter_support(layer, chosen)
     return {'recycled': recycled, 'criterion': 'mature_parameter_fisher_percentile',
             'percentile': float(percentile), 'router_anchor_protected': True}
 

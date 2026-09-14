@@ -221,11 +221,17 @@ def test_recycling_uses_fisher_and_keeps_router_anchor():
     assert not model.candle_state['fisher']['conv1.weight'][1].any()
 
 
-def test_three_task_paper_run_matches_split_continuation(tmp_path, monkeypatch):
+@pytest.mark.parametrize('force_adapter_branch', [False, True])
+def test_three_task_paper_run_matches_split_continuation(tmp_path, monkeypatch, force_adapter_branch):
     import json
     from pathlib import Path
     from fed_learning.training.decentralized_denice_il import run_decentralized_denice_il
     monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
+    if force_adapter_branch:
+        # Exercise adapter training/aggregation/checkpoint wiring independently
+        # of drift estimation (these synthetic tasks have disjoint labels).
+        monkeypatch.setattr('fed_learning.strategies.incremental.denice_capacity.candle_prototype_drift',
+                            lambda previous, current: {'value': 1., 'defined': True, 'shared_classes': []})
     data = tmp_path / 'data'
     data.mkdir()
     (data / 'metadata.json').write_text(json.dumps({
@@ -252,6 +258,7 @@ def test_three_task_paper_run_matches_split_continuation(tmp_path, monkeypatch):
                   denice_aggregation_update_mode='local_delta', denice_aggregation_rho='reserve',
                   denice_fisher_samples=2, denice_canc_schedule='task_end', denice_canc_mode='paper',
                   denice_canc_theta1=.1, denice_collaboration_guard_mode='off')
+    config.update(denice_adapter_mode='linear_input', denice_adapter_layers=['fc1', 'gru', 'conv3'])
     full = run_decentralized_denice_il({**config, 'output_dir': str(tmp_path/'full')})
     split = run_decentralized_denice_il({**config, 'task_end': 0, 'output_dir': str(tmp_path/'split')})
     first = Path(split['output_dir'])/'continuation_state_task_0.pt'
@@ -268,3 +275,9 @@ def test_three_task_paper_run_matches_split_continuation(tmp_path, monkeypatch):
         assert state['candle_state']['task_id'] == 2
         assert state['pending_canc_plan']['controller'] == 'candle_eq21'
         assert not state['context_detector']['reference_input_memory']
+        if force_adapter_branch:
+            assert len(state['adapter_registry']) == 6
+            assert all(meta['mode'] == 'linear_input' for meta in state['adapter_registry'].values())
+            weights = checkpoint['client_model_states'][0]
+            assert any(value.abs().sum() > 0 for name, value in weights.items()
+                       if name.startswith('adapters.') and name.endswith('U.weight'))

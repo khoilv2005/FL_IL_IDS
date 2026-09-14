@@ -18,6 +18,7 @@ predicting on the same signal it was trained on.
 from __future__ import annotations
 
 import time
+from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -29,6 +30,21 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
+
+
+def _preserve_inference_state(function):
+    """Evaluation must not disable the adapter used by the next train round."""
+    @wraps(function)
+    def wrapped(model, *args, **kwargs):
+        active = dict(model.active_adapters)
+        training = [(module, module.training) for module in model.modules()]
+        try:
+            return function(model, *args, **kwargs)
+        finally:
+            model.active_adapters = active
+            for module, was_training in training:
+                module.training = was_training
+    return wrapped
 
 
 def _route_episodes(model, X_batch: torch.Tensor, context_detector) -> np.ndarray:
@@ -137,6 +153,7 @@ def _validate_oracle_episodes(
 
 
 @torch.no_grad()
+@_preserve_inference_state
 def _denice_routed_logits_with_episodes(
     model,
     X_batch: torch.Tensor,
@@ -371,6 +388,7 @@ def _label_to_episode_map(context_detector) -> Dict[int, int]:
     return mapping
 
 
+@_preserve_inference_state
 def evaluate_denice_model(
     model,
     test_data: Dict[str, torch.Tensor],

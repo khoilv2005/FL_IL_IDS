@@ -260,10 +260,11 @@ def _context_detector_summary(context_detector: Any) -> Dict[str, Any]:
 def class_penultimate_prototypes(model, data, labels):
     """Eq. (15), using the same adapter-aware embedding as the classifier."""
     with torch.no_grad():
-        features = model._forward_backbone(data)
-        embeddings = model.relu(model._apply_masked_linear(features, model.fc1, 'fc1'))
-        if hasattr(model, '_apply_fc1_adapter'):
-            embeddings = model._apply_fc1_adapter(embeddings)
+        if hasattr(model, 'penultimate_features'):
+            embeddings = model.penultimate_features(data)
+        else:
+            features = model._forward_backbone(data)
+            embeddings = model.relu(model._apply_masked_linear(features, model.fc1, 'fc1'))
         return {int(cls): embeddings[labels == cls].mean(0).cpu().numpy()
                 for cls in torch.unique(labels)}
 
