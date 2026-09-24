@@ -28,6 +28,7 @@ import numpy as np
 import torch
 
 from fed_learning.clients.denice_client import normalize_denice_imbalance_config
+from fed_learning.strategies.incremental.denice_replay import LocalReplay, ReplayConfig
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.factories.client_factory import create_client, update_client_data
 from fed_learning.models.denice_model import DeNICEModel
@@ -1071,6 +1072,7 @@ def _build_denice_continuation_state(
     cluster_history: List[Dict[str, Any]],
     adapter_history: List[Dict[str, Any]],
     debug_history: List[Dict[str, Any]],
+    replay_memories=None,
 ) -> Dict[str, Any]:
     """Build a self-contained task-boundary continuation payload."""
     client_ids = sorted(int(cid) for cid in models)
@@ -1104,6 +1106,8 @@ def _build_denice_continuation_state(
         "adapter_history": _resume_clone(adapter_history),
         "debug_history": _resume_clone(debug_history),
         "rng_state": _snapshot_rng_state(),
+        "local_replay_states": {int(cid): memory.state_dict()
+                                for cid, memory in (replay_memories or {}).items()},
     }
 
 
@@ -1964,7 +1968,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     os.makedirs(output_dir, exist_ok=True)
     from fed_learning.training.denice_provenance import source_identity
     config.update(source_identity())
-    if config.get('denice_memory_policy') == 'sketches':
+    if config.get('denice_memory_policy') in ('sketches', 'local_replay'):
         if not (config.get('denice_structural_protection') and config.get('denice_fixed_task_allocation')):
             raise ValueError('Sketch-only routing requires protected structure and fixed allocation.')
         if config.get('denice_refresh_router_memory_after_aggregation', False):
@@ -2009,6 +2013,28 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             f"resume at task {resume_state['meta']['resume_from_task']}"
         )
     config.setdefault('denice_allocation_policy', 'class_blocks')
+    # Replay state is local algorithm state, never model/capsule/peer state.
+    if resume_state is not None:
+        saved_replay = ReplayConfig.from_dict(saved_config)
+        for key, value in asdict(saved_replay).items():
+            name = 'denice_replay_' + key
+            if name in config and config[name] != value:
+                raise ValueError(f'Fresh training required to change {name}.')
+            config[name] = value
+    replay_config = ReplayConfig.from_dict(config)
+    if replay_config.capacity and config.get('denice_memory_policy') == 'sketches':
+        raise ValueError('DENICE replay retains local training inputs; use denice_memory_policy=local_replay.')
+    if config.get('denice_memory_policy') == 'local_replay' and not replay_config.capacity:
+        raise ValueError('local_replay policy requires a positive replay capacity.')
+    if resume_state is not None and replay_config.capacity:
+        if 'local_replay_states' not in resume_state:
+            raise ValueError('Continuation is missing DENICE replay local replay state.')
+        replay_memories = {int(cid): LocalReplay.from_state(replay_config, state)
+                           for cid, state in resume_state['local_replay_states'].items()}
+        if set(replay_memories) != set(int(c) for c in resume_state['client_ids']):
+            raise ValueError('Continuation replay clients do not match model clients.')
+    else:
+        replay_memories = {}
     if config.get('denice_canc_mode', 'legacy') not in ('legacy', 'paper'):
         raise ValueError('denice_canc_mode must be legacy or paper.')
     if config['denice_allocation_policy'] not in ('class_blocks', 'legacy_sequential', 'fixed_per_class'):
@@ -2385,7 +2411,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             canc_plans[cid] = prep["plan"]
             ref_data[cid] = prep["ref_data"]
             ref_labels[cid] = prep.get("ref_labels", torch.empty(0, dtype=torch.long))
-            if config.get('denice_memory_policy', 'references') == 'sketches':
+            if config.get('denice_memory_policy', 'references') in ('sketches', 'local_replay'):
                 detector = context_detectors[cid]
                 detector.retain_reference_inputs = False
                 detector.reference_input_memory = {}
@@ -2515,6 +2541,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     is_last_task=(task_id == num_tasks - 1),
                     phase_offset=round_id,
                     max_phases_override=1,
+                    local_replay=(replay_memories.setdefault(cid, LocalReplay(replay_config))
+                                  if replay_config.capacity else None),
                     **imbalance_controls,
                 )
                 client_train_time = time.time() - client_train_start
@@ -2523,6 +2551,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 client_imbalance_controls[int(cid)] = dict(
                     (result or {}).get("imbalance_control", {})
                 )
+                if 'replay' in result:
+                    client_imbalance_controls[int(cid)]['replay'] = result['replay']
                 if bool(config.get("denice_log_loss_semantics", True)):
                     nice_loss_semantics[int(cid)] = _nice_loss_semantics_diagnostic(
                         model,
@@ -2653,7 +2683,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 )
             for cid in active_ids:
                 context_detectors[cid].mark_router_stale("encoder_changed_after_aggregation")
-                if config.get('denice_memory_policy', 'references') == 'sketches':
+                if config.get('denice_memory_policy', 'references') in ('sketches', 'local_replay'):
                     _update_local_nice_context_memory(
                         context_detectors[cid], models[cid], clients[cid].X_train,
                         clients[cid].y_train, task_id, context_detectors[cid].episode_classes[task_id], str(device), fit_router=True,
@@ -3073,7 +3103,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         'novelty_definition': 'binary_cosine_no_shared_class_fallback',
                     })
                 novelty_estimators[cid].store_prototype(task_id, proto)
-                if config.get('denice_memory_policy', 'references') != 'sketches':
+                if config.get('denice_memory_policy', 'references') not in ('sketches', 'local_replay'):
                     old_ref_banks.setdefault(cid, {})[int(task_id)] = (
                     ref_data[cid].detach().cpu(),
                     ref_labels[cid].detach().cpu().long(),
@@ -3095,6 +3125,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     **compute_adapter_usage(model),
                 }
             )
+            # Capture the consolidated task's actual adapter path before it is
+            # cleared for evaluation. Only training inputs enter private memory.
+            if replay_config.capacity:
+                memory = replay_memories.setdefault(cid, LocalReplay(replay_config))
+                memory.commit(model, clients[cid].X_train, clients[cid].y_train,
+                              task_id, batch_size=replay_config.batch_size)
             model.clear_active_adapters()
 
         final_round_id = rounds_per_task - 1
@@ -3262,6 +3298,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 cluster_history=cluster_history,
                 adapter_history=adapter_history,
                 debug_history=debug_history,
+                replay_memories=replay_memories,
             )
             continuation_path = os.path.join(
                 output_dir, f"continuation_state_task_{task_id}.pt"

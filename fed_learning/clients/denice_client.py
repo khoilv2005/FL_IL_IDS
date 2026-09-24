@@ -12,6 +12,10 @@ frozen automatically.
 The CANC decision (which adapters to activate, whether to freeze low layers) is
 made by the task loop before ``train`` is called, then applied to the model via
 ``model.add_adapter`` / ``model.set_active_adapter``.
+
+DENICE replay optionally supplies a client-local replay memory. Its auxiliary losses
+are added before the same mature-gradient masking and optimizer step; the
+original replay-free path is unchanged when no memory is supplied.
 """
 
 from __future__ import annotations
@@ -201,6 +205,16 @@ class DeNICEClient(NICEClient):
             yield X_batch, y_batch
 
     def train(self, *args, **kwargs) -> Dict[str, Any]:
+        replay = kwargs.pop('local_replay', None)
+        self._local_replay = replay
+        replay_audit = []
+        if replay is not None:
+            current_classes = torch.unique(self.y_train).tolist()
+            def auxiliary_loss(model, x, y):
+                loss, audit = replay.loss(model, x, y, current_classes)
+                replay_audit.append(audit)
+                return loss
+            kwargs['auxiliary_loss'] = auxiliary_loss
         controls = normalize_denice_imbalance_config(kwargs)
         previous_mode = getattr(self, "_denice_batch_sampling", "natural")
         self._denice_batch_sampling = controls["denice_batch_sampling"]
@@ -230,9 +244,17 @@ class DeNICEClient(NICEClient):
             "sampling_epochs": list(self._denice_batch_sampling_epochs),
             "class_weights": weight_audit,
         }
+        if replay is not None:
+            result['replay'] = {**replay.stats(), 'steps': len(replay_audit),
+                                'optimization_loss': result['optimization_loss'],
+                                'losses': {k: sum(a.get(k, 0.) for a in replay_audit)
+                                          / max(1, len(replay_audit))
+                                           for k in ('replay_ce', 'dark_mse', 'calibration_ce')}}
         return result
 
     def get_buffer_stats(self) -> Dict:
+        if getattr(self, '_local_replay', None) is not None:
+            return self._local_replay.stats()
         return {
             "buffer_type": "none",
             "has_replay": False,

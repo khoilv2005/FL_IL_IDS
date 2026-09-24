@@ -10,10 +10,10 @@ import zipfile
 
 # Environment overrides make P6 multi-seed runs reproducible without editing
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
-# Default phase 1 starts tasks 0-1 on 100 clients. Use phase 5 for all six tasks.
+# Default phase 5 starts all six tasks fresh with upgraded DENICE.
 # On Kaggle set DENICE_CODE_DIR to the extracted source bundle to train these
 # local fixes; cloning main only includes changes already pushed to GitHub.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "1"))  # 1..6
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_seed_{TRAIN_SEED}"
@@ -66,7 +66,7 @@ target = None
 
 resume_drive_url = os.environ.get(
     "DENICE_RESUME_DRIVE_URL",
-    "https://drive.google.com/file/d/17NjLkorD7ut4xrUX3pj-SlltqxAwHDE2/view?usp=sharing",
+    "https://drive.google.com/file/d/1AyQCx62mfbpRKDEwnECPKLLDY00AZQhu/view?usp=sharing",
 )
 
 if desired_resume_file is None:
@@ -303,7 +303,7 @@ CONFIG = {
     # Eq. (23): low-rank linear residual on layer inputs; architecture v2.
     # Fresh task-0 run required; old checkpoints keep legacy_output adapters.
     "denice_adapter_mode": os.environ.get("DENICE_ADAPTER_MODE", "linear_input"),
-    # Fresh CANDLE run: protected routing sketches, no old raw reference bank.
+    # Upgraded DENICE: protected routing sketches + bounded client-local replay.
     "denice_structural_protection": True,
     "denice_fixed_task_allocation": True,
     # CANDLE Eq. (12): fixed integer capacity budget per locally new class.
@@ -313,7 +313,12 @@ CONFIG = {
     "denice_pairwise_young_mask": True,
     "denice_aggregation_update_mode": "local_delta",
     "denice_aggregation_rho": "reserve",
-    "denice_memory_policy": "sketches",
+    "denice_memory_policy": "local_replay",
+    "denice_replay_capacity": 512,
+    "denice_replay_batch_size": 32,
+    "denice_replay_ce_weight": 1.0,
+    "denice_replay_logit_weight": 0.2,
+    "denice_replay_calibration_weight": 0.2,
     "denice_canc_schedule": "task_end",
     "denice_canc_mode": "paper",
     # Eqs. (20)-(21). The PDF gives symbolic thresholds, not numeric values;
@@ -335,7 +340,7 @@ CONFIG = {
     "denice_max_clients": 100,
     "denice_debug_store_client_details": False,
     "denice_save_round_artifacts": False,
-    "denice_checkpoint_format": "full",
+    "denice_checkpoint_format": "delta",
     # Quick diagnostic only at the final checkpoint (task 3, round 19).
     # A stratified, full evaluation matrix still runs offline in P6 afterward.
     "denice_post_task_eval_tasks": [0, 1, 2, 3, 4, 5],
@@ -434,7 +439,7 @@ CONFIG = {
     "dfca_debug_assignments": False,
     "dfca_debug_cluster_models": True,
     # Checkpoint / resume: persist every round (0--19) inside each task.
-    "round_checkpoint_every": 20,
+    "round_checkpoint_every": 1,
 }
 
 # A JSON object supplied by a launcher can override only the fields under
@@ -451,6 +456,20 @@ if _config_overrides_raw:
         raise ValueError("DENICE_CONFIG_OVERRIDES must decode to a JSON object")
     CONFIG.update(_config_overrides)
     print("Applied DENICE_CONFIG_OVERRIDES:", sorted(_config_overrides))
+
+if (CONFIG.get("algorithm") == "denice"
+        and CONFIG.get("mode") == "decentralized"
+        and CONFIG.get("denice_replay_capacity", 0) > 0):
+    # An old GitHub checkout would otherwise silently ignore replay options.
+    try:
+        from fed_learning.strategies.incremental.denice_replay import ReplayConfig
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Upgraded DENICE source is required. Extract denice_source_20260925.zip "
+            "and run its train_incremental_kaggle.py beside fed_learning/, or set "
+            "DENICE_CODE_DIR to that extracted directory."
+        ) from exc
+    ReplayConfig.from_dict(CONFIG)
 
 
 # =============================================================================

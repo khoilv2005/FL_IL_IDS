@@ -141,6 +141,7 @@ class NICEClient(FederatedClient):
         sample_data = self.X_train[sample_idx].to(self.device)
 
         total_loss = 0.0
+        total_objective = 0.0
         total_batches = 0
 
         # Freeze BN for layers with all-mature neurons
@@ -196,6 +197,9 @@ class NICEClient(FederatedClient):
                                 global_params,
                                 class_weights=class_weights,
                             )
+                            main_loss = loss
+                            if kwargs.get('auxiliary_loss') is not None:
+                                loss = loss + kwargs['auxiliary_loss'](model, X_batch, y_batch)
 
                         scaler.scale(loss).backward()
                         scaler.unscale_(optimizer)
@@ -213,6 +217,9 @@ class NICEClient(FederatedClient):
                             global_params,
                             class_weights=class_weights,
                         )
+                        main_loss = loss
+                        if kwargs.get('auxiliary_loss') is not None:
+                            loss = loss + kwargs['auxiliary_loss'](model, X_batch, y_batch)
 
                         loss.backward()
                         # Freeze mature gradients
@@ -220,7 +227,10 @@ class NICEClient(FederatedClient):
                         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                         optimizer.step()
 
-                    total_loss += loss.item()
+                    # Capsule reliability must remain based on current-data CE,
+                    # independent of a client's replay budget/loss coefficients.
+                    total_loss += main_loss.item()
+                    total_objective += loss.item()
                     total_batches += 1
 
         avg_loss = total_loss / max(total_batches, 1)
@@ -229,6 +239,7 @@ class NICEClient(FederatedClient):
             "client_id": self.client_id,
             "num_samples": self.num_samples,
             "loss": avg_loss,
+            "optimization_loss": total_objective / max(total_batches, 1),
             "params": OrderedDict(
                 (k, v.cpu().clone()) for k, v in model.state_dict().items()
             ),

@@ -9,7 +9,8 @@ Let_Learner-masked output + mature-gradient freezing). The only additions are:
 
 The micro-adapter parameters live inside :class:`DeNICEModel` and are optimized
 together with the plastic NICE neurons during the standard phase loop, so no
-loss/optimizer changes are needed here.
+loss/optimizer changes are needed here. The optional DENICE replay losses are
+client-local and live in denice_replay.py; no memory is kept on this shared trainer.
 """
 
 from __future__ import annotations
