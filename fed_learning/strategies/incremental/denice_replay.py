@@ -40,12 +40,28 @@ class ReplayConfig:
 
 @contextmanager
 def inference_statistics(model):
-    """Differentiable inference path without dropout or BN memory pollution."""
+    """Stable statistics with a backward-capable cuDNN recurrent forward.
+
+    cuDNN inference RNN forwards do not save the reserve space required by
+    backward. For differentiable calls only, keep recurrent modules in training
+    mode but disable their internal dropout. BN and ordinary dropout remain in
+    eval mode. Restore every flag even if the forward raises; restoring a flag
+    after forward cannot repair a graph already created in cuDNN inference mode.
+    """
     modes = [(module, module.training) for module in model.modules()]
+    recurrent_dropout = []
     model.eval()
     try:
+        if torch.is_grad_enabled():
+            for module, _ in modes:
+                if isinstance(module, (torch.nn.RNN, torch.nn.GRU, torch.nn.LSTM)):
+                    recurrent_dropout.append((module, module.dropout))
+                    module.training = True
+                    module.dropout = 0.0
         yield
     finally:
+        for module, dropout in recurrent_dropout:
+            module.dropout = dropout
         for module, training in modes:
             module.training = training
 

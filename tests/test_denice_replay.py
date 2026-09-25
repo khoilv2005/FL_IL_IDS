@@ -8,7 +8,7 @@ import pytest
 import torch
 from torch import nn
 
-from fed_learning.strategies.incremental.denice_replay import LocalReplay, ReplayConfig
+from fed_learning.strategies.incremental.denice_replay import LocalReplay, ReplayConfig, inference_statistics
 from fed_learning.models.denice_model import DeNICEModel
 from fed_learning.clients.denice_client import DeNICEClient
 from fed_learning.strategies.incremental.denice import DeNICETrainer
@@ -28,6 +28,24 @@ def toy():
     model = nn.Sequential(nn.BatchNorm1d(3), nn.Linear(3, 4))
     model.num_classes = 4
     return model
+
+
+@pytest.mark.parametrize('rnn_class', [nn.RNN, nn.GRU, nn.LSTM])
+def test_replay_recurrent_modes_and_dropout_restored_on_error(rnn_class):
+    model = nn.Sequential(rnn_class(3, 4, num_layers=2, dropout=.4), nn.Dropout(.5))
+    model.train()
+    model[0].eval()
+    with pytest.raises(RuntimeError, match='injected'):
+        with inference_statistics(model):
+            assert model[0].training
+            assert model[0].dropout == 0
+            assert not model[1].training
+            raise RuntimeError('injected')
+    assert model.training and not model[0].training and model[1].training
+    assert model[0].dropout == .4
+    with torch.no_grad(), inference_statistics(model):
+        assert not model[0].training
+        assert model[0].dropout == .4
 
 
 @pytest.mark.parametrize('config', [
@@ -96,8 +114,11 @@ def test_replay_reduces_new_class_intrusion_on_old_examples():
     assert torch.nn.functional.cross_entropy(model(x)[:, :2], y).item() < before * .5
 
 
-def test_real_training_preserves_mature_parameters_and_has_replay_gradients():
-    model = DeNICEModel((16, 1), 4)
+@pytest.mark.parametrize('device,amp', [('cpu', False), ('cuda', False), ('cuda', True)])
+def test_real_training_preserves_mature_parameters_and_has_replay_gradients(device, amp):
+    if device == 'cuda' and not torch.cuda.is_available():
+        pytest.skip('CUDA required for cuDNN replay backward regression')
+    model = DeNICEModel((16, 1), 4).to(device)
     model.structural_protection = True
     model.fixed_task_allocation = True
     for layer in model.LAYER_NAMES:
@@ -110,7 +131,8 @@ def test_real_training_preserves_mature_parameters_and_has_replay_gradients():
     memory.commit(model, x, torch.zeros(8, dtype=torch.long), 0)
     before = model.fc2.weight[0].detach().clone()
     client = DeNICEClient(0, x, torch.ones(8, dtype=torch.long), max_phases=1, phase_epochs=1)
-    client.setup_for_gpu(model, 'cpu')
+    client.setup_for_gpu(model, device)
+    client.use_amp = amp
     result = client.train(DeNICETrainer(max_phases=1, phase_epochs=1),
                           1, 4, .001, local_replay=memory)
     torch.testing.assert_close(model.fc2.weight[0], before, atol=0, rtol=0)

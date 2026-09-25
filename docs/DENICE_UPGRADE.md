@@ -74,6 +74,18 @@ adapters không được kích hoạt để học lại; loss bảo vệ hành v
 Nếu mọi đường truyền liên quan đã bị đóng băng, dark loss có thể không có
 gradient hữu ích; không hứa hẹn phục hồi tri thức đã mất do recycling.
 
+Sửa lỗi cuDNN ngày 2026-09-25: forward GRU ở eval mode không lưu reserve space
+cho backward trên CUDA. Khi có autograd, helper giữ riêng RNN/GRU/LSTM ở
+training mode với internal dropout=0, còn BatchNorm và dropout ngoài vẫn eval.
+Khi chốt memory dưới no_grad, tất cả module vẫn eval như trước. Trạng thái
+training và giá trị dropout gốc được khôi phục cả khi forward phát sinh lỗi.
+Không cần tắt AMP hoặc tắt cuDNN toàn cục.
+
+Đã tái hiện đúng lỗi gốc trên NVIDIA GeForce RTX 4050 Laptop GPU. Sau sửa,
+`tests/test_denice_replay.py` đạt **16 passed** trong 36.47 giây, không skip:
+bao gồm local training thật trên CPU, CUDA FP32, CUDA AMP và kiểm tra resume.
+Đây là kiểm thử hồi quy GPU, không phải một lượt huấn luyện đầy đủ trên Kaggle.
+
 Capsule reliability vẫn nhận current-data CE gốc, không nhận tổng loss phụ;
 tránh hạ trọng số peer chỉ vì client đó có replay. Tổng objective và từng loss
 phụ được ghi trong audit `imbalance_controls.clients[client_id].replay` của round.
@@ -174,7 +186,7 @@ minh tăng accuracy/macro-F1 trên CICIoT2023**.
   cần quyền ngoài sandbox do Windows từ chối truy cập thư mục tạm tạo bởi test.
 
 Đóng gói bằng `python tools/package_denice.py`. ZIP ở
-`output/denice_source_20260925.zip` chứa fed_learning, script Kaggle, evaluator,
+`output/denice_source_20260925_cudnn_fix.zip` chứa fed_learning, script Kaggle, evaluator,
 requirements, tài liệu và tests mới; mỗi file có SHA-256 trong SOURCE_MANIFEST.
 Không chứa dữ liệu, checkpoint hay notebook đánh giá. Script Kaggle được cập
 nhật trực tiếp theo yêu cầu ngày 2026-09-25. Regression tests cũ vẫn nằm trong

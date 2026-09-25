@@ -13,7 +13,7 @@ import zipfile
 # Default phase 5 starts all six tasks fresh with upgraded DENICE.
 # On Kaggle set DENICE_CODE_DIR to the extracted source bundle to train these
 # local fixes; cloning main only includes changes already pushed to GitHub.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "1"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_seed_{TRAIN_SEED}"
@@ -314,7 +314,7 @@ CONFIG = {
     "denice_aggregation_update_mode": "local_delta",
     "denice_aggregation_rho": "reserve",
     "denice_memory_policy": "local_replay",
-    "denice_replay_capacity": 512,
+    "denice_replay_capacity": 1024,
     "denice_replay_batch_size": 32,
     "denice_replay_ce_weight": 1.0,
     "denice_replay_logit_weight": 0.2,

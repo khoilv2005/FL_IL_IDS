@@ -13,7 +13,7 @@ def main():
         'docs/DENICE_UPGRADE.md', 'tools/package_denice.py',
         'tests/test_denice_replay.py')]
     files = sorted(set(files))
-    output = root / 'output' / 'denice_source_20260925.zip'
+    output = root / 'output' / 'denice_source_20260925_cudnn_fix.zip'
     output.parent.mkdir(exist_ok=True)
     manifest = {}
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
