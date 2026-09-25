@@ -942,7 +942,7 @@ def evaluate_checkpoint(
     checkpoint_path: str,
     device: str | None = None,
     data_dir: str | None = None,
-    route_mode: str = "hard",
+    route_mode: str = "auto",
     route_topk: int = 1,
     router_mode: str | None = None,
     evaluation_mode: str = "local",
@@ -956,6 +956,8 @@ def evaluate_checkpoint(
 ) -> Dict[str, Any]:
     ckpt = _load_checkpoint(checkpoint_path)
     config = dict(ckpt["config"])
+    if route_mode == 'auto':
+        route_mode = str(config.get('denice_eval_route_mode', 'hard'))
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -1249,7 +1251,7 @@ def main() -> None:
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--output", default=None)
     parser.add_argument(
-        "--route-mode", default="hard", choices=["hard", "topk", "nomask", "adaptive"]
+        "--route-mode", default="auto", choices=["auto", "hard", "topk", "nomask", "adaptive", "local_lda"]
     )
     parser.add_argument("--route-topk", type=int, default=1)
     parser.add_argument("--router-mode", default=None, choices=["chained", "multiclass"])
@@ -1345,8 +1347,8 @@ def main() -> None:
     modes = [args.route_mode]
     if args.route_modes:
         modes = [m.strip() for m in args.route_modes.split(",") if m.strip()]
-    if any(m not in {"hard", "topk", "nomask", "adaptive"} for m in modes):
-        parser.error("--route-modes accepts only hard,topk,nomask,adaptive")
+    if any(m not in {"auto", "hard", "topk", "nomask", "adaptive", "local_lda"} for m in modes):
+        parser.error("--route-modes accepts only auto,hard,topk,nomask,adaptive,local_lda")
     results = {
         mode: evaluate_checkpoint(
             args.checkpoint,

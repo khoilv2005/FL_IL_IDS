@@ -19,18 +19,22 @@ class ReplayConfig:
     ce_weight: float = 1.0
     logit_weight: float = 0.2
     calibration_weight: float = 0.2
+    selection: str = 'priority'
+    candidate_limit: int = 512
 
     @classmethod
     def from_dict(cls, config):
         values = {k: config.get('denice_replay_' + k, v)
                   for k, v in asdict(cls()).items()}
-        for key in ('capacity', 'batch_size'):
+        for key in ('capacity', 'batch_size', 'candidate_limit'):
             value = values[key]
             if isinstance(value, bool) or int(value) != value:
                 raise ValueError(f'denice_replay_{key} must be an integer.')
             values[key] = int(value)
-        if values['capacity'] < 0 or values['batch_size'] <= 0:
+        if values['capacity'] < 0 or values['batch_size'] <= 0 or values['candidate_limit'] <= 0:
             raise ValueError('Replay capacity must be nonnegative and batch size positive.')
+        if values['selection'] not in ('priority', 'herding'):
+            raise ValueError('denice_replay_selection must be priority or herding.')
         for key in ('ce_weight', 'logit_weight', 'calibration_weight'):
             values[key] = float(values[key])
             if not math.isfinite(values[key]) or values[key] < 0:
@@ -107,10 +111,23 @@ class LocalReplay:
                 quota = base + (position < remainder)
                 old = self.entries.get(label)
                 idx = torch.nonzero(y == label, as_tuple=False).flatten()
+                if self.config.selection == 'herding':
+                    # Bound candidate feature extraction without adding raw
+                    # memory. Historical exemplars remain eligible.
+                    limit = max(quota, self.config.candidate_limit)
+                    idx = idx[torch.randperm(len(idx))[:limit]]
                 priority = torch.rand(len(idx))
                 old_n = 0 if old is None else len(old['y'])
                 all_priority = priority if old is None else torch.cat([old['priority'], priority])
-                keep = all_priority.argsort(descending=True)[:quota]
+                if self.config.selection == 'herding':
+                    from .denice_classifier import encode_features, herding_indices
+                    candidates = x[idx].detach().cpu()
+                    if old is not None:
+                        candidates = torch.cat([old['x'], candidates])
+                    features = encode_features(model, candidates, batch_size)
+                    keep = herding_indices(features, quota)
+                else:
+                    keep = all_priority.argsort(descending=True)[:quota]
                 old_keep, new_keep = keep[keep < old_n], keep[keep >= old_n] - old_n
                 parts = []
                 if len(old_keep):
@@ -177,7 +194,10 @@ class LocalReplay:
 
     @classmethod
     def from_state(cls, config, state):
-        if state.get('version') != 1 or state.get('config') != asdict(config):
+        # Old v1 checkpoints predate selection controls and imply priority.
+        saved = ReplayConfig.from_dict({
+            'denice_replay_' + k: v for k, v in state.get('config', {}).items()})
+        if state.get('version') != 1 or saved != config:
             raise ValueError('Incompatible local replay continuation state/configuration.')
         memory = cls(config)
         memory.completed_tasks = set(state['completed_tasks'])

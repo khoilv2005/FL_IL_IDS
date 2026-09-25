@@ -29,6 +29,7 @@ import torch
 
 from fed_learning.clients.denice_client import normalize_denice_imbalance_config
 from fed_learning.strategies.incremental.denice_replay import LocalReplay, ReplayConfig
+from fed_learning.strategies.incremental.denice_classifier import classifier_config, fit_local_classifier
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.factories.client_factory import create_client, update_client_data
 from fed_learning.models.denice_model import DeNICEModel
@@ -381,6 +382,7 @@ def _bootstrap_denice_model(
     # A state_dict clone alone reopens pruned connections. Bootstrap must use
     # the same complete model-state contract as checkpoint continuation.
     restore_denice_state(model, None, snapshot_denice_state(source_model))
+    model.local_classifier = None  # A new client must fit only its own head.
     model.load_state_dict(_state_dict(source_model), strict=True)
     update_freeze_masks(model)
     if hasattr(model, "freeze_bn_for_mature"):
@@ -1869,6 +1871,17 @@ def _evaluate_clients(
                 "precision_weighted", "recall_weighted", "f1_macro", "f1_weighted",
             ):
                 client_metrics[f"nomask_{key}"] = float(nomask_metrics[key])
+        if str(route_mode).lower() == 'local_lda':
+            client_metrics['classifier_weight'] = float(
+                models[cid].local_classifier.get('blend_weight', 1.))
+            # Paired diagnostic on exactly the same test samples, never used
+            # for training, model selection or selecting the primary prediction.
+            hard_metrics = evaluate_denice_model(
+                models[cid], test_data, device=str(device), context_detector=detector,
+                seen_classes=seen_classes, batch_size=batch_size, route_mode='hard')
+            for key in ('accuracy', 'f1_macro', 'recall_macro'):
+                client_metrics['hard_' + key] = float(hard_metrics[key])
+                client_metrics['gain_vs_hard_' + key] = float(client_metrics[key] - hard_metrics[key])
         metrics.append(client_metrics)
         per_client[int(cid)] = client_metrics
         client_elapsed = time.time() - client_start
@@ -1883,6 +1896,9 @@ def _evaluate_clients(
                 f"acc={client_metrics['accuracy'] * 100:.2f}%, "
                 f"f1={client_metrics['f1_macro'] * 100:.2f}%, "
                 f"route_acc={client_metrics.get('route_accuracy', 0.0) * 100:.2f}%, "
+                + (f"hard_acc={client_metrics['hard_accuracy'] * 100:.2f}%, "
+                   f"gain={client_metrics['gain_vs_hard_accuracy'] * 100:+.2f}pp, "
+                   if 'hard_accuracy' in client_metrics else '') +
                 f"time={client_elapsed:.1f}s, total_elapsed={time.time() - eval_start:.1f}s",
                 flush=True,
             )
@@ -2022,6 +2038,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 raise ValueError(f'Fresh training required to change {name}.')
             config[name] = value
     replay_config = ReplayConfig.from_dict(config)
+    classifier_controls = classifier_config(config)
+    if classifier_controls['enabled'] and not replay_config.capacity:
+        raise ValueError('Incremental local classifier requires replay capacity for old-class support.')
+    if config.get('denice_eval_route_mode') == 'local_lda' and not classifier_controls['enabled']:
+        raise ValueError('local_lda evaluation requires denice_classifier_enabled=true.')
+    if resume_state is not None:
+        if classifier_config(saved_config) != classifier_controls:
+            raise ValueError('Fresh training required to change local classifier configuration.')
     if replay_config.capacity and config.get('denice_memory_policy') == 'sketches':
         raise ValueError('DENICE replay retains local training inputs; use denice_memory_policy=local_replay.')
     if config.get('denice_memory_policy') == 'local_replay' and not replay_config.capacity:
@@ -2409,6 +2433,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 old_ref_loss_baseline=old_ref_loss_baselines.get(cid),
             )
             canc_plans[cid] = prep["plan"]
+            # Task preparation changes the feature space. Do not evaluate a
+            # stale auxiliary readout from the preceding task/checkpoint.
+            models[cid].local_classifier = None
             ref_data[cid] = prep["ref_data"]
             ref_labels[cid] = prep.get("ref_labels", torch.empty(0, dtype=torch.long))
             if config.get('denice_memory_policy', 'references') in ('sketches', 'local_replay'):
@@ -2531,6 +2558,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 model = models[cid]
                 client = clients[cid]
                 client.setup_for_gpu(model, str(device))
+                model.local_classifier = None
                 client_train_start = time.time()
                 result = client.train(
                     trainer=trainer,
@@ -2823,6 +2851,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     ]),
                 },
             }
+            if classifier_controls['enabled']:
+                round_record['local_classifier'] = {
+                    cid: fit_local_classifier(models[cid], replay_memories.get(cid),
+                                              clients[cid].X_train, clients[cid].y_train, config,
+                                              task_id=task_id, client_id=cid,
+                                              detector=context_detectors[cid],
+                                              validation_inputs=clients[cid].X_validation,
+                                              validation_labels=clients[cid].y_validation)
+                    for cid in active_ids
+                }
             history["round_metrics"].append(round_record)
 
             eval_start = time.perf_counter()
@@ -3127,6 +3165,15 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             # Capture the consolidated task's actual adapter path before it is
             # cleared for evaluation. Only training inputs enter private memory.
+            if classifier_controls['enabled']:
+                audit = fit_local_classifier(model, replay_memories.get(cid),
+                                             clients[cid].X_train, clients[cid].y_train, config,
+                                             task_id=task_id, client_id=cid,
+                                             detector=context_detectors[cid],
+                                             validation_inputs=clients[cid].X_validation,
+                                             validation_labels=clients[cid].y_validation)
+                history.setdefault('local_classifier_fits', []).append(
+                    {'task': task_id, 'client_id': cid, **audit})
             if replay_config.capacity:
                 memory = replay_memories.setdefault(cid, LocalReplay(replay_config))
                 memory.commit(model, clients[cid].X_train, clients[cid].y_train,

@@ -133,6 +133,7 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
     if model is not None and hasattr(model, "get_masks_state"):
         state["connection_masks"] = _clone_value(model.get_masks_state())
     if model is not None:
+        state['local_classifier'] = _clone_value(getattr(model, 'local_classifier', None))
         state['structural_protection'] = bool(getattr(model, 'structural_protection', False))
         state['fixed_task_allocation'] = bool(getattr(model, 'fixed_task_allocation', False))
         state['allocation_policy'] = getattr(model, 'allocation_policy', 'legacy_sequential')
@@ -204,6 +205,8 @@ def restore_denice_state(
     recycling = state.get("recycling_registry")
     if recycling and hasattr(model, "set_recycling_state"):
         model.set_recycling_state(_clone_value(recycling))
+    if model is not None:
+        model.local_classifier = _clone_value(state.get('local_classifier'))
     restore_context_detector(context_detector, state.get("context_detector"))
 
 

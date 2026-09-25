@@ -1,5 +1,10 @@
 # DENICE: nâng cấp replay và functional regularization
 
+**Bản incremental mới nhất:** xem [căn cứ nghiên cứu, cấu hình, ablation và kết
+quả đo](DENICE_INCREMENTAL_RESEARCH.md). Bản mới bổ sung herding và classifier
+cân bằng, kết hợp với hard routing bằng validation; các phần dưới mô tả nền
+replay trước đó. Source mới: `output/denice_source_20260925_incremental.zip`.
+
 ## Mục tiêu và phạm vi
 
 Bản nâng cấp trực tiếp DENICE/CANDLE hiện có giữ nguyên mô hình CNN–GRU,
@@ -11,9 +16,11 @@ trình mô phỏng tuần tự giao thức phân tán, không phải hệ thốn
 Giữ `algorithm="denice"`, `mode="decentralized"` trong script hiện tại
 `train_incremental_kaggle.py`: replay và regularization đã bật sẵn trong CONFIG.
 Không cần algorithm mới, script riêng hay DENICE_CONFIG_OVERRIDES.
-Script mặc định phase 5: chạy mới task 0–5, không tải checkpoint cũ.
+Script hiện giữ lựa chọn người dùng phase 1: chạy mới task 0–1. Chọn phase 5
+nếu muốn chạy task 0–5 từ đầu.
 API cấp thấp vẫn mặc định capacity=0 khi thiếu khóa để giữ tương thích config
-và checkpoint cũ. Muốn baseline, đặt capacity=0 và memory_policy="sketches".
+và checkpoint cũ. Muốn baseline replay-free, tắt classifier, chọn route_mode="hard",
+đặt capacity=0 và memory_policy="sketches".
 Replay lưu ít mẫu huấn luyện tại client, khác ràng buộc replay-free của bài báo.
 
 ## Chẩn đoán từ code và bài báo

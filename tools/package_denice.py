@@ -11,9 +11,10 @@ def main():
     files += [root / name for name in (
         'train_incremental_kaggle.py', 'eval_checkpoint.py', 'requirements.txt',
         'docs/DENICE_UPGRADE.md', 'tools/package_denice.py',
-        'tests/test_denice_replay.py')]
+        'docs/DENICE_INCREMENTAL_RESEARCH.md', 'tools/benchmark_denice_incremental.py',
+        'tests/test_denice_replay.py', 'tests/test_denice_classifier.py')]
     files = sorted(set(files))
-    output = root / 'output' / 'denice_source_20260925_cudnn_fix.zip'
+    output = root / 'output' / 'denice_source_20260925_incremental.zip'
     output.parent.mkdir(exist_ok=True)
     manifest = {}
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:

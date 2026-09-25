@@ -52,12 +52,14 @@ def _compact_metadata(value: Any, *, preserve_float: bool = False) -> Any:
             return arr.astype(np.float32)
         return arr
     if isinstance(value, torch.Tensor):
+        if preserve_float and torch.is_floating_point(value):
+            return value.detach().cpu().float().clone()
         return _compact_tensor(value)
     if isinstance(value, dict):
         return {
             k: _compact_metadata(
                 v,
-                preserve_float=preserve_float or str(k) == "reference_input_memory",
+                preserve_float=preserve_float or str(k) in ("reference_input_memory", "local_classifier"),
             )
             for k, v in value.items()
         }

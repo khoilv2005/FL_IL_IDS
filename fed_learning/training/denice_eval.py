@@ -176,8 +176,10 @@ def _denice_routed_logits_with_episodes(
       masked to a finite floor below every allowed score (normally ``-100``).
     - ``"topk"``: keep the union of allowed classes over the sample's top-k
       episodes (``route_topk``). The adapter still follows the top-1 episode.
-    - ``"nomask"``: diagnostic upper bound - predict over all seen classes with
+    - ``"nomask"``: diagnostic - predict over all seen classes with
       no episode masking (routing is still computed for the metric/adapter).
+    - ``"local_lda"``: client-local balanced readout, optionally mixed with
+      hard routing using a weight chosen on local validation, never test labels.
 
     In every mode the returned episode array is the top-1 route, so
     ``route_accuracy`` stays comparable across modes.
@@ -189,6 +191,19 @@ def _denice_routed_logits_with_episodes(
     model.eval()
     num_classes = int(model.num_classes)
     n = X_batch.shape[0]
+    if not policy and str(route_mode).lower() == 'local_lda':
+        from fed_learning.strategies.incremental.denice_classifier import local_classifier_logits, blend_readout_logits
+        out = local_classifier_logits(model, X_batch, seen_classes)
+        weight = float(model.local_classifier.get('blend_weight', 1.))
+        if weight < 1:
+            hard, episodes = _denice_routed_logits_with_episodes(
+                model, X_batch, context_detector, seen_classes, device, route_mode='hard')
+            return blend_readout_logits(out, hard, weight), episodes
+        # Preserve the meaning of route_accuracy as an independent diagnostic
+        # of the original router, even though this head does not gate on it.
+        episodes = (_route_episodes(model, X_batch, context_detector)
+                    if getattr(context_detector, 'episode_classes', None) else None)
+        return out, episodes
     routed_logits = torch.full(
         (n, num_classes), -100.0, dtype=torch.float32, device=device
     )
@@ -485,6 +500,7 @@ def evaluate_denice_model(
     y_true = np.asarray(all_targets)
     y_pred = np.asarray(all_preds)
     metrics: Dict[str, Any] = {
+        "classifier_mode": str(route_mode),
         "loss": total_loss / max(1, len(y_test)),
         "accuracy": accuracy_score(y_true, y_pred),
         "precision_macro": precision_score(y_true, y_pred, average="macro", zero_division=0),

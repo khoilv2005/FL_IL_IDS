@@ -319,6 +319,16 @@ CONFIG = {
     "denice_replay_ce_weight": 1.0,
     "denice_replay_logit_weight": 0.2,
     "denice_replay_calibration_weight": 0.2,
+    # Balanced local readout and feature-representative replay (no central state).
+    "denice_replay_selection": "herding",
+    "denice_replay_candidate_limit": 512,
+    "denice_classifier_enabled": True,
+    "denice_classifier_per_class": 128,
+    "denice_classifier_batch_size": 256,
+    "denice_classifier_shrinkage": 0.1,
+    "denice_classifier_temperature": 1.0,
+    "denice_classifier_validation_select": True,
+    "denice_classifier_validation_per_class": 32,
     "denice_canc_schedule": "task_end",
     "denice_canc_mode": "paper",
     # Eqs. (20)-(21). The PDF gives symbolic thresholds, not numeric values;
@@ -348,9 +358,9 @@ CONFIG = {
     "denice_eval_max_samples": 50000,
     "denice_eval_progress_every_clients": 10,  # in progress mỗi 10 clients
     "denice_eval_progress_every_batches": 0,
-    # Store routed, classifier-ceiling (nomask), route confusion and a
+    # Store routed, unmasked diagnostic (nomask), route confusion and a
     # representative-ensemble metric on exactly the same evaluation samples.
-    "denice_eval_route_mode": "hard",
+    "denice_eval_route_mode": "local_lda",
     "denice_eval_route_topk": 1,
     "denice_eval_report_nomask": True,
     "denice_eval_representative_ensemble": True,
@@ -470,6 +480,15 @@ if (CONFIG.get("algorithm") == "denice"
             "DENICE_CODE_DIR to that extracted directory."
         ) from exc
     ReplayConfig.from_dict(CONFIG)
+    if CONFIG.get('denice_classifier_enabled', False):
+        try:
+            from fed_learning.strategies.incremental.denice_classifier import classifier_config
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                'Updated DENICE incremental-classifier source is required. '
+                'Run the script beside the fed_learning directory from the latest source bundle.'
+            ) from exc
+        classifier_config(CONFIG)
 
 
 # =============================================================================
