@@ -12,9 +12,11 @@ def main():
         'train_incremental_kaggle.py', 'eval_checkpoint.py', 'requirements.txt',
         'docs/DENICE_UPGRADE.md', 'tools/package_denice.py',
         'docs/DENICE_INCREMENTAL_RESEARCH.md', 'tools/benchmark_denice_incremental.py',
-        'tests/test_denice_replay.py', 'tests/test_denice_classifier.py')]
+        'tests/test_denice_replay.py', 'tests/test_denice_classifier.py',
+        'tests/test_denice_transfer.py', 'docs/DENICE_LOCAL_TRANSFER.md',
+        'tools/benchmark_denice_transfer.py')]
     files = sorted(set(files))
-    output = root / 'output' / 'denice_source_20260926_baseline_recovery.zip'
+    output = root / 'output' / 'denice_source_20260926_transfer.zip'
     output.parent.mkdir(exist_ok=True)
     manifest = {}
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:

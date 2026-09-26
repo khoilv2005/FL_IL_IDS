@@ -156,7 +156,7 @@ def test_state_restores_sampling_exactly_and_rejects_config_change():
         LocalReplay.from_state(ReplayConfig(capacity=8), memory.state_dict())
 
 
-@pytest.mark.parametrize('upgraded', [False, True])
+@pytest.mark.parametrize('upgraded', [False, True, 'transfer'])
 def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, upgraded):
     from fed_learning.training.decentralized_denice_il import run_decentralized_denice_il
     monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
@@ -194,7 +194,9 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
                   denice_fisher_samples=2, denice_canc_schedule='task_end', denice_canc_mode='paper',
                   denice_canc_theta1=.1, denice_collaboration_guard_mode='off',
                   denice_adapter_mode='linear_input')
-    if upgraded:
+    if upgraded == 'transfer':
+        config.update(denice_transfer_enabled=True)
+    if upgraded is True:
         config.update(denice_classifier_enabled=True, denice_classifier_per_class=4,
                       denice_classifier_validation_select=True,
                       denice_replay_selection='herding', denice_replay_candidate_limit=8,
@@ -224,7 +226,7 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
         algorithm = algorithm.get('denice', algorithm)
         assert not algorithm['context_detector']['reference_input_memory']
         assert 'local_replay_states' not in algorithm
-        if upgraded:
+        if upgraded is True:
             head = algorithm['local_classifier']
             other_algorithm = states[1]['client_algorithm_states'][cid]
             other_head = other_algorithm.get('denice', other_algorithm)['local_classifier']
@@ -232,5 +234,5 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
             assert head['classes'].tolist() == ([0,1,2,3,4,5] if cid == 0 else [0,1,4,5])
             for key in ('weight', 'bias', 'classes'):
                 torch.testing.assert_close(head[key], other_head[key], atol=0, rtol=0)
-    if upgraded:
+    if upgraded is True:
         assert 'hard_accuracy' in states[0]['history']['task_accuracies'][-1]

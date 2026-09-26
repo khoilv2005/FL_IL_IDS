@@ -313,6 +313,11 @@ CONFIG = {
     "denice_pairwise_young_mask": True,
     "denice_aggregation_update_mode": "local_delta",
     "denice_aggregation_rho": "reserve",
+    # Experimental: multi-seed probe showed regressions; opt in for ablation only.
+    "denice_transfer_enabled": False,
+    "denice_transfer_validation_limit": 256,
+    "denice_transfer_memory_per_class": 16,
+    "denice_transfer_batch_size": 128,
     "denice_memory_policy": "local_replay",
     "denice_replay_capacity": 1024,
     "denice_replay_batch_size": 32,
@@ -476,11 +481,17 @@ if (CONFIG.get("algorithm") == "denice"
         from fed_learning.strategies.incremental.denice_replay import ReplayConfig
     except ModuleNotFoundError as exc:
         raise RuntimeError(
-            "Upgraded DENICE source is required. Extract denice_source_20260926_baseline_recovery.zip "
+            "Upgraded DENICE source is required. Extract denice_source_20260926_transfer.zip "
             "and run its train_incremental_kaggle.py beside fed_learning/, or set "
             "DENICE_CODE_DIR to that extracted directory."
         ) from exc
     ReplayConfig.from_dict(CONFIG)
+    if CONFIG.get('denice_transfer_enabled', False):
+        try:
+            from fed_learning.strategies.decentralized.denice_transfer import transfer_config
+        except ModuleNotFoundError as exc:
+            raise RuntimeError('Updated DENICE transfer source is required; extract the latest source ZIP.') from exc
+        transfer_config(CONFIG)
     if CONFIG.get('denice_classifier_enabled', False):
         try:
             from fed_learning.strategies.incremental.denice_classifier import classifier_config

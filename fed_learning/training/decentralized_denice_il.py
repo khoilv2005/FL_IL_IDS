@@ -30,6 +30,7 @@ import torch
 from fed_learning.clients.denice_client import normalize_denice_imbalance_config
 from fed_learning.strategies.incremental.denice_replay import LocalReplay, ReplayConfig
 from fed_learning.strategies.incremental.denice_classifier import classifier_config, fit_local_classifier
+from fed_learning.strategies.decentralized.denice_transfer import transfer_config, select_peer_transfer
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.factories.client_factory import create_client, update_client_data
 from fed_learning.models.denice_model import DeNICEModel
@@ -1298,6 +1299,8 @@ def _aggregate_round(
     device: torch.device,
     previous_valid_cluster: Optional[Dict[str, Any]] = None,
     before_local_states: Optional[Dict[int, OrderedDict]] = None,
+    clients=None,
+    replay_memories=None,
 ) -> Dict[str, Any]:
     """Cluster capsules and apply age-aware decentralized aggregation."""
     aggregate_round_start = time.perf_counter()
@@ -1586,6 +1589,22 @@ def _aggregate_round(
             and np.asarray(new_ages[cid][layer]).shape == np.asarray(old_ages[cid][layer]).shape
         }
 
+    transfer_audit = {}
+    transfer_controls = transfer_config(config)
+    if transfer_controls['enabled']:
+        if clients is None:
+            raise ValueError('Transfer selection requires client-local validation data')
+        for cid in client_ids:
+            models[cid].to(device)
+            new_states[cid], transfer_audit[cid] = select_peer_transfer(
+                models[cid], old_states[cid], new_states[cid],
+                getattr(clients[cid], 'X_validation', None),
+                getattr(clients[cid], 'y_validation', None),
+                (replay_memories or {}).get(cid), transfer_controls,
+                seed=int(config.get('seed', 42)) + int(cid),
+            )
+            models[cid].cpu()
+
     for cid in client_ids:
         models[cid].load_state_dict(new_states[cid], strict=False)
         models[cid].set_neuron_ages_state(new_ages[cid])
@@ -1693,6 +1712,9 @@ def _aggregate_round(
         "valid": bool(cluster_result["valid"]),
         "raw_valid": bool(cluster_result["valid"]),
         "aggregation_mode": aggregation_mode,
+        "local_transfer_selection": transfer_audit,
+        "accepted_peer_client_count": (sum(v['weight'] > 0 for v in transfer_audit.values())
+                                       if transfer_audit else None),
         "effective_policy": cluster_policy,
         "fallback_reason": fallback_reason,
         "labels": label_map,
@@ -2039,6 +2061,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             config[name] = value
     replay_config = ReplayConfig.from_dict(config)
     classifier_controls = classifier_config(config)
+    transfer_controls = transfer_config(config)
+    if resume_state is not None and transfer_config(saved_config) != transfer_controls:
+        raise ValueError('Fresh training required to change local transfer configuration.')
     if classifier_controls['enabled'] and not replay_config.capacity:
         raise ValueError('Incremental local classifier requires replay capacity for old-class support.')
     if config.get('denice_eval_route_mode') == 'local_lda' and not classifier_controls['enabled']:
@@ -2670,9 +2695,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 device=device,
                 previous_valid_cluster=previous_valid_cluster,
                 before_local_states=before_local_states,
+                clients=clients,
+                replay_memories=replay_memories,
             )
             previous_valid_cluster = cluster_summary.pop("next_valid_cluster", None)
             aggregation_time = time.time() - aggregation_start
+            if transfer_controls['enabled']:
+                selected = cluster_summary['local_transfer_selection']
+                mean_weight = float(np.mean([v['weight'] for v in selected.values()]))
+                print(f"    DENICE local transfer: accepted={cluster_summary['accepted_peer_client_count']}/"
+                      f"{len(active_ids)}, mean_mix={mean_weight:.3f} (validation/replay proxy)", flush=True)
             collaboration_guard, consecutive_self_only_rounds = (
                 _update_collaboration_guard(
                     cluster_summary,
