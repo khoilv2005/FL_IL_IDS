@@ -319,15 +319,16 @@ CONFIG = {
     "denice_replay_ce_weight": 1.0,
     "denice_replay_logit_weight": 0.2,
     "denice_replay_calibration_weight": 0.2,
-    # Balanced local readout and feature-representative replay (no central state).
-    "denice_replay_selection": "herding",
+    # Recovery baseline: experimental LDA/herding regressed reported IDS accuracy.
+    # Keep them opt-in until paired real-data validation supports enabling them.
+    "denice_replay_selection": "priority",
     "denice_replay_candidate_limit": 512,
-    "denice_classifier_enabled": True,
+    "denice_classifier_enabled": False,
     "denice_classifier_per_class": 128,
     "denice_classifier_batch_size": 256,
     "denice_classifier_shrinkage": 0.1,
     "denice_classifier_temperature": 1.0,
-    "denice_classifier_validation_select": True,
+    "denice_classifier_validation_select": False,
     "denice_classifier_validation_per_class": 32,
     "denice_canc_schedule": "task_end",
     "denice_canc_mode": "paper",
@@ -360,7 +361,7 @@ CONFIG = {
     "denice_eval_progress_every_batches": 0,
     # Store routed, unmasked diagnostic (nomask), route confusion and a
     # representative-ensemble metric on exactly the same evaluation samples.
-    "denice_eval_route_mode": "local_lda",
+    "denice_eval_route_mode": "hard",
     "denice_eval_route_topk": 1,
     "denice_eval_report_nomask": True,
     "denice_eval_representative_ensemble": True,
@@ -475,7 +476,7 @@ if (CONFIG.get("algorithm") == "denice"
         from fed_learning.strategies.incremental.denice_replay import ReplayConfig
     except ModuleNotFoundError as exc:
         raise RuntimeError(
-            "Upgraded DENICE source is required. Extract denice_source_20260925.zip "
+            "Upgraded DENICE source is required. Extract denice_source_20260926_baseline_recovery.zip "
             "and run its train_incremental_kaggle.py beside fed_learning/, or set "
             "DENICE_CODE_DIR to that extracted directory."
         ) from exc

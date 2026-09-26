@@ -14,7 +14,7 @@ def main():
         'docs/DENICE_INCREMENTAL_RESEARCH.md', 'tools/benchmark_denice_incremental.py',
         'tests/test_denice_replay.py', 'tests/test_denice_classifier.py')]
     files = sorted(set(files))
-    output = root / 'output' / 'denice_source_20260925_incremental.zip'
+    output = root / 'output' / 'denice_source_20260926_baseline_recovery.zip'
     output.parent.mkdir(exist_ok=True)
     manifest = {}
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
