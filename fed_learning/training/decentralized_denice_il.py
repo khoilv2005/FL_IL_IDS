@@ -31,6 +31,8 @@ from fed_learning.clients.denice_client import normalize_denice_imbalance_config
 from fed_learning.strategies.incremental.denice_replay import LocalReplay, ReplayConfig
 from fed_learning.strategies.incremental.denice_classifier import classifier_config, fit_local_classifier
 from fed_learning.strategies.decentralized.denice_transfer import transfer_config, select_peer_transfer
+from fed_learning.strategies.incremental.denice_router_replay import router_replay_config, refresh_replay_router
+from fed_learning.training.denice_retention import retention_summary
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.factories.client_factory import create_client, update_client_data
 from fed_learning.models.denice_model import DeNICEModel
@@ -2064,6 +2066,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     transfer_controls = transfer_config(config)
     if resume_state is not None and transfer_config(saved_config) != transfer_controls:
         raise ValueError('Fresh training required to change local transfer configuration.')
+    router_replay_controls = router_replay_config(config)
+    if resume_state is not None and router_replay_config(saved_config) != router_replay_controls:
+        raise ValueError('Fresh training required to change router replay configuration.')
     if classifier_controls['enabled'] and not replay_config.capacity:
         raise ValueError('Incremental local classifier requires replay capacity for old-class support.')
     if config.get('denice_eval_route_mode') == 'local_lda' and not classifier_controls['enabled']:
@@ -2749,6 +2754,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         clients[cid].y_train, task_id, context_detectors[cid].episode_classes[task_id], str(device), fit_router=True,
                     )
                     context_detectors[cid].mark_router_fresh(task_id=task_id, round_id=round_id)
+            if router_replay_controls['enabled']:
+                cluster_summary['router_replay'] = {
+                    cid: refresh_replay_router(context_detectors[cid], models[cid], replay_memories.get(cid),
+                                               clients[cid].X_train, clients[cid].y_train, task_id,
+                                               router_replay_controls, seed=int(config.get('seed', 42)) + cid,
+                                               round_id=round_id)
+                    for cid in active_ids
+                }
             router_refresh: Dict[int, Dict[str, float]] = {}
             router_refresh_start = time.perf_counter()
             should_refresh_router = bool(
@@ -3212,6 +3225,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                               task_id, batch_size=replay_config.batch_size)
             model.clear_active_adapters()
 
+            if router_replay_controls['enabled']:
+                audit = refresh_replay_router(context_detectors[cid], model, replay_memories.get(cid),
+                                              clients[cid].X_train, clients[cid].y_train, task_id,
+                                              router_replay_controls, seed=int(config.get('seed', 42)) + cid)
+                history.setdefault('router_replay', []).append({'task': task_id, 'client_id': cid, **audit})
+
         final_round_id = rounds_per_task - 1
         seen_classes_eval = _seen_classes(data_loader, task_id)
         final_train_loss = None
@@ -3320,10 +3339,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "capacity_reserve_released": capacity_reserve_released,
             }
         )
+        retention = retention_summary(history['task_accuracies'], metrics, task_id)
         history["task_accuracies"].append(
-            {"task": task_id, "final_round": final_round_id, **metrics, "avg_forgetting": None}
+            {"task": task_id, "final_round": final_round_id, **metrics, **retention}
         )
-        history["task_forgetting"].append({"task": task_id, "avg_forgetting": None})
+        history["task_forgetting"].append({"task": task_id, **retention})
         if metrics.get("eval_skipped"):
             print(
                 "  Task summary -> eval skipped, "

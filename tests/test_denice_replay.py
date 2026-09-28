@@ -156,7 +156,7 @@ def test_state_restores_sampling_exactly_and_rejects_config_change():
         LocalReplay.from_state(ReplayConfig(capacity=8), memory.state_dict())
 
 
-@pytest.mark.parametrize('upgraded', [False, True, 'transfer'])
+@pytest.mark.parametrize('upgraded', [False, True, 'transfer', 'router_replay'])
 def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, upgraded):
     from fed_learning.training.decentralized_denice_il import run_decentralized_denice_il
     monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
@@ -196,6 +196,8 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
                   denice_adapter_mode='linear_input')
     if upgraded == 'transfer':
         config.update(denice_transfer_enabled=True)
+    if upgraded == 'router_replay':
+        config.update(denice_router_replay_enabled=True)
     if upgraded is True:
         config.update(denice_classifier_enabled=True, denice_classifier_per_class=4,
                       denice_classifier_validation_select=True,

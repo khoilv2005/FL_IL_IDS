@@ -13,7 +13,7 @@ import zipfile
 # Default phase 5 starts all six tasks fresh with upgraded DENICE.
 # On Kaggle set DENICE_CODE_DIR to the extracted source bundle to train these
 # local fixes; cloning main only includes changes already pushed to GitHub.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "1"))  # 1..6
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_seed_{TRAIN_SEED}"
@@ -320,6 +320,10 @@ CONFIG = {
     "denice_transfer_batch_size": 128,
     "denice_memory_policy": "local_replay",
     "denice_replay_capacity": 1024,
+    # Reuse private exemplars to rebuild all episode sketches after encoder changes.
+    "denice_router_replay_enabled": True,
+    "denice_router_replay_per_class": 64,
+    "denice_router_replay_batch_size": 128,
     "denice_replay_batch_size": 32,
     "denice_replay_ce_weight": 1.0,
     "denice_replay_logit_weight": 0.2,
@@ -455,7 +459,7 @@ CONFIG = {
     "dfca_debug_assignments": False,
     "dfca_debug_cluster_models": True,
     # Checkpoint / resume: persist every round (0--19) inside each task.
-    "round_checkpoint_every": 1,
+    "round_checkpoint_every": 20,
 }
 
 # A JSON object supplied by a launcher can override only the fields under
@@ -481,11 +485,17 @@ if (CONFIG.get("algorithm") == "denice"
         from fed_learning.strategies.incremental.denice_replay import ReplayConfig
     except ModuleNotFoundError as exc:
         raise RuntimeError(
-            "Upgraded DENICE source is required. Extract denice_source_20260926_transfer.zip "
+            "Upgraded DENICE source is required. Extract denice_source_20260928_router_replay.zip "
             "and run its train_incremental_kaggle.py beside fed_learning/, or set "
             "DENICE_CODE_DIR to that extracted directory."
         ) from exc
     ReplayConfig.from_dict(CONFIG)
+    if CONFIG.get('denice_router_replay_enabled', False):
+        try:
+            from fed_learning.strategies.incremental.denice_router_replay import router_replay_config
+        except ModuleNotFoundError as exc:
+            raise RuntimeError('Updated DENICE router replay source is required; extract the latest source ZIP.') from exc
+        router_replay_config(CONFIG)
     if CONFIG.get('denice_transfer_enabled', False):
         try:
             from fed_learning.strategies.decentralized.denice_transfer import transfer_config

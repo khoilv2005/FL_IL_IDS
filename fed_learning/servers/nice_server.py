@@ -165,6 +165,8 @@ class ContextDetector:
 
         result = np.concatenate(parts, axis=1)
         stable_mask = getattr(self, 'stable_feature_mask', None)
+        if getattr(self, 'routing_feature_mask', None) is not None:
+            stable_mask = self.routing_feature_mask
         if stable_mask is not None:
             result = result * np.asarray(stable_mask, dtype=np.float32)
         return result

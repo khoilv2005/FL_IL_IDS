@@ -45,6 +45,7 @@ def snapshot_context_detector(context_detector: Any) -> Optional[Dict[str, Any]]
         "router_mode": getattr(context_detector, "router_mode", "chained"),
         "retain_reference_inputs": bool(getattr(context_detector, 'retain_reference_inputs', True)),
         "stable_feature_mask": _clone_value(getattr(context_detector, 'stable_feature_mask', None)),
+        "routing_feature_mask": _clone_value(getattr(context_detector, 'routing_feature_mask', None)),
         "calibration_provenance": getattr(
             context_detector, "calibration_provenance", None
         ),
@@ -91,6 +92,7 @@ def restore_context_detector(context_detector: Any, state: Optional[Dict[str, An
     context_detector.router_mode = str(state.get("router_mode", "chained")).lower()
     context_detector.retain_reference_inputs = bool(state.get('retain_reference_inputs', True))
     context_detector.stable_feature_mask = _clone_value(state.get('stable_feature_mask'))
+    context_detector.routing_feature_mask = _clone_value(state.get('routing_feature_mask'))
     context_detector.calibration_provenance = state.get("calibration_provenance")
     context_detector.activation_memory = _clone_value(
         state.get("activation_memory", {})

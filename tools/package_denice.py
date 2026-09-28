@@ -13,10 +13,11 @@ def main():
         'docs/DENICE_UPGRADE.md', 'tools/package_denice.py',
         'docs/DENICE_INCREMENTAL_RESEARCH.md', 'tools/benchmark_denice_incremental.py',
         'tests/test_denice_replay.py', 'tests/test_denice_classifier.py',
-        'tests/test_denice_transfer.py', 'docs/DENICE_LOCAL_TRANSFER.md',
-        'tools/benchmark_denice_transfer.py')]
+        'tests/test_denice_transfer.py',
+        'tools/benchmark_denice_transfer.py', 'docs/DENICE_ROUTER_REPLAY.md',
+        'tests/test_denice_router_replay.py', 'tests/test_denice_retention.py')]
     files = sorted(set(files))
-    output = root / 'output' / 'denice_source_20260926_transfer.zip'
+    output = root / 'output' / 'denice_source_20260928_router_replay.zip'
     output.parent.mkdir(exist_ok=True)
     manifest = {}
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
