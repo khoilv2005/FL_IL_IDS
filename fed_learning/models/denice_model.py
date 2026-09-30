@@ -144,10 +144,13 @@ class DeNICEModel(NICEModel):
         self.allocation_policy = 'class_blocks'
         self.capacity_per_class = {}
         self.candle_state = {}
+        self.elastic_state = {}
         self.task_freeze_layers = []
         self.gru_connection_masks = {}
         self.adapter_input_masks = {}
         self.adapter_output_masks = {}
+        self.continual_head = None
+        self.continual_width = 0
 
         # Dimension used by each adapter (the residual operates on these dims).
         self._adapter_dims = {
@@ -161,6 +164,30 @@ class DeNICEModel(NICEModel):
     # ========================================================================
     # Adapter registry management
     # ========================================================================
+
+    def configure_continual_head(self, width=0):
+        """Plastic input residual, initialized as an exact zero correction.
+
+        CPU-local RNG isolation preserves the existing backbone/peer seeds.
+        The branch is shared through normal P2P deltas, not private replay data.
+        """
+        if isinstance(width, bool) or int(width) != width or width < 0:
+            raise ValueError('continual head width must be a nonnegative integer')
+        width = int(width)
+        if width == self.continual_width:
+            return
+        if self.continual_head is not None:
+            raise ValueError('Changing continual head architecture requires a fresh model')
+        if width:
+            with torch.random.fork_rng(devices=[]):
+                torch.random.default_generator.manual_seed(1729)
+                branch = nn.Sequential(nn.Flatten(), nn.Linear(self.seq_length * self.num_features, width),
+                                       nn.GELU(), nn.Linear(width, width), nn.GELU(),
+                                       nn.Linear(width, self.num_classes))
+                nn.init.zeros_(branch[-1].weight)
+                nn.init.zeros_(branch[-1].bias)
+            self.continual_head = branch.to(next(self.parameters()).device)
+        self.continual_width = width
 
     def allocate_task_neurons(self, classes: List[int]) -> Dict[str, int]:
         """Promote reserve units using the configured per-class policy.
@@ -534,6 +561,8 @@ class DeNICEModel(NICEModel):
         z = self.penultimate_features(x)
         z = self.dropout(z)
         z = self._apply_masked_linear(z, self.fc2, "fc2")
+        if self.continual_head is not None:
+            z = z + self.continual_head(x)
         return z
 
     def forward_output(self, x: torch.Tensor) -> torch.Tensor:
@@ -553,6 +582,15 @@ class DeNICEModel(NICEModel):
         z = self.dropout(z)
         z = self._apply_masked_linear(z, self.fc2, "fc2")
 
+        if self.continual_head is not None:
+            # All-seen CE learns old/new competition. Core mature parameters
+            # remain protected by the existing masks and reset_frozen_gradients.
+            z = z + self.continual_head(x)
+            seen = torch.as_tensor(self.unit_ranks['fc2'] > 0, device=z.device)
+            if not seen.any():
+                raise ValueError('Continual training requires allocated class rows')
+            return z.masked_fill(~seen, -1e4)
+
         learner_fc2 = torch.as_tensor(
             (self.unit_ranks["fc2"] == 1).tolist(),
             dtype=torch.bool,
@@ -566,7 +604,7 @@ class DeNICEModel(NICEModel):
     def get_output_and_context_activations(self, x):
         """Classifier honors active adapters; routing uses the stable backbone."""
         logits, activations = super().get_output_and_context_activations(x)
-        return (self(x) if self.active_adapters else logits), activations
+        return (self(x) if self.active_adapters or self.continual_head is not None else logits), activations
 
     # get_context_activations_per_sample retains the adapter-free NICE path.
     def _run_gru(self, x):
@@ -580,13 +618,20 @@ class DeNICEModel(NICEModel):
         # Keep the optimized GRU implementation and legacy parameter names.
         return torch.func.functional_call(self.gru, parameters, (x,))
 
-    def protect_task_connections(self):
+    def protect_task_connections(self, provisional_gru=None):
         """Cut only newly forbidden edges; never reopen consolidated inputs."""
         if not self.structural_protection:
             return
         ranks = np.asarray(self.unit_ranks['gru'])
+        new_plastic = ranks < 2
+        if provisional_gru is not None:
+            # Existing dependencies on carried learners must survive maturation.
+            # They remain soft-protected by local Fisher/replay; cutting them
+            # would change the old function before the first optimizer step.
+            new_plastic = new_plastic.copy()
+            new_plastic[np.asarray(provisional_gru, dtype=int)] = False
         forbidden = ((ranks[:, None] >= 1) & (ranks[None, :] <= 0)) | (
-            (ranks[:, None] >= 2) & (ranks[None, :] < 2)
+            (ranks[:, None] >= 2) & new_plastic[None, :]
         )
         for name, parameter in self.gru.named_parameters():
             if name.startswith('weight_hh') or (

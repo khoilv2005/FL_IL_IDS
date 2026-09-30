@@ -14,10 +14,17 @@ def main():
         'docs/DENICE_INCREMENTAL_RESEARCH.md', 'tools/benchmark_denice_incremental.py',
         'tests/test_denice_replay.py', 'tests/test_denice_classifier.py',
         'tests/test_denice_transfer.py',
-        'tools/benchmark_denice_transfer.py', 'docs/DENICE_ROUTER_REPLAY.md',
+        'tools/benchmark_denice_transfer.py',
         'tests/test_denice_router_replay.py', 'tests/test_denice_retention.py')]
+    files += [root / name for name in (
+        'tests/test_denice_continual.py', 'tests/test_denice_plasticity.py',
+        'docs/DENICE_PLASTICITY.md', 'docs/DENICE_PLASTICITY_RESULTS.json',
+        'configs/denice_plasticity_experiment.json')]
     files = sorted(set(files))
-    output = root / 'output' / 'denice_source_20260928_router_replay.zip'
+    missing = [str(path) for path in files if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f'Cannot package missing source files: {missing}')
+    output = root / 'output' / 'denice_source_20260930_plasticity.zip'
     output.parent.mkdir(exist_ok=True)
     manifest = {}
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:

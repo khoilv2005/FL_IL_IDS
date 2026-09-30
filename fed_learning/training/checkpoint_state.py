@@ -136,12 +136,14 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
         state["connection_masks"] = _clone_value(model.get_masks_state())
     if model is not None:
         state['local_classifier'] = _clone_value(getattr(model, 'local_classifier', None))
+        state['continual_width'] = int(getattr(model, 'continual_width', 0))
         state['structural_protection'] = bool(getattr(model, 'structural_protection', False))
         state['fixed_task_allocation'] = bool(getattr(model, 'fixed_task_allocation', False))
         state['allocation_policy'] = getattr(model, 'allocation_policy', 'legacy_sequential')
         state['capacity_per_class'] = _clone_value(getattr(model, 'capacity_per_class', {}))
         state['adapter_mode'] = getattr(model, 'adapter_mode', 'legacy_output')
         state['candle_state'] = _clone_value(getattr(model, 'candle_state', {}))
+        state['elastic_state'] = _clone_value(getattr(model, 'elastic_state', {}))
         state['task_freeze_layers'] = list(getattr(model, 'task_freeze_layers', []))
         state['pending_canc_plan'] = _clone_value(getattr(model, 'pending_canc_plan', None))
         state["active_adapters"] = _clone_value(getattr(model, "active_adapters", {}))
@@ -171,12 +173,14 @@ def restore_denice_state(
     if model is None or not state:
         return
     model.structural_protection = bool(state.get('structural_protection', False))
+    model.configure_continual_head(state.get('continual_width', 0))
     model.fixed_task_allocation = bool(state.get('fixed_task_allocation', False))
     model.allocation_policy = state.get('allocation_policy', 'legacy_sequential')
     model.capacity_per_class = _clone_value(state.get('capacity_per_class', {}))
     model.configure_adapter_mode(state.get('adapter_mode', 'legacy_output'))
     model.architecture_version = int(state.get('architecture_version', model.architecture_version))
     model.candle_state = _clone_value(state.get('candle_state', {}))
+    model.elastic_state = _clone_value(state.get('elastic_state', {}))
     model.task_freeze_layers = list(state.get('task_freeze_layers', []))
     model.pending_canc_plan = _clone_value(state.get('pending_canc_plan'))
     adapter_registry = state.get("adapter_registry") or {}

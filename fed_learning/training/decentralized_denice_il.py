@@ -33,6 +33,9 @@ from fed_learning.strategies.incremental.denice_classifier import classifier_con
 from fed_learning.strategies.decentralized.denice_transfer import transfer_config, select_peer_transfer
 from fed_learning.strategies.incremental.denice_router_replay import router_replay_config, refresh_replay_router
 from fed_learning.training.denice_retention import retention_summary
+from fed_learning.strategies.incremental.denice_normalization import calibrate_plastic_bn, balanced_calibration_inputs
+from fed_learning.strategies.incremental.denice_plasticity import (
+    plasticity_config, capacity_plan, allocate_capacity, consolidate)
 from fed_learning.data.incremental_loader import IncrementalDataLoader
 from fed_learning.factories.client_factory import create_client, update_client_data
 from fed_learning.models.denice_model import DeNICEModel
@@ -386,6 +389,7 @@ def _bootstrap_denice_model(
     # the same complete model-state contract as checkpoint continuation.
     restore_denice_state(model, None, snapshot_denice_state(source_model))
     model.local_classifier = None  # A new client must fit only its own head.
+    model.elastic_state = {}  # Consolidation anchors belong to the donor's local history.
     model.load_state_dict(_state_dict(source_model), strict=True)
     update_freeze_masks(model)
     if hasattr(model, "freeze_bn_for_mature"):
@@ -773,6 +777,7 @@ def _make_model(config: Dict[str, Any], device: torch.device) -> DeNICEModel:
     model.allocation_policy = config.get('denice_allocation_policy', 'class_blocks')
     model.capacity_per_class = dict(config.get('denice_capacity_per_class', {}))
     model.configure_adapter_mode(config.get('denice_adapter_mode', 'legacy_output'))
+    model.configure_continual_head(config.get('denice_continual_width', 0))
     return model
 
 def _compute_reference_ce_loss(
@@ -972,6 +977,9 @@ def _prepare_client_task(
         # arrives. A previously queued expansion must not bypass that rule.
         plan.update(action='Reuse', adapters_to_add=[], recycle_layers=[],
                     reserve_to_promote={}, no_new_local_classes=True)
+    if config.get('denice_plasticity_enabled', False):
+        plan = capacity_plan(model, new_classes, task_id, config['_denice_num_tasks'],
+                             plasticity_config(config))
     plan["novelty"] = novelty
     plan["is_global_first_task"] = bool(is_global_first_task)
     plan["has_novelty_baseline"] = bool(has_novelty_baseline)
@@ -999,7 +1007,8 @@ def _prepare_client_task(
 
     if model.fixed_task_allocation:
         from fed_learning.strategies.incremental.nice import drop_young_to_learner
-        plan['allocation'] = model.allocate_task_neurons(new_classes)
+        plan['allocation'] = (allocate_capacity(model, plan) if 'adaptive_allocation' in plan
+                              else model.allocate_task_neurons(new_classes))
         plan['new_local_classes'] = list(new_classes)
         if paper_canc:
             extra = {}
@@ -1010,7 +1019,9 @@ def _prepare_client_task(
                 extra[layer] = len(selected)
             plan['canc_extra_allocation'] = extra
         drop_young_to_learner(model)
-        model.protect_task_connections()
+        model.protect_task_connections(
+            provisional_gru=np.flatnonzero(start_ages['gru'] == 1)
+            if config.get('denice_plasticity_enabled', False) else None)
         model.protect_active_adapter_inputs()
     update_freeze_masks(model)
 
@@ -2008,6 +2019,15 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     os.makedirs(output_dir, exist_ok=True)
     from fed_learning.training.denice_provenance import source_identity
     config.update(source_identity())
+    source_audit = {key: config.get(key) for key in (
+        'source_sha256', 'git_commit', 'denice_continual_width', 'denice_eval_route_mode',
+        'denice_router_replay_enabled', 'denice_calibrate_plastic_bn',
+        'denice_plasticity_enabled', 'denice_capacity_frontload', 'denice_mature_fraction',
+        'denice_elastic_strength', 'denice_elastic_decay',
+        'denice_replay_capacity', 'seed', 'random_seed')}
+    source_audit['runner_file'] = os.path.abspath(__file__)
+    _write_json(os.path.join(output_dir, 'source_audit.json'), source_audit)
+    print(f"DENICE source/config audit: {source_audit}", flush=True)
     if config.get('denice_memory_policy') in ('sketches', 'local_replay'):
         if not (config.get('denice_structural_protection') and config.get('denice_fixed_task_allocation')):
             raise ValueError('Sketch-only routing requires protected structure and fixed allocation.')
@@ -2062,6 +2082,22 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 raise ValueError(f'Fresh training required to change {name}.')
             config[name] = value
     replay_config = ReplayConfig.from_dict(config)
+    continual_width = config.get('denice_continual_width', 0)
+    plasticity_controls = plasticity_config(config)
+    if plasticity_controls['enabled'] and (
+            not replay_config.capacity or config.get('denice_canc_mode') != 'paper'
+            or not config.get('denice_fixed_task_allocation', False)):
+        raise ValueError('DENICE plasticity requires replay, paper CANC and fixed task allocation')
+    if resume_state is not None and plasticity_config(saved_config) != plasticity_controls:
+        raise ValueError('Cannot change plasticity controls during continuation; start a fresh run')
+    if isinstance(continual_width, bool) or int(continual_width) != continual_width or continual_width < 0:
+        raise ValueError('denice_continual_width must be a nonnegative integer')
+    if continual_width and not replay_config.capacity:
+        raise ValueError('Plastic continual branch requires private replay')
+    if resume_state is not None and saved_config.get('denice_continual_width', 0) != continual_width:
+        raise ValueError('Fresh training required to change continual branch width')
+    if resume_state is not None and bool(saved_config.get('denice_calibrate_plastic_bn', False)) != bool(config.get('denice_calibrate_plastic_bn', False)):
+        raise ValueError('Fresh training required to change BN calibration policy')
     classifier_controls = classifier_config(config)
     transfer_controls = transfer_config(config)
     if resume_state is not None and transfer_config(saved_config) != transfer_controls:
@@ -2199,6 +2235,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     debug_history: List[Dict[str, Any]] = []
 
     num_tasks = data_loader.get_num_tasks()
+    config['_denice_num_tasks'] = num_tasks
     task_start = int(config.get("task_start", 0))
     task_end = int(config.get("task_end", num_tasks - 1))
 
@@ -2599,6 +2636,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     is_last_task=(task_id == num_tasks - 1),
                     phase_offset=round_id,
                     max_phases_override=1,
+                    denice_elastic_strength=(plasticity_controls['strength'] if plasticity_controls['enabled'] else 0.),
                     local_replay=(replay_memories.setdefault(cid, LocalReplay(replay_config))
                                   if replay_config.capacity else None),
                     **imbalance_controls,
@@ -2746,6 +2784,25 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     f"for {consecutive_self_only_rounds} consecutive rounds; "
                     f"see {os.path.join(output_dir, 'collaboration_guard_failure.json')}"
                 )
+            # Calibrate before the final ROUND metric/checkpoint, not only the
+            # later task summary. Use private training inputs exclusively.
+            if config.get('denice_calibrate_plastic_bn', False) and round_id == rounds_per_task - 1:
+                for cid in active_ids:
+                    model = models[cid]
+                    original_device = next(model.parameters()).device
+                    model.to(device)
+                    try:
+                        inputs = clients[cid].X_train
+                        if plasticity_controls['enabled']:
+                            inputs = balanced_calibration_inputs(
+                                inputs, clients[cid].y_train, replay_memories.get(cid),
+                                seed=int(config.get('seed', 42)) + cid)
+                        audit = calibrate_plastic_bn(model, inputs,
+                                                     seed=int(config.get('seed', 42)) + cid)
+                    finally:
+                        model.to(original_device)
+                    history.setdefault('bn_calibration', []).append(
+                        {'task': task_id, 'round': round_id, 'client_id': cid, **audit})
             for cid in active_ids:
                 context_detectors[cid].mark_router_stale("encoder_changed_after_aggregation")
                 if config.get('denice_memory_policy', 'references') in ('sketches', 'local_replay'):
@@ -2909,7 +2966,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             history["round_metrics"].append(round_record)
 
             eval_start = time.perf_counter()
-            if (round_id + 1) % eval_every == 0 and round_id != rounds_per_task - 1:
+            if ((round_id + 1) % eval_every == 0 and round_id != rounds_per_task - 1) or (
+                    round_id == rounds_per_task - 1 and config.get('denice_eval_final_round', False)):
                 test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
                 test_X, test_y, sample_info = _limit_eval_samples(
                     test_X,
@@ -3161,7 +3219,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     client=clients[cid], context_detector=context_detectors[cid],
                     ref_data=ref_data[cid], ref_labels=ref_labels[cid], loss=losses[cid], config=config)
                 _finalize_candle_task(model, final_capsule, canc_plans[cid]['start_ages'], task_id, config)
-            increase_unit_ranks(model)
+            if plasticity_controls['enabled']:
+                audit = consolidate(model, final_capsule.parameter_fisher, plasticity_controls)
+                history.setdefault('maturation', []).append({'task': task_id, 'client_id': cid, **audit})
+            else:
+                increase_unit_ranks(model)
             update_freeze_masks(model)
             if hasattr(model, "freeze_bn_for_mature"):
                 model.freeze_bn_for_mature()

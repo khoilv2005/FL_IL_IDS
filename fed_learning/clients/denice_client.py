@@ -208,11 +208,21 @@ class DeNICEClient(NICEClient):
         replay = kwargs.pop('local_replay', None)
         self._local_replay = replay
         replay_audit = []
-        if replay is not None:
+        from fed_learning.strategies.incremental.denice_plasticity import elastic_loss_factory
+        elastic = elastic_loss_factory(self.model, kwargs.pop('denice_elastic_strength', 0.))
+        previous_auxiliary = kwargs.get('auxiliary_loss')
+        if replay is not None or elastic is not None:
             current_classes = torch.unique(self.y_train).tolist()
             def auxiliary_loss(model, x, y):
-                loss, audit = replay.loss(model, x, y, current_classes)
-                replay_audit.append(audit)
+                loss = x.new_zeros(())
+                if previous_auxiliary is not None:
+                    loss = loss + previous_auxiliary(model, x, y)
+                if replay is not None:
+                    replay_loss, audit = replay.loss(model, x, y, current_classes)
+                    replay_audit.append(audit)
+                    loss = loss + replay_loss
+                if elastic is not None:
+                    loss = loss + elastic()
                 return loss
             kwargs['auxiliary_loss'] = auxiliary_loss
         controls = normalize_denice_imbalance_config(kwargs)

@@ -156,7 +156,7 @@ def test_state_restores_sampling_exactly_and_rejects_config_change():
         LocalReplay.from_state(ReplayConfig(capacity=8), memory.state_dict())
 
 
-@pytest.mark.parametrize('upgraded', [False, True, 'transfer', 'router_replay'])
+@pytest.mark.parametrize('upgraded', [False, True, 'transfer', 'router_replay', 'continual', 'plasticity'])
 def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, upgraded):
     from fed_learning.training.decentralized_denice_il import run_decentralized_denice_il
     monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
@@ -198,6 +198,12 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
         config.update(denice_transfer_enabled=True)
     if upgraded == 'router_replay':
         config.update(denice_router_replay_enabled=True)
+    if upgraded == 'continual':
+        config.update(denice_continual_width=32, denice_eval_route_mode='nomask',
+                      denice_router_replay_enabled=True, denice_calibrate_plastic_bn=True)
+    if upgraded == 'plasticity':
+        config.update(denice_plasticity_enabled=True, denice_router_replay_enabled=True,
+                      denice_calibrate_plastic_bn=True, denice_eval_final_round=True)
     if upgraded is True:
         config.update(denice_classifier_enabled=True, denice_classifier_per_class=4,
                       denice_classifier_validation_select=True,
@@ -212,6 +218,13 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
                                           'resume_output_dir': str(tmp_path/'resumed')})
     states = [torch.load(Path(run['output_dir'])/'continuation_state_task_2.pt', weights_only=False)
               for run in [full, resumed]]
+    if upgraded in ('plasticity', 'continual'):
+        calibrations = states[0]['history']['bn_calibration']
+        assert len(calibrations) == 5  # Two clients, middle task has only one participant.
+        assert all(row['round'] == 0 for row in calibrations)
+        if upgraded == 'plasticity':
+            assert all(row['evaluated'] and row['accuracy'] is not None
+                       for row in states[0]['history']['round_metrics'])
     for cid in range(2):
         for name, value in states[0]['client_model_states'][cid].items():
             torch.testing.assert_close(states[1]['client_model_states'][cid][name], value, atol=0, rtol=0)
@@ -228,6 +241,13 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
         algorithm = algorithm.get('denice', algorithm)
         assert not algorithm['context_detector']['reference_input_memory']
         assert 'local_replay_states' not in algorithm
+        if upgraded == 'plasticity':
+            other_algorithm = states[1]['client_algorithm_states'][cid]
+            other_algorithm = other_algorithm.get('denice', other_algorithm)
+            assert algorithm['elastic_state']['anchor']
+            for kind in ('anchor', 'importance'):
+                for name, value in algorithm['elastic_state'][kind].items():
+                    torch.testing.assert_close(other_algorithm['elastic_state'][kind][name], value, atol=0, rtol=0)
         if upgraded is True:
             head = algorithm['local_classifier']
             other_algorithm = states[1]['client_algorithm_states'][cid]

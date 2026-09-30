@@ -306,6 +306,17 @@ CONFIG = {
     # Upgraded DENICE: protected routing sketches + bounded client-local replay.
     "denice_structural_protection": True,
     "denice_fixed_task_allocation": True,
+    # Local population statistics are calibrated before the final round metric.
+    "denice_calibrate_plastic_bn": True,
+    "denice_eval_final_round": True,
+    # Research controls: capacity allocation + Fisher-guided age + local EWC.
+    "denice_plasticity_enabled": False,
+    "denice_capacity_frontload": 1.5,
+    "denice_mature_fraction": 0.8,
+    "denice_elastic_strength": 100.0,
+    "denice_elastic_decay": 0.9,
+    # Optional residual classifier; three-seed probe did not beat BN alone.
+    "denice_continual_width": 0,
     # CANDLE Eq. (12): fixed integer capacity budget per locally new class.
     # Missing layer budgets use ceil(layer_width / total_classes), held fixed.
     "denice_allocation_policy": "fixed_per_class",
@@ -485,11 +496,22 @@ if (CONFIG.get("algorithm") == "denice"
         from fed_learning.strategies.incremental.denice_replay import ReplayConfig
     except ModuleNotFoundError as exc:
         raise RuntimeError(
-            "Upgraded DENICE source is required. Extract denice_source_20260928_router_replay.zip "
+            "Upgraded DENICE source is required. Extract denice_source_20260930_plasticity.zip "
             "and run its train_incremental_kaggle.py beside fed_learning/, or set "
             "DENICE_CODE_DIR to that extracted directory."
         ) from exc
     ReplayConfig.from_dict(CONFIG)
+    if CONFIG.get('denice_calibrate_plastic_bn', False) or CONFIG.get('denice_plasticity_enabled', False):
+        try:
+            from fed_learning.strategies.incremental.denice_normalization import calibrate_plastic_bn
+            from fed_learning.strategies.incremental.denice_plasticity import plasticity_config
+        except ModuleNotFoundError as exc:
+            raise RuntimeError('Updated DENICE CANC/age/BN source is required; extract the September 30 source ZIP.') from exc
+        plasticity_config(CONFIG)
+    if CONFIG.get('denice_continual_width', 0):
+        from fed_learning.models.denice_model import DeNICEModel
+        if not hasattr(DeNICEModel, 'configure_continual_head'):
+            raise RuntimeError('Updated DENICE continual-head source is required.')
     if CONFIG.get('denice_router_replay_enabled', False):
         try:
             from fed_learning.strategies.incremental.denice_router_replay import router_replay_config
