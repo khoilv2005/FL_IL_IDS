@@ -1,9 +1,10 @@
 # DENICE: nâng cấp replay và functional regularization
 
-**Bản incremental mới nhất:** xem [căn cứ nghiên cứu, cấu hình, ablation và kết
-quả đo](DENICE_INCREMENTAL_RESEARCH.md). Bản mới bổ sung herding và classifier
-cân bằng, kết hợp với hard routing bằng validation; các phần dưới mô tả nền
-replay trước đó. Source mới: `output/denice_source_20260925_incremental.zip`.
+**Hai phiên bản mới (03/10/2026):** xem [hướng dẫn DENICE DER/DER++ và EWC](DENICE_DER_EWC_GUIDE.md).
+Chạy độc lập bằng `train_denice_der_kaggle.py` hoặc `train_denice_ewc_kaggle.py`;
+source đầy đủ ở `output/denice_source_20261003_der_ewc.zip`.
+Các phần dưới và tài liệu incremental trước đây mô tả các phiên bản lịch sử.
+Herding/LDA không bật trong hai preset DER/EWC mới.
 
 ## Mục tiêu và phạm vi
 

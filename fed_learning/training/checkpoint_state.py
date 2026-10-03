@@ -144,6 +144,7 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
         state['adapter_mode'] = getattr(model, 'adapter_mode', 'legacy_output')
         state['candle_state'] = _clone_value(getattr(model, 'candle_state', {}))
         state['elastic_state'] = _clone_value(getattr(model, 'elastic_state', {}))
+        state['ewc_state'] = _clone_value(getattr(model, 'ewc_state', {}))
         state['task_freeze_layers'] = list(getattr(model, 'task_freeze_layers', []))
         state['pending_canc_plan'] = _clone_value(getattr(model, 'pending_canc_plan', None))
         state["active_adapters"] = _clone_value(getattr(model, "active_adapters", {}))
@@ -181,6 +182,7 @@ def restore_denice_state(
     model.architecture_version = int(state.get('architecture_version', model.architecture_version))
     model.candle_state = _clone_value(state.get('candle_state', {}))
     model.elastic_state = _clone_value(state.get('elastic_state', {}))
+    model.ewc_state = _clone_value(state.get('ewc_state', {}))
     model.task_freeze_layers = list(state.get('task_freeze_layers', []))
     model.pending_canc_plan = _clone_value(state.get('pending_canc_plan'))
     adapter_registry = state.get("adapter_registry") or {}

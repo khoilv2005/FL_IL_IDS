@@ -205,12 +205,44 @@ class DeNICEClient(NICEClient):
             yield X_batch, y_batch
 
     def train(self, *args, **kwargs) -> Dict[str, Any]:
+        continual = kwargs.pop('continual_controls', {'method': 'legacy'})
         replay = kwargs.pop('local_replay', None)
         self._local_replay = replay
         replay_audit = []
         from fed_learning.strategies.incremental.denice_plasticity import elastic_loss_factory
         elastic = elastic_loss_factory(self.model, kwargs.pop('denice_elastic_strength', 0.))
+        if continual['method'] == 'ewc':
+            from fed_learning.strategies.incremental.denice_ewc import ewc_loss_factory
+            elastic = ewc_loss_factory(self.model, continual)
+        if continual['method'] != 'legacy':
+            model = self.model
+            captured = {}
+            def supervised_forward(x):
+                raw = model(x)
+                captured['logits'] = raw.detach().float()
+                if continual['logit_scope'] == 'seen':
+                    seen = torch.as_tensor(model.unit_ranks['fc2'] > 0, device=x.device)
+                    return raw.masked_fill(~seen, -1e4)
+                return raw
+            kwargs['supervised_forward'] = supervised_forward
+            if continual['train_mature']:
+                def gradient_filter():
+                    original = model.freeze_masks
+                    try:
+                        model.freeze_masks = {name: ranks <= 0 for name, ranks in model.unit_ranks.items()}
+                        model.reset_frozen_gradients()
+                    finally:
+                        model.freeze_masks = original
+                kwargs['gradient_filter'] = gradient_filter
+            if continual['method'] in ('der', 'derpp'):
+                def observe(x, y, output):
+                    valid = torch.ones(model.num_classes, dtype=torch.bool)
+                    if continual['logit_scope'] == 'seen':
+                        valid = torch.as_tensor(model.unit_ranks['fc2'] > 0)
+                    replay.observe(x, y, captured.pop('logits'), valid)
+                kwargs['after_optimizer_step'] = observe
         previous_auxiliary = kwargs.get('auxiliary_loss')
+        elastic_audit = []
         if replay is not None or elastic is not None:
             current_classes = torch.unique(self.y_train).tolist()
             def auxiliary_loss(model, x, y):
@@ -222,7 +254,9 @@ class DeNICEClient(NICEClient):
                     replay_audit.append(audit)
                     loss = loss + replay_loss
                 if elastic is not None:
-                    loss = loss + elastic()
+                    penalty = elastic()
+                    elastic_audit.append(float(penalty.detach()))
+                    loss = loss + penalty
                 return loss
             kwargs['auxiliary_loss'] = auxiliary_loss
         controls = normalize_denice_imbalance_config(kwargs)
@@ -245,6 +279,10 @@ class DeNICEClient(NICEClient):
             self._denice_batch_sampling = previous_mode
 
         model = self.model
+        result['continual'] = dict(method=continual['method'],
+                                  optimizer_steps=result['optimizer_steps'],
+                                  skipped_optimizer_steps=result['skipped_optimizer_steps'],
+                                  regularization_loss=sum(elastic_audit) / max(1, len(elastic_audit)))
         if hasattr(model, "get_adapter_registry_state"):
             result["adapter_registry"] = model.get_adapter_registry_state()
             result["adapter_param_count"] = int(model.adapter_param_count())

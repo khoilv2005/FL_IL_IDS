@@ -17,14 +17,21 @@ def main():
         'tools/benchmark_denice_transfer.py',
         'tests/test_denice_router_replay.py', 'tests/test_denice_retention.py')]
     files += [root / name for name in (
-        'tests/test_denice_continual.py', 'tests/test_denice_plasticity.py',
-        'docs/DENICE_PLASTICITY.md', 'docs/DENICE_PLASTICITY_RESULTS.json',
-        'configs/denice_plasticity_experiment.json')]
+        'tests/test_denice_continual.py', 'tests/test_denice_plasticity.py')]
+    files = sorted(set(files))
+    files += [root / name for name in (
+        'train_denice_der_kaggle.py', 'train_denice_ewc_kaggle.py',
+        'fed_learning/strategies/incremental/denice_variants.py',
+        'configs/denice_der.json', 'configs/denice_derpp.json', 'configs/denice_ewc.json',
+        'configs/denice_validation_only.json',
+        'tools/build_denice_launchers.py', 'tools/benchmark_denice_der_ewc.py',
+        'tests/test_denice_der_ewc.py', 'docs/DENICE_DER_EWC_GUIDE.md',
+        'docs/DENICE_DER_EWC_SMOKE.json')]
     files = sorted(set(files))
     missing = [str(path) for path in files if not path.is_file()]
     if missing:
         raise FileNotFoundError(f'Cannot package missing source files: {missing}')
-    output = root / 'output' / 'denice_source_20260930_plasticity.zip'
+    output = root / 'output' / 'denice_source_20261003_der_ewc.zip'
     output.parent.mkdir(exist_ok=True)
     manifest = {}
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:

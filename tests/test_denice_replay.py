@@ -156,7 +156,7 @@ def test_state_restores_sampling_exactly_and_rejects_config_change():
         LocalReplay.from_state(ReplayConfig(capacity=8), memory.state_dict())
 
 
-@pytest.mark.parametrize('upgraded', [False, True, 'transfer', 'router_replay', 'continual', 'plasticity'])
+@pytest.mark.parametrize('upgraded', [False, True, 'transfer', 'router_replay', 'continual', 'plasticity', 'derpp', 'ewc'])
 def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, upgraded):
     from fed_learning.training.decentralized_denice_il import run_decentralized_denice_il
     monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
@@ -210,6 +210,11 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
                       denice_replay_selection='herding', denice_replay_candidate_limit=8,
                       denice_eval_route_mode='local_lda', denice_post_task_eval=True,
                       denice_eval_report_nomask=False, denice_eval_representative_ensemble=False)
+    if upgraded in ('derpp', 'ewc'):
+        from fed_learning.strategies.incremental.denice_variants import variant_preset
+        config.update(variant_preset(upgraded))
+        config.update(denice_replay_capacity=12 if upgraded == 'derpp' else 0,
+                      denice_replay_batch_size=4, denice_ewc_fisher_samples=2)
     full = run_decentralized_denice_il({**config, 'output_dir': str(tmp_path/'full')})
     split = run_decentralized_denice_il({**config, 'task_end': 0, 'output_dir': str(tmp_path/'split')})
     first = Path(split['output_dir'])/'continuation_state_task_0.pt'
@@ -228,6 +233,34 @@ def test_two_client_three_task_resume_and_private_memory(tmp_path, monkeypatch, 
     for cid in range(2):
         for name, value in states[0]['client_model_states'][cid].items():
             torch.testing.assert_close(states[1]['client_model_states'][cid][name], value, atol=0, rtol=0)
+        if upgraded in ('derpp', 'ewc'):
+            validation = states[0]['history']['validation_task_accuracies']
+            assert len(validation) == 3 and all(row['client_count'] > 0 for row in validation)
+            for first_val, other_val in zip(validation, states[1]['history']['validation_task_accuracies']):
+                assert first_val['accuracy'] == other_val['accuracy']
+                assert first_val['per_task_accuracy'] == other_val['per_task_accuracy']
+            first_alg = states[0]['client_algorithm_states'][cid]
+            other_alg = states[1]['client_algorithm_states'][cid]
+            if upgraded == 'ewc':
+                assert not states[0]['local_replay_states']
+                banks = first_alg['ewc_state']['banks']
+                assert len(banks) == (3 if cid == 0 else 2)
+                for a, b in zip(banks, other_alg['ewc_state']['banks']):
+                    for kind in ('anchor', 'fisher'):
+                        for name in a[kind]:
+                            torch.testing.assert_close(a[kind][name], b[kind][name], atol=0, rtol=0)
+            else:
+                memory = states[0]['local_replay_states'][cid]
+                other = states[1]['local_replay_states'][cid]
+                assert memory['seen'] == other['seen'] and len(memory['rows']) <= 12
+                assert not first_alg['ewc_state']
+                for a, b in zip(memory['rows'], other['rows']):
+                    for key in a:
+                        torch.testing.assert_close(a[key], b[key], atol=0, rtol=0)
+                    assert abs(float(a['x'].mean()) - cid * 10) < 2
+            assert not first_alg['context_detector']['reference_input_memory']
+            assert not states[0]['old_ref_banks'][cid]
+            continue
         memory = states[0]['local_replay_states'][cid]
         other = states[1]['local_replay_states'][cid]
         assert sum(len(e['y']) for e in memory['entries'].values()) <= 12

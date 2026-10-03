@@ -29,6 +29,9 @@ import torch
 
 from fed_learning.clients.denice_client import normalize_denice_imbalance_config
 from fed_learning.strategies.incremental.denice_replay import LocalReplay, ReplayConfig
+from fed_learning.strategies.incremental.denice_der import DERReplay
+from fed_learning.strategies.incremental.denice_variants import variant_config, preserve_local_mature
+from fed_learning.strategies.incremental.denice_ewc import consolidate_ewc
 from fed_learning.strategies.incremental.denice_classifier import classifier_config, fit_local_classifier
 from fed_learning.strategies.decentralized.denice_transfer import transfer_config, select_peer_transfer
 from fed_learning.strategies.incremental.denice_router_replay import router_replay_config, refresh_replay_router
@@ -99,6 +102,21 @@ from fed_learning.utils.seed import set_seed
 
 DENICE_CONTINUATION_SCHEMA_VERSION = 1
 DENICE_CONTINUATION_TYPE = "denice_decentralized_continuation"
+
+
+def _split_local_validation(X, y, fraction, seed):
+    if not 0 <= fraction < 1:
+        raise ValueError('denice_validation_fraction must be in [0, 1).')
+    generator = torch.Generator().manual_seed(int(seed))
+    indices = []
+    for label in torch.unique(y):
+        rows = torch.nonzero(y == label, as_tuple=False).flatten()
+        take = min(len(rows) - 1, max(1, int(len(rows) * fraction))) if fraction and len(rows) > 1 else 0
+        if take:
+            indices.extend(rows[torch.randperm(len(rows), generator=generator)[:take]].tolist())
+    keep = torch.ones(len(y), dtype=torch.bool)
+    keep[indices] = False
+    return X[keep], y[keep], X[indices], y[indices]
 
 
 def _state_dict(model: torch.nn.Module) -> "OrderedDict[str, torch.Tensor]":
@@ -390,6 +408,7 @@ def _bootstrap_denice_model(
     restore_denice_state(model, None, snapshot_denice_state(source_model))
     model.local_classifier = None  # A new client must fit only its own head.
     model.elastic_state = {}  # Consolidation anchors belong to the donor's local history.
+    model.ewc_state = {}
     model.load_state_dict(_state_dict(source_model), strict=True)
     update_freeze_masks(model)
     if hasattr(model, "freeze_bn_for_mature"):
@@ -733,6 +752,7 @@ def _write_phase_outputs(
     _write_json(os.path.join(output_dir, "training_history.json"), history)
     _write_json(os.path.join(output_dir, "results.json"), history)
     _write_json(os.path.join(output_dir, "round_metrics.json"), history.get("round_metrics", []))
+    _write_json(os.path.join(output_dir, 'validation_metrics.json'), history.get('validation_task_accuracies', []))
     _write_json(os.path.join(output_dir, "task_metrics.json"), history.get("task_accuracies", []))
     _write_json(os.path.join(output_dir, "cluster_history.json"), cluster_history)
     _write_json(os.path.join(output_dir, "denice_debug_history.json"), debug_history)
@@ -1526,6 +1546,9 @@ def _aggregate_round(
             # local observations, not gradients; retain their post-local values.
             for name, _ in models[cid].named_buffers():
                 new_states[cid][name] = old_states[cid][name].clone()
+            if (config.get('denice_cl_method', 'legacy') != 'legacy'
+                    and config.get('denice_cl_train_mature', True)):
+                new_states[cid] = preserve_local_mature(new_states[cid], old_states[cid], old_ages[cid])
         if selective_fc2_enabled:
             new_states[cid], selective_fc2_row_audit[int(cid)] = (
                 _protect_plastic_fc2_rows_from_unsupported_peers(
@@ -2024,6 +2047,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         'denice_router_replay_enabled', 'denice_calibrate_plastic_bn',
         'denice_plasticity_enabled', 'denice_capacity_frontload', 'denice_mature_fraction',
         'denice_elastic_strength', 'denice_elastic_decay',
+        'denice_cl_method', 'denice_cl_train_mature', 'denice_cl_logit_scope',
+        'denice_der_alpha', 'denice_der_beta', 'denice_der_reduction',
+        'denice_ewc_lambda', 'denice_ewc_mode', 'denice_ewc_fisher_samples', 'denice_ewc_fisher_labels',
+        'denice_ewc_decay', 'denice_eval_local_validation', 'denice_validation_fraction',
         'denice_replay_capacity', 'seed', 'random_seed')}
     source_audit['runner_file'] = os.path.abspath(__file__)
     _write_json(os.path.join(output_dir, 'source_audit.json'), source_audit)
@@ -2082,6 +2109,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 raise ValueError(f'Fresh training required to change {name}.')
             config[name] = value
     replay_config = ReplayConfig.from_dict(config)
+    continual_controls = variant_config(config)
+    if config.get('denice_eval_local_validation', False) and not 0 < float(config.get('denice_validation_fraction', 0.)) < 1:
+        raise ValueError('Local validation reporting requires denice_validation_fraction in (0,1)')
+    if resume_state is not None and variant_config(saved_config) != continual_controls:
+        raise ValueError('Fresh training required to change DENICE DER/EWC controls')
+    stream_replay = continual_controls['method'] in ('der', 'derpp')
+    def make_replay():
+        return DERReplay(replay_config, continual_controls) if stream_replay else LocalReplay(replay_config)
     continual_width = config.get('denice_continual_width', 0)
     plasticity_controls = plasticity_config(config)
     if plasticity_controls['enabled'] and (
@@ -2119,7 +2154,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     if resume_state is not None and replay_config.capacity:
         if 'local_replay_states' not in resume_state:
             raise ValueError('Continuation is missing DENICE replay local replay state.')
-        replay_memories = {int(cid): LocalReplay.from_state(replay_config, state)
+        replay_memories = {int(cid): (DERReplay.from_state(replay_config, continual_controls, state)
+                                     if stream_replay else LocalReplay.from_state(replay_config, state))
                            for cid, state in resume_state['local_replay_states'].items()}
         if set(replay_memories) != set(int(c) for c in resume_state['client_ids']):
             raise ValueError('Continuation replay clients do not match model clients.')
@@ -2335,20 +2371,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     "class_hist": _count_histogram(y),
                     "labels": sorted(int(c) for c in set(y.detach().cpu().tolist())),
                 }
-                validation_idx = []
                 fraction = float(config.get('denice_validation_fraction', 0.0))
-                if not 0 <= fraction < 1:
-                    raise ValueError('denice_validation_fraction must be in [0, 1).')
-                generator = torch.Generator().manual_seed(int(config.get('seed', 42)) + task_id * 10000 + int(cid))
-                for label in torch.unique(y):
-                    indices = torch.nonzero(y == label, as_tuple=False).flatten()
-                    take = min(len(indices) - 1, max(1, int(len(indices) * fraction))) if fraction and len(indices) > 1 else 0
-                    if take:
-                        validation_idx.extend(indices[torch.randperm(len(indices), generator=generator)[:take]].tolist())
-                keep = torch.ones(len(y), dtype=torch.bool)
-                keep[validation_idx] = False
-                validation_X, validation_y = X[validation_idx], y[validation_idx]
-                X, y = X[keep], y[keep]
+                X, y, validation_X, validation_y = _split_local_validation(
+                    X, y, fraction, int(config.get('seed', 42)) + task_id * 10000 + int(cid))
                 data = {"X_train": X, "y_train": y}
                 if cid not in clients:
                     clients[cid] = create_client(cid, X, y, {**config, "algorithm": "denice"})
@@ -2637,11 +2662,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     phase_offset=round_id,
                     max_phases_override=1,
                     denice_elastic_strength=(plasticity_controls['strength'] if plasticity_controls['enabled'] else 0.),
-                    local_replay=(replay_memories.setdefault(cid, LocalReplay(replay_config))
+                    continual_controls=continual_controls,
+                    local_replay=(replay_memories.setdefault(cid, make_replay())
                                   if replay_config.capacity else None),
                     **imbalance_controls,
                 )
                 client_train_time = time.time() - client_train_start
+                history.setdefault('continual_losses', []).append(
+                    {'task': task_id, 'round': round_id, 'client_id': cid, **result.get('continual', {})})
                 train_time_total += client_train_time
                 losses[cid] = float((result or {}).get("loss", 0.0))
                 client_imbalance_controls[int(cid)] = dict(
@@ -3219,6 +3247,15 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     client=clients[cid], context_detector=context_detectors[cid],
                     ref_data=ref_data[cid], ref_labels=ref_labels[cid], loss=losses[cid], config=config)
                 _finalize_candle_task(model, final_capsule, canc_plans[cid]['start_ages'], task_id, config)
+            if continual_controls['method'] == 'ewc':
+                original_device = next(model.parameters()).device
+                model.to(device)
+                try:
+                    audit = consolidate_ewc(model, clients[cid].X_train, clients[cid].y_train, task_id,
+                                            continual_controls, seed=int(config.get('seed', 42)) + cid + task_id * 1009)
+                finally:
+                    model.to(original_device)
+                history.setdefault('ewc_consolidation', []).append({'task': task_id, 'client_id': cid, **audit})
             if plasticity_controls['enabled']:
                 audit = consolidate(model, final_capsule.parameter_fisher, plasticity_controls)
                 history.setdefault('maturation', []).append({'task': task_id, 'client_id': cid, **audit})
@@ -3282,7 +3319,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 history.setdefault('local_classifier_fits', []).append(
                     {'task': task_id, 'client_id': cid, **audit})
             if replay_config.capacity:
-                memory = replay_memories.setdefault(cid, LocalReplay(replay_config))
+                memory = replay_memories.setdefault(cid, make_replay())
                 memory.commit(model, clients[cid].X_train, clients[cid].y_train,
                               task_id, batch_size=replay_config.batch_size)
             model.clear_active_adapters()
@@ -3401,6 +3438,41 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "capacity_reserve_released": capacity_reserve_released,
             }
         )
+        if config.get('denice_eval_local_validation', False):
+            local_rows = {}
+            for cid in active_ids:
+                chunks_x, chunks_y = [], []
+                # Reconstruct deterministic held-out folds from this client's
+                # own historical data; never store them in replay or EWC state.
+                for episode in range(task_id + 1):
+                    Xv, yv = data_loader.get_client_data(cid, episode)
+                    if denice_max_train_samples_per_client is not None and len(yv) > denice_max_train_samples_per_client:
+                        Xv, yv = _stratified_limit_client_task_data(
+                            Xv, yv, denice_max_train_samples_per_client,
+                            seed=int(config.get('random_seed', config.get('seed', 42))) + episode * 10000 + int(cid))
+                    _, _, Xv, yv = _split_local_validation(
+                        Xv, yv, float(config.get('denice_validation_fraction', 0.)),
+                        int(config.get('seed', 42)) + episode * 10000 + int(cid))
+                    if len(yv):
+                        chunks_x.append(Xv)
+                        chunks_y.append(yv)
+                if chunks_y:
+                    local = _evaluate_clients(
+                        client_ids=[cid], models=models, context_detectors=context_detectors,
+                        test_data={'X_test': torch.cat(chunks_x), 'y_test': torch.cat(chunks_y)},
+                        seen_classes=_seen_classes(data_loader, task_id), batch_size=eval_batch_size,
+                        device=device, label=f'LOCAL_VALIDATION task={task_id},client={cid}',
+                        use_shared_context=False, route_mode=denice_eval_route_mode,
+                        route_topk=denice_eval_route_topk, report_nomask=False, report_representative_ensemble=False)
+                    local_rows.update(local['per_client'])
+            validation = dict(task=task_id, per_client=local_rows, split='local_heldout',
+                              client_count=len(local_rows))
+            for key in ('accuracy', 'f1_macro', 'route_accuracy'):
+                values = [row[key] for row in local_rows.values() if row.get(key) is not None]
+                validation[key] = float(np.mean(values)) if values else None
+            previous = history.setdefault('validation_task_accuracies', [])
+            validation.update(retention_summary(previous, validation, task_id))
+            previous.append(validation)
         retention = retention_summary(history['task_accuracies'], metrics, task_id)
         history["task_accuracies"].append(
             {"task": task_id, "final_round": final_round_id, **metrics, **retention}

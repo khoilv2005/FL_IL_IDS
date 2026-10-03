@@ -143,6 +143,7 @@ class NICEClient(FederatedClient):
         total_loss = 0.0
         total_objective = 0.0
         total_batches = 0
+        successful_steps = 0
 
         # Freeze BN for layers with all-mature neurons
         model.freeze_bn_for_mature()
@@ -189,7 +190,7 @@ class NICEClient(FederatedClient):
 
                     if self.use_amp:
                         with torch.autocast(device_type="cuda", dtype=torch.float16):
-                            output = model.forward_output(X_batch)
+                            output = kwargs.get('supervised_forward', model.forward_output)(X_batch)
                             loss = trainer.compute_loss(
                                 model,
                                 output,
@@ -201,15 +202,17 @@ class NICEClient(FederatedClient):
                             if kwargs.get('auxiliary_loss') is not None:
                                 loss = loss + kwargs['auxiliary_loss'](model, X_batch, y_batch)
 
+                        previous_scale = scaler.get_scale()
                         scaler.scale(loss).backward()
                         scaler.unscale_(optimizer)
                         # Freeze mature gradients
-                        model.reset_frozen_gradients()
+                        kwargs.get('gradient_filter', model.reset_frozen_gradients)()
                         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                         scaler.step(optimizer)
                         scaler.update()
+                        step_succeeded = scaler.get_scale() >= previous_scale
                     else:
-                        output = model.forward_output(X_batch)
+                        output = kwargs.get('supervised_forward', model.forward_output)(X_batch)
                         loss = trainer.compute_loss(
                             model,
                             output,
@@ -223,9 +226,14 @@ class NICEClient(FederatedClient):
 
                         loss.backward()
                         # Freeze mature gradients
-                        model.reset_frozen_gradients()
+                        kwargs.get('gradient_filter', model.reset_frozen_gradients)()
                         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                         optimizer.step()
+                        step_succeeded = True
+
+                    if step_succeeded and kwargs.get('after_optimizer_step') is not None:
+                        kwargs['after_optimizer_step'](X_batch, y_batch, output.detach())
+                    successful_steps += int(step_succeeded)
 
                     # Capsule reliability must remain based on current-data CE,
                     # independent of a client's replay budget/loss coefficients.
@@ -240,6 +248,8 @@ class NICEClient(FederatedClient):
             "num_samples": self.num_samples,
             "loss": avg_loss,
             "optimization_loss": total_objective / max(total_batches, 1),
+            "optimizer_steps": successful_steps,
+            "skipped_optimizer_steps": total_batches - successful_steps,
             "params": OrderedDict(
                 (k, v.cpu().clone()) for k, v in model.state_dict().items()
             ),
