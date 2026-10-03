@@ -482,7 +482,7 @@ if TRAIN_VARIANT != 'legacy':
     try:
         from fed_learning.strategies.incremental.denice_variants import variant_preset
     except ModuleNotFoundError as exc:
-        raise RuntimeError('Push the complete DENICE DER/EWC source before running this launcher.') from exc
+        raise RuntimeError('Push the complete DeNICE source before running this launcher.') from exc
     CONFIG.update(variant_preset(TRAIN_VARIANT))
 
 _config_overrides_raw = os.environ.get("DENICE_CONFIG_OVERRIDES")

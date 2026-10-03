@@ -31,6 +31,12 @@ from fed_learning.clients.denice_client import normalize_denice_imbalance_config
 from fed_learning.strategies.incremental.denice_replay import LocalReplay, ReplayConfig
 from fed_learning.strategies.incremental.denice_der import DERReplay
 from fed_learning.strategies.incremental.denice_variants import variant_config, preserve_local_mature
+from fed_learning.strategies.incremental.denice_cgofed import (
+    append_task_basis,
+    collect_task_features,
+    ensure_projection_state,
+    project_peer_fc2_correction,
+)
 from fed_learning.strategies.incremental.denice_ewc import consolidate_ewc
 from fed_learning.strategies.incremental.denice_classifier import classifier_config, fit_local_classifier
 from fed_learning.strategies.decentralized.denice_transfer import transfer_config, select_peer_transfer
@@ -409,6 +415,11 @@ def _bootstrap_denice_model(
     model.local_classifier = None  # A new client must fit only its own head.
     model.elastic_state = {}  # Consolidation anchors belong to the donor's local history.
     model.ewc_state = {}
+    # Subspace protection is private to the donor's local history. A newly
+    # bootstrapped client must collect its own task basis before thawing mature rows.
+    model.cgofed_projection_state = {
+        "schema_version": 1, "completed_local_tasks": 0, "tasks": []
+    }
     model.load_state_dict(_state_dict(source_model), strict=True)
     update_freeze_masks(model)
     if hasattr(model, "freeze_bn_for_mature"):
@@ -1392,6 +1403,8 @@ def _aggregate_round(
     if aggregation_mode not in {"peer", "self_only"}:
         raise ValueError("denice_aggregation_mode must be 'peer' or 'self_only'")
     centroid_gate_threshold = float(config.get("denice_centroid_gate_threshold", 0.75))
+    cgofed_active = str(config.get('denice_cl_method', 'legacy')).lower() == 'cgofed'
+    cgofed_controls = variant_config(config).get('cgofed') if cgofed_active else None
     agg_config = AggregationConfig(
         eta=float(config.get("denice_aggregation_eta", 1.0)),
         protect_mature=bool(config.get("denice_protect_mature", True)),
@@ -1418,6 +1431,7 @@ def _aggregate_round(
     peer_aggregated_client_count = 0
     selective_fc2_enabled = bool(config.get("denice_selective_fc2_peer_rows", False))
     selective_fc2_row_audit: Dict[int, List[Dict[str, Any]]] = {}
+    cgofed_peer_audit: Dict[int, Dict[str, Any]] = {}
 
     for idx, cid in enumerate(client_ids):
         neighbors = None
@@ -1549,6 +1563,54 @@ def _aggregate_round(
             if (config.get('denice_cl_method', 'legacy') != 'legacy'
                     and config.get('denice_cl_train_mature', True)):
                 new_states[cid] = preserve_local_mature(new_states[cid], old_states[cid], old_ages[cid])
+        elif cgofed_active:
+            new_states[cid] = preserve_local_mature(new_states[cid], old_states[cid], old_ages[cid])
+        if cgofed_active and cgofed_controls and cgofed_controls['peer_projection']:
+            # Form peer-only corrections around the receiver's post-local model.
+            # The normal DeNICE aggregation path above remains unchanged; only
+            # mature fc2 rows receive this optional receiver-projected correction.
+            peer_deltas = []
+            for gid, delta in zip(group_ids, deltas):
+                if gid == cid:
+                    peer_deltas.append(OrderedDict((
+                        ('fc2.weight', torch.zeros_like(delta['fc2.weight'])),
+                    )))
+                else:
+                    peer_deltas.append(OrderedDict((
+                        ('fc2.weight', delta['fc2.weight']),
+                    )))
+            peer_candidate = age_aware_aggregate(
+                OrderedDict((('fc2.weight', old_states[cid]['fc2.weight']),)),
+                old_ages[cid],
+                peer_deltas,
+                alphas,
+                AggregationConfig(eta=agg_config.eta, protect_mature=False, method='weighted_mean'),
+                neighbor_ages=([old_ages[gid] for gid in group_ids]
+                               if config.get('denice_pairwise_young_mask', True) else None),
+                neighbor_labels=[capsules[gid].label_set for gid in group_ids],
+                target_labels=capsules[cid].label_set,
+                frozen_layers=getattr(models[cid], 'task_freeze_layers', []),
+                ignore_age_mask_layers=['fc2'],
+            )
+            local_weight = old_states[cid]['fc2.weight'].to(new_states[cid]['fc2.weight'].device)
+            correction = peer_candidate['fc2.weight'] - local_weight
+            filtered, audit = project_peer_fc2_correction(
+                models[cid], correction, cgofed_controls
+            )
+            mature_rows = torch.as_tensor(
+                models[cid].unit_ranks['fc2'] >= 2,
+                dtype=torch.bool,
+                device=local_weight.device,
+            )
+            protected_candidate = local_weight + filtered
+            new_states[cid]['fc2.weight'] = torch.where(
+                mature_rows[:, None], protected_candidate, new_states[cid]['fc2.weight']
+            )
+            audit.update({
+                'mature_rows': int(mature_rows.sum().item()),
+                'peer_alpha_sum': float(peer_alpha_sum),
+            })
+            cgofed_peer_audit[int(cid)] = audit
         if selective_fc2_enabled:
             new_states[cid], selective_fc2_row_audit[int(cid)] = (
                 _protect_plastic_fc2_rows_from_unsupported_peers(
@@ -1769,6 +1831,7 @@ def _aggregate_round(
         "capacity_guardrails": capacity_guardrails,
         "plastic_fc2_row_audit": plastic_fc2_row_audit,
         "selective_fc2_row_protection": selective_fc2_summary,
+        "cgofed_peer_projection": cgofed_peer_audit,
         "clustering_time": float(clustering_time),
         "aggregation_apply_time": float(aggregation_apply_time),
         "next_valid_cluster": next_valid_cluster,
@@ -2051,7 +2114,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         'denice_der_alpha', 'denice_der_beta', 'denice_der_reduction',
         'denice_ewc_lambda', 'denice_ewc_mode', 'denice_ewc_fisher_samples', 'denice_ewc_fisher_labels',
         'denice_ewc_decay', 'denice_eval_local_validation', 'denice_validation_fraction',
-        'denice_replay_capacity', 'seed', 'random_seed')}
+        'denice_replay_capacity', 'denice_cgofed_optimizer', 'denice_cgofed_mu',
+        'denice_cgofed_decay', 'denice_cgofed_energy', 'denice_cgofed_max_samples',
+        'denice_cgofed_peer_projection', 'seed', 'random_seed')}
     source_audit['runner_file'] = os.path.abspath(__file__)
     _write_json(os.path.join(output_dir, 'source_audit.json'), source_audit)
     print(f"DENICE source/config audit: {source_audit}", flush=True)
@@ -2113,7 +2178,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     if config.get('denice_eval_local_validation', False) and not 0 < float(config.get('denice_validation_fraction', 0.)) < 1:
         raise ValueError('Local validation reporting requires denice_validation_fraction in (0,1)')
     if resume_state is not None and variant_config(saved_config) != continual_controls:
-        raise ValueError('Fresh training required to change DENICE DER/EWC controls')
+        raise ValueError('Fresh training required to change DeNICE continual-learning controls')
     stream_replay = continual_controls['method'] in ('der', 'derpp')
     def make_replay():
         return DERReplay(replay_config, continual_controls) if stream_replay else LocalReplay(replay_config)
@@ -2294,6 +2359,17 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             # Recreate adapter modules before their tensor state can load.
             restore_denice_state(model, detector, denice_state)
+            if continual_controls['method'] == 'cgofed' and int(resume_state['meta']['completed_task']) >= 0:
+                projection_state = getattr(model, 'cgofed_projection_state', None)
+                if (
+                    not isinstance(projection_state, dict)
+                    or int(projection_state.get('schema_version', -1)) != 1
+                    or int(projection_state.get('completed_local_tasks', 0)) < 1
+                ):
+                    raise ValueError(
+                        f"DeNICE+CGoFed continuation is missing the client-local projection bank for client {cid}. "
+                        "Use the matching full continuation checkpoint or start a fresh run."
+                    )
             missing, unexpected = model.load_state_dict(model_state, strict=False)
             if missing or unexpected:
                 raise ValueError(
@@ -2670,6 +2746,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 client_train_time = time.time() - client_train_start
                 history.setdefault('continual_losses', []).append(
                     {'task': task_id, 'round': round_id, 'client_id': cid, **result.get('continual', {})})
+                if 'cgofed_projection' in result:
+                    history.setdefault('cgofed_local_projection', []).append({
+                        'task': int(task_id), 'round': int(round_id),
+                        'client_id': int(cid), **result['cgofed_projection'],
+                    })
                 train_time_total += client_train_time
                 losses[cid] = float((result or {}).get("loss", 0.0))
                 client_imbalance_controls[int(cid)] = dict(
@@ -3322,6 +3403,35 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 memory = replay_memories.setdefault(cid, make_replay())
                 memory.commit(model, clients[cid].X_train, clients[cid].y_train,
                               task_id, batch_size=replay_config.batch_size)
+            if continual_controls['method'] == 'cgofed':
+                features, capture_audit = collect_task_features(
+                    model,
+                    clients[cid].X_train,
+                    clients[cid].y_train,
+                    max_samples=continual_controls['cgofed']['max_samples'],
+                    batch_size=continual_controls['cgofed']['capture_batch_size'],
+                    seed=int(config.get('random_seed', config.get('seed', 42)))
+                    + 1_000_003 * int(task_id) + int(cid),
+                )
+                projection_state = ensure_projection_state(model)
+                basis_audit = append_task_basis(
+                    projection_state,
+                    features,
+                    task_id=task_id,
+                    energy_threshold=continual_controls['cgofed']['energy'],
+                    beta=continual_controls['cgofed']['beta'],
+                    max_rank=continual_controls['cgofed']['max_rank'],
+                    class_support=capture_audit.get('classes', []),
+                    adapter_context=capture_audit.get('adapter_context', {}),
+                    topology_signature=capture_audit.get('topology_signature'),
+                )
+                history.setdefault('cgofed_projection', []).append({
+                    'task': int(task_id),
+                    'client_id': int(cid),
+                    **capture_audit,
+                    **basis_audit,
+                    'bank_task_count': len(projection_state['tasks']),
+                })
             model.clear_active_adapters()
 
             if router_replay_controls['enabled']:

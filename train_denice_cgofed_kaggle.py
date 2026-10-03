@@ -4,8 +4,8 @@
 # Download resume state from Google Drive
 # ============================================================ #
 import os
-os.environ.setdefault("DENICE_VARIANT", "ewc")
-if os.environ["DENICE_VARIANT"].lower() not in ('ewc',):
+os.environ.setdefault("DENICE_VARIANT", "cgofed")
+if os.environ["DENICE_VARIANT"].lower() not in ('cgofed',):
     raise ValueError("DENICE_VARIANT conflicts with this launcher; use a fresh kernel or set it explicitly.")
 import json
 import subprocess

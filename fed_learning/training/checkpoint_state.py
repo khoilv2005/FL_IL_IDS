@@ -145,6 +145,9 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
         state['candle_state'] = _clone_value(getattr(model, 'candle_state', {}))
         state['elastic_state'] = _clone_value(getattr(model, 'elastic_state', {}))
         state['ewc_state'] = _clone_value(getattr(model, 'ewc_state', {}))
+        state['cgofed_projection_state'] = _clone_value(
+            getattr(model, 'cgofed_projection_state', None)
+        )
         state['task_freeze_layers'] = list(getattr(model, 'task_freeze_layers', []))
         state['pending_canc_plan'] = _clone_value(getattr(model, 'pending_canc_plan', None))
         state["active_adapters"] = _clone_value(getattr(model, "active_adapters", {}))
@@ -183,6 +186,11 @@ def restore_denice_state(
     model.candle_state = _clone_value(state.get('candle_state', {}))
     model.elastic_state = _clone_value(state.get('elastic_state', {}))
     model.ewc_state = _clone_value(state.get('ewc_state', {}))
+    projection_state = state.get('cgofed_projection_state')
+    if projection_state is not None:
+        model.cgofed_projection_state = _clone_value(projection_state)
+    elif hasattr(model, 'cgofed_projection_state'):
+        delattr(model, 'cgofed_projection_state')
     model.task_freeze_layers = list(state.get('task_freeze_layers', []))
     model.pending_canc_plan = _clone_value(state.get('pending_canc_plan'))
     adapter_registry = state.get("adapter_registry") or {}

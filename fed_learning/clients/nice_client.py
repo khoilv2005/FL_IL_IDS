@@ -180,7 +180,12 @@ class NICEClient(FederatedClient):
             # 4. Create NEW optimizer each phase (official behavior)
             # Fresh optimizer state prevents momentum from previous phase
             # from interfering with newly selected neurons
-            optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+            optimizer_factory = kwargs.get("optimizer_factory")
+            optimizer = (
+                optimizer_factory(model.parameters(), lr)
+                if optimizer_factory is not None
+                else torch.optim.Adam(model.parameters(), lr=lr)
+            )
             scaler = GradScaler(enabled=self.use_amp)
 
             # 5. Train phase_epochs
@@ -207,7 +212,11 @@ class NICEClient(FederatedClient):
                         scaler.unscale_(optimizer)
                         # Freeze mature gradients
                         kwargs.get('gradient_filter', model.reset_frozen_gradients)()
+                        if kwargs.get("pre_optimizer_step") is not None:
+                            kwargs["pre_optimizer_step"](model)
                         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        if kwargs.get("before_optimizer_step") is not None:
+                            kwargs["before_optimizer_step"](model)
                         scaler.step(optimizer)
                         scaler.update()
                         step_succeeded = scaler.get_scale() >= previous_scale
@@ -227,10 +236,16 @@ class NICEClient(FederatedClient):
                         loss.backward()
                         # Freeze mature gradients
                         kwargs.get('gradient_filter', model.reset_frozen_gradients)()
+                        if kwargs.get("pre_optimizer_step") is not None:
+                            kwargs["pre_optimizer_step"](model)
                         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        if kwargs.get("before_optimizer_step") is not None:
+                            kwargs["before_optimizer_step"](model)
                         optimizer.step()
                         step_succeeded = True
 
+                    if step_succeeded and kwargs.get("after_optimizer_step_update") is not None:
+                        kwargs["after_optimizer_step_update"](model)
                     if step_succeeded and kwargs.get('after_optimizer_step') is not None:
                         kwargs['after_optimizer_step'](X_batch, y_batch, output.detach())
                     successful_steps += int(step_succeeded)

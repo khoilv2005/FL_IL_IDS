@@ -14,6 +14,8 @@ def preserve_local_mature(aggregated, local, ages):
 
 
 def variant_config(config):
+    from .denice_cgofed import cgofed_config
+
     result = {
         'method': str(config.get('denice_cl_method', 'legacy')).lower(),
         'train_mature': bool(config.get('denice_cl_train_mature', True)),
@@ -27,8 +29,8 @@ def variant_config(config):
         'fisher_labels': config.get('denice_ewc_fisher_labels', 'model'),
         'decay': float(config.get('denice_ewc_decay', 1.)),
     }
-    if result['method'] not in ('legacy', 'der', 'derpp', 'ewc'):
-        raise ValueError('denice_cl_method must be legacy, der, derpp or ewc')
+    if result['method'] not in ('legacy', 'der', 'derpp', 'ewc', 'cgofed'):
+        raise ValueError('denice_cl_method must be legacy, der, derpp, ewc or cgofed')
     for key in ('alpha', 'beta', 'ewc_lambda', 'decay'):
         if not math.isfinite(result[key]) or result[key] < 0:
             raise ValueError(f'Invalid continual-learning control: {key}')
@@ -42,7 +44,17 @@ def variant_config(config):
     if isinstance(n, bool) or int(n) != n or n < 1:
         raise ValueError('Fisher samples must be a positive integer')
     result['fisher_samples'] = int(n)
-    if result['method'] != 'legacy':
+    if result['method'] == 'cgofed':
+        result['cgofed'] = cgofed_config(config)
+        if not result['train_mature']:
+            raise ValueError('DeNICE+CGoFed requires denice_cl_train_mature=true for the protected classifier rows')
+        if config.get('denice_plasticity_enabled', False) or config.get('denice_continual_width', 0):
+            raise ValueError('DeNICE+CGoFed cannot mix with plasticity or residual-head experiments')
+        if config.get('denice_classifier_enabled', False) or config.get('denice_transfer_enabled', False):
+            raise ValueError('Disable classifier/transfer ablations in the DeNICE+CGoFed baseline')
+        if int(config.get('denice_replay_capacity', 0)) or config.get('denice_router_replay_enabled', False):
+            raise ValueError('The initial DeNICE+CGoFed variant is replay-free')
+    elif result['method'] != 'legacy':
         if config.get('denice_plasticity_enabled', False) or config.get('denice_continual_width', 0):
             raise ValueError('DER/EWC experiments cannot mix with experimental plasticity/residual head')
         if config.get('denice_classifier_enabled', False) or config.get('denice_transfer_enabled', False):
@@ -56,8 +68,25 @@ def variant_config(config):
 
 
 def variant_preset(name):
-    if name not in ('der', 'derpp', 'ewc'):
-        raise ValueError('DENICE_VARIANT must be der, derpp or ewc')
+    if name not in ('der', 'derpp', 'ewc', 'cgofed'):
+        raise ValueError('DENICE_VARIANT must be der, derpp, ewc or cgofed')
+    if name == 'cgofed':
+        return dict(
+            algorithm='denice', mode='decentralized', denice_cl_method='cgofed',
+            denice_cl_train_mature=True, denice_cl_logit_scope='seen',
+            denice_replay_capacity=0, denice_router_replay_enabled=False,
+            denice_memory_policy='sketches', denice_plasticity_enabled=False,
+            denice_continual_width=0, denice_classifier_enabled=False,
+            denice_transfer_enabled=False, denice_cgofed_optimizer='adam_delta',
+            denice_cgofed_mu=.5, denice_cgofed_decay=.8,
+            denice_cgofed_energy=.95, denice_cgofed_beta=1.,
+            denice_cgofed_max_samples=512, denice_cgofed_max_rank=64,
+            denice_cgofed_capture_batch_size=512,
+            denice_cgofed_peer_projection=True,
+            denice_shared_context_eval=False, denice_eval_route_mode='hard',
+            denice_calibrate_plastic_bn=True, denice_eval_final_round=True,
+            denice_eval_local_validation=True,
+        )
     replay = name != 'ewc'
     return dict(algorithm='denice', mode='decentralized', denice_cl_method=name,
                 denice_cl_train_mature=True, denice_cl_logit_scope='all',

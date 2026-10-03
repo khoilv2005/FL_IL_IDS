@@ -225,7 +225,63 @@ class DeNICEClient(NICEClient):
                     return raw.masked_fill(~seen, -1e4)
                 return raw
             kwargs['supervised_forward'] = supervised_forward
-            if continual['train_mature']:
+            if continual['method'] == 'cgofed':
+                from fed_learning.strategies.incremental.denice_cgofed import (
+                    apply_local_fc2_delta,
+                    ensure_projection_state,
+                    project_local_gradient,
+                )
+
+                controls = continual['cgofed']
+                state = ensure_projection_state(model)
+                filter_masks = {name: ranks != 1 for name, ranks in model.unit_ranks.items()}
+                filter_masks['fc2'] = model.unit_ranks['fc2'] <= 0
+                projection_audits = []
+
+                def gradient_filter():
+                    original = model.freeze_masks
+                    try:
+                        model.freeze_masks = filter_masks
+                        model.reset_frozen_gradients()
+                    finally:
+                        model.freeze_masks = original
+                    # The CGoFed head variant updates mature weights only;
+                    # mature biases are held fixed in this first integration.
+                    if model.fc2.bias.grad is not None:
+                        mature = torch.as_tensor(model.unit_ranks['fc2'] >= 2, device=model.fc2.bias.grad.device)
+                        model.fc2.bias.grad[mature] = 0.0
+
+                kwargs['gradient_filter'] = gradient_filter
+                pending = {}
+                pending_gradient_audit = {}
+
+                def before_step(current_model):
+                    if controls['optimizer'] == 'adam_delta':
+                        pending['fc2_before'] = current_model.fc2.weight.detach().clone()
+
+                def transform_gradient(current_model):
+                    if controls['optimizer'] == 'sgd_gradient':
+                        pending_gradient_audit['audit'] = project_local_gradient(current_model, controls)
+
+                kwargs['pre_optimizer_step'] = transform_gradient
+                kwargs['before_optimizer_step'] = before_step
+
+                def after_step(current_model):
+                    if controls['optimizer'] == 'adam_delta':
+                        before = pending.pop('fc2_before', None)
+                        if before is not None:
+                            projection_audits.append(
+                                apply_local_fc2_delta(current_model, before, controls)
+                            )
+                    elif 'audit' in pending_gradient_audit:
+                        projection_audits.append(pending_gradient_audit.pop('audit'))
+
+                kwargs['after_optimizer_step_update'] = after_step
+                if controls['optimizer'] == 'sgd_gradient':
+                    kwargs['optimizer_factory'] = lambda parameters, lr: torch.optim.SGD(
+                        parameters, lr=lr, momentum=0.0, weight_decay=0.0
+                    )
+            elif continual['train_mature']:
                 def gradient_filter():
                     original = model.freeze_masks
                     try:
@@ -287,6 +343,18 @@ class DeNICEClient(NICEClient):
             result["adapter_registry"] = model.get_adapter_registry_state()
             result["adapter_param_count"] = int(model.adapter_param_count())
             result["active_adapters"] = dict(getattr(model, "active_adapters", {}))
+        if continual['method'] == 'cgofed':
+            result['cgofed_projection'] = {
+                'optimizer': continual['cgofed']['optimizer'],
+                'steps': len(projection_audits),
+                'projected_rows': sum(int(item.get('projected_rows', 0)) for item in projection_audits),
+                'mean_projection_ratio': (
+                    sum(float(item.get('projection_ratio', 0.0)) for item in projection_audits)
+                    / max(1, len(projection_audits))
+                ),
+                'mu': max((float(item.get('mu', 0.0)) for item in projection_audits), default=0.0),
+                'last_reason': projection_audits[-1].get('reason') if projection_audits else None,
+            }
         result["imbalance_control"] = {
             "batch_sampling": controls["denice_batch_sampling"],
             "sampling_epochs": list(self._denice_batch_sampling_epochs),
