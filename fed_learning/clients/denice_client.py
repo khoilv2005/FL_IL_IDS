@@ -232,7 +232,9 @@ class DeNICEClient(NICEClient):
                     project_local_gradient,
                 )
 
-                controls = continual['cgofed']
+                # Keep these separate from the DeNICE imbalance controls below;
+                # the optimizer callbacks close over this value during training.
+                cgofed_controls = continual['cgofed']
                 state = ensure_projection_state(model)
                 filter_masks = {name: ranks != 1 for name, ranks in model.unit_ranks.items()}
                 filter_masks['fc2'] = model.unit_ranks['fc2'] <= 0
@@ -256,28 +258,28 @@ class DeNICEClient(NICEClient):
                 pending_gradient_audit = {}
 
                 def before_step(current_model):
-                    if controls['optimizer'] == 'adam_delta':
+                    if cgofed_controls['optimizer'] == 'adam_delta':
                         pending['fc2_before'] = current_model.fc2.weight.detach().clone()
 
                 def transform_gradient(current_model):
-                    if controls['optimizer'] == 'sgd_gradient':
-                        pending_gradient_audit['audit'] = project_local_gradient(current_model, controls)
+                    if cgofed_controls['optimizer'] == 'sgd_gradient':
+                        pending_gradient_audit['audit'] = project_local_gradient(current_model, cgofed_controls)
 
                 kwargs['pre_optimizer_step'] = transform_gradient
                 kwargs['before_optimizer_step'] = before_step
 
                 def after_step(current_model):
-                    if controls['optimizer'] == 'adam_delta':
+                    if cgofed_controls['optimizer'] == 'adam_delta':
                         before = pending.pop('fc2_before', None)
                         if before is not None:
                             projection_audits.append(
-                                apply_local_fc2_delta(current_model, before, controls)
+                                apply_local_fc2_delta(current_model, before, cgofed_controls)
                             )
                     elif 'audit' in pending_gradient_audit:
                         projection_audits.append(pending_gradient_audit.pop('audit'))
 
                 kwargs['after_optimizer_step_update'] = after_step
-                if controls['optimizer'] == 'sgd_gradient':
+                if cgofed_controls['optimizer'] == 'sgd_gradient':
                     kwargs['optimizer_factory'] = lambda parameters, lr: torch.optim.SGD(
                         parameters, lr=lr, momentum=0.0, weight_decay=0.0
                     )
