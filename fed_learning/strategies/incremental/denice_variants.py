@@ -84,8 +84,13 @@ def variant_preset(name):
             denice_cgofed_capture_batch_size=512,
             denice_cgofed_peer_projection=True,
             denice_shared_context_eval=False, denice_eval_route_mode='hard',
+            denice_eval_final_task_only=True,
+            denice_eval_split_test_by_client=True,
+            denice_eval_require_full_coverage=False,
+            denice_eval_report_nomask=False,
+            denice_eval_representative_ensemble=False,
+            denice_eval_local_validation=False,
             denice_calibrate_plastic_bn=True, denice_eval_final_round=True,
-            denice_eval_local_validation=True,
         )
     replay = name != 'ewc'
     return dict(algorithm='denice', mode='decentralized', denice_cl_method=name,

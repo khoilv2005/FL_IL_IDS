@@ -22,7 +22,12 @@
   "denice_cgofed_peer_projection": true,
   "denice_shared_context_eval": false,
   "denice_eval_route_mode": "hard",
+  "denice_eval_final_task_only": true,
+  "denice_eval_split_test_by_client": true,
+  "denice_eval_require_full_coverage": false,
+  "denice_eval_report_nomask": false,
+  "denice_eval_representative_ensemble": false,
   "denice_calibrate_plastic_bn": true,
   "denice_eval_final_round": true,
-  "denice_eval_local_validation": true
+  "denice_eval_local_validation": false
 }

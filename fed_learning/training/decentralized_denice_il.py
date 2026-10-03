@@ -544,13 +544,86 @@ def _limit_eval_samples(
     return X[idx], y[idx], {"limited": True, "total": total, "used": used}
 
 
-def _should_run_post_task_eval(task_id: int, config: Dict[str, Any]) -> bool:
+def _partition_test_data_by_client(
+    X: torch.Tensor,
+    y: torch.Tensor,
+    client_ids: List[int],
+    seed: int,
+) -> Tuple[Dict[int, Dict[str, torch.Tensor]], Dict[str, Any]]:
+    """Create deterministic, disjoint, approximately class-balanced test shards."""
+    ordered_clients = list(dict.fromkeys(int(cid) for cid in client_ids))
+    if not ordered_clients:
+        return {}, {
+            "strategy": "global_test_class_stratified_disjoint_shards",
+            "seed": int(seed),
+            "global_test_sample_count": int(len(y)),
+            "client_count": 0,
+            "per_client_sample_count": {},
+            "per_client_class_counts": {},
+        }
+
+    labels = y.detach().cpu().long().reshape(-1)
+    generator = torch.Generator(device="cpu").manual_seed(int(seed))
+    assignments: Dict[int, List[torch.Tensor]] = {
+        cid: [] for cid in ordered_clients
+    }
+    class_counts: Dict[int, Dict[int, int]] = {
+        cid: {} for cid in ordered_clients
+    }
+    offset = 0
+    for label in torch.unique(labels, sorted=True).tolist():
+        indices = torch.nonzero(labels == int(label), as_tuple=False).flatten()
+        indices = indices[torch.randperm(len(indices), generator=generator)]
+        for position, sample_index in enumerate(indices):
+            cid = ordered_clients[(offset + position) % len(ordered_clients)]
+            assignments[cid].append(sample_index.reshape(1))
+            class_counts[cid][int(label)] = class_counts[cid].get(int(label), 0) + 1
+        offset = (offset + len(indices)) % len(ordered_clients)
+
+    shards: Dict[int, Dict[str, torch.Tensor]] = {}
+    sample_counts: Dict[str, int] = {}
+    for cid in ordered_clients:
+        indices = (
+            torch.cat(assignments[cid])
+            if assignments[cid]
+            else torch.empty(0, dtype=torch.long)
+        )
+        if indices.numel():
+            indices = indices[torch.randperm(len(indices), generator=generator)]
+        shards[cid] = {
+            "X_test": X.index_select(0, indices.to(X.device)),
+            "y_test": y.index_select(0, indices.to(y.device)),
+        }
+        sample_counts[str(cid)] = int(indices.numel())
+
+    audit = {
+        "strategy": "global_test_class_stratified_disjoint_shards",
+        "seed": int(seed),
+        "global_test_sample_count": int(len(y)),
+        "client_count": int(len(ordered_clients)),
+        "per_client_sample_count": sample_counts,
+        "per_client_class_counts": {
+            str(cid): {str(label): int(count) for label, count in sorted(class_counts[cid].items())}
+            for cid in ordered_clients
+        },
+    }
+    return shards, audit
+
+
+def _should_run_post_task_eval(
+    task_id: int,
+    config: Dict[str, Any],
+    last_task_id: Optional[int] = None,
+) -> bool:
     """Return whether this task is selected for the lightweight post-task eval.
 
+    ``denice_eval_final_task_only`` restricts this pass to the final task.
     ``denice_post_task_eval_tasks`` is optional so existing experiments retain
     their previous behaviour.  An empty list explicitly disables every
     post-task evaluation; a non-empty list restricts it to those task IDs.
     """
+    if config.get("denice_eval_final_task_only", False):
+        return last_task_id is not None and int(task_id) == int(last_task_id)
     selected_tasks = config.get("denice_post_task_eval_tasks")
     if selected_tasks is None:
         return True
@@ -1885,6 +1958,7 @@ def _evaluate_clients(
     models: Dict[int, DeNICEModel],
     context_detectors: Dict[int, ContextDetector],
     test_data: Dict[str, torch.Tensor],
+    per_client_test_data: Optional[Dict[int, Dict[str, torch.Tensor]]] = None,
     seen_classes: List[int],
     batch_size: int,
     device: torch.device,
@@ -1944,6 +2018,7 @@ def _evaluate_clients(
     )
     for pos, cid in enumerate(client_ids, start=1):
         client_start = time.time()
+        client_test_data = (per_client_test_data or {}).get(int(cid), test_data)
         detector = context_detectors[cid]
         if routing_mode == "global" and shared_detector is not None:
             detector = shared_detector
@@ -1965,7 +2040,7 @@ def _evaluate_clients(
             detector = detector_cache[group_key] or context_detectors[cid]
         client_metrics = evaluate_denice_model(
             models[cid],
-            test_data,
+            client_test_data,
             device=str(device),
             context_detector=detector,
             seen_classes=seen_classes,
@@ -1979,7 +2054,7 @@ def _evaluate_clients(
         if report_nomask and str(route_mode).lower() != "nomask":
             nomask_metrics = evaluate_denice_model(
                 models[cid],
-                test_data,
+                client_test_data,
                 device=str(device),
                 context_detector=detector,
                 seen_classes=seen_classes,
@@ -1998,12 +2073,15 @@ def _evaluate_clients(
             # Paired diagnostic on exactly the same test samples, never used
             # for training, model selection or selecting the primary prediction.
             hard_metrics = evaluate_denice_model(
-                models[cid], test_data, device=str(device), context_detector=detector,
+                models[cid], client_test_data, device=str(device), context_detector=detector,
                 seen_classes=seen_classes, batch_size=batch_size, route_mode='hard')
             for key in ('accuracy', 'f1_macro', 'recall_macro'):
                 client_metrics['hard_' + key] = float(hard_metrics[key])
                 client_metrics['gain_vs_hard_' + key] = float(client_metrics[key] - hard_metrics[key])
         metrics.append(client_metrics)
+        client_metrics["eval_sample_count"] = int(
+            len(client_test_data.get("y_test", []))
+        )
         per_client[int(cid)] = client_metrics
         client_elapsed = time.time() - client_start
         should_print = (
@@ -2014,6 +2092,7 @@ def _evaluate_clients(
         if should_print:
             print(
                 f"    Eval client {pos}/{len(client_ids)} cid={cid} done: "
+                f"samples={client_metrics['eval_sample_count']}, "
                 f"acc={client_metrics['accuracy'] * 100:.2f}%, "
                 f"f1={client_metrics['f1_macro'] * 100:.2f}%, "
                 f"route_acc={client_metrics.get('route_accuracy', 0.0) * 100:.2f}%, "
@@ -2113,7 +2192,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         'denice_cl_method', 'denice_cl_train_mature', 'denice_cl_logit_scope',
         'denice_der_alpha', 'denice_der_beta', 'denice_der_reduction',
         'denice_ewc_lambda', 'denice_ewc_mode', 'denice_ewc_fisher_samples', 'denice_ewc_fisher_labels',
-        'denice_ewc_decay', 'denice_eval_local_validation', 'denice_validation_fraction',
+        'denice_ewc_decay', 'denice_eval_local_validation', 'denice_eval_final_task_only',
+        'denice_eval_split_test_by_client', 'denice_eval_require_full_coverage',
+        'denice_eval_report_nomask',
+        'denice_eval_representative_ensemble', 'denice_validation_fraction',
         'denice_replay_capacity', 'denice_cgofed_optimizer', 'denice_cgofed_mu',
         'denice_cgofed_decay', 'denice_cgofed_energy', 'denice_cgofed_max_samples',
         'denice_cgofed_peer_projection', 'seed', 'random_seed')}
@@ -2707,6 +2789,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
 
         previous_valid_cluster: Optional[Dict[str, Any]] = None
         consecutive_self_only_rounds = 0
+        task_final_round_eval_metrics: Optional[Dict[str, Any]] = None
         for round_id in range(rounds_per_task):
             print(f"  Round {round_id}/{rounds_per_task - 1}")
             start = time.time()
@@ -3075,8 +3158,20 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             history["round_metrics"].append(round_record)
 
             eval_start = time.perf_counter()
-            if ((round_id + 1) % eval_every == 0 and round_id != rounds_per_task - 1) or (
-                    round_id == rounds_per_task - 1 and config.get('denice_eval_final_round', False)):
+            is_final_round = round_id == rounds_per_task - 1
+            eval_final_task_only = bool(config.get("denice_eval_final_task_only", False))
+            selected_for_final_eval = (
+                not eval_final_task_only or task_id == num_tasks - 1
+            )
+            should_eval_round = (
+                ((round_id + 1) % eval_every == 0 and not is_final_round)
+                or (
+                    is_final_round
+                    and bool(config.get("denice_eval_final_round", False))
+                    and selected_for_final_eval
+                )
+            )
+            if should_eval_round:
                 test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
                 test_X, test_y, sample_info = _limit_eval_samples(
                     test_X,
@@ -3094,6 +3189,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         config.get("denice_eval_require_full_coverage", True)
                     ),
                 )
+                per_client_test_data = None
+                test_partition_audit = None
+                if config.get("denice_eval_split_test_by_client", False):
+                    per_client_test_data, test_partition_audit = _partition_test_data_by_client(
+                        test_X,
+                        test_y,
+                        eval_ids,
+                        seed=int(config.get("random_seed", config.get("seed", 42)))
+                        + 104729 * int(task_id),
+                    )
                 print(
                     f"  DeNICE eval workload [{task_id}:{round_id}]: "
                     f"clients={len(eval_ids)}/{len(active_ids)}, "
@@ -3106,6 +3211,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     models=models,
                     context_detectors=context_detectors,
                     test_data={"X_test": test_X, "y_test": test_y},
+                    per_client_test_data=per_client_test_data,
                     seen_classes=seen_classes_eval,
                     batch_size=eval_batch_size,
                     device=device,
@@ -3130,6 +3236,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 metrics["eval_sample_count"] = int(len(test_y))
                 metrics["eval_total_sample_count"] = int(sample_info["total"])
                 metrics["eval_sample_limited"] = bool(sample_info["limited"])
+                if test_partition_audit is not None:
+                    metrics["eval_test_partition"] = test_partition_audit
+                    round_record["eval_test_partition"] = test_partition_audit
+                round_record["eval_per_client"] = metrics.get("per_client", {})
+                if is_final_round:
+                    task_final_round_eval_metrics = metrics
                 round_record.update(
                     {
                         "test_loss": metrics.get("loss"),
@@ -3446,8 +3558,20 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         if history.get("round_metrics"):
             final_train_loss = history["round_metrics"][-1].get("train_loss")
 
-        run_post_task_eval = post_task_eval and _should_run_post_task_eval(task_id, config)
-        if run_post_task_eval:
+        run_post_task_eval = post_task_eval and _should_run_post_task_eval(
+            task_id, config, last_task_id=num_tasks - 1
+        )
+        if run_post_task_eval and task_final_round_eval_metrics is not None:
+            # The selected final round already evaluated this exact model state.
+            # Reuse those metrics instead of running a second full inference pass.
+            metrics = dict(task_final_round_eval_metrics)
+            metrics["eval_reused_final_round"] = True
+            print(
+                f"  Reusing final-round evaluation for task={task_id}; "
+                "skipping duplicate post-task pass.",
+                flush=True,
+            )
+        elif run_post_task_eval:
             test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
             test_X, test_y, sample_info = _limit_eval_samples(
                 test_X,
@@ -3462,6 +3586,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 seen_classes=seen_classes_eval,
                 require_full_coverage=bool(config.get("denice_eval_require_full_coverage", True)),
             )
+            per_client_test_data = None
+            test_partition_audit = None
+            if config.get("denice_eval_split_test_by_client", False):
+                per_client_test_data, test_partition_audit = _partition_test_data_by_client(
+                    test_X,
+                    test_y,
+                    eval_ids,
+                    seed=int(config.get("random_seed", config.get("seed", 42)))
+                    + 104729 * int(task_id),
+                )
             print(
                 f"  Starting post-task DeNICE eval: task={task_id}, "
                 f"clients={len(eval_ids)}/{len(active_ids)}, "
@@ -3474,6 +3608,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 models=models,
                 context_detectors=context_detectors,
                 test_data={"X_test": test_X, "y_test": test_y},
+                per_client_test_data=per_client_test_data,
                 seen_classes=seen_classes_eval,
                 batch_size=eval_batch_size,
                 device=device,
@@ -3498,13 +3633,19 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             metrics["eval_sample_count"] = int(len(test_y))
             metrics["eval_total_sample_count"] = int(sample_info["total"])
             metrics["eval_sample_limited"] = bool(sample_info["limited"])
+            if test_partition_audit is not None:
+                metrics["eval_test_partition"] = test_partition_audit
             metrics["eval_skipped"] = False
         else:
-            skip_reason = (
-                "task_not_selected_by_denice_post_task_eval_tasks"
-                if post_task_eval
-                else "denice_post_task_eval=False"
-            )
+            if not post_task_eval:
+                skip_reason = "denice_post_task_eval=False"
+            elif (
+                config.get("denice_eval_final_task_only", False)
+                and task_id != num_tasks - 1
+            ):
+                skip_reason = "not_final_task"
+            else:
+                skip_reason = "task_not_selected_by_denice_post_task_eval_tasks"
             print(
                 f"  Post-task DeNICE eval skipped -> {skip_reason}",
                 flush=True,

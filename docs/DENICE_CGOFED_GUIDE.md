@@ -20,6 +20,8 @@ python train_denice_cgofed_kaggle.py
 
 Log `training_history.json` có `cgofed_local_projection`, `cgofed_peer_projection` trong summary mỗi round và `cgofed_projection` ở task boundary. Các trường chính gồm số hàng được project, tỷ lệ update bị loại, hệ số mu, rank và năng lượng basis giữ lại. Kiểm tra `source_audit.json` và `config.json` để xác nhận đúng source và preset.
 
+Preset Kaggle chỉ chạy test evaluation ở round cuối của task cuối. Test set hiện có là `global_test_data.npz`, không có test split gốc theo client; evaluation tạo các shard global disjoint, deterministic và phân tầng theo lớp cho những client được chọn. Mỗi mẫu test được dùng đúng một lần qua toàn bộ các client eval. Output giữ metrics từng client, sample count và class counts của từng shard. Đây là ước lượng client-wise từ global test, không phải phép đo trên test distribution riêng của từng client. Nomask, ensemble và báo cáo local-validation bị tắt trong preset này để giảm thời gian eval.
+
 Bank activation được lấy từ train partition riêng của client sau consolidation ở cuối task, không chứa input thô. Full continuation checkpoint giữ bank FP32 cùng model state. Khi tiếp tục CGoFed từ task sau, runner yêu cầu bank hợp lệ trong checkpoint; checkpoint DeNICE cũ không thể chuyển thành continuation CGoFed vì không có lịch sử subspace.
 
 Đây là bản đầu chỉ project classifier `fc2`. Chạy pilot qua ít nhất hai task để xác nhận bank được tạo và projection thực sự có hàng mature để tác động trước khi dùng full benchmark. Chưa có kết quả accuracy cho biến thể mới; cần so sánh `fc2` mở với `mu=0` và cùng cấu hình có `mu>0`, trên cùng seed, client cohort và router.
