@@ -358,6 +358,7 @@ def project_fc2_delta(
     }
 
 
+@torch.no_grad()
 def apply_local_fc2_delta(model, before: torch.Tensor, controls: Dict[str, Any]) -> Dict[str, Any]:
     """Commit Adam's proposed fc2 delta after applying the receiver-local bank."""
     state = ensure_projection_state(model)
