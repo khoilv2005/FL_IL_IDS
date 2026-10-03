@@ -83,6 +83,7 @@ def variant_preset(name):
             denice_cgofed_max_samples=512, denice_cgofed_max_rank=64,
             denice_cgofed_capture_batch_size=512,
             denice_cgofed_peer_projection=True,
+            round_checkpoint_every=5,
             denice_shared_context_eval=False, denice_eval_route_mode='hard',
             denice_eval_final_task_only=True,
             denice_eval_split_test_by_client=True,

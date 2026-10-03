@@ -2196,7 +2196,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         'denice_eval_split_test_by_client', 'denice_eval_require_full_coverage',
         'denice_eval_report_nomask',
         'denice_eval_representative_ensemble', 'denice_validation_fraction',
-        'denice_replay_capacity', 'denice_cgofed_optimizer', 'denice_cgofed_mu',
+        'denice_replay_capacity', 'round_checkpoint_every', 'denice_checkpoint_format',
+        'denice_cgofed_optimizer', 'denice_cgofed_mu',
         'denice_cgofed_decay', 'denice_cgofed_energy', 'denice_cgofed_max_samples',
         'denice_cgofed_peer_projection', 'seed', 'random_seed')}
     source_audit['runner_file'] = os.path.abspath(__file__)

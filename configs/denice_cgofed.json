@@ -20,6 +20,7 @@
   "denice_cgofed_max_rank": 64,
   "denice_cgofed_capture_batch_size": 512,
   "denice_cgofed_peer_projection": true,
+  "round_checkpoint_every": 5,
   "denice_shared_context_eval": false,
   "denice_eval_route_mode": "hard",
   "denice_eval_final_task_only": true,
