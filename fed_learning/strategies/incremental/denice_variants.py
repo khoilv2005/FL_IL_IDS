@@ -82,7 +82,10 @@ def variant_preset(name):
             denice_cgofed_energy=.95, denice_cgofed_beta=1.,
             denice_cgofed_max_samples=512, denice_cgofed_max_rank=64,
             denice_cgofed_capture_batch_size=512,
-            denice_cgofed_peer_projection=True,
+            # Controlled run: preserve the AMP fix and local CGoFed projection;
+            # disable mature-head peer corrections pending the router audit.
+            denice_cgofed_peer_projection=False,
+            denice_amp_enabled=True,
             round_checkpoint_every=5,
             denice_shared_context_eval=False, denice_eval_route_mode='hard',
             denice_eval_final_task_only=True,

@@ -5,6 +5,46 @@ import json
 import sys
 
 
+def cgofed_smoke_launcher(text):
+    """Add an optional bounded diagnostic run; default to full training."""
+    text = text.replace('import os\n', 'import os\nCGOFED_SMOKE_TEST = False  # Full training; set True for the bounded smoke run.\n', 1)
+    text = text.replace(
+        'TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))',
+        'TRAIN_PHASE = 5 if CGOFED_SMOKE_TEST else int(os.environ.get("DENICE_TRAIN_PHASE", "5"))', 1)
+    text = text.replace(
+        '"DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_{TRAIN_VARIANT}_seed_{TRAIN_SEED}"',
+        '"DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_{TRAIN_VARIANT}_seed_{TRAIN_SEED}"\n'
+        '    + "_amp_only" + ("_smoke" if CGOFED_SMOKE_TEST else "")', 1)
+    text = text.replace(
+        '    CONFIG.update(variant_preset(TRAIN_VARIANT))',
+        '    CONFIG.update(variant_preset(TRAIN_VARIANT))\n'
+        '    CONFIG.update(denice_cgofed_peer_projection=False, denice_amp_enabled=True)', 1)
+    marker = "if CONFIG.get('denice_cl_method', 'legacy') != 'legacy':"
+    block = '''# Apply last so an old notebook override cannot turn the smoke run into full training.
+if CGOFED_SMOKE_TEST:
+    CONFIG.update({
+        "task_start": 0,
+        "task_end": 1,
+        "rounds_per_task": 6,
+        "denice_max_clients": 100,
+        "denice_max_train_samples_per_client": 512,
+        "denice_eval_max_clients": 5,
+        "denice_eval_max_samples": 2000,
+        "denice_eval_final_task_only": False,
+        "denice_eval_final_round": False,
+        "denice_post_task_eval_tasks": [1],
+        "eval_every": 9999,
+        "round_checkpoint_every": 1,
+        "resume_state_path": None,
+        "save_resume_after_task": None,
+        "denice_amp_enabled": True,
+    })
+    print("CGOFED SMOKE TEST: fresh tasks 0-1, 6 rounds/task, up to 100 clients, max 512 training samples/client/task, AMP enabled.")
+
+'''
+    return text.replace(marker, block + marker, 1)
+
+
 def main():
     root = Path(__file__).resolve().parents[1]
     sys.path.insert(0, str(root))
@@ -24,6 +64,8 @@ def main():
             'import os\n', f'import os\nos.environ.setdefault("DENICE_VARIANT", "{variant}")\n'
             f'if os.environ["DENICE_VARIANT"].lower() not in {allowed!r}:\n'
             '    raise ValueError("DENICE_VARIANT conflicts with this launcher; use a fresh kernel or set it explicitly.")\n', 1)
+        if variant == 'cgofed':
+            text = cgofed_smoke_launcher(text)
         ast.parse(text)
         (root / filename).write_text(text, encoding='utf-8')
         (config_dir / ('denice_' + variant + '.json')).write_text(json.dumps(preset(variant), indent=2)+'\n', encoding='utf-8')

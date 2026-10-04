@@ -4,6 +4,7 @@
 # Download resume state from Google Drive
 # ============================================================ #
 import os
+CGOFED_SMOKE_TEST = False  # Full training; set True for the bounded smoke run.
 os.environ.setdefault("DENICE_VARIANT", "cgofed")
 if os.environ["DENICE_VARIANT"].lower() not in ('cgofed',):
     raise ValueError("DENICE_VARIANT conflicts with this launcher; use a fresh kernel or set it explicitly.")
@@ -17,11 +18,12 @@ import zipfile
 # Default phase 5 starts all six tasks fresh with upgraded DENICE.
 # On Kaggle set DENICE_CODE_DIR to the extracted source bundle to train these
 # local fixes; cloning main only includes changes already pushed to GitHub.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
+TRAIN_PHASE = 5 if CGOFED_SMOKE_TEST else int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_VARIANT = os.environ.get('DENICE_VARIANT', 'legacy').lower()
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_{TRAIN_VARIANT}_seed_{TRAIN_SEED}"
+    + "_amp_only" + ("_smoke" if CGOFED_SMOKE_TEST else "")
 )
 
 PHASE_CONFIG = {
@@ -488,6 +490,7 @@ if TRAIN_VARIANT != 'legacy':
     except ModuleNotFoundError as exc:
         raise RuntimeError('Push the complete DeNICE source before running this launcher.') from exc
     CONFIG.update(variant_preset(TRAIN_VARIANT))
+    CONFIG.update(denice_cgofed_peer_projection=False, denice_amp_enabled=True)
 
 _config_overrides_raw = os.environ.get("DENICE_CONFIG_OVERRIDES")
 if _config_overrides_raw:
@@ -499,6 +502,27 @@ if _config_overrides_raw:
         raise ValueError("DENICE_CONFIG_OVERRIDES must decode to a JSON object")
     CONFIG.update(_config_overrides)
     print("Applied DENICE_CONFIG_OVERRIDES:", sorted(_config_overrides))
+
+# Apply last so an old notebook override cannot turn the smoke run into full training.
+if CGOFED_SMOKE_TEST:
+    CONFIG.update({
+        "task_start": 0,
+        "task_end": 1,
+        "rounds_per_task": 6,
+        "denice_max_clients": 100,
+        "denice_max_train_samples_per_client": 512,
+        "denice_eval_max_clients": 5,
+        "denice_eval_max_samples": 2000,
+        "denice_eval_final_task_only": False,
+        "denice_eval_final_round": False,
+        "denice_post_task_eval_tasks": [1],
+        "eval_every": 9999,
+        "round_checkpoint_every": 1,
+        "resume_state_path": None,
+        "save_resume_after_task": None,
+        "denice_amp_enabled": True,
+    })
+    print("CGOFED SMOKE TEST: fresh tasks 0-1, 6 rounds/task, up to 100 clients, max 512 training samples/client/task, AMP enabled.")
 
 if CONFIG.get('denice_cl_method', 'legacy') != 'legacy':
     from fed_learning.strategies.incremental.denice_variants import variant_config
