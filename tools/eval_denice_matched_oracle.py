@@ -73,7 +73,8 @@ def run_matched_oracle(ckpt, shards, classes, ids, out, device, diagnostic_zip, 
                                   binary_memory_present=task in memory_tasks,
                                   continuous_profile_present=task in available_sets['TIP'],
                                   profile_evidence=evidence,
-                                  status='profile_present' if evidence else 'needs_participation_provenance_audit'))
+                                  status=('profile_present' if task in available_sets['TIP']
+                                          else 'needs_participation_provenance_audit')))
         for method in methods:
             tasks = sorted(available_sets[method])
             route = prior[method+'_task'].to_numpy(dtype=np.int64)
