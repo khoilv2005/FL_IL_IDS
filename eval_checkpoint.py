@@ -1254,7 +1254,8 @@ def main() -> None:
         "--route-mode", default="auto", choices=["auto", "hard", "topk", "nomask", "adaptive", "local_lda"]
     )
     parser.add_argument("--route-topk", type=int, default=1)
-    parser.add_argument("--router-mode", default=None, choices=["chained", "multiclass"])
+    parser.add_argument("--router-mode", default=None,
+                        choices=["chained", "multiclass", "binary_cosine", "multiclass_balanced"])
     parser.add_argument(
         "--evaluation-mode",
         default="local",

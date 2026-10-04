@@ -314,6 +314,10 @@ class ContextDetector:
         self.multiclass_router = None
         self.multiclass_episodes = []
 
+        if getattr(self, 'router_mode', 'chained') == 'multiclass_balanced':
+            self._train_balanced_memory_router()
+            return
+
         if getattr(self, 'router_mode', 'chained') == 'binary_cosine':
             return  # Eq. (25): nearest episode memory, no fitted classifier.
 
@@ -371,6 +375,34 @@ class ContextDetector:
                 self.context_learners.append(lr)
             except Exception:
                 self.context_learners.append(None)
+
+    def _train_balanced_memory_router(self) -> None:
+        """Opt-in exact frozen diagnostic configuration; fit saved sketches only.
+
+        Unlike legacy multiclass, invalid banks/fit failures are explicit and
+        a single populated episode predicts that episode, not the latest ID.
+        Existing snapshot fields persist both the estimator and episode IDs.
+        """
+        matrices, targets = [], []
+        for task, values in sorted(self.activation_memory.items()):
+            arr = np.asarray(values)
+            if not len(arr):
+                continue
+            if arr.ndim != 2 or not np.isfinite(arr).all():
+                raise ValueError(f'Invalid binary router memory for task {task}')
+            matrices.append(arr)
+            targets.extend([int(task)] * len(arr))
+        if not matrices:
+            raise ValueError('multiclass_balanced requires nonempty context memory')
+        if len({arr.shape[1] for arr in matrices}) != 1:
+            raise ValueError('Incompatible feature dimensions in context memory')
+        self.multiclass_episodes = sorted(set(targets))
+        if len(self.multiclass_episodes) == 1:
+            return
+        clf = LogisticRegression(max_iter=1000, solver='lbfgs', C=1.0,
+                                 class_weight='balanced', random_state=0)
+        clf.fit(np.concatenate(matrices), targets)
+        self.multiclass_router = clf
 
     def _train_multiclass_router(self, current_episode: int) -> None:
         """Fit ONE balanced multinomial LR over all episodes (Solution C).
@@ -528,6 +560,22 @@ class ContextDetector:
             probs = np.exp(scores - np.max(scores, axis=1, keepdims=True))
             probs /= probs.sum(axis=1, keepdims=True)
             return probs.argmax(axis=1).astype(int), probs.astype(np.float32)
+
+        if getattr(self, 'router_mode', 'chained') == 'multiclass_balanced':
+            if not self.multiclass_episodes:
+                raise RuntimeError('multiclass_balanced router is not fitted/restored')
+            full = np.zeros((len(binary_activations), max(latest_episode, max(self.multiclass_episodes))+1),
+                            dtype=np.float64)
+            if len(self.multiclass_episodes) == 1:
+                task = self.multiclass_episodes[0]
+                full[:, task] = 1.0
+                return np.full(len(full),task,dtype=int), full
+            if self.multiclass_router is None:
+                raise RuntimeError('Missing fitted multiclass_balanced estimator')
+            clf = self.multiclass_router
+            full[:, np.asarray(clf.classes_,dtype=int)] = clf.predict_proba(binary_activations)
+            # Match sklearn.predict exactly, including binary/tied decision rules.
+            return clf.predict(binary_activations).astype(int), full
 
         if getattr(self, "router_mode", "chained") == "multiclass":
             return self._predict_multiclass_scores(binary_activations, latest_episode)
