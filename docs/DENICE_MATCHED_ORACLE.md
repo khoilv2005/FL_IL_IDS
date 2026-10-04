@@ -1,9 +1,10 @@
 # Matched Oracle and BestAllowedRoute (P1)
 
 Run `eval_denice_matched_oracle_kaggle.ipynb` on Kaggle with Internet, the original
-100-clients dataset and **the previous denice_tip_diagnostics.zip** attached as a
-dataset. An automatically extracted diagnostic folder is also supported. The
-checkpoint still comes from the old results (4).zip Drive link. No training or
+100-clients dataset. The previous `denice_tip_diagnostics.zip` is downloaded from
+Google Drive file `1bprhE7ARKyiOfN1V47ASST4tnoObbaIe`. Set `DIAGNOSTIC_INPUT` to
+override with a local ZIP or extracted directory. The checkpoint still comes
+from the old results (4).zip Drive link. No training or
 router fitting is performed. GPU is optional; execution uses one device.
 
 Before measuring, the evaluator checks sample IDs, labels, encoder fingerprints,

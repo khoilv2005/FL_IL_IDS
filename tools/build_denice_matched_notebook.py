@@ -9,16 +9,26 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     prior = json.loads((ROOT/'eval_denice_tip_router_kaggle.ipynb').read_text(encoding='utf-8'))
     setup = ''.join(prior['cells'][1]['source']).replace('denice_tip_03b9b53','denice_matched_03b9b53').replace('denice_tip_source','denice_matched_source')
-    locate = '''# Attach the previous denice_tip_diagnostics.zip as a Kaggle dataset.
-# Kaggle may expose it as an extracted directory; both formats are accepted.
+    locate = '''# Download the previous diagnostic output; an explicit local path overrides Drive.
+DIAGNOSTICS_DRIVE_URL = "https://drive.google.com/file/d/1bprhE7ARKyiOfN1V47ASST4tnoObbaIe/view?usp=sharing"
 DIAGNOSTIC_INPUT = ""
 if not DIAGNOSTIC_INPUT:
-    candidates = list(Path('/kaggle/input').rglob('denice_tip_diagnostics.zip'))
-    candidates += [p.parent for p in Path('/kaggle/input').rglob('router_diagnostics.json')
-                   if (p.parent/'predictions.csv').exists() and (p.parent/'profile_manifest.json').exists()]
-    if len(candidates) != 1:
-        raise FileNotFoundError(f'Attach the prior TIP diagnostic output or set DIAGNOSTIC_INPUT. Candidates: {candidates}')
-    DIAGNOSTIC_INPUT = str(candidates[0])
+    target = Path('/kaggle/working/denice_tip_diagnostics_1bprhE7ARKyiOfN1V47ASST4tnoObbaIe.zip')
+    if not target.exists():
+        subprocess.run([sys.executable,'-m','pip','install','-q','gdown'],check=True)
+        partial = target.with_suffix('.download')
+        subprocess.run([sys.executable,'-m','gdown','--fuzzy',DIAGNOSTICS_DRIVE_URL,
+                        '-O',str(partial)],check=True)
+        if not zipfile.is_zipfile(partial):
+            raise ValueError('Drive diagnostics download is not a ZIP; check sharing permissions.')
+        partial.replace(target)
+    DIAGNOSTIC_INPUT = str(target)
+if not Path(DIAGNOSTIC_INPUT).is_dir():
+    with zipfile.ZipFile(DIAGNOSTIC_INPUT) as archive:
+        required = {'predictions.csv','protocol.json','profile_manifest.json','router_diagnostics.json'}
+        missing = required - set(archive.namelist())
+        if missing:
+            raise ValueError(f'Wrong diagnostic ZIP; missing: {sorted(missing)}')
 print('Prior frozen predictions:',DIAGNOSTIC_INPUT)
 '''
     download = ''.join(prior['cells'][2]['source'])
@@ -27,7 +37,7 @@ print('Prior frozen predictions:',DIAGNOSTIC_INPUT)
     kind='matched oracle and best allowed route; no router fitting',
     training_commit=config['git_commit'],evaluation_commit=source_commit,
     checkpoint=name,checkpoint_file_sha256=digest.hexdigest(),
-    data_dir=DATA_DIR,diagnostic_input=DIAGNOSTIC_INPUT,seed=seed,
+    data_dir=DATA_DIR,diagnostic_input=DIAGNOSTIC_INPUT,diagnostics_drive_url=DIAGNOSTICS_DRIVE_URL,seed=seed,
     task_classes=classes,client_ids=ids,sample_info=sample_info,partition=partition)
 write_json(OUT/'protocol.json',protocol)
 '''
@@ -48,9 +58,9 @@ finally:
 '''
     notebook = dict(nbformat=4,nbformat_minor=5,metadata=prior['metadata'],cells=[
         cell('markdown','# DeNICE Matched Oracle / BestAllowedRoute\n\n'
-             'Attach the original 100-clients dataset **and the previous denice_tip_diagnostics.zip** '
-             '(or its extracted contents). Enable Internet. The notebook downloads results (4).zip '
-             'from the old Drive link. Frozen evaluation only: no training or TIP refit.\n\n'
+             'Attach the original 100-clients dataset and enable Internet. The notebook downloads '
+             'both results (4).zip and the previous denice_tip_diagnostics.zip from the configured '
+             'Google Drive links. Frozen evaluation only: no training or TIP refit.\n\n'
              'Predictions, task availability and sample identities are replayed from the prior experiment. '
              'Oracle labels are used only in diagnostic selection. Bounds apply only to the enumerated '
              'route actions on this frozen checkpoint and sampled panel.\n'),
