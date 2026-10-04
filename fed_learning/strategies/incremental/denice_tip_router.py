@@ -12,6 +12,52 @@ def normalize_rows(values):
     return values / np.maximum(np.linalg.norm(values, axis=1, keepdims=True), 1e-12)
 
 
+def stable_feature_svd(values):
+    """Right singular vectors with logged numerical fallbacks, not sample drops.
+
+    Keep the original NumPy result when it converges. On failure, use the
+    classical LAPACK driver on a scaled copy, then a symmetric Gram eigensolve.
+    Scaling preserves directions and singular values are returned in input units.
+    """
+    from scipy import linalg
+
+    matrix = feature_matrix(values)
+    errors = []
+    try:
+        _, singular, vt = np.linalg.svd(matrix, full_matrices=False)
+        if not (np.isfinite(singular).all() and np.isfinite(vt).all()):
+            raise np.linalg.LinAlgError('Non-finite NumPy SVD result')
+        return singular, vt, dict(solver='numpy_svd', fallback_errors=[])
+    except np.linalg.LinAlgError as exc:
+        errors.append(str(exc))
+    scale = float(np.max(np.abs(matrix)))
+    if scale == 0:
+        return np.zeros(0), np.empty((0, matrix.shape[1])), dict(
+            solver='zero_matrix', fallback_errors=errors)
+    scaled = np.array(matrix / scale, dtype=np.float64, order='F', copy=True)
+    try:
+        _, singular, vt = linalg.svd(scaled, full_matrices=False,
+                                     lapack_driver='gesvd', check_finite=True)
+        singular = singular * scale
+        if not (np.isfinite(singular).all() and np.isfinite(vt).all()):
+            raise np.linalg.LinAlgError('Non-finite gesvd result')
+        return singular, vt, dict(solver='scipy_gesvd_scaled', fallback_errors=errors)
+    except np.linalg.LinAlgError as exc:
+        errors.append(str(exc))
+    try:
+        gram = scaled.T @ scaled
+        eigenvalues, vectors = linalg.eigh((gram + gram.T)*0.5, driver='evr', check_finite=True)
+        order = np.argsort(eigenvalues)[::-1][:min(matrix.shape)]
+        singular = np.sqrt(np.maximum(eigenvalues[order], 0)) * scale
+        vt = vectors[:, order].T
+        if not (np.isfinite(singular).all() and np.isfinite(vt).all()):
+            raise np.linalg.LinAlgError('Non-finite Gram eigensolve result')
+        return singular, vt, dict(solver='scipy_gram_eigh_scaled', fallback_errors=errors)
+    except np.linalg.LinAlgError as exc:
+        raise np.linalg.LinAlgError(
+            f'All feature decompositions failed for shape={matrix.shape}: {errors + [str(exc)]}') from exc
+
+
 class SubspaceRouter:
     def __init__(self, energy=0.95, max_rank=32, basis_mode='independent', reference_mode='rms'):
         if not 0 < energy <= 1 or max_rank < 1:
@@ -35,7 +81,11 @@ class SubspaceRouter:
         self.bases, self.moments, self.diagnostics = [], [], []
         for task, z in zip(self.tasks, matrices):
             residual = z - (z @ union) @ union.T if self.basis_mode == 'residual' else z
-            _, singular, vt = np.linalg.svd(residual, full_matrices=False)
+            try:
+                singular, vt, solver_audit = stable_feature_svd(residual)
+            except (ValueError, np.linalg.LinAlgError) as exc:
+                raise ValueError(f'TIP task={int(task)} basis={self.basis_mode} '
+                                 f'reference={self.reference_mode} rank_cap={self.max_rank}: {exc}') from exc
             power = singular**2
             total = float(power.sum())
             tolerance = max(float(np.sum(z*z)) * 1e-12, 1e-24)
@@ -53,7 +103,7 @@ class SubspaceRouter:
             self.moments.append(z.T @ z / len(z))
             self.diagnostics.append(dict(task=int(task), rank=rank, samples=len(z),
                                          residual_energy=total,
-                                         original_energy=float(np.sum(z*z))))
+                                         original_energy=float(np.sum(z*z)), **solver_audit))
         references = []
         for z, moment in zip(matrices, self.moments):
             if self.reference_mode == 'mean':

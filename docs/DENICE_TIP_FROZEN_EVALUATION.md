@@ -86,3 +86,25 @@ ID deterministically. Model/BN/mask fingerprint changes invalidate the bank.
 P0/P1/P2 are implemented here. Streaming encoders, graph changes and peer TIP
 remain future gated work. Full Kaggle accuracy has not been measured by this
 implementation until the notebook completes on the mounted dataset.
+
+## First Kaggle run: numerical failure (2026-10-04)
+
+User log `fl-il-lk-na (4).log`, evaluator commit `bbc4b8f`: P0 passed; 51/98
+clients completed P1/P2 before NumPy raised `SVD did not converge` while fitting
+the next client's TIP candidate. This log does not identify the failing task or
+candidate configuration. It does not establish the numerical cause.
+
+Approximate mean classification accuracies from the rounded log, **restricted to
+the same 51 clients**, were legacy 26.28%, centroid 22.86%, Mahalanobis 32.25%,
+TIP 26.03%, multiclass 33.22%. These are partial-panel diagnostics, not final
+results or evidence that any method passes the full-panel gate.
+
+The numerical fix retains NumPy SVD when it succeeds, then tries scaled LAPACK
+`gesvd`, then symmetric Gram eigendecomposition. It records the solver and error
+history for every TIP candidate. No failed client/candidate is silently omitted.
+If all methods fail, fitting feature matrices and client/task metadata are saved
+under `profiles/` and `fit_failure.json`. Those diagnostic feature files contain
+local training representations and should be treated as experiment data.
+
+Rerun the existing notebook in a fresh Kaggle session to clone the updated code.
+The fallback fix has not yet been exercised against the failing Kaggle features.

@@ -158,7 +158,8 @@ def fit_candidates(train, validation):
             description = {key: getattr(candidate, key) for key in
                            ('method', 'shrinkage', 'max_rank', 'basis_mode', 'reference_mode')
                            if hasattr(candidate, key)}
-            audit.append(dict(family=family, config=description, validation_task_macro_accuracy=score))
+            audit.append(dict(family=family, config=description, validation_task_macro_accuracy=score,
+                              decomposition=getattr(candidate, 'diagnostics', None)))
             effective = score if score is not None else 0.0
             if best is None or effective > best_score:
                 best, best_score = candidate, effective
@@ -313,7 +314,15 @@ def run_suite(ckpt, config, report, loader, shards, classes, ids, out, device,
         fingerprint = encoder_fingerprint(model)
         train, validation, manifest = local_profiles(
             model, detector, loader, cid, final_task, seed, max_profile_samples, batch_size)
-        routers, selection = fit_candidates(train, validation)
+        try:
+            routers, selection = fit_candidates(train, validation)
+        except (ValueError, np.linalg.LinAlgError) as exc:
+            # Preserve the local feature matrices to reproduce a numerical failure.
+            np.savez_compressed(profiles/f'client_{cid}_failed_fit_features.npz',
+                                **{f'task_{task}': z for task,z in train.items()})
+            write_json(out/'fit_failure.json', dict(client_id=cid, error=str(exc),
+                                                    encoder_hash=fingerprint, tasks=manifest))
+            raise RuntimeError(f'Client {cid} router fitting failed; diagnostic artifacts saved') from exc
         fit_seconds = time.perf_counter()-start_time
         # Persist selection before reading this client's test features.
         manifests[str(cid)] = dict(encoder_hash=fingerprint, tasks=manifest,
