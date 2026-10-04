@@ -340,6 +340,7 @@ class DeNICEClient(NICEClient):
         result['continual'] = dict(method=continual['method'],
                                   optimizer_steps=result['optimizer_steps'],
                                   skipped_optimizer_steps=result['skipped_optimizer_steps'],
+                                  amp=result.get('amp', {}),
                                   regularization_loss=sum(elastic_audit) / max(1, len(elastic_audit)))
         if hasattr(model, "get_adapter_registry_state"):
             result["adapter_registry"] = model.get_adapter_registry_state()

@@ -144,6 +144,14 @@ class NICEClient(FederatedClient):
         total_objective = 0.0
         total_batches = 0
         successful_steps = 0
+        use_amp = self.use_amp and bool(kwargs.get("amp_enabled", True))
+        # Keep loss-scale adaptation across client rounds; optimizer state is
+        # intentionally restarted per NICE phase, scaler state is not.
+        if use_amp and getattr(self, "_nice_grad_scaler", None) is None:
+            self._nice_grad_scaler = GradScaler(enabled=True)
+        scaler = self._nice_grad_scaler if use_amp else None
+        initial_scale = float(scaler.get_scale()) if scaler is not None else 1.0
+        nonfinite_gradient_names = set()
 
         # Freeze BN for layers with all-mature neurons
         model.freeze_bn_for_mature()
@@ -186,14 +194,13 @@ class NICEClient(FederatedClient):
                 if optimizer_factory is not None
                 else torch.optim.Adam(model.parameters(), lr=lr)
             )
-            scaler = GradScaler(enabled=self.use_amp)
 
             # 5. Train phase_epochs
             for ep in range(phase_epochs):
                 for X_batch, y_batch in self._create_batches(batch_size):
                     optimizer.zero_grad()
 
-                    if self.use_amp:
+                    if use_amp:
                         with torch.autocast(device_type="cuda", dtype=torch.float16):
                             output = kwargs.get('supervised_forward', model.forward_output)(X_batch)
                             loss = trainer.compute_loss(
@@ -220,6 +227,11 @@ class NICEClient(FederatedClient):
                         scaler.step(optimizer)
                         scaler.update()
                         step_succeeded = scaler.get_scale() >= previous_scale
+                        if not step_succeeded:
+                            nonfinite_gradient_names.update(
+                                name for name, param in model.named_parameters()
+                                if param.grad is not None and not torch.isfinite(param.grad).all()
+                            )
                     else:
                         output = kwargs.get('supervised_forward', model.forward_output)(X_batch)
                         loss = trainer.compute_loss(
@@ -233,6 +245,8 @@ class NICEClient(FederatedClient):
                         if kwargs.get('auxiliary_loss') is not None:
                             loss = loss + kwargs['auxiliary_loss'](model, X_batch, y_batch)
 
+                        if not torch.isfinite(loss):
+                            raise FloatingPointError(f"Client {self.client_id}: non-finite FP32 loss")
                         loss.backward()
                         # Freeze mature gradients
                         kwargs.get('gradient_filter', model.reset_frozen_gradients)()
@@ -241,6 +255,12 @@ class NICEClient(FederatedClient):
                         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                         if kwargs.get("before_optimizer_step") is not None:
                             kwargs["before_optimizer_step"](model)
+                        invalid = [name for name, param in model.named_parameters()
+                                   if param.grad is not None and not torch.isfinite(param.grad).all()]
+                        if invalid:
+                            raise FloatingPointError(
+                                f"Client {self.client_id}: non-finite FP32 gradients: {invalid}"
+                            )
                         optimizer.step()
                         step_succeeded = True
 
@@ -265,6 +285,12 @@ class NICEClient(FederatedClient):
             "optimization_loss": total_objective / max(total_batches, 1),
             "optimizer_steps": successful_steps,
             "skipped_optimizer_steps": total_batches - successful_steps,
+            "amp": {
+                "enabled": bool(use_amp), "initial_scale": initial_scale,
+                "final_scale": float(scaler.get_scale()) if scaler is not None else 1.0,
+                "skipped_fraction": (total_batches - successful_steps) / max(1, total_batches),
+                "nonfinite_gradient_parameters_after_clipping": sorted(nonfinite_gradient_names),
+            },
             "params": OrderedDict(
                 (k, v.cpu().clone()) for k, v in model.state_dict().items()
             ),

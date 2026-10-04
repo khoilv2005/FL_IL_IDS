@@ -1660,8 +1660,11 @@ def _aggregate_round(
                 AggregationConfig(eta=agg_config.eta, protect_mature=False, method='weighted_mean'),
                 neighbor_ages=([old_ages[gid] for gid in group_ids]
                                if config.get('denice_pairwise_young_mask', True) else None),
-                neighbor_labels=[capsules[gid].label_set for gid in group_ids],
-                target_labels=capsules[cid].label_set,
+                # Mature head rows belong to historical classes. Current-task
+                # capsule labels would mask every such peer correction to zero.
+                neighbor_labels=[np.flatnonzero(np.asarray(old_ages[gid]['fc2']) > 0).tolist()
+                                 for gid in group_ids],
+                target_labels=np.flatnonzero(np.asarray(old_ages[cid]['fc2']) > 0).tolist(),
                 frozen_layers=getattr(models[cid], 'task_freeze_layers', []),
                 ignore_age_mask_layers=['fc2'],
             )
@@ -1681,6 +1684,8 @@ def _aggregate_round(
             )
             audit.update({
                 'mature_rows': int(mature_rows.sum().item()),
+                'mature_correction_norm_before': float(correction[mature_rows].norm().item()),
+                'mature_correction_norm_after': float(filtered[mature_rows].norm().item()),
                 'peer_alpha_sum': float(peer_alpha_sum),
             })
             cgofed_peer_audit[int(cid)] = audit
@@ -2121,8 +2126,27 @@ def _evaluate_clients(
     numeric_keys = [
         key for key, value in metrics[0].items()
         if isinstance(value, (int, float, np.floating, np.integer))
+        and key != 'accuracy_on_covered_classes'
     ]
     averaged = {key: float(np.mean([m[key] for m in metrics])) for key in numeric_keys}
+    # Keep the historical client-mean benchmark and additionally expose
+    # sample-pooled diagnostics with explicit numerators/denominators.
+    coverage_counts = {
+        key: sum(int(m.get("coverage_counts", {}).get(key, 0)) for m in metrics)
+        for key in ("total", "correct", "covered", "covered_correct",
+                    "correct_route", "correct_on_correct_route")
+    }
+    def coverage_ratio(numerator, denominator):
+        count = coverage_counts[denominator]
+        return coverage_counts[numerator] / count if count else None
+    averaged["coverage_counts"] = coverage_counts
+    averaged["pooled_diagnostics"] = {
+        "accuracy": coverage_ratio("correct", "total"),
+        "route_coverage": coverage_ratio("covered", "total"),
+        "accuracy_on_covered_classes": coverage_ratio("covered_correct", "covered"),
+        "route_accuracy": coverage_ratio("correct_route", "covered"),
+        "accuracy_given_correct_route": coverage_ratio("correct_on_correct_route", "correct_route"),
+    }
     route_confusion: Dict[str, Dict[str, int]] = {}
     for metric in metrics:
         for true_ep, row in metric.get("route_confusion", {}).items():
@@ -2174,6 +2198,7 @@ def _evaluate_clients(
         f"elapsed={time.time() - eval_start:.1f}s",
         flush=True,
     )
+    print(f"  DeNICE coverage audit: {averaged['pooled_diagnostics']}; counts={coverage_counts}", flush=True)
     return averaged
 
 
@@ -2821,6 +2846,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     is_last_task=(task_id == num_tasks - 1),
                     phase_offset=round_id,
                     max_phases_override=1,
+                    amp_enabled=bool(config.get("denice_amp_enabled", True)),
                     denice_elastic_strength=(plasticity_controls['strength'] if plasticity_controls['enabled'] else 0.),
                     continual_controls=continual_controls,
                     local_replay=(replay_memories.setdefault(cid, make_replay())
@@ -2835,6 +2861,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         'task': int(task_id), 'round': int(round_id),
                         'client_id': int(cid), **result['cgofed_projection'],
                     })
+                if result.get('skipped_optimizer_steps', 0):
+                    print(f"    Optimizer audit client={cid}: "
+                          f"steps={result['optimizer_steps']}, "
+                          f"skipped={result['skipped_optimizer_steps']}, "
+                          f"amp={result.get('amp', {})}", flush=True)
                 train_time_total += client_train_time
                 losses[cid] = float((result or {}).get("loss", 0.0))
                 client_imbalance_controls[int(cid)] = dict(

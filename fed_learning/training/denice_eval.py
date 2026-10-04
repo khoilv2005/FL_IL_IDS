@@ -512,6 +512,20 @@ def evaluate_denice_model(
         "route_accuracy": (route_correct / route_total) if route_total > 0 else 0.0,
         "route_coverage": (route_total / len(y_test)) if len(y_test) > 0 else 0.0,
     }
+    covered_mask = np.asarray([int(y) in label2episode for y in y_true], dtype=bool)
+    covered_count = int(covered_mask.sum())
+    covered_correct = int(((y_true == y_pred) & covered_mask).sum())
+    metrics["coverage_counts"] = {
+        "total": int(len(y_true)),
+        "correct": int((y_true == y_pred).sum()),
+        "covered": covered_count,
+        "covered_correct": covered_correct,
+        "correct_route": int(route_correct),
+        "correct_on_correct_route": int(classification_correct_on_correct_route),
+    }
+    metrics["accuracy_on_covered_classes"] = (
+        covered_correct / covered_count if covered_count else None
+    )
     if include_route_diagnostics:
         metrics["route_confusion"] = route_confusion
         metrics['accuracy_given_correct_route'] = (
