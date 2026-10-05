@@ -1,4 +1,4 @@
-# Clean DeNICE + CGoFed backbone training on Kaggle
+# Clean DeNICE + CGoFed + peer Class Meta on Kaggle
 
 ## Entry point
 
@@ -6,7 +6,7 @@ Upload **`train_denice_cgofed_clean_kaggle.ipynb`** to a new Kaggle notebook. En
 
 The notebook clones latest GitHub main without a pinned commit. Default dataset path is `/kaggle/input/datasets/khoilv2005/100-clients/100-clients`; a unique matching dataset is discovered if Kaggle changes the mount path. Set `DENICE_DATA_DIR` explicitly if multiple datasets match.
 
-Default run: seed 42, fresh backbone, tasks 0..5, 20 rounds/task. This is full backbone training, not a smoke run and not fitting the old frozen selector. First complete and inspect this seed before starting the replication campaign.
+Default run: seed 42, fresh backbone, tasks 0..5, 20 rounds/task, followed automatically by clean Gate V2/Class Meta fitting and whole-test evaluation. First complete and inspect this seed before starting the replication campaign. The notebook installs scikit-learn 1.6.1 before importing the fitting code.
 
 ## Fixed training formulation
 
@@ -46,15 +46,29 @@ The temporary SQLite content registry is deleted after successful role locking t
 
 ## Evaluation timing and scope (updated: full original test requested)
 
-Only **task 5 / final round 19** triggers evaluation, after task-end consolidation. This avoids evaluating a pre-consolidation state and then reporting a different terminal checkpoint. Earlier tasks/rounds write checkpoints without evaluation. At the user's explicit request, the final pass uses **every row of the original `global_test_data.npz`**, with `denice_eval_max_samples=None`. The role loader asserts that the full source test contains all 34 declared classes. The terminal checkpoint and task metrics identify `evaluation_data_role=test` and `final_test_evaluated=true`.
+Backbone round evaluation, post-task evaluation and local validation evaluation are disabled. After **task 5 / round 19 and task-end consolidation**, the launcher loads the exact FP32 terminal checkpoint, fits the selectors, audits validation and locks artifacts. Only then does the final pass open **every row of the original `global_test_data.npz`**. All 34 source classes are required. Backbone task metrics record `final_test_evaluated=false`; the authoritative final result is `clean_class_meta/completion.json`, not the skipped backbone metrics.
 
 The test set is split into disjoint, approximately equally sized receiver shards. Class-stratified round-robin assignment preserves the **original global class counts**, without class balancing/subsampling of the source test. Every row is assigned once. Feature shards are lazy indexed views of the shared test tensor: only one batch is materialized for a receiver, avoiding a second full feature copy. Test labels enter benchmark partitioning and metrics, not the predictor. Both global test features and row indices still need CPU RAM; this is not an out-of-core NPZ reader.
 
-The role-preparation manifest's `final_test_read=false` applies only to preparation of BASE/META/VALIDATION, which does not read test. The actual terminal evaluation opens test and records its role in task metrics. No prior development-panel exclusions or 50k cap are applied: this run evaluates the whole supplied original test source.
+The role-preparation manifest's `final_test_read=false` applies only to preparation of BASE/META/VALIDATION, which does not read test. Selector fitting also does not read test. No prior development-panel exclusions or 50k cap are applied: this run evaluates the whole supplied original test source.
 
-META and VALIDATION remain reserved. This notebook does not fit Gate/Class Meta or use test outcomes to select a policy. Subsequent clean selector fitting must use its dedicated roles and validation; old retrospective artifacts must not be reused as the new clean-trained result.
+## Automatically fitted frozen inference method
 
-This evaluates the original dataset's test set for the backbone. Because that dataset has already supplied development panels, it is not a newly untouched test source. A separate fresh source remains necessary for that scientific claim.
+The recipe follows the historical method that obtained **58.358% on a 28-class confirmation panel**. New training, clean fitting roles and the full 34-class test change the experiment; 58.358% is not an expected or guaranteed new result.
+
+1. Restore every terminal expert with its own weights, adapters and local class masks. Fit `multiclass_balanced` from its BASE-derived binary context memory, without changing model weights.
+2. Read the actual task-5/round-19 directed graph. Only positive-alpha peers are eligible; include self and take 16 peers in the fixed random ordering `seed=42 + receiver_id*1009`. Require all 17 experts for each receiver. Alpha remains a feature, not the deciding vote weight.
+3. Build class-balanced peer-supported calibration/fit/validation pools, capped respectively at 128/512/256 rows per receiver. Read only the locked role indices. Origins must have recorded local participation and BASE class support; inherited binary memory alone does not authorize historical data access. Persist origin and row/content provenance.
+4. Estimate competence priors on calibration only. Fit Gate V2 on fit only: `StandardScaler + MLP(32,16)`, alpha 0.001, batch 1024, 50 iterations, seed 20261005, top-1 decision.
+5. Fit class-level evidence using the frozen gate: `StandardScaler + LogisticRegression(C=0.1)`, 1000 iterations, seed 20261005. Only reachable fit targets are used, as in the historical recipe. **Require reachable fitting targets for every one of 34 classes**, including class 28, or stop before test with a coverage artifact. Gate and Meta share the dedicated fit role; this is not cross-fitting.
+6. Audit Self/majority/Gate/Meta on clean validation. The primary recipe is predeclared; validation does not promote a different test winner. Save and reload `frozen_pipeline.joblib`, then write `pipeline_lock.json` with checkpoint/role/artifact checksums, schemas, candidate ordering and versions before opening test.
+7. Query self + 16 cached experts for each test batch, then run the frozen label-blind selector. `predict_records()` accepts expert evidence and the frozen bundle; it has no sample-label or true-task argument. Truth is read by scoring code after predictions. The final class is restricted to classes actually predicted by those 17 experts; self wins exact ties, then smallest class, with majority fallback.
+
+All four policies are scored in the same final pass with the same candidates, without refitting or test selection. Report pooled accuracy, 34-class macro-F1, per-class metrics, per-client metrics, confusion matrices and actual-routed oracle as a diagnostic. The method is **DeNICE/CGoFed + self/16-peer frozen Class Meta**, not single-client DeNICE accuracy.
+
+Expert models are restored and cached locally; this implementation does not send raw samples over the network. It bounds GPU residency to 17 models and writes compressed final predictions incrementally, avoiding a full test expert-feature cache. Model query cost is 17 per sample; the existing evidence collector also performs routing/confidence computation. Full test features and row indices still require host RAM, and the whole 13.5M-row test can take substantially longer than a 50k panel. This script uses one CUDA device; it does not distribute work across both T4 GPUs.
+
+Because the original test dataset has already supplied development panels, it is not a newly untouched test source. A separate fresh source remains necessary for that scientific claim.
 
 ## Checkpoint storage
 
@@ -88,11 +102,26 @@ Default outputs:
     checkpoint_task_5_all_rounds.zip
     checkpoint_index.json
     config.json / metrics and debug history
+    clean_class_meta/
+        frozen_pipeline.joblib / pipeline_lock.json
+        meta_provenance.csv.gz / origin_support.json
+        calibration_coverage.json / fit_coverage.json / validation_coverage.json
+        reachable_fit_coverage.json / validation_metrics.json
+        final_predictions.csv.gz / confusion_matrices.npz
+        client_metrics.json / completion.json
 ```
 
 Keep both role artifacts and all task ZIPs. To resume after a completed task, attach that task ZIP and the original locked role folder, then set `DENICE_CLEAN_RESUME_ARCHIVE`, `DENICE_CLEAN_ROLES_DIR`, and a new `DENICE_OUTPUT_DIR` before the notebook cell. Resume verifies the same role-manifest checksum and training seed; legacy checkpoints are rejected. The original source dataset path must remain available.
 
 For independent fresh seed 43 or 44, set `DENICE_SEED` before execution; role split seed remains 20261006 for all seeds. Do not start those replications until clean selector fitting/coverage and the final evaluation protocol have been settled.
+
+If selector fitting fails after backbone completion, retain the clean role folder and task-5 archive. After resolving the reported pre-test coverage issue, selector fitting can be invoked without repeating backbone training, using a new output directory:
+
+```bash
+python -m tools.train_denice_clean_meta --checkpoint-archive /path/checkpoint_task_5_all_rounds.zip --role-dir /path/denice_clean_roles --output-dir /path/new_clean_class_meta
+```
+
+Use the same original dataset mount and scikit-learn 1.6.1. Do not interpret a partial ZIP/directory as a result: `completion.json` must say `completed=true`. The checkpoint budget covers checkpoint storage; role artifacts, frozen selectors and compressed predictions additionally consume working-directory space.
 
 ## Validation performed during preparation of this change
 

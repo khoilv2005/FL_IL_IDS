@@ -1,4 +1,4 @@
-"""Clean-role, six-task backbone run. Upload this file or its generated notebook."""
+"""Clean six-task training, frozen self/16-peer Gate V2/Class Meta, whole test."""
 import json
 import os
 from pathlib import Path
@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from importlib.metadata import version, PackageNotFoundError
 
 # Main protocol: keep xi=0.5. Run seed 42 first, before the replication campaign.
 TRAIN_SEED=int(os.environ.get('DENICE_SEED','42'))
@@ -32,6 +33,11 @@ if not code:
     subprocess.run(['git','clone','--depth','1','https://github.com/khoilv2005/FL_IL_IDS.git',code],
         env={**os.environ,'GIT_LFS_SKIP_SMUDGE':'1'},check=True)
 sys.path.insert(0,code)
+# Match the historical Gate/Class Meta implementation; pin before importing sklearn.
+try:sklearn_version=version('scikit-learn')
+except PackageNotFoundError:sklearn_version=None
+if sklearn_version!='1.6.1':
+    subprocess.run([sys.executable,'-m','pip','install','--quiet','scikit-learn==1.6.1'],check=True)
 if not Path(DATA_DIR,'metadata.json').is_file():
     candidates=list(Path('/kaggle/input').rglob('metadata.json')) if Path('/kaggle/input').exists() else []
     candidates=[p.parent for p in candidates if next(p.parent.glob('client_*_train.npz'),None) is not None]
@@ -62,12 +68,12 @@ overrides=dict(
     denice_save_round_artifacts=False,
     denice_eval_last_round_only=True,denice_eval_final_task_only=True,
     denice_eval_terminal_state_only=True,
-    denice_eval_final_round=True,denice_post_task_eval_tasks=[5],eval_every=999999,
+    denice_eval_final_round=False,denice_post_task_eval=False,denice_post_task_eval_tasks=[],eval_every=999999,
     denice_eval_local_validation=False,denice_eval_max_clients=100,
     denice_evaluation_data_role='test',denice_eval_max_samples=None,
     denice_eval_lazy_client_shards=True,denice_eval_report_nomask=False,
     denice_eval_representative_ensemble=False,
-    meta_peer_budget=16,meta_peer_budget_selection='pending clean validation',
+    meta_peer_budget=16,meta_peer_budget_selection='fixed historical Class Meta recipe',
 )
 if os.environ.get('DENICE_CONFIG_OVERRIDES'):
     raise ValueError('This clean launcher owns DENICE_CONFIG_OVERRIDES; edit its explicit protocol if needed')
@@ -76,6 +82,15 @@ os.environ.update(DENICE_VARIANT='cgofed',DENICE_TRAIN_PHASE='5',DENICE_CODE_DIR
                   DENICE_CONFIG_OVERRIDES=json.dumps(overrides))
 print(f'CLEAN MAIN TRAINING: seed={TRAIN_SEED}, paper/xi=0.5, BASE only, tasks {TASK_START}..5.',flush=True)
 print('Checkpoints: every round, compressed immediately; one verified ZIP per completed task.',flush=True)
-print('Evaluation: task 5 final round only, on ALL original test rows, disjoint client shards. No test subsampling.',flush=True)
-print('META and VALIDATION remain reserved for future Gate/Meta fitting and policy selection.',flush=True)
+print('Backbone evaluation OFF. After task 5: fit/freeze Multiclass, Gate V2 MLP, ClassLR C=0.1.',flush=True)
+print('Selectors use clean calibration/fit roles; validation audits the fixed recipe.',flush=True)
+print('Then lock all artifacts and evaluate ALL original test rows once with self + 16 peers.',flush=True)
 runpy.run_path(str(Path(code)/'train_denice_cgofed_kaggle.py'),run_name='__main__')
+import gc
+import torch
+from tools.train_denice_clean_meta import run_clean_meta
+gc.collect()
+if torch.cuda.is_available():torch.cuda.empty_cache()
+run_clean_meta(OUTPUT_DIR/'checkpoint_task_5_all_rounds.zip',ROLE_DIR,
+               OUTPUT_DIR/'clean_class_meta',device='cuda' if torch.cuda.is_available() else 'cpu',
+               batch_size=512)

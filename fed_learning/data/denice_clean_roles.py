@@ -135,5 +135,5 @@ def validate_clean_training_config(config):
         raise ValueError('Clean full-test evaluation requires denice_eval_max_samples=None')
     config['denice_evaluation_data_role']=role
     config['meta_peer_budget']=16
-    config['meta_peer_budget_selection']='pending clean validation after backbone training'
+    config.setdefault('meta_peer_budget_selection','pending clean validation after backbone training')
     return roles
