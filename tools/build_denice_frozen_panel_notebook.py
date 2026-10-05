@@ -9,7 +9,9 @@ def main():
     cells=[cell('markdown','''# DeNICE frozen remaining-test panel
 
 Attach the original **100-clients** dataset, enable **Internet** and a GPU.
-Use a fresh kernel/session. This is inference on new inputs; it queries
+Use a fresh kernel. For retry, restart the kernel and Run All in the same session;
+downloaded archives are reused and a new output directory is chosen automatically.
+This is inference on new inputs; it queries
 **self + 16 frozen experts** per sample. It does not train or select any policy.
 
 Fixed: checkpoint 03b9b53, candidate seed 42, Gate V2 MLP_top1,
@@ -35,7 +37,14 @@ RESULTS_URL = 'https://drive.google.com/file/d/1BEjP4iGJbPT0uFcHZ7WXX4oM_1vyvx0M
 GATE_URL = 'https://drive.google.com/file/d/1gweD4iZ4_NYmEsQyGDOlInTITwcxHrnP/view?usp=sharing'
 META_URL = 'https://drive.google.com/file/d/1YA8ixsHaf0_oHFMvE0R3VNIBE6CzPZdM/view?usp=drive_link'
 if OUT.exists() and any(OUT.iterdir()):
-    raise RuntimeError('Use a fresh Kaggle session/output directory to avoid mixing runs.')
+    base_out = OUT
+    retry = 1
+    while OUT.exists():
+        OUT = base_out.with_name(base_out.name + f'_retry_{retry}')
+        retry += 1
+    print('Prior output preserved. New output directory:', OUT)
+if 'tools.eval_denice_frozen_panel' in sys.modules:
+    raise RuntimeError('Restart the kernel, then Run All to import the updated GitHub runner.')
 if 'sklearn' in sys.modules and sys.modules['sklearn'].__version__ != '1.6.1':
     raise RuntimeError('Restart kernel and Run All before importing sklearn; frozen estimators require 1.6.1.')
 try:

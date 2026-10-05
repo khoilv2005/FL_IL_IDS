@@ -1,5 +1,39 @@
 # Frozen remaining-test confirmation protocol
 
+## Collector lifecycle correction and verification
+
+The run after `d27fd1f` passed the first donor's reference/fresh computations and
+weight checks, then crashed in its progress log: `inputs` had already been deleted
+at the end of the stage loop. This was an implementation error in the batch-splitting
+change, unrelated to data/model quality. The progress log now uses persistent scalar
+`stage_counts` recorded before cleanup, and reports reference/fresh counts separately.
+
+Preparation verification performed locally:
+
+- Replayed the actual collector control flow for **98 donors / 196 stages** using
+  real saved V2 feature arrays. Raw model inference and fingerprint lookup were
+  replaced with cache-backed providers for this operational replay.
+- Passed **850,000 reference expert-sample comparisons**, wrote all **1,666** fresh
+  receiver-donor cache files for a 391-row cached subset, and continued through
+  the complete `evaluate()` path and all metric/CSV/JSON writes.
+- All replayed feature arrays and the four policies' predictions exactly match
+  their saved V2/meta counterparts. No fitting occurred.
+- Injected a margin difference: the unchanged reference guard rejected it, saved
+  actual/expected failure arrays and diagnostics, and stopped before fresh cache writes.
+- Separately reconstructed the **real original delta checkpoint** and restored all
+  **98 real models/routers** on CPU. Every model/mask fingerprint matches the frozen
+  manifest; saved router coefficients/intercepts restore exactly; zero fit calls.
+
+This verifies collector lifetime/offsets, logging, serialization, model restoration
+and CPU meta decisions. Full raw-input inference on Kaggle GPU still requires the
+original dataset and is not claimed to have run locally. The numerical reference
+guard, sampling seeds, frozen artifacts and final policy remain unchanged.
+
+Notebook retries now preserve earlier output directories and automatically choose
+a fresh suffixed directory. Restart the kernel, then Run All in the same Kaggle
+session to reuse downloaded ZIPs. A loaded old runner module triggers an explicit
+kernel-restart message. The latest run is packaged under the usual output ZIP name.
+
 ## Graph CSV precision correction
 
 The first Kaggle attempt stopped before drawing the panel with `Graph alpha changed`.

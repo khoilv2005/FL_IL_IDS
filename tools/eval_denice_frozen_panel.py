@@ -136,13 +136,15 @@ def collect_frozen(ckpt,pools,source,routers,manifest,out,device,batch_size):
         # Preserve V2's complete old receiver stream and batch boundaries.
         # A truncated reference concatenated with fresh rows changes GPU kernels
         # and route-group shapes, producing avoidable float32 margin drift.
+        stage_counts={}
         for role in ('reference','fresh'):
             pieces=[(cid,pools[role][cid]) for cid in ids if donor in needed[cid]]
             inputs=torch.cat([data for _,data in pieces])
+            stage_counts[role]=len(inputs)
             if device.startswith('cuda'):torch.cuda.synchronize()
             start=time.perf_counter();features=expert_features(model,detector,inputs,source.labels,device,batch_size)
             if device.startswith('cuda'):torch.cuda.synchronize()
-            runtime.append(dict(donor=donor,stage=role,seconds=time.perf_counter()-start,samples=len(inputs)))
+            runtime.append(dict(donor=donor,stage=role,seconds=time.perf_counter()-start,samples=stage_counts[role]))
             offset=0
             for cid,data in pieces:
                 n=len(data);record={name:values[offset:offset+n] for name,values in features.items()};offset+=n
@@ -178,7 +180,8 @@ def collect_frozen(ckpt,pools,source,routers,manifest,out,device,batch_size):
             del inputs,features
         if encoder_fingerprint(model)!=fingerprint:raise RuntimeError('Expert weights/masks mutated')
         pd.DataFrame(runtime).to_csv(out/'expert_runtime.csv',index=False)
-        print(f'Frozen experts {position}/{len(ids)}, donor={donor}, rows={len(inputs)}',flush=True)
+        print(f'Frozen experts {position}/{len(ids)}, donor={donor}, '
+              f'reference_rows={stage_counts["reference"]}, fresh_rows={stage_counts["fresh"]}',flush=True)
         del model,detector
         if device.startswith('cuda'):torch.cuda.empty_cache()
     write_json(out/'reference_reproduction.json',dict(passed=True,expert_sample_comparisons=comparisons,
