@@ -16,7 +16,7 @@ def file_sha256(path):
 
 
 class CleanRoleData:
-    def __init__(self, root):
+    def __init__(self, root, source_data_dir=None):
         self.root=Path(root)
         self.manifest=json.loads((self.root/'role_manifest.json').read_text(encoding='utf-8'))
         lock=json.loads((self.root/'role_lock.json').read_text(encoding='utf-8'))
@@ -24,7 +24,8 @@ class CleanRoleData:
             raise ValueError('Clean role preparation is incomplete or manifest changed')
         if not self.manifest.get('content_disjoint'):
             raise ValueError('Content-disjoint roles required')
-        self.source=Path(self.manifest['source_data_dir']); self.verified=set()
+        # Relocated Kaggle mounts retain the locked manifest and checksums.
+        self.source=Path(source_data_dir or self.manifest['source_data_dir']); self.verified=set()
         if file_sha256(self.source/'metadata.json')!=self.manifest['metadata_sha256']:
             raise ValueError('Dataset metadata/allocation changed after role locking')
 
