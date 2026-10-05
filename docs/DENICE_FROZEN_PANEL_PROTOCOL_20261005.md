@@ -1,5 +1,19 @@
 # Frozen remaining-test confirmation protocol
 
+## Graph CSV precision correction
+
+The first Kaggle attempt stopped before drawing the panel with `Graph alpha changed`.
+The graph was unchanged. Default pandas CSV parsing differed from checkpoint floats
+on 7,458/8,320 positive edges, by at most 9.9882e-17 absolute (9.3267e-13 relative).
+The old relative-only tolerance of 1e-14 falsely rejected 3,361 edges.
+
+Read the graph a second time with `float_precision='round_trip'` **for verification**:
+all 8,320 positive edge IDs/weights match the original checkpoint exactly, with
+zero mismatches. `graph_alpha_validation.json` records the result and parser deltas.
+The original default-parsed `source.alphas` remain unchanged for feature creation,
+preserving the frozen V2/meta pipeline. No model, graph weight, seed, scaler or policy
+is changed; exact graph validation is retained rather than removed or weakened.
+
 ## User-approved scope
 
 Stop tuning after the 50.732% development result. The user chose **remaining test

@@ -36,6 +36,31 @@ def file_hash(path):
     return digest.hexdigest()
 
 
+def verify_graph_weights(recorded_edges,source,out):
+    """Verify saved floats separately from historical feature CSV parsing.
+
+    Default pandas parsing loses ~1e-16 absolute precision on small weights.
+    Round-trip parsing recovers the original checkpoint float exactly. Preserve
+    source.alphas (historical default parser) for unchanged feature construction.
+    """
+    precise=pd.read_csv(source.zip.open('peer_edges.csv'),float_precision='round_trip')
+    if precise.duplicated(['receiver','donor']).any():raise ValueError('Duplicate graph CSV edges')
+    expected={(int(e['receiver']),int(e['donor'])):float(e['alpha']) for e in recorded_edges}
+    observed={(int(row.receiver),int(row.donor)):float(row.alpha) for row in precise.itertuples()}
+    if expected.keys()!=observed.keys():raise ValueError('Graph edge membership changed')
+    different=[pair for pair in expected if expected[pair]!=observed[pair]]
+    if different:
+        pair=different[0]
+        raise ValueError(f'Graph alpha changed at {pair}: checkpoint={expected[pair]!r}, CSV={observed[pair]!r}')
+    deltas=[abs(weight-float(source.alphas[receiver].get(donor,0.)))
+        for (receiver,donor),weight in expected.items()]
+    write_json(Path(out)/'graph_alpha_validation.json',dict(positive_edges=len(expected),
+        edge_membership_exact=True,round_trip_checkpoint_mismatches=0,
+        default_parser_differing_edges=int(sum(delta>0 for delta in deltas)),
+        max_default_parser_absolute_error=float(max(deltas,default=0.)),
+        validation_parser='round_trip',feature_parser='historical default, unchanged'))
+
+
 @contextmanager
 def prohibit_fit():
     """Abort any accidental fitting, including hidden router reconstruction."""
@@ -166,14 +191,13 @@ def run_frozen_panel(ckpt,data_dir,gate_zip,meta_zip,router_zip,out,checkpoint_s
             # Candidate IDs/weights must still be supported by the recorded checkpoint graph.
             from tools.eval_denice_peer_coverage import recorded_peers,lookup
             from tools.denice_peer_voting import peer_orders
-            peers,_=recorded_peers(ckpt,source.ids)
+            peers,recorded_edges=recorded_peers(ckpt,source.ids)
+            verify_graph_weights(recorded_edges,source,out)
             for cid in source.ids:
                 audit=lookup(ckpt['cluster']['alpha_debug'],cid)
                 alpha={int(d):float(w) for d,w in zip(audit['group_ids'],audit['alphas'])}
                 expected=peer_orders(cid,peers[cid],alpha,(42,))['random_42']
                 if expected!=source.bundle['orders'][cid]:raise ValueError('Candidate ordering changed')
-                if any(not np.isclose(alpha.get(d,0.),source.alphas[cid].get(d,0.),rtol=1e-14,atol=0.)
-                    for d in alpha):raise ValueError('Graph alpha changed')
             declaration=dict(kind='frozen remaining-test confirmation panel',evaluation_commit=evaluation_commit,
                 training_commit=source.protocol['training_commit'],checkpoint_file_sha256=checkpoint_sha256,
                 meta_sha256=lock['sha256'],gate_sha256=source.lock['gate_sha256'],router_archive_sha256=file_hash(router_zip),
