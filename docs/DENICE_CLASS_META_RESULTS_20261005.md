@@ -46,7 +46,7 @@ Compared with same-pool majority, pooled accuracy gains 7.882 pp.
 
 Independent paired-bootstrap recalculation with 10,000 client draws gives k=16
 gain vs V2 CI [4.010, 4.674] pp, and gain vs majority CI [7.411, 8.369] pp.
-The corresponding descriptive client-mean accuracy interval is [50.404, 51.061]%. 
+The corresponding descriptive client-mean accuracy interval is [50.404, 51.061]%.
 These intervals describe resampling the recorded receivers; shared peers/overlapping
 historical fitting data and repeated use of the panel limit generalization claims.
 
