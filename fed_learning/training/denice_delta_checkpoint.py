@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import io
+import zipfile
+import re
 from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
@@ -215,28 +218,46 @@ def save_delta_round_checkpoint(
     )
 
 
-def load_denice_checkpoint(path: str) -> Dict[str, Any]:
+def load_denice_checkpoint(path: str, member: Optional[str] = None) -> Dict[str, Any]:
     """Load a full or delta DeNICE checkpoint and return full client states."""
-    ckpt = torch.load(path, map_location="cpu", weights_only=False)
+    archive_path = path if str(path).endswith('.zip') else None
+    initial_member = None
+    if archive_path:
+        with zipfile.ZipFile(archive_path) as archive:
+            manifest=json.loads(archive.read('checkpoint_archive_manifest.json'))
+            initial_member=member or manifest.get('full_terminal_checkpoint') or manifest['checkpoint']
+    root = os.path.dirname(path)
+    def read_checkpoint(member):
+        if archive_path:
+            with zipfile.ZipFile(archive_path) as archive:
+                if member in archive.namelist():
+                    return torch.load(io.BytesIO(archive.read(member)),map_location='cpu',weights_only=False)
+        candidate=os.path.join(root,member)
+        if os.path.isfile(candidate):return torch.load(candidate,map_location='cpu',weights_only=False)
+        packed=os.path.splitext(candidate)[0]+'.zip'
+        if not os.path.isfile(packed):
+            match=re.match(r'checkpoint_task_(\d+)_',member)
+            if match:packed=os.path.join(root,f'checkpoint_task_{match.group(1)}_all_rounds.zip')
+        with zipfile.ZipFile(packed) as archive:
+            return torch.load(io.BytesIO(archive.read(member)),map_location='cpu',weights_only=False)
+    ckpt = read_checkpoint(initial_member or os.path.basename(path))
     if ckpt.get("checkpoint_type") != "denice_delta_round":
         return ckpt
 
-    root = os.path.dirname(path)
-    base_path = os.path.join(root, ckpt["base_path"])
-    base = torch.load(base_path, map_location="cpu", weights_only=False)
+    base = read_checkpoint(ckpt['base_path'])
     states = base["client_model_states"]
 
     chain: List[str] = []
-    cursor = path
+    cursor = initial_member or os.path.basename(path)
     while True:
-        current = torch.load(cursor, map_location="cpu", weights_only=False)
+        current = read_checkpoint(cursor)
         chain.append(cursor)
         prev = current.get("previous_round_path")
         if not prev:
             break
-        cursor = os.path.join(root, prev)
+        cursor = prev
     for delta_path in reversed(chain):
-        delta = torch.load(delta_path, map_location="cpu", weights_only=False)
+        delta = read_checkpoint(delta_path)
         states = apply_client_model_deltas(states, delta["client_model_deltas"])
 
     full = dict(ckpt)

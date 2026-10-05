@@ -93,6 +93,7 @@ from fed_learning.training.denice_delta_checkpoint import (
     update_checkpoint_index,
 )
 from fed_learning.training.denice_usage import compute_adapter_usage
+from fed_learning.training.denice_checkpoint_archive import compress_checkpoint, seal_task_archive
 from fed_learning.training.checkpoint_state import (
     CHECKPOINT_SCHEMA_VERSION,
     restore_denice_state,
@@ -1232,8 +1233,18 @@ def _build_denice_continuation_state(
 
 
 def _load_denice_continuation_state(path: str) -> Dict[str, Any]:
+    if str(path).endswith('.zip'):
+        import io
+        import zipfile
+        with zipfile.ZipFile(path) as archive:
+            manifest=json.loads(archive.read('checkpoint_archive_manifest.json'))
+            member=manifest.get('continuation_checkpoint')
+            if not member:raise ValueError('Archive has no task-boundary continuation state')
+            state=torch.load(io.BytesIO(archive.read(member)),map_location='cpu',weights_only=False)
+    else:
+        state = None
     try:
-        state = torch.load(path, map_location="cpu", weights_only=False)
+        if state is None:state = torch.load(path, map_location="cpu", weights_only=False)
     except TypeError:
         state = torch.load(path, map_location="cpu")
     if state.get("continuation_type") != DENICE_CONTINUATION_TYPE:
@@ -1876,7 +1887,23 @@ def _aggregate_round(
         "blocked_peer_alpha_before_sum": float(sum(row["blocked_peer_alpha_before"] for row in selective_rows)),
         "clients": selective_fc2_row_audit,
     }
+    peer_counts = [max(0,len(group)-1) for group in groups.values()]
+    positive_counts = [sum(int(gid)!=int(cid) and float(alpha)>0
+                           for gid,alpha in zip(item['group_ids'],item['alphas']))
+                       for cid,item in alpha_debug.items()]
+    peer_stats = dict(mean=float(np.mean(peer_counts)) if peer_counts else 0.,
+                      median=float(np.median(peer_counts)) if peer_counts else 0.,
+                      p90=float(np.quantile(peer_counts,.9)) if peer_counts else 0.,
+                      max=max(peer_counts,default=0),zero_peer_fraction=float(np.mean(np.asarray(peer_counts)==0)) if peer_counts else 0.)
+    state_bytes={cid:sum(t.numel()*t.element_size() for t in state.values()) for cid,state in old_states.items()}
     return {
+        "training_cluster_mode": 'threshold_neighborhood' if paper_graph else 'adaptive_ap',
+        "global_cluster_K": None if paper_graph else int(len(set(labels.tolist()))),
+        "training_peer_count_stats": peer_stats,
+        "positive_alpha_peer_count_stats": _round_float_stats([float(x) for x in positive_counts]),
+        "training_edge_density": float(sum(peer_counts)/(len(client_ids)*(len(client_ids)-1))) if len(client_ids)>1 else 0.,
+        "dense_model_transfer_upper_bound_bytes": int(sum(state_bytes[gid] for cid,group in groups.items() for gid in group if gid!=cid)),
+        "communication_estimate_policy": 'dense state_dict payload; excludes masks, compression, capsules and transport overhead',
         "K_t": int(len(set(int(x) for x in labels.tolist()))),
         "raw_K_t": int(cluster_result["K_t"]),
         "effective_K_t": int(len(set(int(x) for x in labels.tolist()))),
@@ -2238,7 +2265,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     print("DECENTRALIZED DeNICE-IL")
     print("=" * 80)
 
-    data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
+    if config.get('denice_clean_roles_dir'):
+        from fed_learning.data.denice_clean_roles import CleanRoleIncrementalDataLoader, validate_clean_training_config
+        validate_clean_training_config(config)
+        data_loader = CleanRoleIncrementalDataLoader(config['denice_clean_roles_dir'],
+            validation_max_samples=config.get('denice_eval_max_samples',50000) or 50000)
+        print('Clean roles: backbone=BASE; evaluation=VALIDATION; final test is not read.',flush=True)
+    else:
+        data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
     config["input_shape"] = data_loader.input_shape
     config["num_classes"] = config["total_classes"]
     imbalance_controls = normalize_denice_imbalance_config(config)
@@ -2246,6 +2280,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     resume_state = None
     if config.get("resume_state_path"):
         resume_state = _load_denice_continuation_state(str(config["resume_state_path"]))
+        if config.get('denice_clean_roles_dir'):
+            previous_config=resume_state.get('config',{})
+            if (previous_config.get('denice_data_roles_sha256')!=config['denice_data_roles_sha256']
+                    or int(previous_config.get('random_seed',42))!=int(config.get('random_seed',42))):
+                raise ValueError('Resume must use the same clean role manifest and original training seed; legacy checkpoints forbidden')
         saved_config = resume_state.get("config") or {}
         saved_allocation = saved_config.get('denice_allocation_policy', 'legacy_sequential')
         if config.get('denice_allocation_policy', saved_allocation) != saved_allocation:
@@ -2363,6 +2402,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     checkpoint_format = str(config.get("denice_checkpoint_format", "full")).lower()
     if checkpoint_format not in {"full", "delta"}:
         raise ValueError("denice_checkpoint_format must be 'full' or 'delta'.")
+    if config.get('denice_archive_checkpoints',False) and (checkpoint_format!='delta' or checkpoint_every!=1):
+        raise ValueError('Task ZIP archiving requires delta checkpoints every round')
     batch_size = int(config.get("batch_size", 128))
     eval_batch_size = int(config.get("eval_batch_size", 8192))
     post_task_eval = bool(config.get("denice_post_task_eval", True))
@@ -2812,6 +2853,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             previous_model_states = cpu_client_model_states(active_ids, models)
             print(f"   Task base checkpoint saved: {delta_base_path}")
+            if config.get('denice_archive_checkpoints',False):
+                compress_checkpoint(delta_base_path,budget_gib=config.get('denice_checkpoint_storage_budget_gib'))
 
         previous_valid_cluster: Optional[Dict[str, Any]] = None
         consecutive_self_only_rounds = 0
@@ -3203,6 +3246,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     and selected_for_final_eval
                 )
             )
+            if config.get('denice_eval_last_round_only',False):
+                should_eval_round = task_id == num_tasks - 1 and is_final_round
+            if config.get('denice_eval_terminal_state_only',False):
+                # Evaluate once after task-end consolidation so the metric
+                # matches the full terminal checkpoint used by clean Meta.
+                should_eval_round = False
             if should_eval_round:
                 test_X, test_y = data_loader.get_test_data(task_id, cumulative=True)
                 test_X, test_y, sample_info = _limit_eval_samples(
@@ -3362,6 +3411,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 previous_model_states = cpu_client_model_states(active_ids, models)
                 previous_round_checkpoint_path = round_ckpt_path
                 print(f"   Delta round checkpoint saved: {round_ckpt_path}")
+                if config.get('denice_archive_checkpoints',False):
+                    compress_checkpoint(round_ckpt_path,budget_gib=config.get('denice_checkpoint_storage_budget_gib'))
             round_record["checkpoint_time"] = time.time() - checkpoint_start
             round_record["round_time"] = time.time() - start
             debug_round = {
@@ -3452,6 +3503,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     f"guard_streak={collaboration_guard.get('consecutive_self_only_rounds')}, "
                     f"policy={cluster_summary.get('effective_policy')}"
                 )
+                if config.get('denice_clustering_mode') == 'paper':
+                    print('    Training neighborhood: '
+                          f"mode=threshold_neighborhood, xi={config.get('denice_similarity_threshold',0.5)}, "
+                          f"global_cluster_K=N/A (internal sentinel=1), peers={cluster_summary.get('training_peer_count_stats')}",
+                          flush=True)
 
         capacity_reserve_released: Dict[int, Dict[str, int]] = {}
         minimum_free_capacity_ratio = float(
@@ -3757,6 +3813,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             validation.update(retention_summary(previous, validation, task_id))
             previous.append(validation)
         retention = retention_summary(history['task_accuracies'], metrics, task_id)
+        if config.get('denice_clean_roles_dir'):
+            metrics['evaluation_data_role']='validation'
+            metrics['final_test_evaluated']=False
         history["task_accuracies"].append(
             {"task": task_id, "final_round": final_round_id, **metrics, **retention}
         )
@@ -3821,6 +3880,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             torch.save(continuation_state, continuation_path)
             print(f"  DeNICE continuation state saved: {continuation_path}")
+        if config.get('denice_archive_checkpoints',False):
+            seal_task_archive(output_dir,task_id,budget_gib=config.get('denice_checkpoint_storage_budget_gib'))
         _write_phase_outputs(
             output_dir, history, cluster_history, adapter_history, debug_history, config, task_id
         )
