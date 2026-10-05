@@ -12,7 +12,7 @@ def main():
         'Enable GPU and Internet; attach the original 100-client dataset.\n',
         'Fresh six-task run on BASE only; xi=0.5. META/VALIDATION roles are reserved before training.\n',
         'Each round is checkpointed and compressed; each completed task is sealed into one ZIP.\n',
-        'Only task 5 final round evaluates clean validation; final test is not opened.\n']),
+        'Only task 5 final round evaluates ALL original test rows, split into disjoint client shards.\n']),
         dict(cell_type='code',execution_count=None,metadata={},outputs=[],source=code.splitlines(keepends=True))],
         metadata=dict(kernelspec=dict(display_name='Python 3',language='python',name='python3'),
                       language_info=dict(name='python')),

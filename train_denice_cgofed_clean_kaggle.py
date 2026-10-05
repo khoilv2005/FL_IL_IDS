@@ -64,7 +64,8 @@ overrides=dict(
     denice_eval_terminal_state_only=True,
     denice_eval_final_round=True,denice_post_task_eval_tasks=[5],eval_every=999999,
     denice_eval_local_validation=False,denice_eval_max_clients=100,
-    denice_eval_max_samples=50000,denice_eval_report_nomask=False,
+    denice_evaluation_data_role='test',denice_eval_max_samples=None,
+    denice_eval_lazy_client_shards=True,denice_eval_report_nomask=False,
     denice_eval_representative_ensemble=False,
     meta_peer_budget=16,meta_peer_budget_selection='pending clean validation',
 )
@@ -75,5 +76,6 @@ os.environ.update(DENICE_VARIANT='cgofed',DENICE_TRAIN_PHASE='5',DENICE_CODE_DIR
                   DENICE_CONFIG_OVERRIDES=json.dumps(overrides))
 print(f'CLEAN MAIN TRAINING: seed={TRAIN_SEED}, paper/xi=0.5, BASE only, tasks {TASK_START}..5.',flush=True)
 print('Checkpoints: every round, compressed immediately; one verified ZIP per completed task.',flush=True)
-print('Evaluation: task 5 final round only, on clean VALIDATION. FINAL TEST and Meta fitting remain locked.',flush=True)
+print('Evaluation: task 5 final round only, on ALL original test rows, disjoint client shards. No test subsampling.',flush=True)
+print('META and VALIDATION remain reserved for future Gate/Meta fitting and policy selection.',flush=True)
 runpy.run_path(str(Path(code)/'train_denice_cgofed_kaggle.py'),run_name='__main__')

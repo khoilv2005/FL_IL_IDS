@@ -545,11 +545,27 @@ def _limit_eval_samples(
     return X[idx], y[idx], {"limited": True, "total": total, "used": used}
 
 
+class _IndexedEvalFeatures:
+    """Materialize only one inference batch from a shared full-test tensor."""
+    def __init__(self,data,indices):
+        self.data=data
+        self.indices=indices
+        self.shape=(len(indices),*data.shape[1:])
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self,item):
+        indices=self.indices[item].to(self.data.device)
+        return self.data[indices]
+
+
 def _partition_test_data_by_client(
     X: torch.Tensor,
     y: torch.Tensor,
     client_ids: List[int],
     seed: int,
+    lazy_features: bool = False,
 ) -> Tuple[Dict[int, Dict[str, torch.Tensor]], Dict[str, Any]]:
     """Create deterministic, disjoint, approximately class-balanced test shards."""
     ordered_clients = list(dict.fromkeys(int(cid) for cid in client_ids))
@@ -575,10 +591,14 @@ def _partition_test_data_by_client(
     for label in torch.unique(labels, sorted=True).tolist():
         indices = torch.nonzero(labels == int(label), as_tuple=False).flatten()
         indices = indices[torch.randperm(len(indices), generator=generator)]
-        for position, sample_index in enumerate(indices):
-            cid = ordered_clients[(offset + position) % len(ordered_clients)]
-            assignments[cid].append(sample_index.reshape(1))
-            class_counts[cid][int(label)] = class_counts[cid].get(int(label), 0) + 1
+        # Same round-robin assignment/order as the original implementation,
+        # without constructing a Python Tensor object for every test row.
+        for position,cid in enumerate(ordered_clients):
+            first=(position-offset)%len(ordered_clients)
+            selected=indices[first::len(ordered_clients)]
+            if selected.numel():
+                assignments[cid].append(selected)
+                class_counts[cid][int(label)]=int(selected.numel())
         offset = (offset + len(indices)) % len(ordered_clients)
 
     shards: Dict[int, Dict[str, torch.Tensor]] = {}
@@ -592,7 +612,7 @@ def _partition_test_data_by_client(
         if indices.numel():
             indices = indices[torch.randperm(len(indices), generator=generator)]
         shards[cid] = {
-            "X_test": X.index_select(0, indices.to(X.device)),
+            "X_test": _IndexedEvalFeatures(X,indices) if lazy_features else X.index_select(0, indices.to(X.device)),
             "y_test": y.index_select(0, indices.to(y.device)),
         }
         sample_counts[str(cid)] = int(indices.numel())
@@ -602,12 +622,17 @@ def _partition_test_data_by_client(
         "seed": int(seed),
         "global_test_sample_count": int(len(y)),
         "client_count": int(len(ordered_clients)),
+        "lazy_feature_shards": bool(lazy_features),
+        "assigned_row_count": sum(sample_counts.values()),
+        "all_rows_assigned_once": sum(sample_counts.values()) == len(y),
         "per_client_sample_count": sample_counts,
         "per_client_class_counts": {
             str(cid): {str(label): int(count) for label, count in sorted(class_counts[cid].items())}
             for cid in ordered_clients
         },
     }
+    if not audit['all_rows_assigned_once']:
+        raise RuntimeError('Client partition did not cover the full supplied evaluation set')
     return shards, audit
 
 
@@ -2269,8 +2294,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         from fed_learning.data.denice_clean_roles import CleanRoleIncrementalDataLoader, validate_clean_training_config
         validate_clean_training_config(config)
         data_loader = CleanRoleIncrementalDataLoader(config['denice_clean_roles_dir'],
-            validation_max_samples=config.get('denice_eval_max_samples',50000) or 50000)
-        print('Clean roles: backbone=BASE; evaluation=VALIDATION; final test is not read.',flush=True)
+            validation_max_samples=config.get('denice_eval_max_samples',50000) or 50000,
+            evaluation_role=config.get('denice_evaluation_data_role','validation'))
+        print(f"Clean roles: backbone=BASE; evaluation={data_loader.evaluation_role.upper()}.",flush=True)
     else:
         data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
     config["input_shape"] = data_loader.input_shape
@@ -3279,6 +3305,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         eval_ids,
                         seed=int(config.get("random_seed", config.get("seed", 42)))
                         + 104729 * int(task_id),
+                        lazy_features=bool(config.get('denice_eval_lazy_client_shards',False)),
                     )
                 print(
                     f"  DeNICE eval workload [{task_id}:{round_id}]: "
@@ -3683,6 +3710,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     eval_ids,
                     seed=int(config.get("random_seed", config.get("seed", 42)))
                     + 104729 * int(task_id),
+                    lazy_features=bool(config.get('denice_eval_lazy_client_shards',False)),
                 )
             print(
                 f"  Starting post-task DeNICE eval: task={task_id}, "
@@ -3814,8 +3842,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             previous.append(validation)
         retention = retention_summary(history['task_accuracies'], metrics, task_id)
         if config.get('denice_clean_roles_dir'):
-            metrics['evaluation_data_role']='validation'
-            metrics['final_test_evaluated']=False
+            metrics['evaluation_data_role']=data_loader.evaluation_role
+            metrics['final_test_evaluated']=bool(run_post_task_eval and data_loader.evaluation_role=='test')
         history["task_accuracies"].append(
             {"task": task_id, "final_round": final_round_id, **metrics, **retention}
         )

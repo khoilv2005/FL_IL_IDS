@@ -44,13 +44,17 @@ This is input and scheduling coverage, not proof an expert will correctly predic
 
 The temporary SQLite content registry is deleted after successful role locking to save storage. On preparation failure it remains for diagnosis. Incomplete role directories are not silently reused; use a new role directory after correcting the dataset/split issue.
 
-## Evaluation timing and scope
+## Evaluation timing and scope (updated: full original test requested)
 
-Only **task 5 / final round 19** triggers evaluation, after task-end consolidation. This avoids evaluating a pre-consolidation state and then reporting a different terminal checkpoint. Earlier tasks/rounds write checkpoints without evaluation. The final pass uses clean **VALIDATION**, with up to 50k stratified rows and 34-class coverage asserted by the role loader. The terminal checkpoint and task metrics identify `evaluation_data_role=validation`; legacy metric filenames/aliases remain for compatibility.
+Only **task 5 / final round 19** triggers evaluation, after task-end consolidation. This avoids evaluating a pre-consolidation state and then reporting a different terminal checkpoint. Earlier tasks/rounds write checkpoints without evaluation. At the user's explicit request, the final pass uses **every row of the original `global_test_data.npz`**, with `denice_eval_max_samples=None`. The role loader asserts that the full source test contains all 34 declared classes. The terminal checkpoint and task metrics identify `evaluation_data_role=test` and `final_test_evaluated=true`.
 
-The original `global_test_data.npz` is **not opened** by this launcher/role loader. Final test coverage is marked unverified. Gate/Meta must be fitted on the reserved roles, selected using validation and frozen before a separate label-blind final test. This notebook does not yet perform that subsequent fitting stage. Old retrospective Gate/Meta artifacts must not be reused as the new clean-trained result.
+The test set is split into disjoint, approximately equally sized receiver shards. Class-stratified round-robin assignment preserves the **original global class counts**, without class balancing/subsampling of the source test. Every row is assigned once. Feature shards are lazy indexed views of the shared test tensor: only one batch is materialized for a receiver, avoiding a second full feature copy. Test labels enter benchmark partitioning and metrics, not the predictor. Both global test features and row indices still need CPU RAM; this is not an out-of-core NPZ reader.
 
-A fresh independent full-34-class final test source is still needed for an untouched final claim. Do not reinterpret the original development/28-class confirmation panels as a new untouched final test.
+The role-preparation manifest's `final_test_read=false` applies only to preparation of BASE/META/VALIDATION, which does not read test. The actual terminal evaluation opens test and records its role in task metrics. No prior development-panel exclusions or 50k cap are applied: this run evaluates the whole supplied original test source.
+
+META and VALIDATION remain reserved. This notebook does not fit Gate/Class Meta or use test outcomes to select a policy. Subsequent clean selector fitting must use its dedicated roles and validation; old retrospective artifacts must not be reused as the new clean-trained result.
+
+This evaluates the original dataset's test set for the backbone. Because that dataset has already supplied development panels, it is not a newly untouched test source. A separate fresh source remains necessary for that scientific claim.
 
 ## Checkpoint storage
 

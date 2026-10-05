@@ -43,14 +43,16 @@ class CleanRoleData:
 
 
 class CleanRoleIncrementalDataLoader(IncrementalDataLoader):
-    """Only BASE enters backbone clients. Evaluation reads VALIDATION, never test."""
-    def __init__(self,root,validation_max_samples=50000):
+    """Only BASE enters backbone clients; evaluation role is explicit."""
+    def __init__(self,root,validation_max_samples=50000,evaluation_role='validation'):
         self.roles=CleanRoleData(root)
         super().__init__(str(self.roles.source))
         self.validation_max_samples=int(validation_max_samples)
         if self.validation_max_samples<34:raise ValueError('Validation cap must allow every class')
         self._validation=None
-        self.evaluation_role='validation'
+        if evaluation_role not in ('validation','test'):raise ValueError('Evaluation role must be validation or test')
+        self.evaluation_role=evaluation_role
+        if evaluation_role=='test' and not self.test_file.is_file():raise FileNotFoundError(self.test_file)
 
     @property
     def input_shape(self):
@@ -90,12 +92,24 @@ class CleanRoleIncrementalDataLoader(IncrementalDataLoader):
         return self._validation
 
     def get_test_data(self,task_id,cumulative=True):
+        if self.evaluation_role=='test':
+            labels=[c for t,values in self.task_classes.items() if (t<=task_id if cumulative else t==task_id) for c in values]
+            expected=sorted({c for values in self.task_classes.values() for c in values})
+            if sorted(set(labels))==expected:
+                # Return the original full tensor without creating another
+                # multi-million-row feature copy through a boolean mask.
+                x,y=super().get_full_test_data()
+                present=sorted(torch.unique(y).tolist())
+                if present!=expected:raise ValueError(f'Full test class coverage changed: present={present}, expected={expected}')
+                return x,y
+            return super().get_test_data(task_id,cumulative)
         x,y=self._validation_data()
         labels=[c for t,values in self.task_classes.items() if (t<=task_id if cumulative else t==task_id) for c in values]
         mask=torch.isin(y,torch.as_tensor(labels,dtype=torch.long))
         return x[mask],y[mask]
 
     def get_full_test_data(self):
+        if self.evaluation_role=='test':return super().get_full_test_data()
         return self._validation_data()
 
 
@@ -115,7 +129,11 @@ def validate_clean_training_config(config):
         raise ValueError('Bounded smoke configuration is not the clean main run')
     roles=CleanRoleData(config['denice_clean_roles_dir'])
     config['denice_data_roles_sha256']=file_sha256(roles.root/'role_manifest.json')
-    config['denice_evaluation_data_role']='validation'
+    role=config.get('denice_evaluation_data_role','validation')
+    if role not in ('validation','test'):raise ValueError('Invalid clean evaluation role')
+    if role=='test' and config.get('denice_eval_max_samples') is not None:
+        raise ValueError('Clean full-test evaluation requires denice_eval_max_samples=None')
+    config['denice_evaluation_data_role']=role
     config['meta_peer_budget']=16
     config['meta_peer_budget_selection']='pending clean validation after backbone training'
     return roles
