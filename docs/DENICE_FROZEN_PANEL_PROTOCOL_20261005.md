@@ -70,11 +70,27 @@ Write/hash protocol and lock before reading dataset labels: metrics, sampling,
 exclusions, model hashes and decision policy are predeclared. Labels are used for
 declared stratification and eventual metrics, never as prediction features.
 
-First 16 old rows per receiver are verification-only references. Recompute all
+All old rows per receiver are verification-only references. Recompute all
 17 experts' features with the saved routers and compare against V2 caches:
 prediction/task/support/mask fields exact; continuous fields rtol 1e-4 / atol 1e-6.
 Any discrepancy aborts without refitting. Fresh inputs receive newly queried expert
 predictions; old cache predictions never supply their decisions.
+
+The earlier truncated 16-row references were concatenated with fresh inputs. That
+did not preserve V2's original GPU batch boundaries or route-group shapes. A run
+stopped on receiver 12 / donor 30 / class_margin; the old error did not record the
+actual difference, so its magnitude could not be determined from that log alone.
+Full old receiver streams now execute separately, in original receiver order at
+batch 512, matching the original V2 notebook default. Fresh inference executes
+separately after each donor's reference check. The check's tolerances are unchanged.
+If it still fails, save actual/expected arrays, failing row count and maximum
+absolute error in `reference_reproduction.json` and a `reference_failure_*.npz`.
+Do not weaken the guard or fit a replacement router using fresh panel data.
+
+Reference work now adds 850,000 expert-sample evaluations, in addition to 850,000
+fresh evaluations. `expert_runtime.csv` distinguishes reference/fresh stages.
+This adds verification time but does not alter the logical 17-expert deployed
+decision or the frozen selection/scaler/feature policy.
 
 ## Panel selection
 

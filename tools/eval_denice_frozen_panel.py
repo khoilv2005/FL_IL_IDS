@@ -133,33 +133,58 @@ def collect_frozen(ckpt,pools,source,routers,manifest,out,device,batch_size):
         state=torch.load(io.BytesIO(payload),map_location='cpu',weights_only=False)
         restore_context_detector(detector,state)
         if detector.router_mode!='multiclass_balanced':raise ValueError('Wrong frozen donor router')
-        pieces=[(role,cid,pools[role][cid]) for role in pools for cid in ids if donor in needed[cid]]
-        inputs=torch.cat([data for _,_,data in pieces])
-        if device.startswith('cuda'):torch.cuda.synchronize()
-        start=time.perf_counter();features=expert_features(model,detector,inputs,source.labels,device,batch_size)
-        if device.startswith('cuda'):torch.cuda.synchronize()
-        runtime.append(dict(donor=donor,seconds=time.perf_counter()-start,samples=len(inputs)))
-        offset=0
-        for role,cid,data in pieces:
-            n=len(data);record={name:values[offset:offset+n] for name,values in features.items()};offset+=n
-            if role=='reference':
-                with np.load(io.BytesIO(source.zip.read(f'test_expert_features/test_receiver_{cid}_donor_{donor}.npz'))) as previous:
-                    for name,value in record.items():
-                        target=previous[name][:n]
-                        matched=(np.array_equal(value,target) if name in ('pred','task','mask_count','task_supported','class_supported')
-                            else np.allclose(value,target,rtol=1e-4,atol=1e-6))
-                        if not matched:raise ValueError(f'Frozen router/feature reproduction failed: {cid}/{donor}/{name}')
-                comparisons+=n
-            else:
-                cache[role][cid][donor]=record
-                np.savez_compressed(folder/f'test_receiver_{cid}_donor_{donor}.npz',**record)
+        # Preserve V2's complete old receiver stream and batch boundaries.
+        # A truncated reference concatenated with fresh rows changes GPU kernels
+        # and route-group shapes, producing avoidable float32 margin drift.
+        for role in ('reference','fresh'):
+            pieces=[(cid,pools[role][cid]) for cid in ids if donor in needed[cid]]
+            inputs=torch.cat([data for _,data in pieces])
+            if device.startswith('cuda'):torch.cuda.synchronize()
+            start=time.perf_counter();features=expert_features(model,detector,inputs,source.labels,device,batch_size)
+            if device.startswith('cuda'):torch.cuda.synchronize()
+            runtime.append(dict(donor=donor,stage=role,seconds=time.perf_counter()-start,samples=len(inputs)))
+            offset=0
+            for cid,data in pieces:
+                n=len(data);record={name:values[offset:offset+n] for name,values in features.items()};offset+=n
+                if role=='reference':
+                    with np.load(io.BytesIO(source.zip.read(f'test_expert_features/test_receiver_{cid}_donor_{donor}.npz'))) as previous:
+                        for name,value in record.items():
+                            target=previous[name]
+                            if value.shape!=target.shape:raise ValueError('Original reference stream size changed')
+                            exact=name in ('pred','task','mask_count','task_supported','class_supported')
+                            matched=(np.array_equal(value,target) if exact
+                                else np.allclose(value,target,rtol=1e-4,atol=1e-6))
+                            if not matched:
+                                delta=np.abs(value.astype(np.float64)-target.astype(np.float64))
+                                mask=(value!=target if exact else ~np.isclose(value,target,rtol=1e-4,atol=1e-6))
+                                bad=np.flatnonzero(mask);row=int(bad[0])
+                                failure=dict(passed=False,client_id=cid,donor=donor,field=name,
+                                    mismatched_rows=len(bad),first_row_in_receiver=row,
+                                    actual=float(value[row]),expected=float(target[row]),
+                                    max_absolute_difference=float(delta.max()),batch_size=batch_size,
+                                    reference_stream='full original V2 test stream; separately batched',
+                                    integer_fields_exact=True,continuous_rtol=1e-4,continuous_atol=1e-6)
+                                write_json(out/'reference_reproduction.json',failure)
+                                np.savez_compressed(out/f'reference_failure_receiver_{cid}_donor_{donor}.npz',
+                                    **{f'actual_{key}':v for key,v in record.items()},
+                                    **{f'expected_{key}':previous[key] for key in previous.files})
+                                raise ValueError(f'Frozen router/feature reproduction failed: {cid}/{donor}/{name}; '
+                                    f'{len(bad)} rows, max abs={delta.max():.9g}, '
+                                    f'first actual={value[row]!r}, expected={target[row]!r}; see reference_reproduction.json')
+                    comparisons+=n
+                else:
+                    cache[role][cid][donor]=record
+                    np.savez_compressed(folder/f'test_receiver_{cid}_donor_{donor}.npz',**record)
+            del inputs,features
         if encoder_fingerprint(model)!=fingerprint:raise RuntimeError('Expert weights/masks mutated')
         pd.DataFrame(runtime).to_csv(out/'expert_runtime.csv',index=False)
         print(f'Frozen experts {position}/{len(ids)}, donor={donor}, rows={len(inputs)}',flush=True)
-        del model,detector,inputs,features
+        del model,detector
         if device.startswith('cuda'):torch.cuda.empty_cache()
     write_json(out/'reference_reproduction.json',dict(passed=True,expert_sample_comparisons=comparisons,
-        reference_rows_per_receiver=16,integer_fields_exact=True,continuous_rtol=1e-4,continuous_atol=1e-6,
+        reference_rows_per_receiver='all original receiver rows',reference_batch_size=batch_size,
+        reference_stream='full original V2 test stream; separately batched',
+        integer_fields_exact=True,continuous_rtol=1e-4,continuous_atol=1e-6,
         reference_used_for_verification_only=True))
     return cache['fresh']
 
@@ -167,6 +192,7 @@ def collect_frozen(ckpt,pools,source,routers,manifest,out,device,batch_size):
 def run_frozen_panel(ckpt,data_dir,gate_zip,meta_zip,router_zip,out,checkpoint_sha256,
                      evaluation_commit='',device='cuda',batch_size=512):
     out=Path(out)
+    if batch_size!=512:raise ValueError('Keep batch_size=512 to reproduce the original V2 notebook batching')
     if out.exists() and any(out.iterdir()):raise ValueError('Use a fresh output directory/session')
     out.mkdir(parents=True,exist_ok=True);write_json(out/'frozen_panel_completion.json',dict(completed=False))
     with prohibit_fit() as fit_calls,zipfile.ZipFile(meta_zip) as mz,zipfile.ZipFile(router_zip) as rz,torch.no_grad():
@@ -213,6 +239,7 @@ def run_frozen_panel(ckpt,data_dir,gate_zip,meta_zip,router_zip,out,checkpoint_s
                     'macro-F1 over present classes','macro recall over present classes','per-task/per-class recall',
                     'paired receiver bootstrap CI vs GateV2 and majority','actual-routed oracle'],
                 metrics_declared_before_dataset_labels=True,full_34_class_final_claim=False,
+                reference_policy='full original V2 receiver streams, batch 512, separate from fresh inputs',
                 additional_original_training_seeds=False,shared_retrospective_meta=True)
             write_json(out/'frozen_panel_protocol.json',declaration)
             protocol_digest=file_hash(out/'frozen_panel_protocol.json')
@@ -244,7 +271,7 @@ def run_frozen_panel(ckpt,data_dir,gate_zip,meta_zip,router_zip,out,checkpoint_s
                 indices=index_shards[cid]['X_test'].reshape(-1).long()
                 shards[cid]=dict(sample_ids=indices.numpy(),y=index_shards[cid]['y_test'].numpy())
                 pools['fresh'][cid]=x[indices]
-                pools['reference'][cid]=x[torch.from_numpy(old[cid].global_test_row.to_numpy()[:16])]
+                pools['reference'][cid]=x[torch.from_numpy(old[cid].global_test_row.to_numpy())]
                 identities.extend(dict(client_id=cid,global_test_row=int(index),input_sha256=hashes[int(index)],
                     y_true=int(label)) for index,label in zip(indices.tolist(),shards[cid]['y']))
             frame=pd.DataFrame(identities);frame.to_csv(out/'panel_manifest.csv',index=False)
