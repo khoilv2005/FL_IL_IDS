@@ -89,7 +89,7 @@ def gate_data(ckpt,data_dir,classes,ids,test_shards,out,limits,seed):
             if len(selected[role])>=limits[role]:continue
             selected[role].append(int(index));hashes[role].add(digest)
             provenance.append(dict(client_id=cid,row_id=int(index),role=role,input_sha256=digest,
-                task_evidence=','.join(map(str,sorted(evidence)))))
+                role_row_index=len(selected[role])-1,task_evidence=','.join(map(str,sorted(evidence)))))
             if all(len(selected[r])==limits[r] for r in limits):break
         for role,indices in selected.items():
             if len(indices)<32:raise ValueError(f'{cid}: only {len(indices)} {role} rows; refusing unreliable fit')
@@ -141,10 +141,20 @@ def predict_gate(gate,features,pred,chosen,seen,top):
     return gate_decision(scores,pred,chosen,seen,top),scores
 
 
+def prior_baselines(features,pred,names,chosen,seen):
+    policies={'GlobalDonorPrior':'calibration_donor_rate','GlobalTaskPrior':'calibration_donor_task_rate',
+              'ReceiverTaskPrior':'calibration_receiver_donor_task_rate'}
+    return {policy:gate_decision(features[:,names.index(name)].reshape(pred.shape),pred,chosen,seen,1)[0]
+            for policy,name in policies.items()}
+
+
 def run_competence_gate(ckpt,shards,classes,ids,out,device,diagnostic_input,data_dir,batch_size=512,
-                        budgets=(4,8,16),candidate_seed=42,limits=None):
+                        budgets=(4,8,16),candidate_seed=42,limits=None,data_builder=None,
+                        extra_baselines=False,variant='v1_local_support'):
     limits=limits or dict(calibration=128,fit=512,validation=256)
-    if set(limits)!={'calibration','fit','validation'}:raise ValueError('Three gate partitions required')
+    if (set(limits)!={'calibration','fit','validation'}
+        or any(not isinstance(value,int) or value<32 for value in limits.values())):
+        raise ValueError('Three gate partitions with integer caps >=32 required')
     out=Path(out);out.mkdir(parents=True,exist_ok=True)
     write_json(out/'gate_completion.json',dict(completed=False))
     if Path(diagnostic_input).is_dir():
@@ -155,7 +165,7 @@ def run_competence_gate(ckpt,shards,classes,ids,out,device,diagnostic_input,data
             reference=pd.read_csv(z.open('predictions.csv'));manifest=json.loads(z.read('profile_manifest.json'))
     if not str(ckpt['config'].get('git_commit','')).startswith('03b9b53'):
         raise ValueError('Original frozen checkpoint required')
-    if list(budgets)!=sorted(set(budgets)) or min(budgets)<4 or batch_size<=0:
+    if not budgets or list(budgets)!=sorted(set(budgets)) or min(budgets)<4 or batch_size<=0:
         raise ValueError('Use increasing declared budgets >=4')
     peers,edges=recorded_peers(ckpt,ids);pd.DataFrame(edges).to_csv(out/'peer_edges.csv',index=False)
     alphas={cid:{int(d):float(w) for d,w in zip(lookup(ckpt['cluster']['alpha_debug'],cid)['group_ids'],
@@ -165,14 +175,29 @@ def run_competence_gate(ckpt,shards,classes,ids,out,device,diagnostic_input,data
     needed={cid:[cid]+order[cid][:max(budgets)] for cid in ids}
     seen=sorted({int(c) for values in classes.values() for c in values})
     write_json(out/'gate_protocol.json',dict(budgets=budgets,candidate_seed=candidate_seed,orders=order,
-        limits=limits,stage='retrospective shared gate diagnostic',centralized_gate_fit=True,
+        limits=limits,variant=variant,extra_prior_baselines=extra_baselines,
+        stage='retrospective shared gate diagnostic',centralized_gate_fit=True,
+        test_panel_role='diagnostic/development; not final untouched test',
         gate_training_uses_historical_local_rows=True,raw_samples_transmitted=False,
         experts_evaluated_in_same_runtime=True,privacy_deployment_claim=False,
         experts_not_retrained=True,training_commit=ckpt['config']['git_commit']))
-    pools=gate_data(ckpt,data_dir,classes,ids,shards,out,limits,20261005)
+    pools=(gate_data(ckpt,data_dir,classes,ids,shards,out,limits,20261005) if data_builder is None else
+        data_builder(ckpt,data_dir,classes,ids,shards,out,limits,20261005,needed=needed))
+    target_dir=out/'gate_role_targets';target_dir.mkdir(exist_ok=True)
+    for role,clients in pools.items():
+        for cid,pool in clients.items():
+            values=dict(y_true=pool['y'],role_row_index=np.arange(len(pool['y'])))
+            if 'receiver_local_covered' in pool:values['receiver_local_covered']=pool['receiver_local_covered']
+            np.savez_compressed(target_dir/f'{role}_receiver_{cid}.npz',**values)
     cache=collect(ckpt,pools,needed,ids,seen,device,batch_size,manifest,out,'gate_train')
     priors=competence_priors(cache['calibration'],{cid:pools['calibration'][cid]['y'] for cid in ids})
     gates={};validation=[];validation_frames={};names=None
+    val_prediction_dir=out/'gate_validation_predictions';val_prediction_dir.mkdir(exist_ok=True)
+    val_saved={cid:dict(client_id=np.full(len(pools['validation'][cid]['y']),cid),
+        role_row_index=np.arange(len(pools['validation'][cid]['y'])),y_true=pools['validation'][cid]['y']) for cid in ids}
+    for cid in ids:
+        if 'receiver_local_covered' in pools['validation'][cid]:
+            val_saved[cid]['receiver_local_covered']=pools['validation'][cid]['receiver_local_covered']
     for k in budgets:
         fitting=[];targets=[]
         for cid in ids:
@@ -185,6 +210,15 @@ def run_competence_gate(ckpt,shards,classes,ids,out,device,diagnostic_input,data
             MLP=MLPClassifier(hidden_layer_sizes=(32,16),alpha=.001,batch_size=1024,
                 max_iter=50,early_stopping=False,random_state=20261005))
         validation_frames[k]={}
+        if extra_baselines:
+            for cid in ids:
+                chosen=[cid]+order[cid][:k]
+                features,pred,feature_names=feature_matrix(cid,chosen,cache['validation'][cid],alphas[cid],priors,len(classes),max(seen)+1)
+                outputs=dict(majority=vote(pred.T,np.ones(len(chosen)),seen,pred[:,0]),self=pred[:,0])
+                outputs.update(prior_baselines(features,pred,feature_names,chosen,seen))
+                for policy,result in outputs.items():
+                    validation_frames[k].setdefault(policy,[]).append((pools['validation'][cid]['y'],result))
+                    val_saved[cid][f'k{k}_{policy}']=result
         for family,estimator in candidates.items():
             gate=make_pipeline(StandardScaler(),estimator);gate.fit(x,y);gates[k,family]=gate
             for cid in ids:
@@ -194,6 +228,7 @@ def run_competence_gate(ckpt,shards,classes,ids,out,device,diagnostic_input,data
                     (result,_),_=predict_gate(gate,features,pred,chosen,seen,top)
                     policy=f'{family}_top{top}'
                     validation_frames[k].setdefault(policy,[]).append((pools['validation'][cid]['y'],result))
+                    val_saved[cid][f'k{k}_{policy}']=result
             print(f'Fitted gate k={k} family={family}, expert-row targets={len(y)}',flush=True)
         for policy,values in validation_frames[k].items():
             truth=np.concatenate([v[0] for v in values]);prediction=np.concatenate([v[1] for v in values])
@@ -201,19 +236,37 @@ def run_competence_gate(ckpt,shards,classes,ids,out,device,diagnostic_input,data
                 macro_f1=float(f1_score(truth,prediction,labels=seen,average='macro',zero_division=0))))
         del x,y,fitting,targets
     validation=pd.DataFrame(validation);validation.to_csv(out/'gate_validation_metrics.csv',index=False)
-    selected={k:validation[validation.k==k].sort_values(['accuracy','macro_f1','policy'],
+    for cid,values in val_saved.items():pd.DataFrame(values).to_csv(val_prediction_dir/f'client_{cid}.csv',index=False)
+    if extra_baselines:
+        validation_full=pd.concat([pd.DataFrame(values) for values in val_saved.values()],ignore_index=True)
+        covered_rows=[]
+        if 'receiver_local_covered' in validation_full:
+            for row in validation.itertuples():
+                for covered,group in validation_full.groupby('receiver_local_covered'):
+                    correct=group[f'k{row.k}_{row.policy}'].to_numpy()==group.y_true.to_numpy()
+                    covered_rows.append(dict(k=int(row.k),policy=row.policy,receiver_local_covered=bool(covered),
+                        rows=len(group),correct=int(correct.sum()),accuracy=float(correct.mean())))
+            pd.DataFrame(covered_rows).to_csv(out/'gate_validation_coverage_metrics.csv',index=False)
+        del validation_full
+    # Primary gate selection remains among the same six learned policies as V1.
+    # Prior-only/majority baselines are reported, not promoted using test outcomes.
+    learned=validation[validation.policy.str.startswith(('LR_','MLP_'))]
+    selected={k:learned[learned.k==k].sort_values(['accuracy','macro_f1','policy'],
         ascending=[False,False,True]).iloc[0].policy for k in budgets}
-    bundle=dict(gates=gates,priors=priors,feature_names=names,selected=selected,orders=order,budgets=budgets)
+    import sklearn
+    bundle=dict(gates=gates,priors=priors,feature_names=names,selected=selected,orders=order,budgets=budgets,
+        variant=variant,sklearn_version=sklearn.__version__)
     joblib.dump(bundle,out/'frozen_gate.joblib')
     digest=hashlib.sha256((out/'frozen_gate.joblib').read_bytes()).hexdigest()
     write_json(out/'gate_lock.json',dict(locked_before_test_expert_inference=True,gate_sha256=digest,
         selected_by_validation=selected,selection_rule='validation accuracy, macro-F1, alphabetical policy',
-        feature_names=names,test_labels_used_for_fit=False,test_labels_used_for_selection=False))
+        feature_names=names,sklearn_version=sklearn.__version__,variant=variant,
+        test_labels_used_for_fit=False,test_labels_used_for_selection=False))
     # Test exactly the restored artifact, rather than an unsaved in-memory fit.
     restored=joblib.load(out/'frozen_gate.joblib')
     gates=restored['gates'];priors=restored['priors'];selected=restored['selected']
     # Clear all fitting data before test experts execute. Gate is frozen on disk.
-    del cache,pools,validation_frames
+    del cache,pools,validation_frames,val_saved
     test_pools={'test':{cid:dict(X=shards[cid]['X_test']) for cid in ids}}
     test=collect(ckpt,test_pools,needed,ids,seen,device,batch_size,manifest,out,'test')['test']
     metrics=[];frames=[];pred_dir=out/'predictions';pred_dir.mkdir(exist_ok=True)
@@ -226,8 +279,9 @@ def run_competence_gate(ckpt,shards,classes,ids,out,device,diagnostic_input,data
             raise RuntimeError(f'{cid}: original self baseline/panel mismatch')
         frame=dict(client_id=np.full(len(truth),cid),global_test_row=shards[cid]['sample_ids'],y_true=truth,self=own)
         for k in budgets:
-            chosen=[cid]+order[cid][:k];features,pred,_=feature_matrix(cid,chosen,test[cid],alphas[cid],priors,len(classes),max(seen)+1)
+            chosen=[cid]+order[cid][:k];features,pred,feature_names=feature_matrix(cid,chosen,test[cid],alphas[cid],priors,len(classes),max(seen)+1)
             output=dict(majority=vote(pred.T,np.ones(len(chosen)),seen,own),self=own)
+            if extra_baselines:output.update(prior_baselines(features,pred,feature_names,chosen,seen))
             for family in ('LR','MLP'):
                 for top in (1,2,4):
                     (result,donor),scores=predict_gate(gates[k,family],features,pred,chosen,seen,top)
@@ -259,6 +313,7 @@ def run_competence_gate(ckpt,shards,classes,ids,out,device,diagnostic_input,data
     summary=pd.DataFrame(summary);summary.to_csv(out/'summary.csv',index=False)
     plot_gate_budget(summary,out)
     write_json(out/'gate_completion.json',dict(completed=True,retrospective_shared_gate=True,
+        variant=variant,test_panel_role='diagnostic/development',final_untouched_test=False,
         test_labels_used_only_for_metrics=True,gate_locked_before_test_inference=True,
         independent_backbone_validation=False,streaming_replay_free_claim=False,
         selected_policy=selected,no_raw_sample_network_queries=True))
