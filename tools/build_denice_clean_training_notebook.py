@@ -10,7 +10,7 @@ def main():
     notebook=dict(cells=[dict(cell_type='markdown',metadata={},source=[
         '# Clean DeNICE + CGoFed + frozen peer Class Meta\n',
         'Enable GPU and Internet; attach the original 100-client dataset.\n',
-        'Fresh six-task run on BASE only; xi=0.5. META/VALIDATION roles are reserved before training.\n',
+        'Fresh six-task run on BASE only; configure xi via SIMILARITY_THRESHOLD (default 0.8). META/VALIDATION roles are reserved before training.\n',
         'Each round is checkpointed and compressed; each completed task is sealed into one ZIP.\n',
         'After task 5, fit/freeze Multiclass balanced, Gate V2 MLP and ClassLR C=0.1 on clean roles.\n',
         'Audit the fixed self + 16 peer recipe on validation, lock artifacts, then evaluate ALL test rows once.\n',

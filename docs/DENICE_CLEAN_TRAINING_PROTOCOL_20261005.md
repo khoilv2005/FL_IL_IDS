@@ -10,9 +10,11 @@ Default run: seed 42, fresh backbone, tasks 0..5, 20 rounds/task, followed autom
 
 ## Fixed training formulation
 
-- `denice_clustering_mode=paper`, similarity threshold **0.5**, beta 0.5.
+- `denice_clustering_mode=paper`, configurable similarity threshold, beta 0.5. The updated launcher defaults to **0.8**, preserving the requested local edit; the previous baseline used 0.5.
 - Internal K=1 is a grouping sentinel; global cluster K is reported as N/A.
 - Peer neighborhoods remain threshold-driven and dynamic. AP and top-k graph pruning are disabled for this main configuration.
+
+Set `SIMILARITY_THRESHOLD` near the top of the launcher/notebook, or set `DENICE_SIMILARITY_THRESHOLD` before execution. This single value drives config and logging. The validator accepts finite values in [0,1] and checks before the expensive role split; it no longer forces 0.5. Regenerate the notebook after editing the Python entry point. Resume must retain its original xi; a different xi requires fresh training. Clean role indices may be reused across xi experiments with the same dataset/split seed.
 - Preserve existing CANC/allocation/adapter configuration, local CGoFed projection and AMP fix; mature-head peer projection remains disabled.
 - Training router remains the existing binary-cosine configuration. Clean balanced-multiclass/Gate/Meta inference is a subsequent fitting stage, not a hidden backbone change.
 - Meta budget 16 is recorded separately as a candidate pending clean validation, not a training neighborhood size or an already-selected new-seed policy.

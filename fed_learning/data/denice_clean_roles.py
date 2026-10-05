@@ -1,6 +1,7 @@
 """Content-disjoint data-role views for clean DeNICE backbone training."""
 import hashlib
 import json
+import math
 from pathlib import Path
 import numpy as np
 import torch
@@ -113,9 +114,21 @@ class CleanRoleIncrementalDataLoader(IncrementalDataLoader):
         return self._validation_data()
 
 
+def validate_similarity_threshold(value):
+    """Xi is configurable; reject invalid values before preparing data roles."""
+    try:
+        threshold=float(value)
+    except (TypeError,ValueError) as exc:
+        raise ValueError('denice_similarity_threshold must be a finite number in [0, 1]') from exc
+    if isinstance(value,bool) or not math.isfinite(threshold) or not 0<=threshold<=1:
+        raise ValueError('denice_similarity_threshold must be a finite number in [0, 1]')
+    return threshold
+
+
 def validate_clean_training_config(config):
     """Fail closed if a launcher tries to bypass the fixed clean protocol."""
-    required={'denice_clustering_mode':'paper','denice_similarity_threshold':0.5,
+    config['denice_similarity_threshold']=validate_similarity_threshold(config.get('denice_similarity_threshold'))
+    required={'denice_clustering_mode':'paper',
               'denice_cgofed_peer_projection':False,'denice_amp_enabled':True,
               'denice_cl_method':'cgofed','denice_require_label_overlap':True,
               'denice_collab_use_context_edges':True}

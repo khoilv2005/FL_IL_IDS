@@ -9,7 +9,9 @@ import sys
 import tempfile
 from importlib.metadata import version, PackageNotFoundError
 
-# Main protocol: keep xi=0.5. Run seed 42 first, before the replication campaign.
+# Change xi here, or set DENICE_SIMILARITY_THRESHOLD before running the cell.
+SIMILARITY_THRESHOLD=float(os.environ.get('DENICE_SIMILARITY_THRESHOLD','0.8'))
+# Run seed 42 first, before the replication campaign.
 TRAIN_SEED=int(os.environ.get('DENICE_SEED','42'))
 ROLE_SPLIT_SEED=20261006  # Same holdout split across independent training seeds.
 DATA_DIR=os.environ.get('DENICE_DATA_DIR','/kaggle/input/datasets/khoilv2005/100-clients/100-clients')
@@ -46,7 +48,8 @@ if not Path(DATA_DIR,'metadata.json').is_file():
 if OUTPUT_DIR.exists() and any(OUTPUT_DIR.iterdir()):
     raise ValueError('Output already contains a run. Choose a new DENICE_OUTPUT_DIR; never overwrite checkpoints.')
 from tools.prepare_denice_clean_roles import prepare
-from fed_learning.data.denice_clean_roles import CleanRoleData
+from fed_learning.data.denice_clean_roles import CleanRoleData, validate_similarity_threshold
+SIMILARITY_THRESHOLD=validate_similarity_threshold(SIMILARITY_THRESHOLD)
 if (ROLE_DIR/'role_lock.json').exists():
     roles=CleanRoleData(ROLE_DIR)
     if roles.source.resolve()!=Path(DATA_DIR).resolve() or roles.manifest['split_seed']!=ROLE_SPLIT_SEED:
@@ -58,7 +61,7 @@ overrides=dict(
     data_dir=DATA_DIR,denice_clean_roles_dir=str(ROLE_DIR),output_dir=str(OUTPUT_DIR),
     seed=TRAIN_SEED,random_seed=TRAIN_SEED,task_start=TASK_START,task_end=5,
     resume_state_path=RESUME_ARCHIVE,save_resume_after_task=None,save_continuation_every_task=True,
-    denice_clustering_mode='paper',denice_similarity_threshold=0.5,
+    denice_clustering_mode='paper',denice_similarity_threshold=SIMILARITY_THRESHOLD,
     denice_cgofed_peer_projection=False,denice_amp_enabled=True,
     denice_cluster_edge_top_k=0,denice_collab_use_context_edges=True,
     denice_require_label_overlap=True,denice_max_clients=100,
@@ -80,7 +83,7 @@ if os.environ.get('DENICE_CONFIG_OVERRIDES'):
 os.environ.update(DENICE_VARIANT='cgofed',DENICE_TRAIN_PHASE='5',DENICE_CODE_DIR=code,
                   DENICE_SEED=str(TRAIN_SEED),DENICE_OUTPUT_DIR=str(OUTPUT_DIR),
                   DENICE_CONFIG_OVERRIDES=json.dumps(overrides))
-print(f'CLEAN MAIN TRAINING: seed={TRAIN_SEED}, paper/xi=0.5, BASE only, tasks {TASK_START}..5.',flush=True)
+print(f'CLEAN MAIN TRAINING: seed={TRAIN_SEED}, paper/xi={SIMILARITY_THRESHOLD}, BASE only, tasks {TASK_START}..5.',flush=True)
 print('Checkpoints: every round, compressed immediately; one verified ZIP per completed task.',flush=True)
 print('Backbone evaluation OFF. After task 5: fit/freeze Multiclass, Gate V2 MLP, ClassLR C=0.1.',flush=True)
 print('Selectors use clean calibration/fit roles; validation audits the fixed recipe.',flush=True)

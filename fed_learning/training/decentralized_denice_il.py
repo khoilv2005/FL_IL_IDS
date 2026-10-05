@@ -2311,6 +2311,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             if (previous_config.get('denice_data_roles_sha256')!=config['denice_data_roles_sha256']
                     or int(previous_config.get('random_seed',42))!=int(config.get('random_seed',42))):
                 raise ValueError('Resume must use the same clean role manifest and original training seed; legacy checkpoints forbidden')
+            if float(previous_config.get('denice_similarity_threshold',0.5))!=config['denice_similarity_threshold']:
+                raise ValueError('Fresh training required to change denice_similarity_threshold; resume must retain the original xi')
         saved_config = resume_state.get("config") or {}
         saved_allocation = saved_config.get('denice_allocation_policy', 'legacy_sequential')
         if config.get('denice_allocation_policy', saved_allocation) != saved_allocation:
