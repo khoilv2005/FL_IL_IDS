@@ -8,7 +8,7 @@ import sys
 import tempfile
 from importlib.metadata import version,PackageNotFoundError
 
-RESULTS_DRIVE_URL=os.environ.get('DENICE_RESULTS8_DRIVE_URL','PASTE_RESULTS8_GOOGLE_DRIVE_URL')
+RESULTS_DRIVE_URL=os.environ.get('DENICE_RESULTS8_DRIVE_URL','https://drive.google.com/file/d/1HWT7H0SsK75xagCouf8slzSALb3NNjv5/view?usp=drive_link')
 DATA_DIR=os.environ.get('DENICE_DATA_DIR','/kaggle/input/datasets/khoilv2005/100-clients/100-clients')
 RESULTS_ZIP=Path(os.environ.get('DENICE_RESULTS8_ZIP','/kaggle/working/results8_class28_source.zip'))
 EXTRACT_DIR=Path('/kaggle/working/results8_class28_selected')
