@@ -7,6 +7,7 @@ from .active_pair_calibration import split_counts
 from .evaluate import Predictor
 from .imported_route import ROUTE_RULES,stratified_roles
 from .state import complete_hash,rng_snapshot,restore_rng
+from .discovery_preflight import schedule_requests
 
 
 class LiveCurrentClient:
@@ -41,7 +42,8 @@ class LiveCurrentClient:
         finally:restore_rng(rng)
 
 
-def discover_live_pairs(endpoints,groups,alphas,task,round_id):
+def discover_live_pairs(endpoints,groups,alphas,task,round_id,preflight=None,
+                        max_transactions=16,max_receivers_per_class=8):
     """Use legal positive peer lists and the full recorded alpha map.
 
     This is the same contract as selector.recorded_graph: peer lists exclude
@@ -60,8 +62,15 @@ def discover_live_pairs(endpoints,groups,alphas,task,round_id):
             any(not np.isfinite(v) or v<0 for v in weights.values())):
             raise Rejected('LIVE_DISCOVERY_GRAPH_OR_TASK_CHANGED',f'client={cid}')
         r,o,f=endpoint.messages();requests.extend(r);offers.extend(o);failed.extend(f)
-    selected,coverage=select_current_pairs(requests,offers,groups,alphas,task,round_id)
+    rejected_requests=[]
+    if preflight is None:
+        selected,coverage=select_current_pairs(requests,offers,groups,alphas,task,round_id)
+    else:
+        if set(preflight)!=set(endpoints):raise Rejected('DISCOVERY_PREFLIGHT_ACTIVE_GRAPH_CHANGED')
+        selected,coverage,rejected_requests=schedule_requests(requests,offers,groups,alphas,
+            task,round_id,preflight,max_transactions,max_receivers_per_class)
     return dict(pairs=selected,coverage=coverage,requests=requests,offers=offers,rejected_offers=failed,
                 task=task,round=round_id,failed_pair_substitution_allowed=False,
                 selection_opened=False,holdout_predictions_used=False,
-                historical_raw_CAL_reads=0,final_test_opened=False)
+                historical_raw_CAL_reads=0,final_test_opened=False,
+                receiver_preflight=preflight,rejected_requests=rejected_requests)

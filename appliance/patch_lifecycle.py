@@ -8,6 +8,8 @@ import copy
 import hashlib
 import json
 from .config import Rejected
+from .cumulative_certificate import validated_scope
+from .empirical_deployment import deployment_scope
 
 VERSION = 'appliance_scope_lifecycle_v1'
 ACTIVE_STATES = ('COMMITTED', 'CARRY_FORWARD')
@@ -83,16 +85,35 @@ def reconcile(entry, function_current, scope, task, conflict=False, new_cal_rows
     except Rejected:
         requested = None
     old = entry.get('lifecycle_certificate', {}).get('scope')
-    contained = bool(requested and old and requested['domain_id'] == old['domain_id'] and
-                     set(requested['classes']).issubset(old['classes']))
+    try:
+        effective = validated_scope(entry) if bound else None
+        deployment = deployment_scope(entry) if bound else None
+    except (Rejected, KeyError, TypeError, ValueError):
+        effective = None
+        deployment = None
+    evidenced = bool(requested and effective and requested['domain_id'] == effective['domain_id'] and
+                     set(requested['classes']).issubset(effective['classes']))
+    permitted = deployment or effective
+    contained = bool(effective and requested and permitted and requested['domain_id'] == permitted['domain_id'] and
+                     set(requested['classes']).issubset(permitted['classes']))
+    original_contained = bool(requested and old and requested['domain_id'] == old['domain_id'] and
+                             set(requested['classes']).issubset(old['classes']))
     reason = ('certificate_binding_changed' if not bound else
               'dependency_head_or_guard_drift' if not function_current else
               'new_protection_conflict' if conflict else
+              'cumulative_CAL_evidence_chain_invalid' if effective is None else
               'runtime_domain_not_proven_inside_certificate_scope' if not contained else None)
     state = 'SUSPENDED' if reason else ('COMMITTED' if task == entry['task'] else 'CARRY_FORWARD')
     report = dict(version=VERSION, task=task, state=state, reason=reason,
         certificate_binding_current=bound, function_current=bool(function_current),
-        runtime_scope=requested, inside_original_scope=contained, new_conflict=bool(conflict),
+        runtime_scope=requested, inside_original_scope=original_contained,
+        inside_effective_scope=evidenced, effective_CAL_scope=effective,
+        deployment_scope=deployment, inside_deployment_scope=contained,
+        authorization_basis='empirical_acceptance' if deployment else 'strict_evidence_scope',
+        empirical_outside_CAL_scope=bool(deployment and contained and not evidenced),
+        population_FAR_claim=False,
+        missing_CAL_classes=(sorted(set(requested['classes'])-set(effective['classes']))
+                             if requested and effective else None), new_conflict=bool(conflict),
         new_cal_rows=new_cal_rows, new_CAL_certificate_issued=False,
         insufficient_CAL_corrupts_old_certificate=False, historical_raw_reads=0,
         patch_retained=True, protection_retained=True)
@@ -113,5 +134,10 @@ def route_authorized(entry, scope):
         requested = checked_scope(scope)
     except Rejected:
         return False
-    old = entry['lifecycle_certificate']['scope']
-    return requested['domain_id'] == old['domain_id'] and set(requested['classes']).issubset(old['classes'])
+    try:
+        effective = validated_scope(entry)
+        permitted = deployment_scope(entry) or effective
+    except (Rejected, KeyError, TypeError, ValueError):
+        return False
+    return (not entry.get('new_conflict_latched', False) and
+            requested['domain_id'] == permitted['domain_id'] and set(requested['classes']).issubset(permitted['classes']))

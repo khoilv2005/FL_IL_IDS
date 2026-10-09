@@ -22,6 +22,8 @@ from .portable_route import ProtectedRoute,receiver_signals
 from .state import complete_hash,digest,rng_snapshot,restore_rng
 from .patch_lifecycle import (bind_initial_certificate, certificate_binding_current,
     reconcile, route_authorized, sealed_sha256)
+from .cumulative_certificate import append_current_evidence, validated_scope
+from .empirical_deployment import bind_deployment
 
 POLICY='appliance_signature_mature_margin_BASE_veto_v1'
 
@@ -131,6 +133,8 @@ class StableHeadRegistry(GuardedHeadRegistry):
             result[cid].update(lifecycle_state=e.get('lifecycle_state'),
                 lifecycle_reason=e.get('lifecycle_reason'),
                 lifecycle_certificate_sha256=e.get('lifecycle_certificate_sha256'))
+            try:result[cid]['effective_CAL_scope']=validated_scope(e) if 'lifecycle_certificate' in e else None
+            except (Rejected,KeyError,ValueError,TypeError):result[cid]['effective_CAL_scope']=None
         return result
 
     def bind_lifecycle(self,model,router,cid,scope):
@@ -147,6 +151,21 @@ class StableHeadRegistry(GuardedHeadRegistry):
             conflict=conflict or e.get('new_conflict_latched',False),new_cal_rows=new_cal_rows)
         self.sync(model)
         return report
+
+    def extend_current_scope(self,model,router,cid,receipts):
+        e=self.entries[cid]
+        if not certificate_binding_current(e):raise Rejected('INITIAL_SCOPE_CERTIFICATE_INVALID')
+        result=append_current_evidence(e,receipts,self.certificate_current(model,router,cid))
+        self.sync(model)
+        return result
+
+    def bind_empirical_deployment(self,model,router,cid):
+        e=self.entries[cid]
+        if not certificate_binding_current(e) or not self.certificate_current(model,router,cid):
+            raise Rejected('EMPIRICAL_DEPLOYMENT_CURRENT_FUNCTION_REQUIRED')
+        result=bind_deployment(e,next(model.parameters()).device.type,str(torch.__version__))
+        self.sync(model)
+        return result
 
     def attest_signed_zero_equivalence(self,model,router,cid):
         """Bind a new hash schema only while the original certificate matches.

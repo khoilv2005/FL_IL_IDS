@@ -45,6 +45,19 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
             or config['denice_data_roles_sha256']!=file_sha256(roles.root/'role_manifest.json')):
         raise ValueError('Expected matching clean legacy checkpoint, xi and data-role lock')
     ids=sorted(map(int,ckpt['client_model_states']));snapshots={};fingerprints={}
+    if include_appliance:
+        from appliance.empirical_deployment import deployment_scope
+        # Numerical backend is part of the fixed guard fingerprint. Never
+        # silently disable a CPU-certified patch by evaluating it on CUDA.
+        for cid,algorithm in ckpt['client_algorithm_states'].items():
+            algorithm=algorithm.get('denice',algorithm)
+            for entry in algorithm.get('appliance_guarded_head_entries',{}).values():
+                if deployment_scope(entry) is not None:
+                    declaration=entry['empirical_deployment']
+                    if (declaration['guard_backend']!=torch.device(device).type or
+                            declaration['torch_version']!=str(torch.__version__)):
+                        raise ValueError(f'{cid}: APPLIANCE guard requires {declaration["guard_backend"]} '
+                            f'/ Torch {declaration["torch_version"]}; requested {device} / {torch.__version__}')
     with threadpool_limits(limits=1):
         for cid in ids:
             model,detector=_make_denice_client_model(ckpt,cid,device)
@@ -73,7 +86,10 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
     if include_appliance:
         lock.update(method='DeNICE legacy + APPLIANCE; one local backbone',
             appliance=True, application_scope=dict(domain_id='cumulative_dataset', classes=list(range(34))),
-            scoped_certificate_expansion=False, suspended_route_fallback='original local prediction')
+            scoped_certificate_expansion=False, suspended_route_fallback='original local prediction',
+            scope_mode=config.get('appliance_scope_mode','initial_scope_v1'),
+            population_FAR_claim=False, guard_backend=device,
+            empirical_risk='Deployment outside finite CAL evidence is allowed only by an explicit empirical declaration')
     write_json(out/'pipeline_lock.json',lock)
     loader=IncrementalDataLoader(str(roles.source));x,y=loader.get_full_test_data()
     if not np.array_equal(np.unique(y.numpy()),np.arange(34)):raise ValueError('Source test must contain all 34 classes')
@@ -94,6 +110,14 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
             from appliance.stable_head import StableHeadRegistry
             registry = StableHeadRegistry()
             registry.entries = getattr(model, 'appliance_guarded_head_entries', {})
+            from appliance.patch_lifecycle import route_authorized
+            route_status={c:dict(state=e.get('lifecycle_state'),reason=e.get('lifecycle_reason'),
+                authorized=route_authorized(e,lock.get('application_scope')) if include_appliance else False,
+                certificate_current=registry.certificate_current(model,detectors['MulticlassSelf'],c))
+                for c,e in registry.entries.items()}
+            if include_appliance and any(s['authorized'] and not s['certificate_current'] for s in route_status.values()):
+                raise RuntimeError(f'{cid}: authorized imported route has a changed function; evaluation blocked')
+            activation_count=0
             local={p:np.zeros((34,34),dtype=np.int64) for p in cms};shard=shards[cid]
             for start in range(0,len(shard['y_test']),batch_size):
                 inputs=shard['X_test'][start:start+batch_size].to(device)
@@ -107,10 +131,12 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
                         logits,_=_denice_routed_logits_with_episodes(model,inputs,detectors[policy],list(range(34)),device,inference_policy='pred_hard')
                         predictions[policy]=logits.argmax(1).cpu().numpy()
                 if include_appliance:
-                    predictions['APPLIANCE'] = (registry.records(model, detectors['MulticlassSelf'],
+                    appliance_record = (registry.records(model, detectors['MulticlassSelf'],
                         inputs.cpu().numpy(), list(range(34)), device, batch_size,
-                        runtime_scope=lock['application_scope'])['pred'] if registry.entries else
+                        runtime_scope=lock['application_scope']) if registry.entries else None)
+                    predictions['APPLIANCE'] = (appliance_record['pred'] if appliance_record else
                         predictions['MulticlassSelf'].copy())
+                    if appliance_record:activation_count+=int(appliance_record['activated'].sum())
                 truth=shard['y_test'][start:start+batch_size].numpy()
                 rows=shard['X_test'].indices[start:start+batch_size].numpy()
                 if len(np.unique(rows))!=len(rows) or seen_rows[rows].any():raise RuntimeError('Repeated test row')
@@ -120,11 +146,12 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
                     cms[policy]+=cm;local[policy]+=cm
                 pd.DataFrame(dict(client_id=cid,global_test_row=rows,y_true=truth,**predictions)).to_csv(destination,index=False,header=header)
                 header=False;evaluated+=len(rows)
-                if evaluated%(batch_size*100)<batch_size:print(f'Legacy self full test: {evaluated}/{expected}',flush=True)
+                if evaluated%(batch_size*100)<batch_size:print(f'Single-model full test: {evaluated}/{expected}',flush=True)
             if encoder_fingerprint(model)!=fingerprints[cid]:raise RuntimeError('Inference mutated expert weights/masks')
-            clients.append(dict(receiver=cid,metrics={p:statistics(cm) for p,cm in local.items()}))
+            clients.append(dict(receiver=cid,metrics={p:statistics(cm) for p,cm in local.items()},
+                appliance_routes=route_status,appliance_activated_rows=activation_count))
             write_json(out/'client_metrics.json',clients)
-            print(f'Legacy self receiver {position}/{len(ids)}: {evaluated}/{expected}',flush=True)
+            print(f'Single-model test receiver {position}/{len(ids)}: {evaluated}/{expected}; imported activation={activation_count}',flush=True)
             del shards[cid],model,detector,detectors;gc.collect()
             if device.startswith('cuda'):torch.cuda.empty_cache()
     if evaluated!=expected or not seen_rows.all():raise RuntimeError('Full-test coverage incomplete')
@@ -133,6 +160,10 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
     result=dict(completed=True,task=5,test_rows=evaluated,main_policy='APPLIANCE' if include_appliance else 'MulticlassSelf',
         metrics={p:statistics(cm) for p,cm in cms.items()},seconds=time.monotonic()-started,partition=partition,lock=lock,
         class_coverage_policy='report_only',limitation='Existing test source has previously been inspected; not untouched confirmation')
+    if include_appliance:
+        result['appliance_activity']=dict(activated_rows=sum(c['appliance_activated_rows'] for c in clients),
+            authorized_routes=sum(s['authorized'] for c in clients for s in c['appliance_routes'].values()),
+            suspended_routes=sum(not s['authorized'] for c in clients for s in c['appliance_routes'].values()))
     np.savez_compressed(out/'confusion_matrices.npz',**cms)
     write_json(out/'completion.json',result)
     return result

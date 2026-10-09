@@ -51,6 +51,9 @@ if ENABLED:
     if not REPORT.is_file():raise FileNotFoundError('Production smoke certificate not yet available; do not launch full training')
     certificate=json.loads(REPORT.read_text(encoding='utf-8'))
     if not certificate.get('completed'):raise ValueError('Production smoke has not passed')
+    if (certificate.get('scope_mode')!='appliance_empirical_current_CAL_v2' or
+            not certificate.get('imported_route_activation_verified')):
+        raise ValueError('The empirical deployment/activation smoke lock is required; the older strict-scope lock is insufficient')
     import hashlib
     for relative,expected in certificate['source_sha256'].items():
         if hashlib.sha256(Path(code,relative).read_bytes()).hexdigest()!=expected:
@@ -112,6 +115,8 @@ overrides=dict(
     appliance_base_store=str(STORE/'base_store'),
     appliance_calibration_store=str(STORE/'calibration_store'),
     appliance_application_domain='cumulative_dataset',appliance_batch_size=512,
+    appliance_scope_mode='appliance_empirical_current_CAL_v2',
+    appliance_discovery_max_transactions=16,appliance_discovery_max_receivers_per_class=8,
     denice_clean_protocol='legacy_multiclass',denice_cl_method='legacy',
     denice_router_mode='binary_cosine',denice_eval_route_mode='hard',
     denice_replay_capacity=0,denice_router_replay_enabled=False,denice_memory_policy='sketches',
@@ -127,7 +132,8 @@ os.environ.update(DENICE_VARIANT='legacy',DENICE_TRAIN_PHASE='5',DENICE_CODE_DIR
 print(f'FRESH FULL: legacy DeNICE + APPLIANCE={ENABLED}; seed42; xi=.8; T0..T5; 20 rounds/task.',flush=True)
 print('Automatic discovery each round and after native maturation; current CAL only; no CGoFed/CME.',flush=True)
 print('Delta checkpoint every round + atomic latest full continuation; seal task ZIP at task end.',flush=True)
-print('A current-only certificate cannot activate outside its scope: retain/protect head, suspend route.',flush=True)
+print('Empirical deployment: accepted fixed guards may run outside finite CAL evidence; no population safety claim.',flush=True)
+print('Observed FAR/break conflict or head/guard drift suspends a patch; initial CAL evidence stays immutable.',flush=True)
 runpy.run_path(str(Path(code)/'train_incremental_kaggle.py'),run_name='__main__')
 import gc
 import shutil
@@ -136,7 +142,7 @@ from tools.eval_denice_legacy_self import run_legacy_self
 gc.collect()
 if torch.cuda.is_available():torch.cuda.empty_cache()
 summary=run_legacy_self(OUTPUT_DIR/'checkpoint_task_5_all_rounds.zip',ROLE_DIR,
-    OUTPUT_DIR/'full_test_task_5',DATA_DIR,device='cuda' if torch.cuda.is_available() else 'cpu',
+    OUTPUT_DIR/'full_test_task_5',DATA_DIR,device='cpu' if ENABLED else ('cuda' if torch.cuda.is_available() else 'cpu'),
     batch_size=512,expected_xi=.8,include_appliance=ENABLED)
 print('Frozen full test, one disjoint receiver per row:',json.dumps(summary['metrics'],indent=2),flush=True)
 print('Evaluation ZIP:',shutil.make_archive(str(OUTPUT_DIR/'full_test_task_5'),'zip',root_dir=OUTPUT_DIR/'full_test_task_5'),flush=True)

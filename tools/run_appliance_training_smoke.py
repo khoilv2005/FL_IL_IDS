@@ -49,6 +49,8 @@ def config_for(saved, a, out):
         denice_cme_after_each_task=False, denice_cme_tasks=[])
     if config.get('denice_cl_method') != 'legacy' or config['denice_similarity_threshold'] != .8:
         raise ValueError('Smoke requires the original legacy xi=.8 checkpoint')
+    if getattr(a,'scope_mode',None):
+        config['appliance_scope_mode']=a.scope_mode
     return config
 
 
@@ -115,6 +117,31 @@ def controlled(a, out):
         no_historical_CAL=all(v.task == 3 and all(e['task'] == 3 for e in v.access_log) for v in service.views.values()),
         setup_accounted=service.communication_summary()['by_kind'].get('current_receiver_function_capsule', 0) > 0,
         no_manually_prepared_packet=all(not r.get('prepared_packet_used', True) for r in result['transactions']))
+    if config.get('appliance_scope_mode')=='appliance_empirical_current_CAL_v2':
+        from appliance.patch_lifecycle import route_authorized
+        from appliance.imported_route import ROUTE_RULES,stratified_roles
+        activation=[]
+        for item in commits:
+            cid,donor,c=(item['pair'][k] for k in ('receiver','donor','class_id'))
+            reg=service.registry(models[cid]);e=reg.entries[c]
+            # Same already-used locked current donor CAL HOLDOUT: functional
+            # activation verification only, never independent test evidence.
+            pool=service.views[donor].current_pool(donor,'calibration',
+                service.views[donor].store['task_classes']['3'])
+            held=stratified_roles(pool,ROUTE_RULES['seed']+donor)['holdout']
+            held=held[pool['y'][held]==c]
+            result_pred=reg.records(models[cid],routers[cid],pool['X'][held],list(range(24)),
+                'cpu',512,runtime_scope=service.runtime_scope(list(range(24))))
+            activation.append(dict(receiver=cid,class_id=c,rows=len(held),
+                activated=int(result_pred['activated'].sum()),
+                correct=int((result_pred['pred']==pool['y'][held]).sum()),
+                authorized=route_authorized(e,service.runtime_scope(list(range(24)))),
+                seal_unchanged=e['current_acceptance']==e['lifecycle_certificate']['initial_acceptance']))
+        checks['empirical_routes_authorized']=all(r['authorized'] for r in activation)
+        checks['actual_imported_activation']=bool(activation) and all(r['activated']>0 for r in activation)
+        checks['initial_acceptance_immutable']=all(r['seal_unchanged'] for r in activation)
+        write_json(out/'empirical_activation.json',dict(records=activation,
+            independent_test=False,source='same locked current donor CAL HOLDOUT; endpoint functional verification'))
     # A controlled rejected transaction goes through the real staging service:
     # deliberately request a second capability, which V1 explicitly rejects.
     if commits:
@@ -242,6 +269,8 @@ if __name__ == '__main__':
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--controlled-source', type=Path,
         help='Resume the automatic Task3 endpoint; independently check old rollback before native Task4')
+    p.add_argument('--scope-mode',choices=('initial_scope_v1','appliance_empirical_current_CAL_v2'),
+        default='initial_scope_v1')
     p.add_argument('--store', type=Path, default=Path('audit_denice/appliance_current_runtime_data_local/full100_v1'))
     p.add_argument('--checkpoint-dir', type=Path, default=Path('audit_denice/appliance_legacy_results11/inputs'))
     p.add_argument('--roles', type=Path, default=Path('audit_denice/appliance_historical_calibration_local/_runtime_5f5bbe06cee041de/roles'))
