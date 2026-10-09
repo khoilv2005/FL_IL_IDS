@@ -409,10 +409,33 @@ def _bootstrap_denice_model(
     device: torch.device,
 ) -> DeNICEModel:
     """Clone a compatible DeNICE representative, including adapter structure."""
+    if getattr(source_model,'appliance_guarded_head_entries',None):
+        # Receiver-bound packets cannot silently become another client's
+        # installed capabilities through representative bootstrap.
+        import copy
+        from appliance.guarded_head import put_head
+        source_model=copy.deepcopy(source_model)
+        for cid,entry in source_model.appliance_guarded_head_entries.items():
+            put_head(source_model,int(cid),entry['backup'])
+        update_freeze_masks(source_model)
+        delattr(source_model,'appliance_guarded_head_entries')
+        if hasattr(source_model,'imported_registry'):delattr(source_model,'imported_registry')
     model = _make_model(config, device)
     # A state_dict clone alone reopens pruned connections. Bootstrap must use
     # the same complete model-state contract as checkpoint continuation.
     restore_denice_state(model, None, snapshot_denice_state(source_model))
+    # Receiver-local class summaries are not participation evidence for a late joiner.
+    if hasattr(model,'appliance_mature_profile_state'):
+        delattr(model,'appliance_mature_profile_state')
+    # Owned BASE support belongs to the originating client, not a clone.
+    if hasattr(model,'appliance_base_support_moment_state'):
+        delattr(model,'appliance_base_support_moment_state')
+    if hasattr(model,'appliance_base_sketch_shield_state'):
+        delattr(model,'appliance_base_sketch_shield_state')
+    if hasattr(model,'appliance_runtime_scope'):
+        delattr(model,'appliance_runtime_scope')
+    if hasattr(model,'appliance_imported_profile_state'):
+        delattr(model,'appliance_imported_profile_state')
     model.local_classifier = None  # A new client must fit only its own head.
     model.elastic_state = {}  # Consolidation anchors belong to the donor's local history.
     model.ewc_state = {}
@@ -1219,8 +1242,11 @@ def _build_denice_continuation_state(
     adapter_history: List[Dict[str, Any]],
     debug_history: List[Dict[str, Any]],
     replay_memories=None,
+    appliance_service=None,
+    round_state=None,
+    clients=None,
 ) -> Dict[str, Any]:
-    """Build a self-contained task-boundary continuation payload."""
+    """Build a complete task/round boundary continuation (old schema compatible)."""
     client_ids = sorted(int(cid) for cid in models)
     return {
         "continuation_type": DENICE_CONTINUATION_TYPE,
@@ -1228,8 +1254,9 @@ def _build_denice_continuation_state(
         "meta": {
             "mode": "decentralized",
             "algorithm": "denice",
-            "completed_task": int(task_id),
-            "resume_from_task": int(task_id) + 1,
+            "completed_task": int(task_id) if round_state is None else int(task_id) - 1,
+            "resume_from_task": int(task_id) + 1 if round_state is None else int(task_id),
+            "boundary": "task" if round_state is None else "round",
         },
         "config": _resume_clone(config),
         "client_ids": client_ids,
@@ -1254,6 +1281,10 @@ def _build_denice_continuation_state(
         "rng_state": _snapshot_rng_state(),
         "local_replay_states": {int(cid): memory.state_dict()
                                 for cid, memory in (replay_memories or {}).items()},
+        "appliance_service_state": appliance_service.state_dict() if appliance_service else None,
+        "round_state": _resume_clone(round_state),
+        "client_runtime_states": {int(cid): {'grad_scaler': client._nice_grad_scaler.state_dict()}
+            for cid, client in (clients or {}).items() if getattr(client, '_nice_grad_scaler', None) is not None},
     }
 
 
@@ -1294,6 +1325,24 @@ def _load_denice_continuation_state(path: str) -> Dict[str, Any]:
     missing = [name for name in required if name not in state]
     if missing:
         raise ValueError(f"Incomplete DeNICE continuation state; missing {missing}.")
+    boundary = meta.get('boundary', 'task')
+    if boundary == 'round':
+        saved_round = state.get('round_state') or {}
+        next_round = saved_round.get('next_round')
+        active = saved_round.get('active_ids')
+        if (saved_round.get('version') != 'denice_round_boundary_v1' or
+                type(next_round) is not int or not 1 <= next_round <= int(state['config']['rounds_per_task']) or
+                not isinstance(active, list) or active != sorted(set(active)) or
+                not set(active).issubset(state['client_ids']) or
+                not state.get('appliance_service_state') or
+                int(meta['resume_from_task']) != int(meta['completed_task']) + 1):
+            raise ValueError('Incomplete or inconsistent round-boundary continuation')
+        for field in ('canc_plans', 'ref_data', 'ref_labels', 'previous_valid_cluster',
+                      'consecutive_self_only_rounds', 'task_final_round_eval_metrics', 'cluster_summary', 'losses'):
+            if field not in saved_round:
+                raise ValueError(f'Round continuation missing {field}')
+    elif boundary != 'task' or state.get('round_state') is not None:
+        raise ValueError('Unknown or inconsistent continuation boundary')
     return state
 
 
@@ -2278,6 +2327,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         'denice_cgofed_decay', 'denice_cgofed_energy', 'denice_cgofed_max_samples',
         'denice_cgofed_peer_projection', 'seed', 'random_seed')}
     source_audit['runner_file'] = os.path.abspath(__file__)
+    source_audit['appliance_enabled'] = bool(config.get('appliance_enabled', False))
+    if config.get('appliance_enabled', False):
+        source_audit['appliance_guard'] = 'appliance_signature_mature_margin_BASE_veto_v1'
+        source_audit['appliance_CAL_policy'] = 'current own task only; no historical raw recertification'
     _write_json(os.path.join(output_dir, 'source_audit.json'), source_audit)
     print(f"DENICE source/config audit: {source_audit}", flush=True)
     if config.get('denice_memory_policy') in ('sketches', 'local_replay'):
@@ -2293,9 +2346,17 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     if config.get('denice_clean_roles_dir'):
         from fed_learning.data.denice_clean_roles import CleanRoleIncrementalDataLoader, validate_clean_training_config
         validate_clean_training_config(config)
-        data_loader = CleanRoleIncrementalDataLoader(config['denice_clean_roles_dir'],
+        loader_type = CleanRoleIncrementalDataLoader
+        loader_options = {}
+        if config.get('appliance_enabled', False):
+            from appliance.training_data import ApplianceIncrementalDataLoader
+            loader_type = ApplianceIncrementalDataLoader
+            loader_options = dict(base_store=config['appliance_base_store'],
+                                  role_sha256=config['denice_data_roles_sha256'])
+        data_loader = loader_type(config['denice_clean_roles_dir'],
             validation_max_samples=config.get('denice_eval_max_samples',50000) or 50000,
-            evaluation_role=config.get('denice_evaluation_data_role','validation'))
+            evaluation_role=config.get('denice_evaluation_data_role','validation'),source_data_dir=config.get('data_dir'),
+            **loader_options)
         print(f"Clean roles: backbone=BASE; evaluation={data_loader.evaluation_role.upper()}.",flush=True)
     else:
         data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
@@ -2584,6 +2645,34 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         task_start = int(resume_state["meta"]["resume_from_task"])
         _restore_rng_state(resume_state.get("rng_state"))
 
+    appliance_service = None
+    if config.get('appliance_enabled', False):
+        from appliance.training_service import ApplianceTrainingService
+        appliance_service = ApplianceTrainingService(config,
+            (resume_state or {}).get('appliance_service_state'))
+    elif (resume_state or {}).get('appliance_service_state'):
+        raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
+    round_resume = (resume_state or {}).get('round_state')
+    if round_resume:
+        for key in ('rounds_per_task', 'batch_size', 'nice_phase_epochs', 'denice_max_train_samples_per_client',
+                    'denice_amp_enabled', 'denice_max_batches_per_epoch'):
+            if config.get(key) != saved_config.get(key):
+                raise ValueError(f'Round resume training configuration changed: {key}')
+        if round_resume.get('version') != 'denice_round_boundary_v1':
+            raise ValueError('Unsupported round boundary state')
+
+    appliance_probe=None
+    if config.get('appliance_current_native_manifest'):
+        if config.get('appliance_native_probe_manifest'):
+            raise ValueError('Choose current-only lifecycle or historical diagnostic, not both')
+        from appliance.current_native_lifecycle import CurrentNativeLifecycleObserver
+        appliance_probe=CurrentNativeLifecycleObserver(config)
+        appliance_probe.observe('resume_restored',models,context_detectors,task_start,-1,[])
+    elif config.get('appliance_native_probe_manifest'):
+        from appliance.native_lifecycle import NativeLifecycleObserver
+        appliance_probe=NativeLifecycleObserver(config)
+        appliance_probe.observe('resume_restored',models,context_detectors,task_start,-1,[])
+
     for task_id in range(task_start, task_end + 1):
         print(f"\n{'=' * 80}\nTASK {task_id}/{num_tasks - 1} - Decentralized DeNICE-IL\n{'=' * 80}")
         new_classes = data_loader.get_task_classes(task_id)
@@ -2630,6 +2719,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 data = {"X_train": X, "y_train": y}
                 if cid not in clients:
                     clients[cid] = create_client(cid, X, y, {**config, "algorithm": "denice"})
+                    saved_scaler = ((resume_state or {}).get('client_runtime_states', {}).get(int(cid), {})
+                                    .get('grad_scaler'))
+                    if saved_scaler is not None:
+                        clients[cid]._nice_grad_scaler = torch.amp.GradScaler('cuda', enabled=True)
+                        clients[cid]._nice_grad_scaler.load_state_dict(saved_scaler)
                 else:
                     update_client_data(clients[cid], data, task_id, new_classes)
                 if cid not in models:
@@ -2731,6 +2825,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 clients[cid].y_validation = validation_y
 
         active_ids = sorted(active_ids)
+        if appliance_probe:
+            appliance_probe.observe('task_membership',models,context_detectors,task_id,-1,active_ids)
         print(f"  Active DeNICE clients: {len(active_ids)}")
         if not active_ids:
             continue
@@ -2749,7 +2845,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             sum(v["num_samples"] for v in task_debug["client_data"].values())
         )
         task_debug["bootstrap_events"] = bootstrap_events
-        debug_history.append(task_debug)
+        if not (round_resume is not None and task_id == task_start):
+            debug_history.append(task_debug)
         if denice_debug:
             print(
                 "  DeNICE debug: "
@@ -2758,106 +2855,129 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 f"samples={task_debug['total_samples']}"
             )
 
-        for cid in active_ids:
-            old_ref_banks.setdefault(cid, {})
-            old_ref_loss_baselines.setdefault(cid, None)
-            prep = _prepare_client_task(
-                cid=cid,
-                task_id=task_id,
-                num_tasks=num_tasks,
-                new_classes=new_classes,
-                model=models[cid],
-                client=clients[cid],
-                trainer=trainer,
-                config=config,
-                device=device,
-                context_detector=context_detectors[cid],
-                novelty_estimator=novelty_estimators[cid],
-                prev_ages=prev_ages.get(cid),
-                old_ref_bank=old_ref_banks.get(cid),
-                old_ref_loss_baseline=old_ref_loss_baselines.get(cid),
-            )
-            canc_plans[cid] = prep["plan"]
-            # Task preparation changes the feature space. Do not evaluate a
-            # stale auxiliary readout from the preceding task/checkpoint.
-            models[cid].local_classifier = None
-            ref_data[cid] = prep["ref_data"]
-            ref_labels[cid] = prep.get("ref_labels", torch.empty(0, dtype=torch.long))
-            if config.get('denice_memory_policy', 'references') in ('sketches', 'local_replay'):
-                detector = context_detectors[cid]
-                detector.retain_reference_inputs = False
-                detector.reference_input_memory = {}
-                old_ref_banks[cid] = {}
-                old_ref_loss_baselines[cid] = None
-                if getattr(detector, 'stable_feature_mask', None) is None:
-                    # First-task selected units become the permanent routing subspace.
-                    detector.stable_feature_mask = np.concatenate([
-                        np.asarray(models[cid].unit_ranks[layer]) >= 1
-                        for layer in ('conv1', 'conv2', 'conv3', 'gru')
-                    ])
-                    if not detector.stable_feature_mask.any():
-                        raise ValueError('Sketch routing requires a nonempty protected feature subspace.')
-        canc_action_counts: Dict[str, int] = {}
-        for plan in canc_plans.values():
-            for layer_info in plan.get("layers", {}).values():
-                action = str(layer_info.get("action", "UNKNOWN"))
-                canc_action_counts[action] = int(canc_action_counts.get(action, 0)) + 1
-        debug_history.append(
-            {
-                "type": "canc_reachability",
-                "task": int(task_id),
-                "action_counts": canc_action_counts,
-                "thresholds": CANCConfig.from_dict(config).__dict__,
-            }
-        )
-        if denice_debug:
+        resuming_round = round_resume is not None and task_id == task_start
+        if appliance_service:
+            appliance_service.begin_task(task_id, active_ids, models)
+        if resuming_round:
+            if active_ids != round_resume['active_ids']:
+                raise ValueError('Round resume active client membership changed')
+            canc_plans = _resume_clone(round_resume['canc_plans'])
+            ref_data = _resume_clone(round_resume['ref_data'])
+            ref_labels = _resume_clone(round_resume['ref_labels'])
+            for cid in active_ids:
+                scaler = round_resume.get('client_scalers', {}).get(cid)
+                if scaler is not None:
+                    clients[cid]._nice_grad_scaler = torch.amp.GradScaler('cuda', enabled=True)
+                    clients[cid]._nice_grad_scaler.load_state_dict(scaler)
+            _restore_rng_state(resume_state['rng_state'])
+        else:
+            for cid in active_ids:
+                old_ref_banks.setdefault(cid, {})
+                old_ref_loss_baselines.setdefault(cid, None)
+                prep = _prepare_client_task(
+                    cid=cid,
+                    task_id=task_id,
+                    num_tasks=num_tasks,
+                    new_classes=new_classes,
+                    model=models[cid],
+                    client=clients[cid],
+                    trainer=trainer,
+                    config=config,
+                    device=device,
+                    context_detector=context_detectors[cid],
+                    novelty_estimator=novelty_estimators[cid],
+                    prev_ages=prev_ages.get(cid),
+                    old_ref_bank=old_ref_banks.get(cid),
+                    old_ref_loss_baseline=old_ref_loss_baselines.get(cid),
+                )
+                if appliance_probe:
+                    appliance_probe.observe_client('task_prepared',cid,models,context_detectors,task_id,-1,active_ids,
+                        extra={'canc_plan':prep['plan']})
+                canc_plans[cid] = prep["plan"]
+                # Task preparation changes the feature space. Do not evaluate a
+                # stale auxiliary readout from the preceding task/checkpoint.
+                models[cid].local_classifier = None
+                ref_data[cid] = prep["ref_data"]
+                ref_labels[cid] = prep.get("ref_labels", torch.empty(0, dtype=torch.long))
+                if config.get('denice_memory_policy', 'references') in ('sketches', 'local_replay'):
+                    detector = context_detectors[cid]
+                    detector.retain_reference_inputs = False
+                    detector.reference_input_memory = {}
+                    old_ref_banks[cid] = {}
+                    old_ref_loss_baselines[cid] = None
+                    if getattr(detector, 'stable_feature_mask', None) is None:
+                        # First-task selected units become the permanent routing subspace.
+                        detector.stable_feature_mask = np.concatenate([
+                            np.asarray(models[cid].unit_ranks[layer]) >= 1
+                            for layer in ('conv1', 'conv2', 'conv3', 'gru')
+                        ])
+                        if not detector.stable_feature_mask.any():
+                            raise ValueError('Sketch routing requires a nonempty protected feature subspace.')
+            canc_action_counts: Dict[str, int] = {}
+            for plan in canc_plans.values():
+                for layer_info in plan.get("layers", {}).values():
+                    action = str(layer_info.get("action", "UNKNOWN"))
+                    canc_action_counts[action] = int(canc_action_counts.get(action, 0)) + 1
             debug_history.append(
                 {
-                    "type": "canc_plan",
+                    "type": "canc_reachability",
                     "task": int(task_id),
-                    "clients": {
-                        int(cid): {
-                            "novelty": float(canc_plans[cid].get("novelty", 0.0)),
-                            "actions": {
-                                name: info.get("action")
-                                for name, info in canc_plans[cid].get("layers", {}).items()
-                            },
-                            "capacity": {
-                                name: {
-                                    "rho0": float(info.get("rho0", 0.0)),
-                                    "rhom": float(info.get("rhom", 0.0)),
-                                    "retired": float(info.get("retired", 0.0)),
-                                    "u": float(info.get("u", 0.0)),
-                                    "kappa": float(info.get("kappa", 0.0)),
-                                    "pressure_capacity": float(info.get("pressure_capacity", 0.0)),
-                                    "pressure_consumption": float(info.get("pressure_consumption", 0.0)),
-                                    "pressure_validation": float(info.get("pressure_validation", 0.0)),
-                                    "pressure_novelty": float(info.get("pressure_novelty", 0.0)),
-                                    "val_loss_delta": float(info.get("val_loss_delta", 0.0)),
-                                }
-                                for name, info in canc_plans[cid].get("layers", {}).items()
-                            },
-                            "adapters_to_add": list(canc_plans[cid].get("adapters_to_add", [])),
-                            "val_loss_delta": float(canc_plans[cid].get("val_loss_delta", 0.0)),
-                            "thresholds": canc_plans[cid].get("thresholds", {}),
-                            "is_global_first_task": bool(
-                                canc_plans[cid].get("is_global_first_task", False)
-                            ),
-                            "has_novelty_baseline": bool(
-                                canc_plans[cid].get("has_novelty_baseline", False)
-                            ),
-                            "recycling": canc_plans[cid].get("recycling", {}),
-                        }
-                        for cid in active_ids
-                    },
+                    "action_counts": canc_action_counts,
+                    "thresholds": CANCConfig.from_dict(config).__dict__,
                 }
             )
+            if denice_debug:
+                debug_history.append(
+                    {
+                        "type": "canc_plan",
+                        "task": int(task_id),
+                        "clients": {
+                            int(cid): {
+                                "novelty": float(canc_plans[cid].get("novelty", 0.0)),
+                                "actions": {
+                                    name: info.get("action")
+                                    for name, info in canc_plans[cid].get("layers", {}).items()
+                                },
+                                "capacity": {
+                                    name: {
+                                        "rho0": float(info.get("rho0", 0.0)),
+                                        "rhom": float(info.get("rhom", 0.0)),
+                                        "retired": float(info.get("retired", 0.0)),
+                                        "u": float(info.get("u", 0.0)),
+                                        "kappa": float(info.get("kappa", 0.0)),
+                                        "pressure_capacity": float(info.get("pressure_capacity", 0.0)),
+                                        "pressure_consumption": float(info.get("pressure_consumption", 0.0)),
+                                        "pressure_validation": float(info.get("pressure_validation", 0.0)),
+                                        "pressure_novelty": float(info.get("pressure_novelty", 0.0)),
+                                        "val_loss_delta": float(info.get("val_loss_delta", 0.0)),
+                                    }
+                                    for name, info in canc_plans[cid].get("layers", {}).items()
+                                },
+                                "adapters_to_add": list(canc_plans[cid].get("adapters_to_add", [])),
+                                "val_loss_delta": float(canc_plans[cid].get("val_loss_delta", 0.0)),
+                                "thresholds": canc_plans[cid].get("thresholds", {}),
+                                "is_global_first_task": bool(
+                                    canc_plans[cid].get("is_global_first_task", False)
+                                ),
+                                "has_novelty_baseline": bool(
+                                    canc_plans[cid].get("has_novelty_baseline", False)
+                                ),
+                                "recycling": canc_plans[cid].get("recycling", {}),
+                            }
+                            for cid in active_ids
+                        },
+                    }
+                )
 
         delta_base_path: Optional[str] = None
         previous_round_checkpoint_path: Optional[str] = None
         previous_model_states: Dict[int, OrderedDict[str, torch.Tensor]] = {}
         if checkpoint_every is not None and checkpoint_format == "delta":
             delta_base_path = _base_checkpoint_path(output_dir, task_id)
+            if resuming_round:
+                # Never overwrite the base of an existing delta chain.
+                delta_base_path = os.path.join(output_dir,
+                    f"checkpoint_task_{task_id}_resume_round_{round_resume['next_round']}_base.pt")
             save_task_base_checkpoint(
                 delta_base_path,
                 task_id=task_id,
@@ -2887,7 +3007,17 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         previous_valid_cluster: Optional[Dict[str, Any]] = None
         consecutive_self_only_rounds = 0
         task_final_round_eval_metrics: Optional[Dict[str, Any]] = None
-        for round_id in range(rounds_per_task):
+        round_start = round_resume['next_round'] if resuming_round else 0
+        if resuming_round:
+            previous_valid_cluster = _resume_clone(round_resume['previous_valid_cluster'])
+            consecutive_self_only_rounds = round_resume['consecutive_self_only_rounds']
+            task_final_round_eval_metrics = _resume_clone(round_resume['task_final_round_eval_metrics'])
+            cluster_summary = _resume_clone(round_resume['cluster_summary'])
+            losses = _resume_clone(round_resume['losses'])
+            # Model creation, loading own current BASE and delta-base I/O must
+            # not perturb the exact training random stream of the checkpoint.
+            _restore_rng_state(resume_state['rng_state'])
+        for round_id in range(round_start, rounds_per_task):
             print(f"  Round {round_id}/{rounds_per_task - 1}")
             start = time.time()
             losses: Dict[int, float] = {}
@@ -2918,11 +3048,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     phase_offset=round_id,
                     max_phases_override=1,
                     amp_enabled=bool(config.get("denice_amp_enabled", True)),
+                    amp_initial_scale=config.get("denice_amp_initial_scale"),
                     denice_elastic_strength=(plasticity_controls['strength'] if plasticity_controls['enabled'] else 0.),
                     continual_controls=continual_controls,
                     local_replay=(replay_memories.setdefault(cid, make_replay())
                                   if replay_config.capacity else None),
                     **imbalance_controls,
+                    **(appliance_service.training_hooks(cid, model) if appliance_service else
+                       appliance_probe.training_hooks(cid,model) if appliance_probe else {}),
                 )
                 client_train_time = time.time() - client_train_start
                 history.setdefault('continual_losses', []).append(
@@ -3006,6 +3139,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     "capacity_reserve_released": reserve_after_train,
                     "nice_loss_semantics": nice_loss_semantics.get(int(cid)),
                 }
+                if appliance_probe:
+                    appliance_probe.observe_client('after_local_and_context',cid,models,context_detectors,
+                        task_id,round_id,active_ids,extra={'training':result,'capacity_reserve_released':reserve_after_train})
 
             capsule_start = time.time()
             capsules = {
@@ -3036,6 +3172,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 clients=clients,
                 replay_memories=replay_memories,
             )
+            if appliance_probe:
+                appliance_probe.observe('after_aggregation_and_age_merge',models,context_detectors,
+                    task_id,round_id,active_ids,extra={'groups':cluster_summary.get('groups',{})})
+            if appliance_service:
+                for cid in active_ids:
+                    appliance_service.protect(models[cid])
             previous_valid_cluster = cluster_summary.pop("next_valid_cluster", None)
             aggregation_time = time.time() - aggregation_start
             if transfer_controls['enabled']:
@@ -3186,6 +3328,13 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "last_refresh_rounds": last_refresh_rounds,
             }
             cluster_history.append(cluster_summary)
+            if appliance_probe:
+                appliance_probe.observe('after_router_refresh',models,context_detectors,
+                    task_id,round_id,active_ids,extra={'router_freshness':cluster_summary['router_freshness']})
+            if appliance_service:
+                cluster_summary['appliance'] = appliance_service.after_refresh(task_id, round_id,
+                    models, context_detectors, clients, active_ids, cluster_summary,
+                    _seen_classes(data_loader, task_id))
 
             round_record = {
                 "task": task_id,
@@ -3208,6 +3357,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 "router_refresh_encode_time": float(router_refresh_encode_time),
                 "router_refresh_fit_time": float(router_refresh_fit_time),
                 "router_refresh_sample_count": int(router_refresh_sample_count),
+                "appliance_time": float(cluster_summary.get('appliance', {}).get('seconds', 0.0)),
                 "checkpoint_time": None,
                 "eval_time": 0.0,
                 "debug_write_time": 0.0,
@@ -3501,6 +3651,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         "clustering_time",
                         "aggregation_apply_time",
                         "router_refresh_time",
+                        "appliance_time",
                         "eval_time",
                         "checkpoint_time",
                         "debug_write_time",
@@ -3538,6 +3689,38 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                           f"global_cluster_K=N/A (internal sentinel=1), peers={cluster_summary.get('training_peer_count_stats')}",
                           flush=True)
 
+            if appliance_service:
+                # Full resume state every round; retain a single atomic latest
+                # copy. Existing delta artifacts preserve earlier round models
+                # without multiplying full federation continuation disk usage.
+                boundary = dict(version='denice_round_boundary_v1', next_round=round_id + 1,
+                    active_ids=active_ids, canc_plans=canc_plans, ref_data=ref_data, ref_labels=ref_labels,
+                    previous_valid_cluster=previous_valid_cluster,
+                    consecutive_self_only_rounds=consecutive_self_only_rounds,
+                    task_final_round_eval_metrics=task_final_round_eval_metrics,
+                    cluster_summary=cluster_summary, losses=losses,
+                    client_scalers={cid: clients[cid]._nice_grad_scaler.state_dict()
+                        for cid in active_ids if getattr(clients[cid], '_nice_grad_scaler', None) is not None})
+                state = _build_denice_continuation_state(task_id=task_id, config=config, models=models,
+                    context_detectors=context_detectors, novelty_estimators=novelty_estimators,
+                    prev_ages=prev_ages, old_ref_banks=old_ref_banks,
+                    old_ref_loss_baselines=old_ref_loss_baselines, last_active_task=last_active_task,
+                    history=history, cluster_history=cluster_history, adapter_history=adapter_history,
+                    debug_history=debug_history, replay_memories=replay_memories,
+                    appliance_service=appliance_service, round_state=boundary, clients=clients)
+                temporary = os.path.join(output_dir, 'continuation_state_latest.pt.tmp')
+                torch.save(state, temporary)
+                os.replace(temporary, os.path.join(output_dir, 'continuation_state_latest.pt'))
+                del state
+                if config.get('appliance_smoke_stop_after_round') == [task_id, round_id]:
+                    return dict(output_dir=output_dir, smoke_stopped=True, task=task_id, round=round_id)
+
+            if appliance_probe and appliance_probe.round_finished(task_id,round_id,rounds_per_task,models,
+                    context_detectors,active_ids,cluster_summary):
+                return appliance_probe.finish(models,context_detectors,task_id,round_id,
+                    task_completed=False,native_history=history)
+
+        round_resume = None
         capacity_reserve_released: Dict[int, Dict[str, int]] = {}
         minimum_free_capacity_ratio = float(
             config.get("denice_min_free_capacity_ratio", 0.10)
@@ -3669,6 +3852,16 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                                               router_replay_controls, seed=int(config.get('seed', 42)) + cid)
                 history.setdefault('router_replay', []).append({'task': task_id, 'client_id': cid, **audit})
 
+        if appliance_probe:
+            appliance_probe.observe('task_finalized',models,context_detectors,task_id,rounds_per_task-1,active_ids)
+        if appliance_service:
+            # Native finalization matures current-task donor heads. Do not
+            # artificially promote young heads for early-round discovery.
+            for cid in active_ids:
+                appliance_service.protect(models[cid])
+            appliance_service.after_refresh(task_id, rounds_per_task - 1, models, context_detectors,
+                clients, active_ids, cluster_summary, _seen_classes(data_loader, task_id), phase='task_finalized')
+            task_final_round_eval_metrics = None
         final_round_id = rounds_per_task - 1
         seen_classes_eval = _seen_classes(data_loader, task_id)
         final_train_loss = None
@@ -3904,18 +4097,35 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 adapter_history=adapter_history,
                 debug_history=debug_history,
                 replay_memories=replay_memories,
+                appliance_service=appliance_service,
+                clients=clients,
             )
             continuation_path = os.path.join(
                 output_dir, f"continuation_state_task_{task_id}.pt"
             )
             torch.save(continuation_state, continuation_path)
+            if appliance_service:
+                temporary = os.path.join(output_dir, 'continuation_state_latest.pt.tmp')
+                torch.save(continuation_state, temporary)
+                os.replace(temporary, os.path.join(output_dir, 'continuation_state_latest.pt'))
             print(f"  DeNICE continuation state saved: {continuation_path}")
         if config.get('denice_archive_checkpoints',False):
             seal_task_archive(output_dir,task_id,budget_gib=config.get('denice_checkpoint_storage_budget_gib'))
         _write_phase_outputs(
             output_dir, history, cluster_history, adapter_history, debug_history, config, task_id
         )
+        cme_tasks = config.get('denice_cme_tasks')
+        if config.get('denice_cme_after_each_task', False) and (
+            cme_tasks is None or task_id in cme_tasks
+        ):
+            if not config.get('denice_archive_checkpoints', False) or not config.get('denice_clean_roles_dir'):
+                raise ValueError('Graph-native CME needs sealed checkpoints and locked clean roles')
+            from tools.train_denice_graph_cme import after_training_task
+            after_training_task(config, task_id, final_round_id)
 
+    if appliance_probe:
+        return appliance_probe.finish(models,context_detectors,task_end,rounds_per_task-1,
+            task_completed=True,native_history=history)
     return {
         "output_dir": output_dir,
         "history": history,

@@ -135,6 +135,24 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
     if model is not None and hasattr(model, "get_masks_state"):
         state["connection_masks"] = _clone_value(model.get_masks_state())
     if model is not None:
+        imported=getattr(model,'appliance_guarded_head_entries',None)
+        if imported:
+            state['appliance_guarded_head_entries']=_clone_value(imported)
+        mature_profiles=getattr(model,'appliance_mature_profile_state',None)
+        if mature_profiles is not None:
+            state['appliance_mature_profile_state']=_clone_value(mature_profiles)
+        base_support=getattr(model,'appliance_base_support_moment_state',None)
+        if base_support is not None:
+            state['appliance_base_support_moment_state']=_clone_value(base_support)
+        shield=getattr(model,'appliance_base_sketch_shield_state',None)
+        if shield is not None:
+            state['appliance_base_sketch_shield_state']=_clone_value(shield)
+        scope=getattr(model,'appliance_runtime_scope',None)
+        if scope is not None:
+            state['appliance_runtime_scope']=_clone_value(scope)
+        imported_profiles=getattr(model,'appliance_imported_profile_state',None)
+        if imported_profiles is not None:
+            state['appliance_imported_profile_state']=_clone_value(imported_profiles)
         state['local_classifier'] = _clone_value(getattr(model, 'local_classifier', None))
         state['continual_width'] = int(getattr(model, 'continual_width', 0))
         state['structural_protection'] = bool(getattr(model, 'structural_protection', False))
@@ -176,6 +194,37 @@ def restore_denice_state(
     """
     if model is None or not state:
         return
+    imported=state.get('appliance_guarded_head_entries')
+    if imported:
+        model.appliance_guarded_head_entries=_clone_value(imported)
+    elif hasattr(model,'appliance_guarded_head_entries'):
+        delattr(model,'appliance_guarded_head_entries')
+        if hasattr(model,'imported_registry'):delattr(model,'imported_registry')
+    profiles=state.get('appliance_mature_profile_state')
+    if profiles is not None:
+        model.appliance_mature_profile_state=_clone_value(profiles)
+    elif hasattr(model,'appliance_mature_profile_state'):
+        delattr(model,'appliance_mature_profile_state')
+    base_support=state.get('appliance_base_support_moment_state')
+    if base_support is not None:
+        model.appliance_base_support_moment_state=_clone_value(base_support)
+    elif hasattr(model,'appliance_base_support_moment_state'):
+        delattr(model,'appliance_base_support_moment_state')
+    shield=state.get('appliance_base_sketch_shield_state')
+    if shield is not None:
+        model.appliance_base_sketch_shield_state=_clone_value(shield)
+    elif hasattr(model,'appliance_base_sketch_shield_state'):
+        delattr(model,'appliance_base_sketch_shield_state')
+    scope=state.get('appliance_runtime_scope')
+    if scope is not None:
+        model.appliance_runtime_scope=_clone_value(scope)
+    elif hasattr(model,'appliance_runtime_scope'):
+        delattr(model,'appliance_runtime_scope')
+    imported_profiles=state.get('appliance_imported_profile_state')
+    if imported_profiles is not None:
+        model.appliance_imported_profile_state=_clone_value(imported_profiles)
+    elif hasattr(model,'appliance_imported_profile_state'):
+        delattr(model,'appliance_imported_profile_state')
     model.structural_protection = bool(state.get('structural_protection', False))
     model.configure_continual_head(state.get('continual_width', 0))
     model.fixed_task_allocation = bool(state.get('fixed_task_allocation', False))

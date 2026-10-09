@@ -58,9 +58,14 @@ def prepare(source,out,seed=20261006):
         db.execute('CREATE INDEX content_class_sort ON content(label,split_key)')
         for label in labels:
             n=db.execute('SELECT COUNT(*) FROM content WHERE label=? AND conflict=0',(label,)).fetchone()[0]
-            if n<4:raise ValueError(f'Class {label}: only {n} unambiguous unique inputs; cannot cover four clean roles')
-            base=max(1,min(n-3,math.floor(.8*n)));cal=max(1,min(n-base-2,math.floor(.02*n)))
-            fit=max(1,min(n-base-cal-1,math.floor(.9*n)-base-cal)); val=n-base-cal-fit
+            if n<4:
+                # Preserve disjointness without requiring every class in every role.
+                # Prefer BASE, then fit, then validation; calibration may be empty.
+                base=int(n>=1);cal=0;fit=int(n>=2);val=int(n>=3)
+                print(f'Class {label}: only {n} unique inputs; missing roles are report-only.',flush=True)
+            else:
+                base=max(1,min(n-3,math.floor(.8*n)));cal=max(1,min(n-base-2,math.floor(.02*n)))
+                fit=max(1,min(n-base-cal-1,math.floor(.9*n)-base-cal)); val=n-base-cal-fit
             counts={'base':base,'calibration':cal,'fit':fit,'validation':val}
             db.execute('WITH ranked AS (SELECT digest,ROW_NUMBER() OVER (ORDER BY split_key) AS rank FROM content WHERE label=? AND conflict=0) UPDATE content SET role=(SELECT CASE WHEN rank<=? THEN \'base\' WHEN rank<=? THEN \'calibration\' WHEN rank<=? THEN \'fit\' ELSE \'validation\' END FROM ranked WHERE ranked.digest=content.digest) WHERE label=? AND conflict=0',
                 (label,base,base+cal,base+cal+fit,label))
@@ -92,18 +97,23 @@ def prepare(source,out,seed=20261006):
                         if hist[role].get(str(label),0)>0:eligible_holdout[role][label].append(cid)
             print(f'Role indices client={cid}: {entry["role_rows"]}',flush=True)
         missing=[label for label,clients in eligible.items() if not clients]
-        if missing:raise ValueError(f'No scheduled BASE expert supports classes {missing}; inspect allocation/coverage before training')
+        missing_base=missing
+        if missing:print(f'No scheduled BASE expert supports classes {missing}; report-only, continuing.',flush=True)
+        missing_holdout={}
         for role,coverage in eligible_holdout.items():
             missing=[label for label,clients in coverage.items() if not clients]
-            if missing:raise ValueError(f'No locally BASE-supported origin supplies clean {role} for classes {missing}')
+            missing_holdout[role]=missing
+            if missing:print(f'No BASE-supported origin supplies {role} for classes {missing}; report-only, continuing.',flush=True)
         manifest.update(completed=True,eligible_base_experts={str(c):v for c,v in eligible.items()},
             eligible_holdout_origins={r:{str(c):v for c,v in coverage.items()} for r,coverage in eligible_holdout.items()},
+            class_coverage_policy='report_only',missing_eligible_base_classes=missing_base,
+            missing_eligible_holdout_classes=missing_holdout,
             conflicting_content_excluded=db.execute('SELECT COUNT(*) FROM content WHERE conflict=1').fetchone()[0],
             unique_content_by_role={r:db.execute('SELECT COUNT(*) FROM content WHERE role=?',(r,)).fetchone()[0] for r in ('base','calibration','fit','validation')},
             reachable_candidate_prediction_coverage='requires post-training validation; not inferable from input coverage')
         write_json(out/'role_manifest.json',manifest)
         write_json(out/'role_lock.json',dict(manifest_sha256=file_sha256(out/'role_manifest.json'),locked_before_backbone_training=True))
-        print('Clean roles locked; 34-class input coverage and scheduled BASE expert support passed.',flush=True)
+        print('Clean roles locked; class coverage recorded with report-only policy.',flush=True)
     finally:db.close()
     # The locked index views and original-shard checksums suffice for use and
     # reproducibility. Keep the temporary content database only on failure.

@@ -16,6 +16,7 @@ Key Features:
 """
 
 import torch
+import math
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, Optional, List, Set, Any
@@ -148,10 +149,23 @@ class NICEClient(FederatedClient):
         # Keep loss-scale adaptation across client rounds; optimizer state is
         # intentionally restarted per NICE phase, scaler state is not.
         if use_amp and getattr(self, "_nice_grad_scaler", None) is None:
-            self._nice_grad_scaler = GradScaler(enabled=True)
+            initial_amp_scale = kwargs.get("amp_initial_scale")
+            if initial_amp_scale is None:
+                self._nice_grad_scaler = GradScaler(enabled=True)
+            else:
+                if isinstance(initial_amp_scale, bool) or not math.isfinite(float(initial_amp_scale)) or float(initial_amp_scale) <= 0:
+                    raise ValueError('amp_initial_scale must be a positive finite number')
+                self._nice_grad_scaler = GradScaler(enabled=True, init_scale=float(initial_amp_scale))
         scaler = self._nice_grad_scaler if use_amp else None
         initial_scale = float(scaler.get_scale()) if scaler is not None else 1.0
         nonfinite_gradient_names = set()
+        # Opt-in observation only. The regular training path performs no
+        # tensor copies or additional forward passes when this is absent.
+        diagnostic = kwargs.get("training_diagnostic")
+
+        def observe(stage, **context):
+            if diagnostic is not None:
+                diagnostic(stage, model, context)
 
         # Freeze BN for layers with all-mature neurons
         model.freeze_bn_for_mature()
@@ -215,18 +229,26 @@ class NICEClient(FederatedClient):
                                 loss = loss + kwargs['auxiliary_loss'](model, X_batch, y_batch)
 
                         previous_scale = scaler.get_scale()
+                        observe('forward', output=output, loss=loss, labels=y_batch,
+                                inputs=X_batch, scale=float(previous_scale))
                         scaler.scale(loss).backward()
+                        observe('scaled_backward', scale=float(previous_scale))
                         scaler.unscale_(optimizer)
+                        observe('unscaled_backward', scale=float(previous_scale))
                         # Freeze mature gradients
                         kwargs.get('gradient_filter', model.reset_frozen_gradients)()
                         if kwargs.get("pre_optimizer_step") is not None:
                             kwargs["pre_optimizer_step"](model)
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        observe('before_clipping', scale=float(previous_scale))
+                        clip_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        observe('after_clipping', scale=float(previous_scale), clip_norm=clip_norm)
                         if kwargs.get("before_optimizer_step") is not None:
                             kwargs["before_optimizer_step"](model)
                         scaler.step(optimizer)
                         scaler.update()
                         step_succeeded = scaler.get_scale() >= previous_scale
+                        observe('optimizer_step', step_succeeded=bool(step_succeeded),
+                                scale_before=float(previous_scale), scale_after=float(scaler.get_scale()))
                         if not step_succeeded:
                             nonfinite_gradient_names.update(
                                 name for name, param in model.named_parameters()
@@ -245,14 +267,19 @@ class NICEClient(FederatedClient):
                         if kwargs.get('auxiliary_loss') is not None:
                             loss = loss + kwargs['auxiliary_loss'](model, X_batch, y_batch)
 
+                        observe('forward', output=output, loss=loss, labels=y_batch,
+                                inputs=X_batch, scale=1.0)
                         if not torch.isfinite(loss):
                             raise FloatingPointError(f"Client {self.client_id}: non-finite FP32 loss")
                         loss.backward()
+                        observe('unscaled_backward', scale=1.0)
                         # Freeze mature gradients
                         kwargs.get('gradient_filter', model.reset_frozen_gradients)()
                         if kwargs.get("pre_optimizer_step") is not None:
                             kwargs["pre_optimizer_step"](model)
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        observe('before_clipping', scale=1.0)
+                        clip_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        observe('after_clipping', scale=1.0, clip_norm=clip_norm)
                         if kwargs.get("before_optimizer_step") is not None:
                             kwargs["before_optimizer_step"](model)
                         invalid = [name for name, param in model.named_parameters()
@@ -263,11 +290,13 @@ class NICEClient(FederatedClient):
                             )
                         optimizer.step()
                         step_succeeded = True
+                        observe('optimizer_step', step_succeeded=True, scale_before=1.0, scale_after=1.0)
 
                     if step_succeeded and kwargs.get("after_optimizer_step_update") is not None:
                         kwargs["after_optimizer_step_update"](model)
                     if step_succeeded and kwargs.get('after_optimizer_step') is not None:
                         kwargs['after_optimizer_step'](X_batch, y_batch, output.detach())
+                    observe('after_step_protection', step_succeeded=bool(step_succeeded))
                     successful_steps += int(step_succeeded)
 
                     # Capsule reliability must remain based on current-data CE,

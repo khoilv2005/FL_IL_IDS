@@ -72,7 +72,8 @@ def seal_task_archive(root,task_id,level=6,budget_gib=None):
                             digest.update(block);destination.write(block)
                     if digest.hexdigest()!=expected:raise RuntimeError('Round archive mutated before task seal')
                     checksums[name]=expected
-                    if '_round_' in name:rounds.append(int(name.rsplit('_round_',1)[1].split('.')[0]))
+                    if '_round_' in name and not name.endswith('_base.pt'):
+                        rounds.append(int(name.rsplit('_round_',1)[1].split('.')[0]))
         for path in extra:
             with path.open('rb') as stream:checksums[path.name]=_digest(stream)
             combined.write(path,path.name)
