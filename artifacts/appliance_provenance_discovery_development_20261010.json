@@ -1,0 +1,2280 @@
+{
+  "row_support": {
+    "completion": {
+      "completed": true,
+      "checks": 15,
+      "mismatches": 0,
+      "development_executed": true,
+      "task": 3,
+      "receivers": 80,
+      "missing_owned_pairs": 329,
+      "potential_remaining_missing_pairs": 1,
+      "initially_uncovered_receivers": 44,
+      "potential_fully_covered_receivers": 79,
+      "simulated_application_bytes": 69876143,
+      "production_enabled": false
+    },
+    "controls": {
+      "checks": {
+        "restore_exact": true,
+        "peer_not_receiver_owned": true,
+        "CAL_not_substituted": true,
+        "unauthorized_edge": true,
+        "future_summary_or_receipt": true,
+        "CAL_claim": true,
+        "packet_version": true,
+        "source_owner": true,
+        "dependency_version": true,
+        "graph_without_class_receipt": true,
+        "zero_alpha": true,
+        "idempotent_delivery": true,
+        "frozen_restore_label_blind": true,
+        "snapshot_not_mutated_by_later_ledger_update": true,
+        "own_provenance_unchanged": true
+      },
+      "mismatches": 0,
+      "actual_receipts_verified": false,
+      "certificate_installation_authorized": false
+    },
+    "peer_negative_rows": 9658,
+    "previous_false_activations": 772,
+    "new_false_activations": 759,
+    "donor_positive_rows": 768,
+    "previous_positive_correct": 715,
+    "new_positive_correct": 714,
+    "receiver_validation_rows": 4364,
+    "per_receiver_positives": [
+      {
+        "receiver": 0,
+        "class_id": 21,
+        "pool": "donor_validation_positive",
+        "rows": 256,
+        "class_counts": {
+          "21": 256
+        },
+        "row_ids_sha256": "383cef05d2fde142a671f1460e4e8df3954c06475425028ea0707ffe7220c1e2",
+        "previous_guard_shadow_CPU": {
+          "activation": 244,
+          "target_rows": 256,
+          "target_correct": 244,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 244,
+            "break_count": 0,
+            "wrong_wrong": 12,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 244,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.953125,
+            "delta_correct": 244,
+            "delta_accuracy": 0.953125,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 12
+          }
+        },
+        "peer_veto_shadow_CPU": {
+          "activation": 244,
+          "target_rows": 256,
+          "target_correct": 244,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 244,
+            "break_count": 0,
+            "wrong_wrong": 12,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 244,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.953125,
+            "delta_correct": 244,
+            "delta_accuracy": 0.953125,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 12
+          }
+        },
+        "vetoed_previous_activations": 0,
+        "certificate_revalidated": false,
+        "thresholds_changed": false
+      },
+      {
+        "receiver": 55,
+        "class_id": 20,
+        "pool": "donor_validation_positive",
+        "rows": 256,
+        "class_counts": {
+          "20": 256
+        },
+        "row_ids_sha256": "7c1cdbb31eb2c08f21dab329ade1b143a81f3edfbb2d7bb99bf65913828fb663",
+        "previous_guard_shadow_CPU": {
+          "activation": 236,
+          "target_rows": 256,
+          "target_correct": 236,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 236,
+            "break_count": 0,
+            "wrong_wrong": 20,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 236,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.921875,
+            "delta_correct": 236,
+            "delta_accuracy": 0.921875,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 20
+          }
+        },
+        "peer_veto_shadow_CPU": {
+          "activation": 236,
+          "target_rows": 256,
+          "target_correct": 236,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 236,
+            "break_count": 0,
+            "wrong_wrong": 20,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 236,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.921875,
+            "delta_correct": 236,
+            "delta_accuracy": 0.921875,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 20
+          }
+        },
+        "vetoed_previous_activations": 0,
+        "certificate_revalidated": false,
+        "thresholds_changed": false
+      },
+      {
+        "receiver": 65,
+        "class_id": 20,
+        "pool": "donor_validation_positive",
+        "rows": 256,
+        "class_counts": {
+          "20": 256
+        },
+        "row_ids_sha256": "42fbfec7e86cb1a880cbc0a1bc4a96592368db1bb652897075296aa1a3357bbc",
+        "previous_guard_shadow_CPU": {
+          "activation": 235,
+          "target_rows": 256,
+          "target_correct": 235,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 235,
+            "break_count": 0,
+            "wrong_wrong": 21,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 235,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.91796875,
+            "delta_correct": 235,
+            "delta_accuracy": 0.91796875,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 21
+          }
+        },
+        "peer_veto_shadow_CPU": {
+          "activation": 234,
+          "target_rows": 256,
+          "target_correct": 234,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 234,
+            "break_count": 0,
+            "wrong_wrong": 22,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 234,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.9140625,
+            "delta_correct": 234,
+            "delta_accuracy": 0.9140625,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 22
+          }
+        },
+        "vetoed_previous_activations": 1,
+        "certificate_revalidated": false,
+        "thresholds_changed": false
+      }
+    ]
+  },
+  "negative_support": {
+    "completion": {
+      "completed": true,
+      "checks": 15,
+      "mismatches": 0,
+      "development_executed": true,
+      "task": 3,
+      "receivers": 80,
+      "missing_owned_pairs": 329,
+      "potential_remaining_missing_pairs": 1,
+      "initially_uncovered_receivers": 44,
+      "potential_fully_covered_receivers": 79,
+      "simulated_application_bytes": 70936698,
+      "production_enabled": false
+    },
+    "controls": {
+      "checks": {
+        "restore_exact": true,
+        "peer_not_receiver_owned": true,
+        "CAL_not_substituted": true,
+        "unauthorized_edge": true,
+        "future_summary_or_receipt": true,
+        "CAL_claim": true,
+        "packet_version": true,
+        "source_owner": true,
+        "dependency_version": true,
+        "graph_without_class_receipt": true,
+        "zero_alpha": true,
+        "idempotent_delivery": true,
+        "frozen_restore_label_blind": true,
+        "snapshot_not_mutated_by_later_ledger_update": true,
+        "own_provenance_unchanged": true
+      },
+      "mismatches": 0,
+      "actual_receipts_verified": false,
+      "certificate_installation_authorized": false
+    },
+    "peer_negative_rows": 9658,
+    "previous_false_activations": 772,
+    "new_false_activations": 1,
+    "donor_positive_rows": 768,
+    "previous_positive_correct": 715,
+    "new_positive_correct": 482,
+    "receiver_validation_rows": 4364,
+    "per_receiver_positives": [
+      {
+        "receiver": 0,
+        "class_id": 21,
+        "pool": "donor_validation_positive",
+        "rows": 256,
+        "class_counts": {
+          "21": 256
+        },
+        "row_ids_sha256": "383cef05d2fde142a671f1460e4e8df3954c06475425028ea0707ffe7220c1e2",
+        "previous_guard_shadow_CPU": {
+          "activation": 244,
+          "target_rows": 256,
+          "target_correct": 244,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 244,
+            "break_count": 0,
+            "wrong_wrong": 12,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 244,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.953125,
+            "delta_correct": 244,
+            "delta_accuracy": 0.953125,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 12
+          }
+        },
+        "peer_veto_shadow_CPU": {
+          "activation": 244,
+          "target_rows": 256,
+          "target_correct": 244,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 244,
+            "break_count": 0,
+            "wrong_wrong": 12,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 244,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.953125,
+            "delta_correct": 244,
+            "delta_accuracy": 0.953125,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 12
+          }
+        },
+        "vetoed_previous_activations": 0,
+        "certificate_revalidated": false,
+        "thresholds_changed": false
+      },
+      {
+        "receiver": 55,
+        "class_id": 20,
+        "pool": "donor_validation_positive",
+        "rows": 256,
+        "class_counts": {
+          "20": 256
+        },
+        "row_ids_sha256": "7c1cdbb31eb2c08f21dab329ade1b143a81f3edfbb2d7bb99bf65913828fb663",
+        "previous_guard_shadow_CPU": {
+          "activation": 236,
+          "target_rows": 256,
+          "target_correct": 236,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 236,
+            "break_count": 0,
+            "wrong_wrong": 20,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 236,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.921875,
+            "delta_correct": 236,
+            "delta_accuracy": 0.921875,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 20
+          }
+        },
+        "peer_veto_shadow_CPU": {
+          "activation": 236,
+          "target_rows": 256,
+          "target_correct": 236,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 236,
+            "break_count": 0,
+            "wrong_wrong": 20,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 236,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.921875,
+            "delta_correct": 236,
+            "delta_accuracy": 0.921875,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 20
+          }
+        },
+        "vetoed_previous_activations": 0,
+        "certificate_revalidated": false,
+        "thresholds_changed": false
+      },
+      {
+        "receiver": 65,
+        "class_id": 20,
+        "pool": "donor_validation_positive",
+        "rows": 256,
+        "class_counts": {
+          "20": 256
+        },
+        "row_ids_sha256": "42fbfec7e86cb1a880cbc0a1bc4a96592368db1bb652897075296aa1a3357bbc",
+        "previous_guard_shadow_CPU": {
+          "activation": 235,
+          "target_rows": 256,
+          "target_correct": 235,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 235,
+            "break_count": 0,
+            "wrong_wrong": 21,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 235,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.91796875,
+            "delta_correct": 235,
+            "delta_accuracy": 0.91796875,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 21
+          }
+        },
+        "peer_veto_shadow_CPU": {
+          "activation": 2,
+          "target_rows": 256,
+          "target_correct": 2,
+          "false_activation": 0,
+          "accounting": {
+            "rescue": 2,
+            "break_count": 0,
+            "wrong_wrong": 254,
+            "correct_correct": 0,
+            "rows": 256,
+            "before_correct": 0,
+            "after_correct": 2,
+            "before_accuracy": 0.0,
+            "after_accuracy": 0.0078125,
+            "delta_correct": 2,
+            "delta_accuracy": 0.0078125,
+            "identity_exact": true,
+            "changed_wrong": 0,
+            "harmless_changed": 0,
+            "unchanged_rows": 254
+          }
+        },
+        "vetoed_previous_activations": 233,
+        "certificate_revalidated": false,
+        "thresholds_changed": false
+      }
+    ]
+  },
+  "row_acceptance": {
+    "completion": {
+      "completed": true,
+      "request_count": 16,
+      "acceptance_evaluated": 12,
+      "current_CAL_pass": 4,
+      "source_receipts_simulated": true,
+      "installed": 0,
+      "production_enabled": false,
+      "test_opened": false,
+      "raw_historical_CAL_opened": false,
+      "backbone_training": false,
+      "inference": "new CPU FP32 guard; old CUDA certificates were not modified or revalidated",
+      "communication_not_measured": true,
+      "limitation": "same retrospective current CAL fixture; not independent final evidence"
+    },
+    "results": [
+      {
+        "receiver": 48,
+        "donor": 53,
+        "class_id": 19,
+        "selection": {
+          "tau": 0.42910993099212646,
+          "gamma": 6.880223274230957,
+          "beta": 1.0,
+          "grid_id": "3d1de950a3dc3882e50bdedeede3fd05104b5ae6be48087c8cd6f0a051749894",
+          "index": 17,
+          "selection_positive_rows": 75,
+          "selection_target_activations": 1,
+          "receiver_rows": 246,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.013333333333333334,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "20": 0.0,
+            "21": 0.0,
+            "22": 0.0
+          },
+          "break_count": 0,
+          "rescue": 1,
+          "positive_rows": 75,
+          "receiver_rows": 250,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "f596668374836cbf07571d94bb4447e7448f3fa28e5ecd87bc896a32cac2a5d7",
+          "guard_id": "9e701aabe4d70b006403d921fbe530fb7163b286dfbd1e194acda88aca15f23d",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 52,
+        "class_id": 20,
+        "skipped": "no mature FIT candidate"
+      },
+      {
+        "receiver": 0,
+        "donor": 60,
+        "class_id": 21,
+        "selection": {
+          "tau": 0.6560932695865631,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "053020e61fa3cf9964d46358a3b99aa5fda1bf687c9af2ddc733475957814621",
+          "index": 0,
+          "selection_positive_rows": 335,
+          "selection_target_activations": 319,
+          "receiver_rows": 352,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": true,
+          "recall": 0.9553571428571429,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "19": 0.0,
+            "20": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 321,
+          "positive_rows": 336,
+          "receiver_rows": 353,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "8c6b5cf9f00005557c20fbdec18e234e6981e38381d83270fe4d310c055a7467",
+          "guard_id": "7c5fa1329531a342587d75ffbe2decf0102868b062f2c7cd528ae3582ad0047c",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 4,
+        "donor": 13,
+        "class_id": 22,
+        "selection": {
+          "tau": 0.9289486408233643,
+          "gamma": 2.4524308204648704,
+          "beta": 1.0,
+          "grid_id": "49fd29268bb0a03011ce3a818deaab027f5ac8aa8be9b06562a6255dde050c6c",
+          "index": 1,
+          "selection_positive_rows": 150,
+          "selection_target_activations": 145,
+          "receiver_rows": 115,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": true,
+          "recall": 0.9668874172185431,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "20": 0.0,
+            "21": 0.0
+          },
+          "break_count": 0,
+          "rescue": 146,
+          "positive_rows": 151,
+          "receiver_rows": 119,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "ee0027b78a5b7e7b693f014583c62d9e9f9e314f027a09f293da7be99c815b45",
+          "guard_id": "bb3dbd00918e5c29a8d5c0c76632448ef9917733b68b7c91612686e171d55be9",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 60,
+        "class_id": 23,
+        "skipped": "no mature FIT candidate"
+      },
+      {
+        "receiver": 96,
+        "donor": 9,
+        "class_id": 19,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "c4cb993c2c4a64cc59e3c2b99205b536708bb3febb6528e0fd5d5de94ad9c238",
+          "index": 7,
+          "selection_positive_rows": 45,
+          "selection_target_activations": 0,
+          "receiver_rows": 142,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "20": 0.0,
+            "21": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 46,
+          "receiver_rows": 146,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "d00cc5ad99ab11383f58be08f83813ff62c2604e87db23b795d2e60c64a59262",
+          "guard_id": "d8083bd2d687c1b593bf128e5139e2905f9d8c1a70151649c17fa099f8a763fd",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 54,
+        "donor": 4,
+        "class_id": 20,
+        "selection": {
+          "tau": 0.14577311277389526,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "418fdee4f7af16b7179a76fd6045c4e92bc9e184c8f2b84c2ba4414f68685c89",
+          "index": 0,
+          "selection_positive_rows": 59,
+          "selection_target_activations": 51,
+          "receiver_rows": 1100,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.9016393442622951,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "21": 0.0,
+            "22": 0.0
+          },
+          "break_count": 0,
+          "rescue": 55,
+          "positive_rows": 61,
+          "receiver_rows": 1105,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "acfd60200900c3d7c9137745556f742e57cf40db143c000d73ee12ddfddd34d7",
+          "guard_id": "4b2452a3afe5a819f33685d6502e3a23e39feb5832ba0addea311e5a407798a9",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 14,
+        "class_id": 21,
+        "skipped": "no mature FIT candidate"
+      },
+      {
+        "receiver": 18,
+        "donor": 64,
+        "class_id": 22,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "b429809e99680660c6b0c991321ccf62b2925c1764a611d4158e803dc339c7a8",
+          "index": 31,
+          "selection_positive_rows": 94,
+          "selection_target_activations": 0,
+          "receiver_rows": 232,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "19": 0.0,
+            "20": 0.0,
+            "21": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 95,
+          "receiver_rows": 236,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "faddea70b473c4051668edb67faeb7841475027fc22ca1785251d5b168e47f10",
+          "guard_id": "3af752a04fc1e3e6b4fdb6b9613f4a4657ab9221ddf027ba94e0bcb56b79907e",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 88,
+        "donor": 47,
+        "class_id": 23,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "9869b751855826793a85ae41ed1b39a9b79ca30ff19cb39c5c12755c7ab3632a",
+          "index": 33,
+          "selection_positive_rows": 115,
+          "selection_target_activations": 0,
+          "receiver_rows": 525,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "20": 0.0,
+            "21": 0.0,
+            "22": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 115,
+          "receiver_rows": 527,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "c67369745eaf49f97f6f5eec64fc7f16210e47e8b9d11166d3ee627a35a0ef43",
+          "guard_id": "25de6ff5f6a530f03a2e418ec7f84b857c5c054ae3783dc31e93341ba56015ba",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 55,
+        "donor": 14,
+        "class_id": 20,
+        "selection": {
+          "tau": 0.1668565273284912,
+          "gamma": 1.5121742248535224,
+          "beta": 1.0,
+          "grid_id": "78ff82dbafa6385743fceea80ad64446be6da055b4c420b4f5e4f772b28f7a59",
+          "index": 1,
+          "selection_positive_rows": 203,
+          "selection_target_activations": 191,
+          "receiver_rows": 355,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": true,
+          "recall": 0.9507389162561576,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "21": 0.0,
+            "22": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 193,
+          "positive_rows": 203,
+          "receiver_rows": 360,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "617c68675eb7f9a775bd279da09b8a168e345dd27103f217e05c2840febb94ec",
+          "guard_id": "0ee9e7b1dc29ce955beffebac311ba390fbfcdc8092dbb934a4281e6cdc341cd",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 33,
+        "class_id": 21,
+        "skipped": "no mature FIT candidate"
+      },
+      {
+        "receiver": 34,
+        "donor": 77,
+        "class_id": 22,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "cfadf7d923528f02bc677954b9b1c8a92bfe7cdaca5a9bda17cd3139eb461e5e",
+          "index": 33,
+          "selection_positive_rows": 207,
+          "selection_target_activations": 0,
+          "receiver_rows": 405,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "20": 0.0,
+            "21": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 209,
+          "receiver_rows": 408,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "c20d0a67b3d5c742927d31b7e5bc4fa723153c566483b7a1111028d7ea1ecb96",
+          "guard_id": "76c2ab00f9fdf85a2b64f6ce5028d4c23366be8030ad8ff66608b35aec2bbb12",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 91,
+        "donor": 18,
+        "class_id": 23,
+        "selection": {
+          "tau": 0.9680688202381134,
+          "gamma": 3.638152885437012,
+          "beta": 1.0,
+          "grid_id": "4fc64a1519b6fc34a98e26ae3b986003bed69e08f59ac29f89b482e56e0aae00",
+          "index": 249,
+          "selection_positive_rows": 52,
+          "selection_target_activations": 4,
+          "receiver_rows": 269,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.11320754716981132,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "20": 0.0,
+            "21": 0.0,
+            "22": 0.0
+          },
+          "break_count": 0,
+          "rescue": 6,
+          "positive_rows": 53,
+          "receiver_rows": 275,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "cf6cec3c468e7c5d9b2f9211b32790ff701c7e84086d5a6ec6e9cf03338a8d85",
+          "guard_id": "8c8fcf61e5be28a8e5b3a866cdcd836f826e75491ec570adeffc20e08e2f1df3",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 65,
+        "donor": 88,
+        "class_id": 20,
+        "selection": {
+          "tau": 0.1398645043373108,
+          "gamma": 21.346172332763672,
+          "beta": 1.0,
+          "grid_id": "1a5100d018de2889093385d9c00a9ed0b01142a34ef807ead4d80cbe963f1f15",
+          "index": 15,
+          "selection_positive_rows": 153,
+          "selection_target_activations": 141,
+          "receiver_rows": 46,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": true,
+          "recall": 0.9869281045751634,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "21": 0.0
+          },
+          "break_count": 0,
+          "rescue": 151,
+          "positive_rows": 153,
+          "receiver_rows": 48,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "021115c9bc2ae651548fd4537515b44694d2ead4f175893916e6781e52463490",
+          "guard_id": "456881c3a6d8c8be993fef54050ca18a5a0e63a30f97c49cb26dffc75110f250",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 47,
+        "donor": 88,
+        "class_id": 21,
+        "selection": {
+          "tau": 0.7486508448918661,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "3cc431bc167134c5900cd92d42421723956256bf3ee26fe5af870453be46bd07",
+          "index": 2,
+          "selection_positive_rows": 246,
+          "selection_target_activations": 2,
+          "receiver_rows": 146,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.004048582995951417,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "20": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 1,
+          "positive_rows": 247,
+          "receiver_rows": 147,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "e0e44fc4bbf312f9117e78b6edacd9bc43431d41670ccbc95b063c0fe356215c",
+          "guard_id": "32b5503bda8ca5b0e1dedb8bcc06c8e8bf1363a0660d44b8caf99b310d71a218",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      }
+    ]
+  },
+  "negative_acceptance": {
+    "completion": {
+      "completed": true,
+      "request_count": 16,
+      "protection_only_support": true,
+      "acceptance_evaluated": 12,
+      "current_CAL_pass": 2,
+      "source_receipts_simulated": true,
+      "installed": 0,
+      "production_enabled": false,
+      "test_opened": false,
+      "raw_historical_CAL_opened": false,
+      "backbone_training": false,
+      "inference": "new CPU FP32 guard; old CUDA certificates were not modified or revalidated",
+      "communication_not_measured": true,
+      "limitation": "same retrospective current CAL fixture; not independent final evidence"
+    },
+    "results": [
+      {
+        "receiver": 48,
+        "donor": 53,
+        "class_id": 19,
+        "selection": {
+          "tau": 0.42910993099212646,
+          "gamma": 6.880223274230957,
+          "beta": 1.0,
+          "grid_id": "9ab51db3d3401cb70fbb34d27280f7aed537561a56616038affee5884262bbbe",
+          "index": 17,
+          "selection_positive_rows": 75,
+          "selection_target_activations": 1,
+          "receiver_rows": 246,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "20": 0.0,
+            "21": 0.0,
+            "22": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 75,
+          "receiver_rows": 250,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "3f2777ccafc58e30907b841c2a88a36179e86f937e9ae0661ae67928a5acc303",
+          "guard_id": "9061cbf58075173f1f8a36e058d3c3da6866d55ac66ba0278839b30cc8b97178",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 52,
+        "class_id": 20,
+        "skipped": "no mature FIT candidate"
+      },
+      {
+        "receiver": 0,
+        "donor": 60,
+        "class_id": 21,
+        "selection": {
+          "tau": 0.6560932695865631,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "6e664a47537609f891b87f6b9575b1cbcd9b11713268f5f30fc02337e8a3093d",
+          "index": 0,
+          "selection_positive_rows": 335,
+          "selection_target_activations": 318,
+          "receiver_rows": 352,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.9494047619047619,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "19": 0.0,
+            "20": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 319,
+          "positive_rows": 336,
+          "receiver_rows": 353,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "d281c9dab84a832390c7f2f0275f5c51da705e5cc00d9eb0109b4589977593f5",
+          "guard_id": "bac53419fa2da2cbc9bcd2138445d04788e77158ffbd0b8a2be3bb034be116e3",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 4,
+        "donor": 13,
+        "class_id": 22,
+        "selection": {
+          "tau": 0.9289486408233643,
+          "gamma": 2.4524308204648704,
+          "beta": 1.0,
+          "grid_id": "3f248a3c71d5052a9216dfbeb69370882f6b957c3c27e55cf422864c3116db13",
+          "index": 1,
+          "selection_positive_rows": 150,
+          "selection_target_activations": 145,
+          "receiver_rows": 115,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": true,
+          "recall": 0.9668874172185431,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "20": 0.0,
+            "21": 0.0
+          },
+          "break_count": 0,
+          "rescue": 146,
+          "positive_rows": 151,
+          "receiver_rows": 119,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "d17b830b1a03d7ada7951bdfbd285b17bec00c8fb5a4ce16d5c764f59f250178",
+          "guard_id": "cefbaa6714eac20319f9003d126074ab2444f24edd24ab1ad531fe9108dd879f",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 60,
+        "class_id": 23,
+        "skipped": "no mature FIT candidate"
+      },
+      {
+        "receiver": 96,
+        "donor": 9,
+        "class_id": 19,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "ab047fe2f65621c09b4bd35e4da9e9b4c6f90043aa6ba122aa5c934d885ded29",
+          "index": 7,
+          "selection_positive_rows": 45,
+          "selection_target_activations": 0,
+          "receiver_rows": 142,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "20": 0.0,
+            "21": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 46,
+          "receiver_rows": 146,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "61d49477326a1492ac11c4eb6a426fc81e6c4d32b68dee7cd1da2da7c02309b6",
+          "guard_id": "4d2e444e126ffc2eca21a07e90049b094aa7d981620fa2e56a3c19db11698345",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 54,
+        "donor": 4,
+        "class_id": 20,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 9.278444290161133,
+          "beta": 1.0,
+          "grid_id": "db763bf52a2e39fc6849f7dda688d77e88c07e1defc93263f80a3c379374d64d",
+          "index": 322,
+          "selection_positive_rows": 59,
+          "selection_target_activations": 0,
+          "receiver_rows": 1100,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "21": 0.0,
+            "22": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 61,
+          "receiver_rows": 1105,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "e91a0858a8e11c98ad67ed0ba197d3df13dc94baf54a43a607906ab38a9b76a8",
+          "guard_id": "9e29236f4c9de01fbfed38b63ea5bd66054d86403a4a963040cb42808224f55f",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 14,
+        "class_id": 21,
+        "skipped": "no mature FIT candidate"
+      },
+      {
+        "receiver": 18,
+        "donor": 64,
+        "class_id": 22,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "db76e79e6c2510fdf3ce7f6c38abbe234c43f3073d59e774e771d3cdfb372e00",
+          "index": 31,
+          "selection_positive_rows": 94,
+          "selection_target_activations": 0,
+          "receiver_rows": 232,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "19": 0.0,
+            "20": 0.0,
+            "21": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 95,
+          "receiver_rows": 236,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "43d355a3ead488716a4982310c690468e50c0bcba3927b3894c91008b9cb03d0",
+          "guard_id": "44f76cd7c68dcb794c12223f3abcb7a7a51b86655991af98daa5a40fb30dee79",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 88,
+        "donor": 47,
+        "class_id": 23,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "10ad82e5938906d83662452fef9cd0418e5d73a8da00237e1abd4abbfde46008",
+          "index": 33,
+          "selection_positive_rows": 115,
+          "selection_target_activations": 0,
+          "receiver_rows": 525,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "20": 0.0,
+            "21": 0.0,
+            "22": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 115,
+          "receiver_rows": 527,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "4557e4b2fe70f7658d564526994b3379cb3d075dd73562fff9ebad88752c80db",
+          "guard_id": "66c699e8045d92bc148c1c1644183c701029d005b0b4986c31595921022cb1d8",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 55,
+        "donor": 14,
+        "class_id": 20,
+        "selection": {
+          "tau": 0.1668565273284912,
+          "gamma": 1.5121742248535224,
+          "beta": 1.0,
+          "grid_id": "ef4bde753d9a61e0403ed5e0844316c6ede9780bffff01b09f1a4a77fdcd9022",
+          "index": 1,
+          "selection_positive_rows": 203,
+          "selection_target_activations": 190,
+          "receiver_rows": 355,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": true,
+          "recall": 0.9507389162561576,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "21": 0.0,
+            "22": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 193,
+          "positive_rows": 203,
+          "receiver_rows": 360,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "fb118e0e55ea66970b8d4490faee8bcad9ddf83faaa7a6f237e414158d75e3d0",
+          "guard_id": "46b52eaa1917ad8624d345b012e8d0d708c54d50f40119b25942139a62353e52",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 33,
+        "class_id": 21,
+        "skipped": "no mature FIT candidate"
+      },
+      {
+        "receiver": 34,
+        "donor": 77,
+        "class_id": 22,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "f0d3d040a2e496662384f52c2f893aa3851d77f8c9dc45ca20ac56ca9bf5afcd",
+          "index": 33,
+          "selection_positive_rows": 207,
+          "selection_target_activations": 0,
+          "receiver_rows": 405,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "20": 0.0,
+            "21": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 209,
+          "receiver_rows": 408,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "592f2cc81b6cbc06353fd24c9dbe647424953a8381ef806111fcb634f5e90f19",
+          "guard_id": "1b720722a21ce0d098ff7a180f707a8978b776006d14683f5dd516844581adc9",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 91,
+        "donor": 18,
+        "class_id": 23,
+        "selection": {
+          "tau": 0.9680688202381134,
+          "gamma": 3.638152885437012,
+          "beta": 1.0,
+          "grid_id": "0f2132267dd71da35246388a6c5194ab2f15563587a1060ca2366de2059d9254",
+          "index": 249,
+          "selection_positive_rows": 52,
+          "selection_target_activations": 4,
+          "receiver_rows": 269,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.11320754716981132,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "20": 0.0,
+            "21": 0.0,
+            "22": 0.0
+          },
+          "break_count": 0,
+          "rescue": 6,
+          "positive_rows": 53,
+          "receiver_rows": 275,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "ee9468363abc0a05920b35ff98dd83b937a847868f0741fb1f35aed636f49386",
+          "guard_id": "52656ce81b06a9dde74d040bce7dd2985e628a0045bd8a1714e0387378a842ac",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 65,
+        "donor": 88,
+        "class_id": 20,
+        "selection": {
+          "tau": 1.0,
+          "gamma": 35.6773567199707,
+          "beta": 1.0,
+          "grid_id": "b63a7ca7b9b89beb92e7f35d56d811e785c6d74b421ee07b1ec8cdb67a77e439",
+          "index": 274,
+          "selection_positive_rows": 153,
+          "selection_target_activations": 0,
+          "receiver_rows": 46,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.0,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "19": 0.0,
+            "21": 0.0
+          },
+          "break_count": 0,
+          "rescue": 0,
+          "positive_rows": 153,
+          "receiver_rows": 48,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "933c43064e7452cd2a045754d307e9de65afff909de356f0274b6e2c9b83db3d",
+          "guard_id": "082dd262a0c496d251cb9d3b9089f4eb5c00dcdc7f5a4401b18fb15bf9d71b5e",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      },
+      {
+        "receiver": 47,
+        "donor": 88,
+        "class_id": 21,
+        "selection": {
+          "tau": 0.7486508448918661,
+          "gamma": 0.0,
+          "beta": 1.0,
+          "grid_id": "fb7c15ecfdcbe640c52f611527bd2984864f02ad1e66cbbfecbca35dec9eea46",
+          "index": 2,
+          "selection_positive_rows": 246,
+          "selection_target_activations": 2,
+          "receiver_rows": 146,
+          "receiver_false_activations": 0,
+          "pooled_break": 0,
+          "selection_locked_before_holdout": true
+        },
+        "acceptance": {
+          "passed_current_scope": false,
+          "recall": 0.004048582995951417,
+          "receiver_far": 0.0,
+          "receiver_far_by_class": {
+            "18": 0.0,
+            "20": 0.0,
+            "23": 0.0
+          },
+          "break_count": 0,
+          "rescue": 1,
+          "positive_rows": 247,
+          "receiver_rows": 147,
+          "historical_classes_certified": false,
+          "main_install_authorized": false,
+          "session_id": "5099050e261bb0e77e045829b48a8cc1f6a8fa0143d74fed0436490737e2660a",
+          "guard_id": "3820f3f9b078ef5af01c8c5ffc573d0a16532801a8af5e75debbddaf8d7910cf",
+          "thresholds_retuned": false,
+          "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+        },
+        "thresholds_locked_before_HOLDOUT": true,
+        "installation_authorized": false,
+        "installed": false,
+        "source_row_receipts_simulated": true,
+        "certificate_revalidated_from_old_run": false
+      }
+    ]
+  },
+  "primitives": {
+    "completed": true,
+    "checks": {
+      "compressed_wire_restores_exact_source": true,
+      "source_cache_survives_resume_without_resend": true,
+      "checkpoint_deduplicates_source_geometry": true,
+      "negative_support_not_acquired_classifier_knowledge": true,
+      "failed_wire_rolls_back_entire_ledger": true,
+      "veto_implementation_drift_rejected": true,
+      "frozen_snapshot_survives_live_ledger_change": true,
+      "known_eligible_head_precheck": true,
+      "young_dependency_rejected_before_capsule": true,
+      "head_metadata_corruption_rejected": true,
+      "receiver_risk_affects_rank": true,
+      "HOLDOUT_ranking_forbidden": true
+    },
+    "mismatches": 0,
+    "communication": {
+      "application_egress_bytes": 47465,
+      "sent": {
+        "4": 47465
+      },
+      "received": {
+        "0": 47465
+      },
+      "retained_base_exchange_measured": false,
+      "limitation": "Pairwise simulated application payload only; no network, security or full-round baseline-byte claim"
+    },
+    "native_training_tested": false,
+    "production_enabled": false
+  },
+  "existing_production_sources": {
+    "checked": 62,
+    "mismatches": []
+  },
+  "production_enabled": false,
+  "native_smoke_started": false,
+  "full_training_started": false,
+  "receiver_aware": {
+    "completion": {
+      "completed": true,
+      "original_requests": 16,
+      "donor_candidates": 47,
+      "maturity_rejected_before_capsule": 22,
+      "FIT_probed": 25,
+      "donor_selection_changed": 2,
+      "no_eligible_donor": 4,
+      "new_guard_CAL_pass_count": null,
+      "installation_count": 0,
+      "production_enabled": false,
+      "retained_acceptance_recall_gate": 0.95,
+      "raw_historical_CAL_opened": false,
+      "CAL_selection_holdout_predictions_opened": false,
+      "final_test_opened": false,
+      "calibration_access": [
+        {
+          "client_id": 48,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_48/task_3_calibration.npz",
+          "sha256": "76b914cfef69e37f620bf74732da1feb32fa1f70fa805580a6facb44573169bf",
+          "rows": 990
+        },
+        {
+          "client_id": 48,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_48/task_3_calibration.npz",
+          "sha256": "76b914cfef69e37f620bf74732da1feb32fa1f70fa805580a6facb44573169bf",
+          "rows": 990
+        },
+        {
+          "client_id": 9,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_9/task_3_calibration.npz",
+          "sha256": "8e80e7c75a4c06e34a5473c5760288c0b8c01f60115cd78d0848cd4071861684",
+          "rows": 858
+        },
+        {
+          "client_id": 9,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_9/task_3_calibration.npz",
+          "sha256": "8e80e7c75a4c06e34a5473c5760288c0b8c01f60115cd78d0848cd4071861684",
+          "rows": 858
+        },
+        {
+          "client_id": 53,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_53/task_3_calibration.npz",
+          "sha256": "03b2883ced6db83376df34aa083d16c90737c4c8de86ca178a06becf8a3cc7a3",
+          "rows": 1705
+        },
+        {
+          "client_id": 0,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_0/task_3_calibration.npz",
+          "sha256": "021f9be8df84fe78b2ac01f1d74616b8cabba72718b0968488532703d15620de",
+          "rows": 1410
+        },
+        {
+          "client_id": 0,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_0/task_3_calibration.npz",
+          "sha256": "021f9be8df84fe78b2ac01f1d74616b8cabba72718b0968488532703d15620de",
+          "rows": 1410
+        },
+        {
+          "client_id": 0,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_0/task_3_calibration.npz",
+          "sha256": "021f9be8df84fe78b2ac01f1d74616b8cabba72718b0968488532703d15620de",
+          "rows": 1410
+        },
+        {
+          "client_id": 42,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_42/task_3_calibration.npz",
+          "sha256": "e54ef074f1e8033ed51f184556e5ee3d633b1d873f59a15c4ad0ba803dc406b8",
+          "rows": 987
+        },
+        {
+          "client_id": 42,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_42/task_3_calibration.npz",
+          "sha256": "e54ef074f1e8033ed51f184556e5ee3d633b1d873f59a15c4ad0ba803dc406b8",
+          "rows": 987
+        },
+        {
+          "client_id": 57,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_57/task_3_calibration.npz",
+          "sha256": "241703e4db22bf9428547e67871f221f294b561f79280318fa69b2af62dd20c9",
+          "rows": 885
+        },
+        {
+          "client_id": 57,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_57/task_3_calibration.npz",
+          "sha256": "241703e4db22bf9428547e67871f221f294b561f79280318fa69b2af62dd20c9",
+          "rows": 885
+        },
+        {
+          "client_id": 60,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_60/task_3_calibration.npz",
+          "sha256": "2dc2bbac2dfe8a019f8d3e846466baa1fe929c82aa7b2ebd5b7177cd524f323a",
+          "rows": 1565
+        },
+        {
+          "client_id": 60,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_60/task_3_calibration.npz",
+          "sha256": "2dc2bbac2dfe8a019f8d3e846466baa1fe929c82aa7b2ebd5b7177cd524f323a",
+          "rows": 1565
+        },
+        {
+          "client_id": 4,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_4/task_3_calibration.npz",
+          "sha256": "278fb3778f3de6ec1cd8265f63ca8cc78f7a88fb15047da0931d18cd2004ba6c",
+          "rows": 465
+        },
+        {
+          "client_id": 4,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_4/task_3_calibration.npz",
+          "sha256": "278fb3778f3de6ec1cd8265f63ca8cc78f7a88fb15047da0931d18cd2004ba6c",
+          "rows": 465
+        },
+        {
+          "client_id": 13,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_13/task_3_calibration.npz",
+          "sha256": "915f9004ba887ac455869517770e554e7a94a2759e90a77a9714af9b678e5c15",
+          "rows": 2762
+        },
+        {
+          "client_id": 13,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_13/task_3_calibration.npz",
+          "sha256": "915f9004ba887ac455869517770e554e7a94a2759e90a77a9714af9b678e5c15",
+          "rows": 2762
+        },
+        {
+          "client_id": 96,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_96/task_3_calibration.npz",
+          "sha256": "0ed261e796da65db0622c38e3f9e47f27bdbec3c90463bdcfa406f149bcc355c",
+          "rows": 575
+        },
+        {
+          "client_id": 54,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_54/task_3_calibration.npz",
+          "sha256": "2dae69bcdf618b03e23f7ebf9a79ecd94dca99e2d0e9bf908ee7db937f8cb9af",
+          "rows": 4407
+        },
+        {
+          "client_id": 54,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_54/task_3_calibration.npz",
+          "sha256": "2dae69bcdf618b03e23f7ebf9a79ecd94dca99e2d0e9bf908ee7db937f8cb9af",
+          "rows": 4407
+        },
+        {
+          "client_id": 54,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_54/task_3_calibration.npz",
+          "sha256": "2dae69bcdf618b03e23f7ebf9a79ecd94dca99e2d0e9bf908ee7db937f8cb9af",
+          "rows": 4407
+        },
+        {
+          "client_id": 54,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_54/task_3_calibration.npz",
+          "sha256": "2dae69bcdf618b03e23f7ebf9a79ecd94dca99e2d0e9bf908ee7db937f8cb9af",
+          "rows": 4407
+        },
+        {
+          "client_id": 23,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_23/task_3_calibration.npz",
+          "sha256": "7785c693003d63326ac879d31eadc0ecd2bbb19331ca8d4de19d7bc6776f96a2",
+          "rows": 1396
+        },
+        {
+          "client_id": 86,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_86/task_3_calibration.npz",
+          "sha256": "0444b444d30e75d3c9af755ae20e65fe6e12585f4036b5b0f3db8812eefa6cb9",
+          "rows": 2238
+        },
+        {
+          "client_id": 14,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_14/task_3_calibration.npz",
+          "sha256": "5e2726600935be186eccb1da2291f1dbda48b47e3b38324d66e1f21ec3a017eb",
+          "rows": 978
+        },
+        {
+          "client_id": 18,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_18/task_3_calibration.npz",
+          "sha256": "1a8af1a7c226ebc77264b2ee9184bbc88c279a9774eba4a3dd2b577175c0ed2b",
+          "rows": 935
+        },
+        {
+          "client_id": 18,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_18/task_3_calibration.npz",
+          "sha256": "1a8af1a7c226ebc77264b2ee9184bbc88c279a9774eba4a3dd2b577175c0ed2b",
+          "rows": 935
+        },
+        {
+          "client_id": 18,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_18/task_3_calibration.npz",
+          "sha256": "1a8af1a7c226ebc77264b2ee9184bbc88c279a9774eba4a3dd2b577175c0ed2b",
+          "rows": 935
+        },
+        {
+          "client_id": 29,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_29/task_3_calibration.npz",
+          "sha256": "1f183b686794854af9c9bd45f7c720f16bc98630872e8f1a66bea646f3242df1",
+          "rows": 247
+        },
+        {
+          "client_id": 64,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_64/task_3_calibration.npz",
+          "sha256": "61da39d1ed73447282fc2907e9d8a73df2ea2ac3cefa9f51d758597a803c5649",
+          "rows": 470
+        },
+        {
+          "client_id": 88,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_88/task_3_calibration.npz",
+          "sha256": "629f5db101519074e4153916e7709bc0c56846acdad0a42fe60542e1700e5a43",
+          "rows": 2102
+        },
+        {
+          "client_id": 88,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_88/task_3_calibration.npz",
+          "sha256": "629f5db101519074e4153916e7709bc0c56846acdad0a42fe60542e1700e5a43",
+          "rows": 2102
+        },
+        {
+          "client_id": 88,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_88/task_3_calibration.npz",
+          "sha256": "629f5db101519074e4153916e7709bc0c56846acdad0a42fe60542e1700e5a43",
+          "rows": 2102
+        },
+        {
+          "client_id": 47,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_47/task_3_calibration.npz",
+          "sha256": "c2bfd240ea74008b7cd1810870899469bb31282ab26b06a74a73494d008af7d3",
+          "rows": 587
+        },
+        {
+          "client_id": 47,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_47/task_3_calibration.npz",
+          "sha256": "c2bfd240ea74008b7cd1810870899469bb31282ab26b06a74a73494d008af7d3",
+          "rows": 587
+        },
+        {
+          "client_id": 55,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_55/task_3_calibration.npz",
+          "sha256": "3eda81bfffc6ab0e3c291c71b6f340c8fe513667e0a51c4d013ac4f40b312fff",
+          "rows": 1429
+        },
+        {
+          "client_id": 55,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_55/task_3_calibration.npz",
+          "sha256": "3eda81bfffc6ab0e3c291c71b6f340c8fe513667e0a51c4d013ac4f40b312fff",
+          "rows": 1429
+        },
+        {
+          "client_id": 55,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_55/task_3_calibration.npz",
+          "sha256": "3eda81bfffc6ab0e3c291c71b6f340c8fe513667e0a51c4d013ac4f40b312fff",
+          "rows": 1429
+        },
+        {
+          "client_id": 55,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_55/task_3_calibration.npz",
+          "sha256": "3eda81bfffc6ab0e3c291c71b6f340c8fe513667e0a51c4d013ac4f40b312fff",
+          "rows": 1429
+        },
+        {
+          "client_id": 34,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_34/task_3_calibration.npz",
+          "sha256": "db4895e61341aa29ac0ee977306008933446978a518641e0b2fd9767bb244625",
+          "rows": 1623
+        },
+        {
+          "client_id": 34,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_34/task_3_calibration.npz",
+          "sha256": "db4895e61341aa29ac0ee977306008933446978a518641e0b2fd9767bb244625",
+          "rows": 1623
+        },
+        {
+          "client_id": 34,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_34/task_3_calibration.npz",
+          "sha256": "db4895e61341aa29ac0ee977306008933446978a518641e0b2fd9767bb244625",
+          "rows": 1623
+        },
+        {
+          "client_id": 34,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_34/task_3_calibration.npz",
+          "sha256": "db4895e61341aa29ac0ee977306008933446978a518641e0b2fd9767bb244625",
+          "rows": 1623
+        },
+        {
+          "client_id": 17,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_17/task_3_calibration.npz",
+          "sha256": "606372ce0adc1bec67c1b47f9c969a72b64b6256fefb0b481e9de71a68d63c9e",
+          "rows": 1252
+        },
+        {
+          "client_id": 77,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_77/task_3_calibration.npz",
+          "sha256": "75f4a1b2aefb24daff553879ad8e207188d8326393f60c5be802aa1e69b06f33",
+          "rows": 1004
+        },
+        {
+          "client_id": 92,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_92/task_3_calibration.npz",
+          "sha256": "0d886e305740920561f7ab4f44bb5bbb2e561b1b8ebf8844b17e1799b550a41f",
+          "rows": 1646
+        },
+        {
+          "client_id": 98,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_98/task_3_calibration.npz",
+          "sha256": "23675b708ede14f2fba43e207937ca3ddf3e4c0b1de12eb2e6a5103090eca8a5",
+          "rows": 555
+        },
+        {
+          "client_id": 91,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_91/task_3_calibration.npz",
+          "sha256": "f751f9a618a9bf991673626aa09bd0cac5a49a973234569c773e4bc64cd8f8ff",
+          "rows": 1085
+        },
+        {
+          "client_id": 65,
+          "task": 3,
+          "role": "calibration",
+          "file": "client_65/task_3_calibration.npz",
+          "sha256": "f64af5f4e0a9f14462ee47dd4df36ce6d601c6b6140e6babf32b05dbdb888b81",
+          "rows": 187
+        }
+      ],
+      "receiver_capsule_and_setup_wire_not_measured": true,
+      "limitation": "CPU retrospective compatibility scores; not native installs or acceptance evidence"
+    },
+    "decisions": [
+      {
+        "receiver": 48,
+        "class_id": 19,
+        "original_donor": 53,
+        "candidates": 4,
+        "maturity_eligible": 2,
+        "FIT_ranked_donors": [
+          53,
+          9
+        ],
+        "selected_FIT_donor": 53,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 52,
+        "class_id": 20,
+        "original_donor": 53,
+        "candidates": 1,
+        "maturity_eligible": 0,
+        "FIT_ranked_donors": [],
+        "selected_FIT_donor": null,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 0,
+        "class_id": 21,
+        "original_donor": 60,
+        "candidates": 5,
+        "maturity_eligible": 3,
+        "FIT_ranked_donors": [
+          60,
+          57,
+          42
+        ],
+        "selected_FIT_donor": 60,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 4,
+        "class_id": 22,
+        "original_donor": 8,
+        "candidates": 4,
+        "maturity_eligible": 1,
+        "FIT_ranked_donors": [
+          13
+        ],
+        "selected_FIT_donor": 13,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 60,
+        "class_id": 23,
+        "original_donor": 55,
+        "candidates": 1,
+        "maturity_eligible": 0,
+        "FIT_ranked_donors": [],
+        "selected_FIT_donor": null,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 96,
+        "class_id": 19,
+        "original_donor": 9,
+        "candidates": 3,
+        "maturity_eligible": 1,
+        "FIT_ranked_donors": [
+          9
+        ],
+        "selected_FIT_donor": 9,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 54,
+        "class_id": 20,
+        "original_donor": 86,
+        "candidates": 5,
+        "maturity_eligible": 4,
+        "FIT_ranked_donors": [
+          4,
+          86,
+          13,
+          23
+        ],
+        "selected_FIT_donor": 4,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 14,
+        "class_id": 21,
+        "original_donor": 60,
+        "candidates": 4,
+        "maturity_eligible": 0,
+        "FIT_ranked_donors": [],
+        "selected_FIT_donor": null,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 18,
+        "class_id": 22,
+        "original_donor": 64,
+        "candidates": 3,
+        "maturity_eligible": 2,
+        "FIT_ranked_donors": [
+          64,
+          29
+        ],
+        "selected_FIT_donor": 64,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 88,
+        "class_id": 23,
+        "original_donor": 47,
+        "candidates": 1,
+        "maturity_eligible": 1,
+        "FIT_ranked_donors": [
+          47
+        ],
+        "selected_FIT_donor": 47,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 55,
+        "class_id": 20,
+        "original_donor": 14,
+        "candidates": 5,
+        "maturity_eligible": 4,
+        "FIT_ranked_donors": [
+          14,
+          57,
+          42,
+          60
+        ],
+        "selected_FIT_donor": 14,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 33,
+        "class_id": 21,
+        "original_donor": 60,
+        "candidates": 2,
+        "maturity_eligible": 0,
+        "FIT_ranked_donors": [],
+        "selected_FIT_donor": null,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 34,
+        "class_id": 22,
+        "original_donor": 77,
+        "candidates": 5,
+        "maturity_eligible": 4,
+        "FIT_ranked_donors": [
+          77,
+          98,
+          17,
+          92
+        ],
+        "selected_FIT_donor": 77,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 91,
+        "class_id": 23,
+        "original_donor": 18,
+        "candidates": 2,
+        "maturity_eligible": 1,
+        "FIT_ranked_donors": [
+          18
+        ],
+        "selected_FIT_donor": 18,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 65,
+        "class_id": 20,
+        "original_donor": 88,
+        "candidates": 1,
+        "maturity_eligible": 1,
+        "FIT_ranked_donors": [
+          88
+        ],
+        "selected_FIT_donor": 88,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      },
+      {
+        "receiver": 47,
+        "class_id": 21,
+        "original_donor": 88,
+        "candidates": 1,
+        "maturity_eligible": 1,
+        "FIT_ranked_donors": [
+          88
+        ],
+        "selected_FIT_donor": 88,
+        "future_CAL_acceptance_unchanged": true,
+        "installed": false
+      }
+    ]
+  },
+  "protocol": {
+    "task": 3,
+    "checkpoint_sha256": "cac0d0e08c7c60495952fbf3dda3a22088e85acba06f0317fe5f8b80d4d021bf",
+    "graph_sha": "06e32bd09ab09ca4376529166cacd1bfdd031791",
+    "historical_knowledge_receipts_present": false,
+    "simulated_receipt_rule": "terminal mature receiver and donor row, donor owned BASE, positive recorded edge",
+    "no_claim_of_actual_historical_row_contribution": true,
+    "peer_summary_mode": "protection_only: no acquired classifier knowledge claim",
+    "development_scope": "locked validation role, all newly installed task patches, fixed per-class cap",
+    "validation_per_class_cap": 256,
+    "original_thresholds_frozen": true,
+    "final_test_opened": false,
+    "historical_raw_CAL_opened": false,
+    "backbone_training": false,
+    "backend": "CPU FP32 shadow analysis; old CUDA certificate NOT revalidated",
+    "native_smoke_authorized_by_this_audit": false
+  },
+  "experiment_source_sha256": {
+    "appliance/provenance_protection.py": "d96dff5d432436034842088d0c3c1ba1ec59dd1221370f219e1fb54ca88e342c",
+    "appliance/receiver_aware_discovery.py": "8845b19fcb4eea06c7739aaf094a9353c7e3f5263565a224e0242a8118e0713f",
+    "tools/audit_appliance_provenance_protection.py": "ed097016c8694a1295c45105e3e022dd805ca7ddd78c9cad8087583bd447f998",
+    "tools/audit_appliance_receiver_aware_discovery.py": "b0fa161eda77d1964cc1c71cf7f94da48cf4d30af48b69d391fad28ecad304cc",
+    "tools/audit_appliance_discovery_primitives.py": "c905488f9fc1ef2b0b0db27f38c6dcb864552c4f6a2857ddb985d7de86a0d32c",
+    "tools/audit_appliance_provenance_acceptance.py": "952b1098b7bef71f06a8a6f44801b0bb600a84e7d7bbc60adecce6fc64c286d5"
+  },
+  "acceptance_candidates_origin": "receiver_aware_02; final FIT rerun gives identical donor order",
+  "acceptance_and_development_before_final_integrity_hardening": true,
+  "limitation": "Retrospective CPU development. Later hardening binds frozen-veto implementation/NumPy and precheck versions; no numerical policy changed. No native guard, received-weight receipt or production integration is certified."
+}
