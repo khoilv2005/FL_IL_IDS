@@ -181,7 +181,15 @@ cho 74 missing pairs; cũng không đổi `fc2 rank=0` thành knowledge đã ch�
 
 ## 6. Root cause nào nên sửa trước?
 
-**Điểm sửa có phạm vi hẹp nhất là class admission lúc task còn current**, cho
+**Đính chính phạm vi nghiên cứu (11/10/2026):** allocation Non-IID, skipped
+tasks và ownership-limited registration là ràng buộc/behavior của protocol,
+chưa có căn cứ gọi là bug. Khuyến nghị admission dưới đây chỉ là **variant có
+điều kiện** nếu mục tiêu yêu cầu mở rộng khả năng nhận diện ngoài coverage.
+Không còn coi đây là hướng sửa mặc định. Trong nhóm đã đăng ký, routing chiếm
+86,06% lỗi MulticlassSelf; xem [valid-scope audit](DENICE_VALID_SCOPE_DIAGNOSTICS_20261011_VI.md).
+Chưa triển khai admission hoặc thay đổi production.
+
+Một variant có phạm vi hẹp để nghiên cứu là **class admission lúc task còn current**, cho
 receiver đã có profile của task đó:
 
 ```
@@ -211,8 +219,8 @@ coverage/function transfer và feature compatibility. Chỉ gửi thêm source
 profile hoặc class mask không đủ. Không sửa hai nhóm cùng lúc rồi gán toàn bộ
 gain cho routing. Không khởi động lại APPLIANCE head-patch để chữa nhóm này.
 
-Ưu tiên current-task admission trước vì có cơ hội tiếp cận evidence đúng thời
-điểm. T5 không thể hồi tố CAL của T1/T2 theo protocol no historical replay.
+Nếu chọn hướng mở rộng coverage, current-task admission có cơ hội tiếp cận
+evidence đúng thời điểm. T5 không thể hồi tố CAL của T1/T2 theo protocol no historical replay.
 Nếu triển khai sau này, đây phải là một variant được đánh giá với main baseline
 và data/test protocol giữ nguyên; chưa có production admission trong commit này.
 

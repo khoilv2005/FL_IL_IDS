@@ -23,10 +23,18 @@
   "variant_gain_pp": 1.623713300040408,
   "production_default_changed": false,
   "coverage_fully_resolved": false,
-  "decision": "Prioritize class/task coverage. Global-task mask is an opt-in development variant, not a complete repair or a safety certificate.",
+  "decision": "Preserve full-test reporting; research objective pending explicit clarification. Do not force coverage. Within registered classes routing accounts for 86.06% of MulticlassSelf errors.",
   "coverage_provenance_audit_completed": true,
   "coverage_provenance_report": "artifacts/denice_coverage_provenance_20261011.json",
   "missing_profile_cause": "73 non-allocation pairs + 1 allocated task with no usable BASE; all 74 later received weight-only catch-up",
   "missing_mature_classifier_registrations": 0,
-  "coverage_root_cause": "Native ownership-limited class registration and absent task profiles; partial catch-up does not transfer coverage."
+  "coverage_root_cause": "Native ownership-limited class registration and absent task profiles; partial catch-up does not transfer coverage.",
+  "dominant_component_scope": "full_test",
+  "registered_scope_dominant": "routing",
+  "research_goal_not_redefined": true,
+  "coverage_is_not_proven_implementation_bug": true,
+  "valid_scope_report": "artifacts/denice_valid_scope_20261011.json",
+  "valid_scope_checks_passed": 414,
+  "forgetting_status": "NOT_MEASURED",
+  "collaboration_effect_status": "NOT_IDENTIFIED"
 }

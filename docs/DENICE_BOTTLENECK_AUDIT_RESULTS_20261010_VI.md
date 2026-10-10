@@ -2,6 +2,13 @@
 
 ## 1. Kết luận
 
+**Đính chính phạm vi (11/10/2026):** coverage error trong báo cáo là lỗi dự đoán
+trên toàn test, không phải tỷ lệ lỗi implementation. Non-IID, skipped tasks và
+class registration theo protocol chưa được chứng minh là bug. Khi xét riêng
+class đã đăng ký, routing chiếm 86,06% lỗi MulticlassSelf; xem
+[valid-scope diagnostics](DENICE_VALID_SCOPE_DIAGNOSTICS_20261011_VI.md).
+Không tự động mở masks/profiles hoặc đổi mục tiêu nghiên cứu từ kết quả này.
+
 Audit toàn bộ **13.505.771 test rows, 34 class, 98 receiver** của `results (11)`
 đã hoàn tất. Checkpoint là **DeNICE legacy, ξ = 0,8, seed 42, Task 5 / Round 19**.
 Không CGoFed, CME, APPLIANCE, donor inference hoặc retraining.
