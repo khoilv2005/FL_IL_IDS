@@ -342,6 +342,16 @@
     "fed_learning/training/decentralized_denice_il.py": "fd68452ee7ea8d6700432dba7fdaec5f3246d6fc8d2adb6f240603538c8ac48a",
     "fed_learning/training/denice_checkpoint_archive.py": "11e0d3b2f6e18d05399d5a98d54ab225c5a11331da095f807d7804265d060351",
     "fed_learning/training/denice_eval.py": "8854922f33b535404918432fa165abdf775471ca57981c1ad20e67924d1ccf1b",
-    "tools/eval_denice_legacy_self.py": "12c07e63015f29bdd0fed9bc725219f23dbf4d1f6f41115b6c66d18470fbbf42"
+    "tools/eval_denice_legacy_self.py": "d78e4440b4c5e849821b3622996e46710249eda93416719e389c3d7bada8667c"
+  },
+  "evaluation_launcher_amendment": {
+    "date": "2026-10-10",
+    "reason": "Kaggle training uses CUDA-certified guards; launcher incorrectly forced CPU",
+    "source": "tools/eval_denice_legacy_self.py",
+    "before_sha256": "12c07e63015f29bdd0fed9bc725219f23dbf4d1f6f41115b6c66d18470fbbf42",
+    "after_sha256": "d78e4440b4c5e849821b3622996e46710249eda93416719e389c3d7bada8667c",
+    "native_and_guard_source_unchanged": true,
+    "verification": "Python AST and notebook JSON only; original native 61 checks retained, not rerun",
+    "full_evaluation_completed": false
   }
 }

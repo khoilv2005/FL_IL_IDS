@@ -33,31 +33,49 @@ def statistics(cm):
         macro_f1_34=float(f1.mean()),class_counts=counts.tolist(),per_class_f1=f1.tolist())
 
 
+def resolve_evaluation_device(ckpt, requested='auto', include_appliance=False):
+    """Honor sealed runtime bindings; auto selects a backend, never migrates it."""
+    requirements = set()
+    if include_appliance:
+        from appliance.empirical_deployment import deployment_scope
+        for algorithm in ckpt.get('client_algorithm_states', {}).values():
+            algorithm = algorithm.get('denice', algorithm)
+            for entry in algorithm.get('appliance_guarded_head_entries', {}).values():
+                if deployment_scope(entry) is not None:
+                    declaration = entry['empirical_deployment']
+                    requirements.add((declaration['guard_backend'], declaration['torch_version']))
+    if len(requirements) > 1:
+        raise ValueError(f'Conflicting APPLIANCE runtime bindings: {sorted(requirements)}')
+    required = next(iter(requirements), None)
+    if requested == 'auto':
+        requested = required[0] if required else ('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(requested)
+    if required and (device.type, str(torch.__version__)) != required:
+        raise ValueError(f'APPLIANCE guard requires {required[0]} / Torch {required[1]}; '
+                         f'requested {device} / {torch.__version__}. '
+                         'Use device=auto and the matching Torch environment; do not rebind certificates.')
+    if device.type == 'cuda' and not torch.cuda.is_available():
+        raise RuntimeError('This evaluation requires CUDA. Enable the Kaggle GPU accelerator; '
+                           'a CPU fallback would change the certified guard function.')
+    if device.type not in ('cpu', 'cuda'):
+        raise ValueError(f'Unsupported evaluation backend: {device}')
+    return str(device)
+
+
 @torch.no_grad()
-def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,device='cuda',batch_size=512,expected_xi=.8,
+def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,device='auto',batch_size=512,expected_xi=.8,
                     include_appliance=False):
-    out=Path(output_dir);out.mkdir(parents=True,exist_ok=False)
-    write_json(out/'completion.json',dict(completed=False,stage='router_fit'))
     ckpt=load_denice_checkpoint(str(checkpoint_archive));config=ckpt['config']
+    device=resolve_evaluation_device(ckpt,device,include_appliance)
+    print(f'Frozen evaluation backend: {device}; Torch {torch.__version__}',flush=True)
     roles=CleanRoleData(role_dir,source_data_dir=source_data_dir)
     if (config.get('denice_cl_method','legacy')!='legacy'
             or not np.isclose(config['denice_similarity_threshold'],expected_xi,rtol=0,atol=1e-12)
             or config['denice_data_roles_sha256']!=file_sha256(roles.root/'role_manifest.json')):
         raise ValueError('Expected matching clean legacy checkpoint, xi and data-role lock')
+    out=Path(output_dir);out.mkdir(parents=True,exist_ok=False)
+    write_json(out/'completion.json',dict(completed=False,stage='router_fit',device=device))
     ids=sorted(map(int,ckpt['client_model_states']));snapshots={};fingerprints={}
-    if include_appliance:
-        from appliance.empirical_deployment import deployment_scope
-        # Numerical backend is part of the fixed guard fingerprint. Never
-        # silently disable a CPU-certified patch by evaluating it on CUDA.
-        for cid,algorithm in ckpt['client_algorithm_states'].items():
-            algorithm=algorithm.get('denice',algorithm)
-            for entry in algorithm.get('appliance_guarded_head_entries',{}).values():
-                if deployment_scope(entry) is not None:
-                    declaration=entry['empirical_deployment']
-                    if (declaration['guard_backend']!=torch.device(device).type or
-                            declaration['torch_version']!=str(torch.__version__)):
-                        raise ValueError(f'{cid}: APPLIANCE guard requires {declaration["guard_backend"]} '
-                            f'/ Torch {declaration["torch_version"]}; requested {device} / {torch.__version__}')
     with threadpool_limits(limits=1):
         for cid in ids:
             model,detector=_make_denice_client_model(ckpt,cid,device)

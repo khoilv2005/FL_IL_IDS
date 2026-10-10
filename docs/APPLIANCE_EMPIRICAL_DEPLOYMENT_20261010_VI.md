@@ -39,7 +39,7 @@ Budget launcher: tối đa **16 transactions/callback**, tối đa **8 receivers
 
 Evaluator ghi route authorized/suspended, certificate validity và số sample thực sự kích hoạt imported route. Accuracy vẫn tính một final prediction/sample trên toàn bộ test, chia disjoint cho receiver.
 
-Backend/Torch là một phần guard fingerprint hiện có. Patch được compile/chứng nhận trên CPU trong runner; launcher mới dùng CPU khi đánh giá APPLIANCE. Không bỏ backend binding để chạy CUDA hoặc âm thầm fallback toàn bộ imported predictions. Chưa xác minh khả năng chuyển certificate giữa backend/phiên bản Torch.
+Backend/Torch là một phần guard fingerprint hiện có. Patch được compile/chứng nhận trên backend thực tế của receiver. Smoke local dùng CPU; training Kaggle dùng CUDA. Launcher dùng `auto`, đọc backend từ declaration đã seal trong checkpoint. Không bỏ backend binding hoặc âm thầm fallback toàn bộ imported predictions. Chưa xác minh khả năng chuyển certificate giữa backend/phiên bản Torch.
 
 Đây là giới hạn runtime thực tế, có thể tăng thời gian full evaluation. CUDA portability cần evidence riêng; không được gọi là đã pass chỉ vì architecture giống nhau.
 
@@ -67,6 +67,6 @@ Lock mới: `artifacts/appliance_production_integration_smoke.json`, **61/61 che
 
 Discovery/setup traffic ở callback Task 3: **112.134.156 bytes** (gồm rejected attempts và receiver capsules). Không gọi kích thước capability vài KiB là toàn bộ communication cost.
 
-Full launcher vẫn checkpoint mỗi round, ZIP theo task và đánh giá toàn bộ 34-class test chỉ sau Task 5 cuối cùng. APPLIANCE evaluation dùng CPU đúng backend chứng nhận; training GPU không bị thay đổi bởi lựa chọn backend evaluation này.
+Full launcher vẫn checkpoint mỗi round, ZIP theo task và đánh giá toàn bộ 34-class test chỉ sau Task 5 cuối cùng. APPLIANCE evaluation chọn đúng backend chứng nhận trong checkpoint; không ép CPU từ kết quả smoke local. Training GPU không bị thay đổi bởi sửa launcher evaluation này.
 
 Loss regression của Task 4 trong `results (12)` vẫn cần audit riêng. Integration PASS không chứng minh nguyên nhân loss đã được sửa hoặc dự báo accuracy của campaign mới.
