@@ -1,0 +1,17 @@
+{
+  "stage": "coverage_inventory_complete_full_inference_pending",
+  "checkpoint": "results (11), pure legacy, task5 round19",
+  "full_test_rows": 13505771,
+  "receivers": 98,
+  "classes": 34,
+  "coverage_unreachable_rows": 5709415,
+  "coverage_unreachable_percent": 42.27389165712938,
+  "missing_locally_trained_pairs": 0,
+  "missing_locally_trained_rows": 0,
+  "dominant_component_proven": "coverage",
+  "why": "coverage alone is more than half the total observed errors of each saved self policy",
+  "production_fix_applied": false,
+  "retraining_started": false,
+  "historical_train_read": false,
+  "historical_cal_read": false
+}
