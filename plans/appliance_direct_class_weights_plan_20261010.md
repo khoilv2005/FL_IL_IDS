@@ -1,6 +1,6 @@
 # Kế hoạch APPLIANCE — Direct Class-Specific Weight Transfer
 
-Ngày: 2026-10-10. Trạng thái: **kế hoạch nghiên cứu, chưa implement/benchmark phương pháp mới**.
+Ngày: 2026-10-10. Đây là protocol trước execution tại `e738737`; **P1 đã implement, P2 đã hoàn tất 0/3 PASS → NO-GO**. Xem [báo cáo kết quả](../docs/APPLIANCE_DIRECT_HEAD_DEVELOPMENT_20261010_VI.md). Các lựa chọn/gates bên dưới được giữ làm lịch sử preregistration, không dùng để mở thêm pilot sau NO-GO.
 
 Phương pháp chính: **APPLIANCE — Decentralized Class-Aware Masked Knowledge Transfer for Federated Continual Learning**.
 
@@ -220,7 +220,7 @@ Không đi thẳng P5. P2/P3 fail thì đóng cấu hình theo stopping rule. Cl
 | `tools/build_appliance_direct_head_notebook.py` | Kaggle notebook builder sau CLI hoạt động |
 | `eval_appliance_direct_head_kaggle.ipynb` | Feasibility runner; clone GitHub, đọc dataset/checkpoint paths, không embedded artifacts |
 
-Đây là planned files, **chưa có callable implementation**. Mặc định không dùng `appliance/closure.py` compiler exact (có boundary-equality rejection và dependency graft), `guarded_head.py` (yêu cầu imported shared-sketch route), hoặc `train_time_transfer.py` donor learning làm core của phương pháp mới.
+Đây là danh sách files đã chốt trước implementation. Năm core modules và feasibility CLI hiện đã có callable implementation; notebook chưa tạo vì P2 NO-GO. Mặc định không dùng `appliance/closure.py` compiler exact (có boundary-equality rejection và dependency graft), `guarded_head.py` (yêu cầu imported shared-sketch route), hoặc `train_time_transfer.py` donor learning làm core của phương pháp mới.
 
 P1/P2 ưu tiên chạy local CPU từ checkpoint/data stores hiện có. Notebook Kaggle chỉ tạo sau CLI, clone branch GitHub hiện tại và ghi actual commit/source hashes vào artifact; không ép user phải clone một commit cố định, không nhúng source hoặc roles vào notebook. Dataset/checkpoint/roles paths là parameters, tìm đúng archive hoặc extracted manifest với provenance thay vì đoán một ZIP bất kỳ trong mount.
 

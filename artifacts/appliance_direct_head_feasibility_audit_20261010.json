@@ -1,0 +1,272 @@
+{
+  "checks": 693,
+  "passed": true,
+  "source": "audit_denice/appliance_direct_head_v1/locked_03",
+  "table": [
+    {
+      "task": 1,
+      "receiver": 3,
+      "class_id": 7,
+      "eta": 1.0,
+      "owners": [
+        {
+          "owner": 3,
+          "positive": 0,
+          "recalls": {
+            "baseline": null,
+            "availability": null,
+            "head_agg": null,
+            "mask_only": null,
+            "single_1": null,
+            "single_2": null
+          },
+          "false_positive": 0,
+          "negative": 442,
+          "negative_break": 0
+        },
+        {
+          "owner": 54,
+          "positive": 98,
+          "recalls": {
+            "availability": 0.0,
+            "baseline": 0.0,
+            "head_agg": 0.9387755102040817,
+            "mask_only": 0.0,
+            "single_1": 0.9387755102040817,
+            "single_2": 0.9387755102040817
+          },
+          "false_positive": 0,
+          "negative": 667,
+          "negative_break": 0
+        },
+        {
+          "owner": 51,
+          "positive": 51,
+          "recalls": {
+            "availability": 0.0,
+            "baseline": 0.0,
+            "head_agg": 0.9607843137254902,
+            "mask_only": 0.0,
+            "single_1": 0.9607843137254902,
+            "single_2": 0.9411764705882353
+          },
+          "false_positive": 0,
+          "negative": 540,
+          "negative_break": 0
+        }
+      ],
+      "qualification": {
+        "status": "FAIL",
+        "candidate_function": "6b9fa08a449ce5622fa4161d6208669b4c697b86",
+        "required_donor_recalls": [
+          0.9387755102040817,
+          0.9607843137254902
+        ],
+        "current_risk_pass": true,
+        "sufficient_evidence": true,
+        "gains": {
+          "availability": {
+            "target_hits": 141,
+            "net_correct": 141
+          },
+          "mask_only": {
+            "target_hits": 141,
+            "net_correct": 141
+          },
+          "single_1": {
+            "target_hits": 0,
+            "net_correct": 0
+          },
+          "single_2": {
+            "target_hits": 1,
+            "net_correct": 1
+          }
+        },
+        "multi_donor_advantage": false,
+        "old_risk": "UNKNOWN",
+        "population_FAR_certified": false,
+        "interpretation": "retrospective current CAL development; not independent confirmation or full test",
+        "native_install_authorized": false,
+        "cumulative_safety_established": false
+      }
+    },
+    {
+      "task": 2,
+      "receiver": 1,
+      "class_id": 13,
+      "eta": 0.5,
+      "owners": [
+        {
+          "owner": 1,
+          "positive": 0,
+          "recalls": {
+            "baseline": null,
+            "availability": null,
+            "head_agg": null,
+            "mask_only": null,
+            "single_1": null,
+            "single_2": null
+          },
+          "false_positive": 0,
+          "negative": 107,
+          "negative_break": 0
+        },
+        {
+          "owner": 74,
+          "positive": 136,
+          "recalls": {
+            "availability": 0.4264705882352941,
+            "baseline": 0.0,
+            "head_agg": 0.4338235294117647,
+            "mask_only": 0.4264705882352941,
+            "single_1": 0.4338235294117647,
+            "single_2": 0.4338235294117647
+          },
+          "false_positive": 0,
+          "negative": 395,
+          "negative_break": 0
+        },
+        {
+          "owner": 34,
+          "positive": 34,
+          "recalls": {
+            "availability": 0.4411764705882353,
+            "baseline": 0.0,
+            "head_agg": 0.4411764705882353,
+            "mask_only": 0.4411764705882353,
+            "single_1": 0.4411764705882353,
+            "single_2": 0.4411764705882353
+          },
+          "false_positive": 0,
+          "negative": 47,
+          "negative_break": 0
+        }
+      ],
+      "qualification": {
+        "status": "FAIL",
+        "candidate_function": "38ea2f83bc65635f9ae8d590b635821e46f8be8c",
+        "required_donor_recalls": [
+          0.4338235294117647,
+          0.4411764705882353
+        ],
+        "current_risk_pass": true,
+        "sufficient_evidence": true,
+        "gains": {
+          "availability": {
+            "target_hits": 1,
+            "net_correct": 1
+          },
+          "mask_only": {
+            "target_hits": 1,
+            "net_correct": 1
+          },
+          "single_1": {
+            "target_hits": 0,
+            "net_correct": 0
+          },
+          "single_2": {
+            "target_hits": 0,
+            "net_correct": 0
+          }
+        },
+        "multi_donor_advantage": false,
+        "old_risk": "UNKNOWN",
+        "population_FAR_certified": false,
+        "interpretation": "retrospective current CAL development; not independent confirmation or full test",
+        "native_install_authorized": false,
+        "cumulative_safety_established": false
+      }
+    },
+    {
+      "task": 2,
+      "receiver": 3,
+      "class_id": 14,
+      "eta": 0.25,
+      "owners": [
+        {
+          "owner": 3,
+          "positive": 0,
+          "recalls": {
+            "baseline": null,
+            "availability": null,
+            "head_agg": null,
+            "mask_only": null,
+            "single_1": null,
+            "single_2": null
+          },
+          "false_positive": 0,
+          "negative": 347,
+          "negative_break": 0
+        },
+        {
+          "owner": 74,
+          "positive": 104,
+          "recalls": {
+            "availability": 0.7019230769230769,
+            "baseline": 0.0,
+            "head_agg": 0.7019230769230769,
+            "mask_only": 0.7019230769230769,
+            "single_1": 0.7019230769230769,
+            "single_2": 0.7019230769230769
+          },
+          "false_positive": 0,
+          "negative": 427,
+          "negative_break": 0
+        },
+        {
+          "owner": 26,
+          "positive": 68,
+          "recalls": {
+            "availability": 0.6470588235294118,
+            "baseline": 0.0,
+            "head_agg": 0.6617647058823529,
+            "mask_only": 0.6470588235294118,
+            "single_1": 0.6617647058823529,
+            "single_2": 0.6617647058823529
+          },
+          "false_positive": 0,
+          "negative": 117,
+          "negative_break": 0
+        }
+      ],
+      "qualification": {
+        "status": "FAIL",
+        "candidate_function": "5243bab7fee72308ec50be73a4f56cac93b72ea0",
+        "required_donor_recalls": [
+          0.7019230769230769,
+          0.6617647058823529
+        ],
+        "current_risk_pass": true,
+        "sufficient_evidence": true,
+        "gains": {
+          "availability": {
+            "target_hits": 1,
+            "net_correct": 1
+          },
+          "mask_only": {
+            "target_hits": 1,
+            "net_correct": 1
+          },
+          "single_1": {
+            "target_hits": 0,
+            "net_correct": 0
+          },
+          "single_2": {
+            "target_hits": 0,
+            "net_correct": 0
+          }
+        },
+        "multi_donor_advantage": false,
+        "old_risk": "UNKNOWN",
+        "population_FAR_certified": false,
+        "interpretation": "retrospective current CAL development; not independent confirmation or full test",
+        "native_install_authorized": false,
+        "cumulative_safety_established": false
+      }
+    }
+  ],
+  "application_bytes": 41933223,
+  "read_only_counts_audit": true,
+  "predictions_independently_recomputed": false,
+  "raw_CAL_opened": false
+}
