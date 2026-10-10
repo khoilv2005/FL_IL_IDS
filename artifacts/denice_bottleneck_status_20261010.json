@@ -1,5 +1,5 @@
 {
-  "stage": "coverage_inventory_complete_full_inference_pending",
+  "stage": "full_audit_completed_and_native_variant_verified",
   "checkpoint": "results (11), pure legacy, task5 round19",
   "full_test_rows": 13505771,
   "receivers": 98,
@@ -13,5 +13,15 @@
   "production_fix_applied": false,
   "retraining_started": false,
   "historical_train_read": false,
-  "historical_cal_read": false
+  "historical_cal_read": false,
+  "audit_completed": true,
+  "reproduction_mismatches": 0,
+  "best_allowed_route_percent": 54.85683120200987,
+  "router_only_50_theoretically_possible": true,
+  "variant_implemented": true,
+  "variant_accuracy_percent": 38.770011723136726,
+  "variant_gain_pp": 1.623713300040408,
+  "production_default_changed": false,
+  "coverage_fully_resolved": false,
+  "decision": "Prioritize class/task coverage. Global-task mask is an opt-in development variant, not a complete repair or a safety certificate."
 }

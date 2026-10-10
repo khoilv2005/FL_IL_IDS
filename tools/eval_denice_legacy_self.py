@@ -64,7 +64,9 @@ def resolve_evaluation_device(ckpt, requested='auto', include_appliance=False):
 
 @torch.no_grad()
 def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,device='auto',batch_size=512,expected_xi=.8,
-                    include_appliance=False):
+                    include_appliance=False,include_global_task_mask=False):
+    if include_appliance and include_global_task_mask:
+        raise ValueError('Evaluate the class-mask variant separately from APPLIANCE certificates')
     ckpt=load_denice_checkpoint(str(checkpoint_archive));config=ckpt['config']
     device=resolve_evaluation_device(ckpt,device,include_appliance)
     print(f'Frozen evaluation backend: {device}; Torch {torch.__version__}',flush=True)
@@ -110,12 +112,24 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
             empirical_risk='Deployment outside finite CAL evidence is allowed only by an explicit empirical declaration')
     write_json(out/'pipeline_lock.json',lock)
     loader=IncrementalDataLoader(str(roles.source));x,y=loader.get_full_test_data()
+    global_task_classes=None
+    if include_global_task_mask:
+        metadata=json.loads((roles.source/'metadata.json').read_text(encoding='utf-8'))
+        global_task_classes={int(t):list(map(int,classes))
+            for t,classes in metadata['task_structure']['task_classes'].items()}
+        lock.update(experimental_class_mask_policy='global_task',
+            experimental_policy='MulticlassGlobalTaskMask',
+            experimental_policy_status='development coverage variant; no ownership or safety certification',
+            unchanged_components=['router','weights','ranks','graph','optimizer','legal task profiles'])
+        write_json(out/'pipeline_lock.json',lock)
     if not np.array_equal(np.unique(y.numpy()),np.arange(34)):raise ValueError('Source test must contain all 34 classes')
     expected=len(y)
     shards,partition=_partition_test_data_by_client(x,y,ids,seed=int(config.get('seed',42))+104729*5,lazy_features=True)
     del loader,x,y;gc.collect()
     frozen=joblib.load(out/'frozen_routers.joblib')
     cms={p:np.zeros((34,34),dtype=np.int64) for p in ('BinarySelf','MulticlassSelf')}
+    if include_global_task_mask:
+        cms['MulticlassGlobalTaskMask']=np.zeros((34,34),dtype=np.int64)
     if include_appliance:
         cms['APPLIANCE'] = np.zeros((34,34),dtype=np.int64)
     seen_rows=np.zeros(expected,dtype=bool);evaluated=0;clients=[];started=time.monotonic();header=True
@@ -125,6 +139,11 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
             model.eval()
             detectors={policy:copy.deepcopy(detector) for policy in ('BinarySelf','MulticlassSelf')}
             for policy in detectors:restore_context_detector(detectors[policy],frozen[cid][policy])
+            global_mask_detector=None
+            if include_global_task_mask:
+                from fed_learning.strategies.incremental.denice_class_availability import detector_with_class_mask_policy
+                global_mask_detector=detector_with_class_mask_policy(detectors['MulticlassSelf'],
+                    'global_task',global_task_classes,list(range(34)),int(model.num_classes))
             from appliance.stable_head import StableHeadRegistry
             registry = StableHeadRegistry()
             registry.entries = getattr(model, 'appliance_guarded_head_entries', {})
@@ -148,6 +167,10 @@ def run_legacy_self(checkpoint_archive,role_dir,output_dir,source_data_dir,devic
                     for policy in detectors:
                         logits,_=_denice_routed_logits_with_episodes(model,inputs,detectors[policy],list(range(34)),device,inference_policy='pred_hard')
                         predictions[policy]=logits.argmax(1).cpu().numpy()
+                    if include_global_task_mask:
+                        logits,_=_denice_routed_logits_with_episodes(model,inputs,global_mask_detector,
+                            list(range(34)),device,inference_policy='pred_hard')
+                        predictions['MulticlassGlobalTaskMask']=logits.argmax(1).cpu().numpy()
                 if include_appliance:
                     appliance_record = (registry.records(model, detectors['MulticlassSelf'],
                         inputs.cpu().numpy(), list(range(34)), device, batch_size,
