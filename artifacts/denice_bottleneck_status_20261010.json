@@ -23,5 +23,10 @@
   "variant_gain_pp": 1.623713300040408,
   "production_default_changed": false,
   "coverage_fully_resolved": false,
-  "decision": "Prioritize class/task coverage. Global-task mask is an opt-in development variant, not a complete repair or a safety certificate."
+  "decision": "Prioritize class/task coverage. Global-task mask is an opt-in development variant, not a complete repair or a safety certificate.",
+  "coverage_provenance_audit_completed": true,
+  "coverage_provenance_report": "artifacts/denice_coverage_provenance_20261011.json",
+  "missing_profile_cause": "73 non-allocation pairs + 1 allocated task with no usable BASE; all 74 later received weight-only catch-up",
+  "missing_mature_classifier_registrations": 0,
+  "coverage_root_cause": "Native ownership-limited class registration and absent task profiles; partial catch-up does not transfer coverage."
 }
