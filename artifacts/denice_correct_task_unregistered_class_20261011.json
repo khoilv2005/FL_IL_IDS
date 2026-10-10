@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "checks_passed": 1912,
+  "checks_total": 1912,
+  "metrics": {
+    "BinarySelf": {
+      "full_samples": 13505771,
+      "route_correct": 5070494,
+      "unregistered_with_profile_samples": 2807415,
+      "correct_task_unregistered_class": 663015,
+      "mask_only_rescue_in_this_group": 348911,
+      "correct_task_registered_but_classifier_wrong": 187657,
+      "fraction_of_full_test": 0.04909123662766087,
+      "fraction_of_correct_task_samples": 0.1307594486848816,
+      "fraction_of_unregistered_with_profile": 0.23616565416940494,
+      "mask_only_rescue_fraction_of_this_group": 0.5262490290566578
+    },
+    "MulticlassSelf": {
+      "full_samples": 13505771,
+      "route_correct": 5782706,
+      "unregistered_with_profile_samples": 2807415,
+      "correct_task_unregistered_class": 557790,
+      "mask_only_rescue_in_this_group": 263429,
+      "correct_task_registered_but_classifier_wrong": 208022,
+      "fraction_of_full_test": 0.041300122740123464,
+      "fraction_of_correct_task_samples": 0.09645830170166009,
+      "fraction_of_unregistered_with_profile": 0.19868455500878923,
+      "mask_only_rescue_fraction_of_this_group": 0.4722727191236845
+    }
+  },
+  "source_checkpoint_sha256": "ea34082d6866bf502100d1b1f70206248db2532a3968369ae85374190e910fa9",
+  "source_completion_sha256": "449ec476fb1d8e377f6978044940bf21e25eb8ac3d20e1df12e320a4c1efbeab",
+  "audit_source_sha256": "8b76219951522896cf97a33becca13517c93480d26cefd54da0ca5a538d0b7b2",
+  "no_new_inference": true,
+  "no_training": true,
+  "production_changed": false,
+  "explanation": "Post-prediction analysis. Mask-only diagnostic reuses the same predicted task with expanded class choices, not a certified registration repair."
+}
