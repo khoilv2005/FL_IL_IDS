@@ -1,0 +1,250 @@
+{
+  "version": "appliance_observable_scope_preflight_v1",
+  "completed": true,
+  "source_evidence_sha256": "6975a730df013310a49976cd6e92e815822a3acfb0e6070b5c63c2039e3cf05c",
+  "scope_preflight_implementation_sha256": "508fb3e32ebc2b8d1be83d959d00ab894170dfd216f64f6073162004bda088ca",
+  "planner_implementation_sha256": "7e7fbfaaedfc4e26c77996e1b7a8af40ea3274f9e40fb8989ea896f329445497",
+  "decision": "REDESIGN_REQUIRED_FOR_STRICT_CUMULATIVE_HEAD_PATCH_DEPLOYMENT",
+  "candidates": [
+    {
+      "candidate_id": "2_62_6",
+      "receiver": 2,
+      "donor": 62,
+      "class_id": 6,
+      "task": 1,
+      "experiment_isolated": true,
+      "current_CAL_capacity": {
+        "total": 2353,
+        "fit": 1176,
+        "selection": 588,
+        "holdout": 589,
+        "task": 1,
+        "partition_sha256": "201a1dc7662b1fda8ccd547c763a0fc02e564abb3f8e32a565d50d15a5df982a",
+        "counts_are_upper_bounds_for_unique_independent_contents": true
+      },
+      "optimistic_current_CAL_coverage_not_a_certificate": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "scope_preflight": {
+        "version": "appliance_observable_scope_preflight_v1",
+        "application_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "observed_CAL_classes": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "source_possible_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "missing_CAL_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "source_contract": null,
+        "source_contract_sha256": null,
+        "source_authority_present": false,
+        "domain_narrowing_requested": false,
+        "whole_application_CAL_coverage": false,
+        "evidence_coverage_feasible": false,
+        "blockers": [
+          "NO_INDEPENDENT_OBSERVABLE_SOURCE_AUTHORITY",
+          "POSSIBLE_INPUT_CLASSES_OUTSIDE_CAL_EVIDENCE"
+        ],
+        "source_semantic_inventory_verified_by_code": false,
+        "install_authorized": false,
+        "population_FAR_claim": false,
+        "summary_is_CAL": false,
+        "per_owner_class_minimum_imposed": false,
+        "forbidden_membership_bases": [
+          "y_true",
+          "task_id",
+          "router_prediction",
+          "signature_match",
+          "head_margin",
+          "BASE_summary",
+          "training_task"
+        ]
+      },
+      "unqualified_prebirth_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "known_missing_protected_pools": 17,
+      "known_prebirth_missing_pools": 4,
+      "compiled": false,
+      "CAL_opened": false,
+      "smoke_authorized": false,
+      "decision": "DEFERRED_NO_OBSERVABLE_SAFE_CUMULATIVE_SCOPE"
+    },
+    {
+      "candidate_id": "2_64_8",
+      "receiver": 2,
+      "donor": 64,
+      "class_id": 8,
+      "task": 1,
+      "experiment_isolated": true,
+      "current_CAL_capacity": {
+        "total": 490,
+        "fit": 245,
+        "selection": 122,
+        "holdout": 123,
+        "task": 1,
+        "partition_sha256": "6cebd21de2e5f04b80ba0782277efc20f1bc776983d5ebab10423c8706614be4",
+        "counts_are_upper_bounds_for_unique_independent_contents": true
+      },
+      "optimistic_current_CAL_coverage_not_a_certificate": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "scope_preflight": {
+        "version": "appliance_observable_scope_preflight_v1",
+        "application_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "observed_CAL_classes": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "source_possible_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "missing_CAL_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "source_contract": null,
+        "source_contract_sha256": null,
+        "source_authority_present": false,
+        "domain_narrowing_requested": false,
+        "whole_application_CAL_coverage": false,
+        "evidence_coverage_feasible": false,
+        "blockers": [
+          "NO_INDEPENDENT_OBSERVABLE_SOURCE_AUTHORITY",
+          "POSSIBLE_INPUT_CLASSES_OUTSIDE_CAL_EVIDENCE"
+        ],
+        "source_semantic_inventory_verified_by_code": false,
+        "install_authorized": false,
+        "population_FAR_claim": false,
+        "summary_is_CAL": false,
+        "per_owner_class_minimum_imposed": false,
+        "forbidden_membership_bases": [
+          "y_true",
+          "task_id",
+          "router_prediction",
+          "signature_match",
+          "head_margin",
+          "BASE_summary",
+          "training_task"
+        ]
+      },
+      "unqualified_prebirth_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "known_missing_protected_pools": 17,
+      "known_prebirth_missing_pools": 4,
+      "compiled": false,
+      "CAL_opened": false,
+      "smoke_authorized": false,
+      "decision": "DEFERRED_NO_OBSERVABLE_SAFE_CUMULATIVE_SCOPE"
+    }
+  ],
+  "production_gate_changed": false,
+  "current_CAL_negative_minimum": 32,
+  "current_CAL_positive_minimum": 32,
+  "target_recall_minimum": 0.95,
+  "negative_FAR_maximum": 0.001,
+  "break_maximum": 0,
+  "protected_owner_class_32_rule_is_audit_only": true,
+  "application_domain": "cumulative_dataset",
+  "trusted_input_source_contract_present": false,
+  "retrospective_Task5_install_authorized": false,
+  "raw_dataset_reads": 0,
+  "classifier_fits": 0,
+  "model_forwards": 0,
+  "production_runner_modified": false,
+  "existing_empirical_mode_silently_enabled": false,
+  "prospective_receipts_expand_evidence_only": true,
+  "summary_role": "finite protected-support veto only, not CAL",
+  "empirical_guards_can_be_useful_but_safe_unknown_class_exclusion_not_proven": true,
+  "population_FAR_claim": false,
+  "next_step": "Stop additional guard/eligibility audits for the current strict head-patch design. Redesign transfer/protection or explicitly establish a legitimate observable domain authority before enabling prospective smoke."
+}
