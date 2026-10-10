@@ -1,5 +1,7 @@
 # APPLIANCE V3 — Contract nghiên cứu Decentralized Masked Knowledge Transfer
 
+> **Lịch sử thiết kế — superseded trước implementation.** Specification mới nhất chuyển sang xuất trực tiếp native donor classifier rows, không donor retraining. Xem [kế hoạch direct class weights](../plans/appliance_direct_class_weights_plan_20261010.md). Proposal receiver-aligned sparse training dưới đây chưa được triển khai hoặc benchmark.
+
 Ngày: 2026-10-10. Trạng thái: **DESIGN / CONTRACT — chưa triển khai V3, chưa benchmark, chưa được cấp phép full training.**
 
 Tên phương pháp: **APPLIANCE — Functional-Gap-Aware Decentralized Masked Knowledge Aggregation**. Cấu hình nghiên cứu chính đề xuất: **APPLIANCE-Sparse**. V2 readout-only vẫn [CLOSED / NO-GO](APPLIANCE_V2_NO_GO_20261010_VI.md); V3 là redesign mới, không đổi nhãn các kết quả V2 thành kết quả V3.
