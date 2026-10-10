@@ -1,4 +1,9 @@
-"""Task1 prototype: functional-gap discovery by default; old ablation opt-in."""
+"""Archived APPLIANCE V2 readout-only prototype: NO-GO, 2026-10-10.
+
+No further donor search, tuning, native integration or full training is planned.
+Explicit --historical-replay retains reproduction of historical diagnostics.
+See docs/APPLIANCE_V2_NO_GO_20261010_VI.md.
+"""
 import argparse
 import copy
 import gc
@@ -202,6 +207,12 @@ def run_legacy(a):
 
 
 def run(a):
+    if not getattr(a, 'historical_replay', False):
+        raise RuntimeError(
+            'APPLIANCE V2 readout-only is closed (NO-GO, 2026-10-10). '
+            'This entry point is archived; --historical-replay is for historical '
+            'diagnostic reproduction only, not native integration/full training. '
+            'See docs/APPLIANCE_V2_NO_GO_20261010_VI.md.')
     if getattr(a, 'protocol', 'functional_gap') == 'legacy_all_seen':
         return run_legacy(a)
     from tools.run_appliance_functional_gap_transfer import run as run_functional
@@ -213,7 +224,9 @@ if __name__=='__main__':
     for n in ('checkpoint','roles','data','base-store','cal-store','out','publish'):
         p.add_argument('--'+n,type=Path,required=True)
     p.add_argument('--device',default='cpu')
+    p.add_argument('--historical-replay',action='store_true',
+        help='Explicitly reproduce an archived diagnostic from the closed V2 branch; no production authorization')
     p.add_argument('--protocol',choices=('functional_gap','legacy_all_seen'),default='functional_gap',
-        help='Functional native discovery is the default; legacy_all_seen reproduces the historical diagnostic only')
+        help='Archived diagnostic choice, available only with --historical-replay')
     a=p.parse_args();torch.set_num_threads(2);torch.set_num_interop_threads(1)
     with threadpool_limits(limits=1):run(a)

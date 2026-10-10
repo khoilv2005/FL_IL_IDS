@@ -1,5 +1,7 @@
 # APPLIANCE V2 — Functional-Gap-Aware Discovery
 
+> **Trạng thái hiện tại: CLOSED / NO-GO.** Sau bounded campaign `e7ba5df`, người dùng đã chốt dừng V2 readout-only. Phần dưới ghi nhận implementation và kết quả tại `dc83cfc`; entry point hiện tại chỉ cho phép historical replay rõ ràng. Xem [quyết định đóng nhánh](APPLIANCE_V2_NO_GO_20261010_VI.md).
+
 ## Đã thay đổi gì
 
 Discovery V2 không còn dùng việc thiếu class trong metadata làm kết luận model thiếu knowledge. Entry point prototype `tools/run_appliance_train_time_transfer.py` mặc định chạy **functional native discovery**, trước khi đọc BASE để học update.
