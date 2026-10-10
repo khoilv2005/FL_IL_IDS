@@ -36,5 +36,10 @@
   "valid_scope_report": "artifacts/denice_valid_scope_20261011.json",
   "valid_scope_checks_passed": 414,
   "forgetting_status": "NOT_MEASURED",
-  "collaboration_effect_status": "NOT_IDENTIFIED"
+  "collaboration_effect_status": "NOT_IDENTIFIED",
+  "bug_vs_protocol_reaudit": "artifacts/denice_bug_vs_protocol_20261011.json",
+  "bug_vs_protocol_checks_passed": 23,
+  "registration_bug_observed": false,
+  "allocator_config_option_inert": true,
+  "allocator_impact_on_existing_fixture": "NOT_CAUSALLY_ESTABLISHED"
 }
