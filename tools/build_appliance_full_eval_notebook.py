@@ -18,8 +18,9 @@ from datetime import datetime, timezone
 from importlib.metadata import version, PackageNotFoundError
 
 # Set either the mounted output path or its Google Drive share link.
-RESULTS_PATH = os.environ.get('APPLIANCE_RESULTS_PATH', '')
 RESULTS_DRIVE_URL = os.environ.get('APPLIANCE_RESULTS_DRIVE_URL', '')
+RESULTS_PATH = os.environ.get('APPLIANCE_RESULTS_PATH',
+    '' if RESULTS_DRIVE_URL else '/kaggle/input/datasets/luuquanghuy636/appliance-v2')
 DATA_DIR = os.environ.get('DENICE_DATA_DIR', '/kaggle/input/datasets/khoilv2005/100-clients/100-clients')
 ROLE_DIR = os.environ.get('DENICE_CLEAN_ROLES_DIR')
 BATCH_SIZE = 512
