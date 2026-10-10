@@ -1,5 +1,7 @@
 # APPLIANCE — prototype Train-time Knowledge Transfer
 
+> Báo cáo này giữ protocol All-seen lịch sử. Entry point đã đổi mặc định sang Functional-Gap-Aware Discovery; chỉ dùng `--protocol legacy_all_seen` nếu cần tái tạo diagnostic cũ. Xem `APPLIANCE_FUNCTIONAL_GAP_DISCOVERY_20261010_VI.md` cho luồng hiện tại.
+
 ## Kết luận
 
 Đã chạy local hai clone độc lập của receiver 2 tại **Task 1 / round 19**, đúng lineage `results (13)` của audit trước. Không dùng weights Task 5 hoặc imported route. Cơ chế train-time **readout-only** chuyển được class 6 vào classifier local, nhưng **0/2 cặp đạt đồng thời gate đã khóa**. Chưa tích hợp runner, chưa native survival hoặc full training.

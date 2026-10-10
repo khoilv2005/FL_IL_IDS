@@ -27,6 +27,8 @@ def run(a):
     write_json(a.out/'completion.json',dict(completed=False))
     prior=json.loads((a.prepared/'completion.json').read_text())
     if not prior['completed']:raise ValueError('Prepared transfer unfinished')
+    if prior['protocol'].get('version') != RULES['version']:
+        raise ValueError('Historical All-seen completion requires an original legacy_all_seen run; functional native discovery uses separate qualification')
     ckpt,hashes=load_input(a.checkpoint,1,19)
     if any(hashes[k]!=prior['protocol'][k] for k in hashes):raise ValueError('Task1 authority changed')
     roles=CleanRoleData(a.roles,source_data_dir=a.data)

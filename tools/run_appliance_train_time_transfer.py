@@ -1,4 +1,4 @@
-"""Two independent Task1 train-time transfer case studies, without full retrain."""
+"""Task1 prototype: functional-gap discovery by default; old ablation opt-in."""
 import argparse
 import copy
 import gc
@@ -78,7 +78,7 @@ def held(view,classes):
     return dict(p,X=p['X'][indices],y=p['y'][indices],rows=p['rows'][indices])
 
 
-def run(a):
+def run_legacy(a):
     a.out.mkdir(parents=True,exist_ok=False)
     write_json(a.out/'completion.json',dict(completed=False))
     ckpt,hashes=load_input(a.checkpoint,1,19)
@@ -201,10 +201,19 @@ def run(a):
     write_json(a.publish,result)
 
 
+def run(a):
+    if getattr(a, 'protocol', 'functional_gap') == 'legacy_all_seen':
+        return run_legacy(a)
+    from tools.run_appliance_functional_gap_transfer import run as run_functional
+    return run_functional(a)
+
+
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for n in ('checkpoint','roles','data','base-store','cal-store','out','publish'):
         p.add_argument('--'+n,type=Path,required=True)
     p.add_argument('--device',default='cpu')
+    p.add_argument('--protocol',choices=('functional_gap','legacy_all_seen'),default='functional_gap',
+        help='Functional native discovery is the default; legacy_all_seen reproduces the historical diagnostic only')
     a=p.parse_args();torch.set_num_threads(2);torch.set_num_interop_threads(1)
     with threadpool_limits(limits=1):run(a)
