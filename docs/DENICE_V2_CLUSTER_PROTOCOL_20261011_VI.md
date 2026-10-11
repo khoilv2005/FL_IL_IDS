@@ -188,5 +188,8 @@ so sánh trước khi gọi biến động accuracy là forgetting. Evaluation c
 phải cấu hình trước run; document này không tự bật full test ở mọi round.
 
 Không khởi động full training trước khi có model/router chung hợp lệ. P0 structural
-tests và P1 pure engine tests đã PASS. Native P1 integration, P2 và P3 chưa hoàn
-thành. Chưa có kết quả native training/router consistency hoặc accuracy benchmark V2.
+tests và P1 pure engine tests đã PASS. Native P1 worker/moment collector đã PASS
+one-round smoke trên hai client cùng cluster bằng BASE thật; 89/89 regression
+tests PASS. Xem [báo cáo native P1](DENICE_V2_NATIVE_P1_SMOKE_20261011_VI.md).
+P2/P3 và full multi-task runner chưa hoàn thành. Chưa có historical router
+consistency hoặc accuracy benchmark V2.

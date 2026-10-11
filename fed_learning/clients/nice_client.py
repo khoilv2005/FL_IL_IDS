@@ -133,13 +133,18 @@ class NICEClient(FederatedClient):
         phase_offset = int(kwargs.get("phase_offset", 0))
         max_phases_override = kwargs.get("max_phases_override")
         class_weights = kwargs.get("class_weights")
+        # Opt-in V2 workers receive canonical cluster allocation/masks. Local
+        # selection/pruning would destroy shared parameter coordinates. V1's
+        # default continues to run its existing preparation unchanged.
+        cluster_layout_locked = bool(kwargs.get("cluster_layout_locked", False))
         if max_phases_override is not None:
             max_phases = max(1, int(max_phases_override))
 
         # Sample data for neuron selection (subsample for efficiency)
-        n_sample = min(500, self.num_samples)
-        sample_idx = torch.randperm(self.num_samples)[:n_sample]
-        sample_data = self.X_train[sample_idx].to(self.device)
+        if not cluster_layout_locked:
+            n_sample = min(500, self.num_samples)
+            sample_idx = torch.randperm(self.num_samples)[:n_sample]
+            sample_data = self.X_train[sample_idx].to(self.device)
 
         total_loss = 0.0
         total_objective = 0.0
@@ -168,7 +173,8 @@ class NICEClient(FederatedClient):
                 diagnostic(stage, model, context)
 
         # Freeze BN for layers with all-mature neurons
-        model.freeze_bn_for_mature()
+        if not cluster_layout_locked:
+            model.freeze_bn_for_mature()
 
         # ================================================================
         # Phase loop
@@ -185,16 +191,17 @@ class NICEClient(FederatedClient):
                 phase_tau = tau  # Other phases: prune with tau
 
             # 1. Select learner neurons via tau-greedy
-            model.eval()
-            select_learner_units(model, phase_tau, sample_data)
-            model.train()
-            model.freeze_bn_for_mature()
+            if not cluster_layout_locked:
+                model.eval()
+                select_learner_units(model, phase_tau, sample_data)
+                model.train()
+                model.freeze_bn_for_mature()
 
-            # 2. Connection pruning (also physically zeros weights)
-            drop_young_to_learner(model)
+                # 2. Connection pruning (also physically zeros weights)
+                drop_young_to_learner(model)
 
-            # 3. Restore connections into young neurons
-            grow_all_to_young(model)
+                # 3. Restore connections into young neurons
+                grow_all_to_young(model)
 
             # Move masks to device
             model._move_masks_to_device(self.device)

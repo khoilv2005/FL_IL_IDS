@@ -8,7 +8,10 @@ P0 đã triển khai và đạt 44/44 structural unit tests ngày 11/10/2026;
 xem [báo cáo P0](../docs/DENICE_V2_P0_IMPLEMENTATION_20261011_VI.md).
 P1 pure aggregation engine đã đạt 30/30 tests; cùng P0 là 74/74 PASS.
 Xem [báo cáo P1](../docs/DENICE_V2_P1_AGGREGATION_20261011_VI.md).
-Native P1 integration và P2–P4 chưa triển khai trong mốc engine này.
+Native P1 worker/moment collector đã nối vào DeNICEClient/Trainer và PASS
+one-round smoke trên BASE thật; tổng regression 89/89 PASS.
+Xem [báo cáo native P1](../docs/DENICE_V2_NATIVE_P1_SMOKE_20261011_VI.md).
+Full training runner và P2–P4 chưa triển khai.
 
 Kết quả cần đạt: mỗi cluster có **một shared model + một shared router + một
 temporary server**, local training giữ Non-IID, no historical raw replay,
@@ -62,7 +65,8 @@ train_denice_v2_kaggle.ipynb
 
 Các đường dẫn trên là deliverables theo kế hoạch; `contracts.py`, `partition.py`,
 `knowledge.py`, `election.py`, `state.py` đã có ở P0; `aggregation.py` và
-`normalization.py` có ở P1 pure engine. Các phần còn lại chưa triển khai. Ưu tiên
+`normalization.py` có ở P1 pure engine; `native.py` và
+`tools/run_denice_v2_native_smoke.py` có ở native P1. Các phần còn lại chưa triển khai. Ưu tiên
 module nhỏ, reuse helper sau khi xác minh semantics; không copy toàn runner V1.
 
 ## 3. P0 — Partition, knowledge và cluster-state contract
@@ -380,6 +384,8 @@ router replay-free hợp lệ, class-wise aggregate không vi phạm permissions
 checkpoint restore/resume nhất quán, full-test evaluation đúng scope, logs
 flush tiến độ và cost/ZIP quota có receipts. V1 launchers không bị đổi.
 
-P0 contracts/state đã đạt structural gate. P1 pure aggregation/moment engine
-đã PASS unit tests. Deliverable tiếp theo là **native P1 worker + moment collector
-integration**; P2, native smoke và full training chưa bắt đầu.
+P0 contracts/state và P1 pure engine đã PASS. Native P1 worker/moment collector
+đã PASS one-round real-BASE smoke, cùng 89/89 regression tests. Deliverable
+tiếp theo là **P2 shared cluster router**; full runner/training chưa bắt đầu.
+Native P1 hiện dùng plain legacy model, một phase bounded, shared class-block
+allocation; chưa có historical router/consolidation hoặc benchmark accuracy.
