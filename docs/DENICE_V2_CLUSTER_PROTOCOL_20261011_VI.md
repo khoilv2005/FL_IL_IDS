@@ -44,9 +44,11 @@ Chỉ aggregate các contribution tương thích; bảo vệ mature parameters.
 FC2 class-wise aggregation chuẩn hóa trên contributor đủ điều kiện cho row
 đó; không dùng class metadata đơn thuần làm competence certificate.
 
-K, partition algorithm, leader tie-break, weighting, BN/maturity merge và
-state handoff giữa tasks cần cấu hình/contract cụ thể trước implementation.
-Ví dụ K=5 trong thảo luận không tự động là giá trị đã chọn cho main run.
+K được người dùng chốt **tự động từ clustering ở đầu task**, không ép K=5.
+Partition algorithm, leader tie-break, weighting, BN/maturity merge và state
+handoff giữa tasks cần contract cụ thể trước implementation. Xem
+[kế hoạch implementation](../plans/denice_v2_implementation_plan_20261011.md)
+cho các module, engineering proposals và gates triển khai.
 
 ## 3. Cluster router và replay-free
 
