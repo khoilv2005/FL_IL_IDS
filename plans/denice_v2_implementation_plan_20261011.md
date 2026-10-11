@@ -11,7 +11,10 @@ Xem [báo cáo P1](../docs/DENICE_V2_P1_AGGREGATION_20261011_VI.md).
 Native P1 worker/moment collector đã nối vào DeNICEClient/Trainer và PASS
 one-round smoke trên BASE thật; tổng regression 89/89 PASS.
 Xem [báo cáo native P1](../docs/DENICE_V2_NATIVE_P1_SMOKE_20261011_VI.md).
-Full training runner và P2–P4 chưa triển khai.
+P2 primitives/shadow contracts đã có; regression tổng 103/103 PASS ngày
+12/10/2026. Preflight trên BASE thật: **NO-GO cho whole-tensor routing closure**
+vì khóa 100% backbone. Xem [báo cáo P2 capacity](../docs/DENICE_V2_P2_ROUTER_CAPACITY_20261012_VI.md).
+Native two-task router smoke chưa chạy; P2 chưa PASS. Full runner/P3–P4 chưa triển khai.
 
 Kết quả cần đạt: mỗi cluster có **một shared model + một shared router + một
 temporary server**, local training giữ Non-IID, no historical raw replay,
@@ -66,7 +69,8 @@ train_denice_v2_kaggle.ipynb
 Các đường dẫn trên là deliverables theo kế hoạch; `contracts.py`, `partition.py`,
 `knowledge.py`, `election.py`, `state.py` đã có ở P0; `aggregation.py` và
 `normalization.py` có ở P1 pure engine; `native.py` và
-`tools/run_denice_v2_native_smoke.py` có ở native P1. Các phần còn lại chưa triển khai. Ưu tiên
+`tools/run_denice_v2_native_smoke.py` có ở native P1; `router.py` và
+`tools/probe_denice_v2_router_capacity.py` có ở P2 shadow/preflight. Các phần còn lại chưa triển khai. Ưu tiên
 module nhỏ, reuse helper sau khi xác minh semantics; không copy toàn runner V1.
 
 ## 3. P0 — Partition, knowledge và cluster-state contract
@@ -386,6 +390,8 @@ flush tiến độ và cost/ZIP quota có receipts. V1 launchers không bị đ�
 
 P0 contracts/state và P1 pure engine đã PASS. Native P1 worker/moment collector
 đã PASS one-round real-BASE smoke, cùng 89/89 regression tests. Deliverable
-tiếp theo là **P2 shared cluster router**; full runner/training chưa bắt đầu.
+tiếp theo là **giải quyết capacity gate P2 shared cluster router**; full runner/training chưa bắt đầu.
 Native P1 hiện dùng plain legacy model, một phase bounded, shared class-block
 allocation; chưa có historical router/consolidation hoặc benchmark accuracy.
+P2 whole-tensor closure bị NO-GO: 215.916/215.916 backbone parameters locked.
+103/103 structural/regression tests không thay native two-task PASS. Chưa P3.

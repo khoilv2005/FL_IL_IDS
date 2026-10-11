@@ -109,12 +109,16 @@ class ClusterState:
 
     def routing_fingerprint(self):
         router = self.router_state
-        return state_hash(dict(dependencies={k: self.model_state[k] for k in self.routing_dependencies},
+        binding = dict(dependencies={k: self.model_state[k] for k in self.routing_dependencies},
             context_layers=tuple(router['context_layers']),
             weight_masks={k: self.algorithm_state['weight_masks'][k] for k in router['context_layers']},
             bias_masks={k: self.algorithm_state['bias_masks'][k] for k in router['context_layers']},
             thresholds=router['binarize_thresholds'], feature_mask=router['stable_feature_mask'],
-            feature_version=self.versions['feature'], architecture=self.versions['architecture']))
+            feature_version=self.versions['feature'], architecture=self.versions['architecture'])
+        if self.algorithm_state.get('routing_contract_version') == 'whole_native_closure_v1':
+            binding['native_function_metadata'] = {k: self.algorithm_state[k]
+                for k in ('structural_protection', 'gru_connection_masks', 'native_input_shape')}
+        return state_hash(binding)
 
     def validate(self):
         if self.schema_version != 1 or not isinstance(self.cluster_uid, str) or not self.cluster_uid or self.task < 0 or self.round < -1:

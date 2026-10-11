@@ -191,5 +191,8 @@ Không khởi động full training trước khi có model/router chung hợp l�
 tests và P1 pure engine tests đã PASS. Native P1 worker/moment collector đã PASS
 one-round smoke trên hai client cùng cluster bằng BASE thật; 89/89 regression
 tests PASS. Xem [báo cáo native P1](DENICE_V2_NATIVE_P1_SMOKE_20261011_VI.md).
-P2/P3 và full multi-task runner chưa hoàn thành. Chưa có historical router
-consistency hoặc accuracy benchmark V2.
+P2 primitives/shadow tests đã triển khai, tổng regression 103/103 PASS. Capacity
+preflight thực tế **NO-GO cho whole-tensor closure**: khóa 100% backbone;
+[báo cáo P2](DENICE_V2_P2_ROUTER_CAPACITY_20261012_VI.md).
+P2 chưa PASS, native two-task smoke chưa chạy. P3/full multi-task runner chưa
+hoàn thành; chưa có empirical historical router consistency hoặc accuracy benchmark V2.
