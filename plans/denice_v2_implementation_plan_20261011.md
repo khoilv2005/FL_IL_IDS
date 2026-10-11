@@ -4,6 +4,9 @@
 
 Specification gốc: [DeNICE V2 Cluster Protocol](../docs/DENICE_V2_CLUSTER_PROTOCOL_20261011_VI.md).
 Đây là kế hoạch implementation, chưa phải runner V2 đã chạy thành công.
+P0 đã triển khai và đạt 44/44 structural unit tests ngày 11/10/2026;
+xem [báo cáo P0](../docs/DENICE_V2_P0_IMPLEMENTATION_20261011_VI.md).
+P1–P4 chưa triển khai trong mốc P0.
 
 Kết quả cần đạt: mỗi cluster có **một shared model + một shared router + một
 temporary server**, local training giữ Non-IID, no historical raw replay,
@@ -55,7 +58,8 @@ train_denice_v2_kaggle.py
 train_denice_v2_kaggle.ipynb
 ```
 
-Các đường dẫn trên là deliverables dự kiến, chưa có implementation. Ưu tiên
+Các đường dẫn trên là deliverables theo kế hoạch; `contracts.py`, `partition.py`,
+`knowledge.py`, `election.py`, `state.py` đã có ở P0. Các phần còn lại chưa triển khai. Ưu tiên
 module nhỏ, reuse helper sau khi xác minh semantics; không copy toàn runner V1.
 
 ## 3. P0 — Partition, knowledge và cluster-state contract
@@ -373,6 +377,6 @@ router replay-free hợp lệ, class-wise aggregate không vi phạm permissions
 checkpoint restore/resume nhất quán, full-test evaluation đúng scope, logs
 flush tiến độ và cost/ZIP quota có receipts. V1 launchers không bị đổi.
 
-Deliverable tiếp theo là **P0 contracts + partition + knowledge/election +
-state snapshot**, chưa bắt đầu full training hoặc tự chạy smoke trong lượt
-lập kế hoạch này.
+P0 contracts + partition + knowledge/election + state snapshot đã đạt structural
+gate. Deliverable tiếp theo là **P1 aggregation** theo mục 4; chưa bắt đầu P1/P2,
+native smoke hoặc full training trong commit P0.

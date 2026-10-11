@@ -2,8 +2,9 @@
 
 ## Trạng thái
 
-Specification được chốt ngày 11/10/2026. Đây là kiến trúc V2 mới; chưa được
-triển khai trong training runner hiện tại. DeNICE V1 và các số audit cũ được
+Specification được chốt ngày 11/10/2026. P0 quản lý cluster state đã đạt 44/44
+structural unit tests; xem [báo cáo implementation P0](DENICE_V2_P0_IMPLEMENTATION_20261011_VI.md).
+V2 chưa được triển khai trong training runner hiện tại. DeNICE V1 và các số audit cũ được
 giữ nguyên. Không tự chuyển notebook training V1 thành V2.
 
 ## 1. Đơn vị aggregation và inference
@@ -182,5 +183,6 @@ Nếu membership/cluster identity đổi giữa tasks, phải chốt lineage và
 so sánh trước khi gọi biến động accuracy là forgetting. Evaluation cadence
 phải cấu hình trước run; document này không tự bật full test ở mọi round.
 
-Không khởi động full training trước khi có model/router chung hợp lệ. P0–P3
-là work chưa triển khai, không phải kết quả thực nghiệm đã PASS.
+Không khởi động full training trước khi có model/router chung hợp lệ. P0 đã PASS
+structural tests; P1–P3 chưa triển khai. Chưa có kết quả native training/router
+consistency hoặc accuracy benchmark V2.
