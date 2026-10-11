@@ -6,7 +6,9 @@ Specification gốc: [DeNICE V2 Cluster Protocol](../docs/DENICE_V2_CLUSTER_PROT
 Đây là kế hoạch implementation, chưa phải runner V2 đã chạy thành công.
 P0 đã triển khai và đạt 44/44 structural unit tests ngày 11/10/2026;
 xem [báo cáo P0](../docs/DENICE_V2_P0_IMPLEMENTATION_20261011_VI.md).
-P1–P4 chưa triển khai trong mốc P0.
+P1 pure aggregation engine đã đạt 30/30 tests; cùng P0 là 74/74 PASS.
+Xem [báo cáo P1](../docs/DENICE_V2_P1_AGGREGATION_20261011_VI.md).
+Native P1 integration và P2–P4 chưa triển khai trong mốc engine này.
 
 Kết quả cần đạt: mỗi cluster có **một shared model + một shared router + một
 temporary server**, local training giữ Non-IID, no historical raw replay,
@@ -59,7 +61,8 @@ train_denice_v2_kaggle.ipynb
 ```
 
 Các đường dẫn trên là deliverables theo kế hoạch; `contracts.py`, `partition.py`,
-`knowledge.py`, `election.py`, `state.py` đã có ở P0. Các phần còn lại chưa triển khai. Ưu tiên
+`knowledge.py`, `election.py`, `state.py` đã có ở P0; `aggregation.py` và
+`normalization.py` có ở P1 pure engine. Các phần còn lại chưa triển khai. Ưu tiên
 module nhỏ, reuse helper sau khi xác minh semantics; không copy toàn runner V1.
 
 ## 3. P0 — Partition, knowledge và cluster-state contract
@@ -377,6 +380,6 @@ router replay-free hợp lệ, class-wise aggregate không vi phạm permissions
 checkpoint restore/resume nhất quán, full-test evaluation đúng scope, logs
 flush tiến độ và cost/ZIP quota có receipts. V1 launchers không bị đổi.
 
-P0 contracts + partition + knowledge/election + state snapshot đã đạt structural
-gate. Deliverable tiếp theo là **P1 aggregation** theo mục 4; chưa bắt đầu P1/P2,
-native smoke hoặc full training trong commit P0.
+P0 contracts/state đã đạt structural gate. P1 pure aggregation/moment engine
+đã PASS unit tests. Deliverable tiếp theo là **native P1 worker + moment collector
+integration**; P2, native smoke và full training chưa bắt đầu.

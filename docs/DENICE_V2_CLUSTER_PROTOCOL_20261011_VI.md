@@ -7,6 +7,10 @@ structural unit tests; xem [báo cáo implementation P0](DENICE_V2_P0_IMPLEMENTA
 V2 chưa được triển khai trong training runner hiện tại. DeNICE V1 và các số audit cũ được
 giữ nguyên. Không tự chuyển notebook training V1 thành V2.
 
+P1 pure aggregation engine đã đạt 30/30 tests (P0+P1: 74/74 PASS);
+xem [báo cáo P1 và dry-run partition](DENICE_V2_P1_AGGREGATION_20261011_VI.md).
+Native workers/BN collector chưa tích hợp; chưa có kết quả training V2.
+
 ## 1. Đơn vị aggregation và inference
 
 - K cluster không chồng lấn; mỗi client tham gia thuộc đúng một cluster.
@@ -183,6 +187,6 @@ Nếu membership/cluster identity đổi giữa tasks, phải chốt lineage và
 so sánh trước khi gọi biến động accuracy là forgetting. Evaluation cadence
 phải cấu hình trước run; document này không tự bật full test ở mọi round.
 
-Không khởi động full training trước khi có model/router chung hợp lệ. P0 đã PASS
-structural tests; P1–P3 chưa triển khai. Chưa có kết quả native training/router
-consistency hoặc accuracy benchmark V2.
+Không khởi động full training trước khi có model/router chung hợp lệ. P0 structural
+tests và P1 pure engine tests đã PASS. Native P1 integration, P2 và P3 chưa hoàn
+thành. Chưa có kết quả native training/router consistency hoặc accuracy benchmark V2.
