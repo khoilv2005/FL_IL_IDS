@@ -93,6 +93,35 @@ def allocate_cluster(state, current_classes):
     return candidate, {k: int(v) for k, v in allocated.items()}
 
 
+def consolidate_native_task(state):
+    """Age the canonical allocation once, without replay, rewiring or weights changes.
+
+    This explicit bounded-smoke step is not a full production task scheduler.
+    """
+    from fed_learning.strategies.incremental.nice import increase_unit_ranks, update_freeze_masks
+    if state.round < 0 or state.task not in state.router_state['activation_memory']:
+        raise ValueError('Consolidation requires a trained task and committed router memory')
+    if state.algorithm_state.get('last_consolidated_task', -1) >= state.task:
+        raise ValueError('Task already consolidated')
+    model = load_native(state)
+    increase_unit_ranks(model)
+    update_freeze_masks(model)
+    for layer, old_mask in state.algorithm_state['freeze_masks'].items():
+        model.freeze_masks[layer] |= np.asarray(old_mask, dtype=bool)
+    captured = capture_native(model, members=state.members, coordinator_id=state.coordinator_id,
+        cluster_uid=state.cluster_uid, task=state.task, round=state.round, router_state=state.router_state,
+        routing_dependencies=state.routing_dependencies, protected_parameters=state.protected_parameters)
+    payload = snapshot(state)
+    for key in ('unit_ranks', 'freeze_masks'):
+        payload['algorithm_state'][key] = captured.algorithm_state[key]
+    payload['algorithm_state']['last_consolidated_task'] = state.task
+    payload['protected_parameters'] = captured.protected_parameters
+    candidate = ClusterState.create(**{k: v for k, v in payload.items() if k not in ('model_spec', 'routing_space_hash')})
+    if candidate.routing_space_hash != state.routing_space_hash:
+        raise ValueError('Consolidation changed routing function')
+    return candidate
+
+
 @dataclass(frozen=True)
 class CurrentBase:
     client_id: int
@@ -107,7 +136,7 @@ class CurrentBase:
         if self.role != 'base' or not self.source_hash or type(self.task) is not int or type(self.client_id) is not int:
             raise ValueError('Invalid BASE provenance')
         if (self.x.device.type != 'cpu' or self.y.device.type != 'cpu' or self.x.dtype != torch.float32
-            or self.y.dtype != torch.int64 or self.y.ndim != 1 or len(self.x) != len(self.y) or len(self.y) < 2
+            or self.y.dtype != torch.int64 or self.y.ndim != 1 or len(self.x) != len(self.y) or len(self.y) == 1
             or len(self.row_ids) != len(self.y) or np.asarray(self.row_ids).dtype.kind not in 'iu'
             or len(np.unique(self.row_ids)) != len(self.y) or not torch.isfinite(self.x).all()
             or not set(self.y.tolist()) <= set(current_classes)):
@@ -131,6 +160,8 @@ def prepare_native_round(state, bases, current_classes):
         if tuple(base.x.shape[1:]) != shape:
             raise ValueError('BASE input shape differs from canonical network')
     # Allocate the class UNION, including rows absent at some members.
+    if not any(counts.values()):
+        raise ValueError('No current BASE in cluster')
     allocated, receipt = allocate_cluster(state, tuple(sorted({c for row in counts.values() for c in row})))
     authority = state_hash({cid: b.fingerprint() for cid, b in bases.items()})
     return prepare_round(allocated, current_classes=current_classes, base_counts=counts, base_role_hash=authority), receipt
@@ -162,6 +193,13 @@ def train_native_worker(plan, base, *, seed=42, batch_size=16, epochs=1, lr=0.00
         or optimizer_family not in ('adam', 'sgd') or (optimizer_family == 'adam' and momentum != 0)):
         raise ValueError('Invalid native optimizer configuration')
     worker = start_worker(plan, base.client_id)
+    if not len(base.y):
+        event = LocalLearningEvent(f'{plan.hash}/{base.client_id}', base.client_id, plan.reference.task,
+            plan.target_round, 0, (), base.task)
+        packet = finish_worker(plan, worker, event)
+        return packet, dict(client=base.client_id, steps=0, loss_mean=None, skipped='NO_CURRENT_BASE',
+            changed_coordinates={k: 0 for k in packet.deltas}, initial_reference_hash=worker.initial_reference_hash,
+            initial_topology_hash=worker.initial_topology_hash)
     cuda_devices = [torch.device(device).index or 0] if str(device).startswith('cuda') else []
     with torch.random.fork_rng(devices=cuda_devices):
         torch.manual_seed(seed + base.client_id)
@@ -235,6 +273,8 @@ class NativeBNCollector:
         model = load_native(stage, self.device).eval()
         packets = []
         for cid, base in sorted(self.bases.items()):
+            if not len(base.y):
+                continue
             width = getattr(model, layer).num_features
             total, squared = np.zeros(width, np.float64), np.zeros(width, np.float64)
             observations = 0

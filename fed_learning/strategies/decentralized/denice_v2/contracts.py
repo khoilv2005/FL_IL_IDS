@@ -15,7 +15,7 @@ def encode(value):
     """Typed JSON codec, including integer keys and exact tensor bytes."""
     if isinstance(value, torch.Tensor):
         tensor = value.detach().cpu().contiguous()
-        raw = tensor.reshape(-1).view(torch.uint8).numpy().tobytes()
+        raw = tensor.reshape(-1).view(torch.uint8).numpy().tobytes() if tensor.numel() else b''
         return ['tensor', str(tensor.dtype).removeprefix('torch.'), list(tensor.shape), base64.b64encode(raw).decode()]
     if isinstance(value, np.ndarray):
         if value.dtype.hasobject:
@@ -109,15 +109,24 @@ class ClusterState:
 
     def routing_fingerprint(self):
         router = self.router_state
+        shallow = self.algorithm_state.get('routing_contract_version') == 'conv1_only_v1'
+        mask_layers = (tuple(k for k in router['context_layers'] if k == 'conv1' or
+            any(name.startswith(k + '.') for name in self.routing_dependencies)) if shallow else router['context_layers'])
         binding = dict(dependencies={k: self.model_state[k] for k in self.routing_dependencies},
             context_layers=tuple(router['context_layers']),
-            weight_masks={k: self.algorithm_state['weight_masks'][k] for k in router['context_layers']},
-            bias_masks={k: self.algorithm_state['bias_masks'][k] for k in router['context_layers']},
+            weight_masks={k: self.algorithm_state['weight_masks'][k] for k in mask_layers},
+            bias_masks={k: self.algorithm_state['bias_masks'][k] for k in mask_layers},
             thresholds=router['binarize_thresholds'], feature_mask=router['stable_feature_mask'],
             feature_version=self.versions['feature'], architecture=self.versions['architecture'])
         if self.algorithm_state.get('routing_contract_version') == 'whole_native_closure_v1':
             binding['native_function_metadata'] = {k: self.algorithm_state[k]
                 for k in ('structural_protection', 'gru_connection_masks', 'native_input_shape')}
+        if shallow:
+            binding['native_function_metadata'] = dict(native_input_shape=self.algorithm_state['native_input_shape'],
+                routing_contract_version='conv1_only_v1')
+            if 'gru' in mask_layers:
+                binding['native_function_metadata'].update({k: self.algorithm_state[k]
+                    for k in ('structural_protection', 'gru_connection_masks')})
         return state_hash(binding)
 
     def validate(self):

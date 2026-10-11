@@ -395,3 +395,14 @@ Native P1 hiện dùng plain legacy model, một phase bounded, shared class-blo
 allocation; chưa có historical router/consolidation hoặc benchmark accuracy.
 P2 whole-tensor closure bị NO-GO: 215.916/215.916 backbone parameters locked.
 103/103 structural/regression tests không thay native two-task PASS. Chưa P3.
+
+## 10. P2-Shallow status — 2026-10-12
+
+Native pilot `conv1_only_v1` đã chạy Task 0 → Task 1 bằng optimizer thật.
+Capacity PASS: fresh Conv1/BN1 closure 384 parameters; historical memory,
+thresholds, dependency hash và restore PASS. Discrimination **NO-GO**:
+T1 recall 8/213 = 3,76%, balanced task accuracy 41,58%; không tune lại.
+123/123 regression tests PASS không thay thế gate chất lượng.
+Xem [báo cáo](../docs/DENICE_V2_P2_SHALLOW_RESULTS_20261012_VI.md).
+P0/P1 giữ nguyên. Chưa P3/full training; chỉ xem xét coordinate-level closure
+sau khi có contract upstream/BN/GRU recurrent protection hợp lệ.

@@ -23,9 +23,13 @@ CAPACITY_POLICY = 'whole_dependency_max_backbone_lock_0.90_v1'
 MAX_BACKBONE_LOCK = .90  # Engineering gate locked before the real-data probe.
 
 
-def allocated_feature_mask(state):
+def allocated_feature_mask(state, feature_policy='allocated_native_v1'):
     """Baseline mask: allocated native context units, fixed on first memory."""
-    return np.concatenate([array(state.algorithm_state['unit_ranks'][k]) > 0 for k in LAYERS])
+    if feature_policy not in ('allocated_native_v1', 'conv1_only_v1'):
+        raise ValueError('Unknown routing feature policy')
+    return np.concatenate([array(state.algorithm_state['unit_ranks'][k]) > 0
+        if feature_policy == 'allocated_native_v1' or k == 'conv1'
+        else np.zeros_like(array(state.algorithm_state['unit_ranks'][k]), dtype=bool) for k in LAYERS])
 
 
 def dependency_closure(state, feature_mask):
@@ -58,7 +62,23 @@ def capacity_receipt(state, dependencies):
     backbone = [k for k in names if k.startswith(('conv', 'bn', 'gru.'))]
     total = sum(state.model_state[k].numel() for k in names)
     backbone_total = sum(state.model_state[k].numel() for k in backbone)
-    locked = sum(state.model_state[k].numel() for k in backbone if k in dependencies)
+    dependencies = set(dependencies) | set(state.routing_dependencies)
+    protected = {}
+    for k in names:
+        mask = np.asarray(array(state.protected_parameters.get(k, torch.zeros_like(state.model_state[k], dtype=torch.bool))), bool).copy()
+        layer = k.split('.')[0]
+        if layer in state.algorithm_state['freeze_masks']:
+            frozen = np.asarray(state.algorithm_state['freeze_masks'][layer], dtype=bool)
+            if layer == 'gru':
+                frozen = np.tile(frozen, 3)
+            mask |= np.broadcast_to(frozen.reshape((-1,) + (1,) * (mask.ndim - 1)), mask.shape)
+        if k in dependencies:
+            mask[:] = True
+        if k.startswith('bn'):
+            from .normalization import protected_bn_channels
+            mask |= protected_bn_channels(state, k.split('.')[0])
+        protected[k] = mask
+    locked = sum(int(protected[k].sum()) for k in backbone)
     # Compare canonical permissions before and after the proposed closure;
     # rank0 reserve is not mislabeled as currently trainable.
     before = sum(int(m.sum()) for m in permissions(state).values())
@@ -73,18 +93,33 @@ def capacity_receipt(state, dependencies):
         currently_trainable_before=before, currently_trainable_after=after,
         currently_trainable_after_fraction=after / total,
         per_layer={layer: dict(total=sum(state.model_state[k].numel() for k in names if k.split('.')[0] == layer),
-            closure_locked=sum(state.model_state[k].numel() for k in names if k.split('.')[0] == layer and k in dependencies))
+            closure_locked=sum(state.model_state[k].numel() for k in names if k.split('.')[0] == layer and k in dependencies),
+            protected=sum(int(protected[k].sum()) for k in names if k.split('.')[0] == layer),
+            currently_trainable_after=sum(int(m.sum()) for k, m in permissions(state).items()
+                if k.split('.')[0] == layer and k not in dependencies))
             for layer in ('conv1', 'conv2', 'conv3', 'gru', 'bn1', 'bn2', 'bn3', 'fc1', 'fc2')},
         closure_granularity='complete_named_tensors', classifier_learning_may_remain=True)
 
 
-def probe_router_capacity(state):
+def probe_router_capacity(state, feature_policy='allocated_native_v1'):
+    _check_feature_policy(state, feature_policy)
     mask = (np.asarray(state.router_state['stable_feature_mask'], bool) if state.router_state['activation_memory']
-            else allocated_feature_mask(state))
+            else allocated_feature_mask(state, feature_policy))
     deps, selected = dependency_closure(state, mask)
     deps = tuple(sorted(set(deps) | set(state.routing_dependencies)))
     return dict(selected_features=selected, selected_total=int(mask.sum()), dependencies=deps,
                 capacity=capacity_receipt(state, deps))
+
+
+def _check_feature_policy(state, policy):
+    allocated_feature_mask(state, policy)  # Validate even for historical state.
+    if state.router_state['activation_memory']:
+        existing = state.algorithm_state.get('routing_contract_version', 'whole_native_closure_v1')
+        expected = 'conv1_only_v1' if policy == 'conv1_only_v1' else 'whole_native_closure_v1'
+        if existing != expected:
+            raise ValueError('Cannot migrate a committed routing policy implicitly')
+        if policy == 'conv1_only_v1' and np.asarray(state.router_state['stable_feature_mask'])[64:].any():
+            raise ValueError('Conv1-only contract contains deep features')
 
 
 @dataclass(frozen=True)
@@ -139,7 +174,7 @@ def collect_routing_moments(state, plan, base, mask, *, batch_size=16, device='c
 
 def aggregate_thresholds(packets, state, plan, mask):
     ids = [p.client_id for p in packets]
-    if tuple(sorted(ids)) != tuple(sorted(plan.reference.members)):
+    if tuple(sorted(ids)) != tuple(sorted(cid for cid, counts in plan.base_counts.items() if sum(counts.values()))):
         raise ValueError('Missing/duplicate threshold contributor')
     threshold = {}
     offset = 0
@@ -220,7 +255,8 @@ class RouterProposal:
         return restore(snapshot(self.state))
 
 
-def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8, batch_size=16, device='cpu'):
+def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8, batch_size=16, device='cpu',
+                         feature_policy='allocated_native_v1'):
     """Build a shadow only. NO-GO proposals cannot commit; no history replay."""
     state.validate()
     plan.validate()
@@ -241,15 +277,17 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
     historical = state.router_state['activation_memory']
     if historical and state.task < max(historical):
         raise ValueError('Future router bank at current task')
-    probe = probe_router_capacity(state)
+    probe = probe_router_capacity(state, feature_policy)
     payload = snapshot(state)
     if not historical:
-        payload['router_state']['stable_feature_mask'] = allocated_feature_mask(state)
+        payload['router_state']['stable_feature_mask'] = allocated_feature_mask(state, feature_policy)
         payload['routing_dependencies'] = tuple(sorted(set(state.routing_dependencies) | set(probe['dependencies'])))
         for name in payload['routing_dependencies']:
             payload['protected_parameters'][name] = torch.ones_like(state.model_state[name], dtype=torch.bool)
-        payload['versions']['feature'] = 'p2_whole_dependency_binary_v1'
-        payload['algorithm_state']['routing_contract_version'] = 'whole_native_closure_v1'
+        payload['versions']['feature'] = ('p2_conv1_only_binary_v1' if feature_policy == 'conv1_only_v1'
+                                           else 'p2_whole_dependency_binary_v1')
+        payload['algorithm_state']['routing_contract_version'] = ('conv1_only_v1' if feature_policy == 'conv1_only_v1'
+                                                                  else 'whole_native_closure_v1')
     else:
         if not set(probe['dependencies']) <= set(state.routing_dependencies):
             raise ValueError('Historical dependency closure incomplete')
@@ -259,7 +297,7 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
     if first:
         mask = staging.router_state['stable_feature_mask']
         moment_packets = [collect_routing_moments(staging, plan, base, mask, batch_size=batch_size, device=device)
-                          for cid, base in sorted(bases.items())]
+                          for cid, base in sorted(bases.items()) if len(base.y)]
         payload = snapshot(staging)
         payload['router_state']['binarize_thresholds'] = aggregate_thresholds(moment_packets, staging, plan, mask)
         staging = ClusterState.create(**{k: v for k, v in payload.items() if k not in ('model_spec', 'routing_space_hash')})
@@ -272,7 +310,8 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
         set(payload['router_state']['episode_classes'].get(state.task, ()))))
     candidate = ClusterState.create(**{k: v for k, v in payload.items() if k not in ('model_spec', 'routing_space_hash')})
     receipt = dict(task=state.task, round=state.round, reference_state_hash=state.fingerprint(),
-        result_state_hash=candidate.fingerprint(), capacity=probe['capacity'], selected_features=probe['selected_features'],
+        result_state_hash=candidate.fingerprint(), feature_policy=feature_policy,
+        capacity=probe['capacity'], selected_features=probe['selected_features'],
         threshold_policy='first_current_BASE_global_mean_plus_unbiased_std', threshold_calibrated=first,
         thresholds=candidate.router_state['binarize_thresholds'], dependency_hash=candidate.routing_space_hash,
         memory_rows=len(bits), trained_classes=labels, sketch_contributors=tuple(p.client_id for p in sketches),
@@ -290,6 +329,8 @@ class ClusterRouter:
     def __init__(self, state, device='cpu'):
         self.state = restore(snapshot(state))
         router = self.state.router_state
+        if self.state.algorithm_state.get('routing_contract_version') == 'conv1_only_v1':
+            _check_feature_policy(self.state, 'conv1_only_v1')
         if not router['activation_memory'] or router['binarize_thresholds'] is None:
             raise ValueError('Router is not built')
         deps, _ = dependency_closure(self.state, router['stable_feature_mask'])

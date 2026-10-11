@@ -194,5 +194,7 @@ tests PASS. Xem [báo cáo native P1](DENICE_V2_NATIVE_P1_SMOKE_20261011_VI.md).
 P2 primitives/shadow tests đã triển khai, tổng regression 103/103 PASS. Capacity
 preflight thực tế **NO-GO cho whole-tensor closure**: khóa 100% backbone;
 [báo cáo P2](DENICE_V2_P2_ROUTER_CAPACITY_20261012_VI.md).
-P2 chưa PASS, native two-task smoke chưa chạy. P3/full multi-task runner chưa
-hoàn thành; chưa có empirical historical router consistency hoặc accuracy benchmark V2.
+P2 chưa PASS. Pilot `conv1_only_v1` đã chạy native Task 0 → Task 1:
+capacity và structural stability PASS nhưng task discrimination NO-GO;
+123/123 regression tests PASS. Xem [P2-Shallow](DENICE_V2_P2_SHALLOW_RESULTS_20261012_VI.md).
+P3/full multi-task runner chưa hoàn thành; chưa có full accuracy benchmark V2.
