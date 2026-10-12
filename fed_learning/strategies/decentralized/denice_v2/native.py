@@ -46,9 +46,12 @@ def capture_native(model, *, members, coordinator_id, cluster_uid, task=0, round
         algorithms['freeze_masks'][layer] = np.asarray(algorithms['freeze_masks'].get(layer, ranks >= 2)) | (ranks >= 2)
     algorithms['native_input_shape'] = tuple(model.input_shape)
     algorithms['native_optimizer_policy'] = 'native_phase_reset_fp32_masked_projection_v1'
+    routerless = router_state.get('router_mode') == 'routerless_v1'
+    if routerless:
+        algorithms.update(seen_classes=(),learned_classes_by_task={},classification_objective='cumulative_registered_ce_v1')
     return ClusterState.create(cluster_uid=cluster_uid, task=task, round=round,
         members=tuple(sorted(members)), coordinator_id=coordinator_id,
-        versions=dict(architecture='denice_legacy_plain_v1', feature='p1_declared_dependencies_v1',
+        versions=dict(architecture='denice_legacy_plain_v1', feature='routerless_v1' if routerless else 'p1_declared_dependencies_v1',
                       class_mapping='global_contiguous_v1', class_ids=tuple(range(model.num_classes))),
         model_state=tensors, algorithm_state=algorithms, router_state=router_state,
         bn_state={k: v for k, v in tensors.items() if k.endswith(('running_mean', 'running_var', 'num_batches_tracked'))},
@@ -99,7 +102,10 @@ def consolidate_native_task(state):
     This explicit bounded-smoke step is not a full production task scheduler.
     """
     from fed_learning.strategies.incremental.nice import increase_unit_ranks, update_freeze_masks
-    if state.round < 0 or state.task not in state.router_state['activation_memory']:
+    routerless = state.router_state['router_mode'] == 'routerless_v1'
+    completed_tasks = (state.algorithm_state.get('learned_classes_by_task', {}) if routerless
+                       else state.router_state['activation_memory'])
+    if state.round < 0 or state.task not in completed_tasks:
         raise ValueError('Consolidation requires a trained task and committed router memory')
     if state.algorithm_state.get('last_consolidated_task', -1) >= state.task:
         raise ValueError('Task already consolidated')
@@ -230,11 +236,18 @@ def train_native_worker(plan, base, *, seed=42, batch_size=16, epochs=1, lr=0.00
         client.set_task_data(base.x, base.y, base.task, list(plan.current_classes))
         trainer = DeNICETrainer(max_phases=1, phase_epochs=epochs)
         trainer.set_task(base.task, list(plan.current_classes))
+        objective = {}
+        if plan.reference.router_state['router_mode'] == 'routerless_v1':
+            from .routerless import CumulativeClassTrainer, training_classes, masked_logits
+            active_classes = training_classes(plan)
+            trainer = CumulativeClassTrainer(active_classes,max_phases=1,phase_epochs=epochs)
+            trainer.set_task(base.task,list(plan.current_classes))
+            objective['supervised_forward'] = lambda x: masked_logits(model(x),active_classes)
         factory = (lambda parameters, rate: torch.optim.Adam(parameters, lr=rate, weight_decay=weight_decay)) if optimizer_family == 'adam' else (
             lambda parameters, rate: torch.optim.SGD(parameters, lr=rate, momentum=momentum, weight_decay=weight_decay))
         trained = client.train(trainer, epochs=epochs, batch_size=batch_size, lr=lr,
             cluster_layout_locked=True, amp_enabled=False, gradient_filter=gradient_filter,
-            after_optimizer_step_update=project, after_optimizer_step=observed, optimizer_factory=factory)
+            after_optimizer_step_update=project, after_optimizer_step=observed, optimizer_factory=factory, **objective)
         successful = trained['optimizer_steps']
         native_topology = {key: getattr(model, key) for key in ('unit_ranks', 'weight_masks', 'bias_masks', 'freeze_masks', *NATIVE_FIELDS)}
         expected_topology = {key: worker.state.algorithm_state[key] for key in native_topology}
@@ -249,6 +262,8 @@ def train_native_worker(plan, base, *, seed=42, batch_size=16, epochs=1, lr=0.00
     if not any(changed.values()):
         raise ValueError('Optimizer stepped but no contributed parameter changed')
     return packet, dict(client=base.client_id, steps=successful, loss_mean=float(trained['loss']),
+                       classification_objective=('cumulative_registered_ce_v1' if objective else 'native_let_learner_ce'),
+                       softmax_classes=active_classes if objective else None,
                        native_training_loop='DeNICEClient/DeNICETrainer', optimizer_family=optimizer_family,
                        changed_coordinates=changed, initial_reference_hash=worker.initial_reference_hash,
                        initial_topology_hash=worker.initial_topology_hash)

@@ -109,6 +109,10 @@ class ClusterState:
 
     def routing_fingerprint(self):
         router = self.router_state
+        if router.get('router_mode') == 'routerless_v1':
+            # Mode contract only: no encoder tensors or activation metadata.
+            return state_hash(dict(mode='routerless_v1',architecture=self.versions['architecture'],
+                feature_version=self.versions['feature']))
         shallow = self.algorithm_state.get('routing_contract_version') == 'conv1_only_v1'
         mask_layers = (tuple(k for k in router['context_layers'] if k == 'conv1' or
             any(name.startswith(k + '.') for name in self.routing_dependencies)) if shallow else router['context_layers'])
@@ -201,10 +205,11 @@ class ClusterState:
             'binarize_thresholds', 'activation_memory', 'episode_classes'}
         if set(router) != allowed_router_fields:
             raise ValueError('Unknown/missing router fields; raw reference data is not allowed')
-        if router.get('router_mode') != 'binary_cosine':
+        routerless = router.get('router_mode') == 'routerless_v1'
+        if not routerless and router.get('router_mode') != 'binary_cosine':
             raise ValueError('P0 contract currently supports binary_cosine only')
         layers = tuple(router['context_layers'])
-        if not layers or len(set(layers)) != len(layers) or not set(layers) <= set(ranks):
+        if (not layers and not routerless) or len(set(layers)) != len(layers) or not set(layers) <= set(ranks):
             raise ValueError('Invalid routing layers')
         width = sum(len(ranks[k]) for k in layers)
         mask = router['stable_feature_mask']
@@ -214,6 +219,18 @@ class ClusterState:
         if thresholds is not None and (set(thresholds) != set(layers) or not all(np.isfinite(v) for v in thresholds.values())):
             raise ValueError('Invalid router thresholds')
         memory, classes = router['activation_memory'], router['episode_classes']
+        if routerless:
+            if layers or np.asarray(mask).size or thresholds is not None or memory or classes or self.routing_dependencies:
+                raise ValueError('Routerless state cannot carry task routing/dependencies/memory')
+            if self.versions['feature'] != 'routerless_v1' or alg.get('classification_objective') != 'cumulative_registered_ce_v1':
+                raise ValueError('Routerless mode/objective version mismatch')
+            seen, history = alg.get('seen_classes'), alg.get('learned_classes_by_task')
+            if (not isinstance(seen, tuple) or tuple(sorted(set(seen))) != seen or not set(seen) <= set(mapping)
+                or not isinstance(history, dict) or any(type(t) is not int or not 0 <= t <= self.task
+                or not isinstance(cs, tuple) or tuple(sorted(set(cs))) != cs or not set(cs) <= set(mapping) for t,cs in history.items())
+                or tuple(sorted({c for cs in history.values() for c in cs})) != seen
+                or any(array(ranks['fc2'])[c] == 0 for c in seen)):
+                raise ValueError('Invalid routerless learned-class registration')
         if memory and thresholds is None:
             raise ValueError('Memory requires calibrated shared thresholds')
         for task, labels in classes.items():
@@ -224,7 +241,7 @@ class ClusterState:
                 raise ValueError('Invalid activation memory')
             if np.any(array(values)[:, ~array(mask).astype(bool)]):
                 raise ValueError('Memory uses excluded routing features')
-        if not self.routing_dependencies or len(set(self.routing_dependencies)) != len(self.routing_dependencies) or not set(self.routing_dependencies) <= set(self.model_state):
+        if (not self.routing_dependencies and not routerless) or len(set(self.routing_dependencies)) != len(self.routing_dependencies) or not set(self.routing_dependencies) <= set(self.model_state):
             raise ValueError('Missing/invalid routing dependencies')
         if self.routing_space_hash != self.routing_fingerprint():
             raise ValueError('Routing dependency/threshold/mask version mismatch')

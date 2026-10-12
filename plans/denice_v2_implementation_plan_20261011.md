@@ -406,3 +406,12 @@ T1 recall 8/213 = 3,76%, balanced task accuracy 41,58%; không tune lại.
 Xem [báo cáo](../docs/DENICE_V2_P2_SHALLOW_RESULTS_20261012_VI.md).
 P0/P1 giữ nguyên. Chưa P3/full training; chỉ xem xét coordinate-level closure
 sau khi có contract upstream/BN/GRU recurrent protection hợp lệ.
+
+## 11. Routerless variant — 2026-10-12
+
+Theo hướng mới, tạm dừng coordinate-level router protection. `routerless_v1`
+dùng một cluster model và cumulative class mask; không Task Router hoặc activation
+memory. Fresh native T0→T1 dùng cùng budget/seed với shallow pilot đã chạy.
+Technical PASS, quality NO-GO: old accuracy55,08%→0%, new94,37%, cumulative34,24%.
+146/146 regression tests PASS, không thay quality gate. Chưa thêm distillation
+hoặc mở full training. Xem [báo cáo](../docs/DENICE_V2_ROUTERLESS_RESULTS_20261012_VI.md).

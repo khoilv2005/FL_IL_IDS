@@ -198,3 +198,9 @@ P2 chưa PASS. Pilot `conv1_only_v1` đã chạy native Task 0 → Task 1:
 capacity và structural stability PASS nhưng task discrimination NO-GO;
 123/123 regression tests PASS. Xem [P2-Shallow](DENICE_V2_P2_SHALLOW_RESULTS_20261012_VI.md).
 P3/full multi-task runner chưa hoàn thành; chưa có full accuracy benchmark V2.
+
+Variant `routerless_v1` bỏ task routing/activation memory/dependencies, dùng
+cumulative learned-class union để argmax và opt-in cumulative CE. Pilot native
+hai task đã chạy: technical PASS nhưng old validation accuracy55,08% →0%,
+quality NO-GO. Xem [routerless pilot](DENICE_V2_ROUTERLESS_RESULTS_20261012_VI.md).
+Binary-cosine giữ làm ablation; chưa khóa routerless cho full benchmark.
