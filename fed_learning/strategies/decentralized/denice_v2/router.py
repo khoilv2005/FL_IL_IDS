@@ -182,14 +182,17 @@ def _acts(model, x, batch_size, device):
 def collect_routing_moments(state, plan, base, mask, *, batch_size=16, device='cpu'):
     _validate_base(plan, base)
     model = load_native(state, device).eval()
-    values = _acts(model, base.x, batch_size, device)
-    offset, moments = 0, {}
-    for k in LAYERS:
-        n = values[k].shape[1]
-        selected = np.asarray(mask[offset:offset+n], bool)
-        z = values[k][:, selected].astype(np.float64)
-        moments[k] = (int(z.size), float(z.sum()), float((z*z).sum()))
-        offset += n
+    moments = {k: (0, 0., 0.) for k in LAYERS}
+    for batch in base.x.split(batch_size):
+        values = _acts(model, batch, batch_size, device)
+        offset = 0
+        for k in LAYERS:
+            n = values[k].shape[1]
+            selected = np.asarray(mask[offset:offset+n], bool)
+            z = values[k][:, selected].astype(np.float64)
+            count, total, squared = moments[k]
+            moments[k] = (count+int(z.size), total+float(z.sum()), squared+float((z*z).sum()))
+            offset += n
     return RoutingMoment(base.client_id, state.task, state.round, plan.hash, model_hash(state),
                          state_hash(mask), plan.base_role_hash, len(base.y), moments)
 
@@ -240,7 +243,7 @@ def collect_sketch(state, plan, base, trained_classes, *, memo_per_class=8, batc
         state.routing_space_hash, plan.base_role_hash, {int(c): int(n) for c, n in zip(labels, counts)}, bits)
 
 
-def merge_sketches(state, plan, packets, actual_classes, memo_per_class):
+def merge_sketches(state, plan, packets, actual_classes, memo_per_class, *, engineering_baseline=False):
     ids = [p.client_id for p in packets]
     expected = {cid for cid, labels in actual_classes.items() if labels}
     if len(set(ids)) != len(ids) or set(ids) != expected:
@@ -257,7 +260,7 @@ def merge_sketches(state, plan, packets, actual_classes, memo_per_class):
     if not packets:
         raise ValueError('Empty current router bank')
     bits = np.concatenate([p.bits for p in sorted(packets, key=lambda p: p.client_id)])
-    if not bits.any():
+    if not bits.any() and not engineering_baseline:
         raise ValueError('DEGENERATE_BINARY_MEMORY')
     labels = tuple(sorted({c for p in packets for c in p.class_counts}))
     return bits, labels
@@ -269,16 +272,16 @@ class RouterProposal:
     receipt: dict
     binding: str
 
-    def commit(self):
+    def commit(self, *, engineering_baseline=False):
         if self.binding != state_hash(dict(state=self.state.fingerprint(), receipt=self.receipt)):
             raise ValueError('Router proposal mutated')
-        if not self.receipt['capacity']['passed']:
+        if not self.receipt['capacity']['passed'] and not engineering_baseline:
             raise ValueError('P2_NO_GO: ' + self.receipt['capacity']['reason'])
         return restore(snapshot(self.state))
 
 
 def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8, batch_size=16, device='cpu',
-                         feature_policy='allocated_native_v1'):
+                         feature_policy='allocated_native_v1', engineering_baseline=False):
     """Build a shadow only. NO-GO proposals cannot commit; no history replay."""
     state.validate()
     plan.validate()
@@ -330,7 +333,8 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
         staging = ClusterState.create(**{k: v for k, v in payload.items() if k not in ('model_spec', 'routing_space_hash')})
     sketches = [collect_sketch(staging, plan, bases[cid], labels, memo_per_class=memo_per_class,
                               batch_size=batch_size, device=device) for cid, labels in sorted(actual.items()) if labels]
-    bits, labels = merge_sketches(staging, plan, sketches, actual, memo_per_class)
+    bits, labels = merge_sketches(staging, plan, sketches, actual, memo_per_class,
+        engineering_baseline=engineering_baseline)
     payload = snapshot(staging)
     payload['router_state']['activation_memory'][state.task] = bits
     payload['router_state']['episode_classes'][state.task] = tuple(sorted(set(labels) |
@@ -345,11 +349,14 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
         threshold_policy='first_current_BASE_global_mean_plus_unbiased_std', threshold_calibrated=first,
         thresholds=candidate.router_state['binarize_thresholds'], dependency_hash=candidate.routing_space_hash,
         memory_rows=len(bits), trained_classes=labels, sketch_contributors=tuple(p.client_id for p in sketches),
+        degenerate_binary_memory=not bool(bits.any()), engineering_baseline=engineering_baseline,
         historical_memory_unchanged=all(state_hash(bank) == state_hash(candidate.router_state['activation_memory'][t])
                                         for t, bank in historical.items() if t < state.task),
         historical_raw_read=False, raw_reference_bank=False, model_weights_changed=False,
         wire_format='typed_json_utf8', wire_scope='moment_and_sketch_uploads_only_excludes_broadcast_and_native_traffic',
         threshold_wire_bytes=sum(len(json.dumps(encode(p.__dict__), sort_keys=True, separators=(',', ':')).encode()) for p in moment_packets),
+        threshold_wire_bytes_by_client={p.client_id:len(json.dumps(encode(p.__dict__),sort_keys=True,separators=(',',':')).encode()) for p in moment_packets},
+        sketch_wire_bytes_by_client={p.client_id:len(json.dumps(encode(p.__dict__),sort_keys=True,separators=(',',':')).encode()) for p in sketches},
         sketch_wire_bytes=sum(len(json.dumps(encode(p.__dict__), sort_keys=True, separators=(',', ':')).encode()) for p in sketches))
     return RouterProposal(candidate, receipt, state_hash(dict(state=candidate.fingerprint(), receipt=receipt)))
 

@@ -1,5 +1,10 @@
 # Kế hoạch implementation DeNICE V2
 
+> Cập nhật 2026-10-13: khóa main Conv2 coordinate + binary-cosine, hoàn thành
+> P3 runner/checkpoint/evaluator và chuyển execution sang notebook Kaggle.
+> Quality NO-GO của các pilot dưới đây là lịch sử, không chặn engineering full run.
+> Xem `docs/DENICE_V2_FULL_NOTEBOOK_20261013_VI.md`. Không chạy thêm local.
+
 ## 0. Mục tiêu và trạng thái
 
 Specification gốc: [DeNICE V2 Cluster Protocol](../docs/DENICE_V2_CLUSTER_PROTOCOL_20261011_VI.md).

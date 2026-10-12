@@ -1,7 +1,7 @@
-"""Bounded P1 native workers and sequential BASE BN collection.
+"""P1 native workers and sequential BASE BN collection.
 
 Opt-in integration with legacy DeNICEClient/Trainer. This is not a P2 router
-builder or a full training/resume runner. One phase per bounded round, FP32.
+builder. P3 orchestrates these workers; one phase per round, FP32.
 """
 from dataclasses import dataclass
 
@@ -137,12 +137,14 @@ class CurrentBase:
     row_ids: np.ndarray
     source_hash: str
     role: str = 'base'
+    allow_singleton: bool = False
 
     def validate(self, current_classes):
         if self.role != 'base' or not self.source_hash or type(self.task) is not int or type(self.client_id) is not int:
             raise ValueError('Invalid BASE provenance')
         if (self.x.device.type != 'cpu' or self.y.device.type != 'cpu' or self.x.dtype != torch.float32
-            or self.y.dtype != torch.int64 or self.y.ndim != 1 or len(self.x) != len(self.y) or len(self.y) == 1
+            or self.y.dtype != torch.int64 or self.y.ndim != 1 or len(self.x) != len(self.y)
+            or (len(self.y)==1 and not self.allow_singleton)
             or len(self.row_ids) != len(self.y) or np.asarray(self.row_ids).dtype.kind not in 'iu'
             or len(np.unique(self.row_ids)) != len(self.y) or not torch.isfinite(self.x).all()
             or not set(self.y.tolist()) <= set(current_classes)):
@@ -151,7 +153,7 @@ class CurrentBase:
 
     def fingerprint(self):
         return state_hash(dict(client=self.client_id, task=self.task, role=self.role, source=self.source_hash,
-                               rows=self.row_ids, x=self.x, y=self.y))
+                               rows=self.row_ids, x=self.x, y=self.y,allow_singleton=self.allow_singleton))
 
 
 def prepare_native_round(state, bases, current_classes):
@@ -184,6 +186,9 @@ class ClusterWorkerClient(DeNICEClient):
     """Natural native sampling, merging a singleton tail without dropping rows."""
     def _create_batches(self, batch_size):
         batches = list(torch.randperm(self.num_samples).split(batch_size))
+        if self.num_samples == 1:
+            # BN needs two observations: reuse this current row, never another role.
+            batches = [batches[0].repeat(2)]
         if len(batches[-1]) == 1:
             tail = batches.pop()
             batches[-1] = torch.cat((batches[-1], tail))
@@ -192,7 +197,8 @@ class ClusterWorkerClient(DeNICEClient):
 
 
 def train_native_worker(plan, base, *, seed=42, batch_size=16, epochs=1, lr=0.001,
-                        optimizer_family='adam', weight_decay=0.0, momentum=0.0, device='cpu'):
+                        optimizer_family='adam', weight_decay=0.0, momentum=0.0, device='cpu',
+                        engineering_baseline=False):
     _validate_base(plan, base)
     if (type(batch_size) is not int or batch_size < 2 or type(epochs) is not int or epochs < 1
         or not np.isfinite([lr, weight_decay, momentum]).all() or lr <= 0 or weight_decay < 0 or not 0 <= momentum < 1
@@ -212,6 +218,12 @@ def train_native_worker(plan, base, *, seed=42, batch_size=16, epochs=1, lr=0.00
         model = load_native(worker.state, device).train()
         permitted = {k: torch.as_tensor(v, device=device) for k, v in plan.parameter_permissions.items()}
         if not any(bool(mask.any()) for mask in permitted.values()):
+            if engineering_baseline:
+                event = LocalLearningEvent(f'{plan.hash}/{base.client_id}', base.client_id, plan.reference.task,
+                    plan.target_round, 0, (), base.task)
+                packet = finish_worker(plan, worker, event)
+                return packet, dict(client=base.client_id, steps=0, loss_mean=None,
+                    skipped='NO_TRAINABLE_CAPACITY', changed_coordinates={k: 0 for k in packet.deltas})
             raise ValueError('NO_TRAINABLE_CAPACITY')
         before = {k: p.detach().clone() for k, p in model.named_parameters()}
         seen = {}
@@ -259,13 +271,15 @@ def train_native_worker(plan, base, *, seed=42, batch_size=16, epochs=1, lr=0.00
         plan.target_round, successful, tuple(sorted(seen.items())), base.task)
     packet = finish_worker(plan, worker, event)
     changed = {name: int(np.count_nonzero(packet.deltas[name])) for name in packet.deltas}
-    if not any(changed.values()):
+    if not any(changed.values()) and not engineering_baseline:
         raise ValueError('Optimizer stepped but no contributed parameter changed')
     return packet, dict(client=base.client_id, steps=successful, loss_mean=float(trained['loss']),
                        classification_objective=('cumulative_registered_ce_v1' if objective else 'native_let_learner_ce'),
                        softmax_classes=active_classes if objective else None,
                        native_training_loop='DeNICEClient/DeNICETrainer', optimizer_family=optimizer_family,
                        changed_coordinates=changed, initial_reference_hash=worker.initial_reference_hash,
+                       zero_parameter_update=not any(changed.values()),
+                       singleton_current_row_reused_for_bn=len(base.y)==1,
                        initial_topology_hash=worker.initial_topology_hash)
 
 
@@ -310,18 +324,24 @@ class NativeBNCollector:
                 handle.remove()
             packets.append(BNMoment(cid, stage.task, self.plan.target_round, layer, model_hash(stage),
                 self.plan.hash, len(base.y), np.full(width, observations, np.int64), total, squared, base.task))
-        self.calls.append(dict(layer=layer, input_model_hash=model_hash(stage), members=tuple(sorted(self.bases))))
+        import json
+        self.calls.append(dict(layer=layer, input_model_hash=model_hash(stage), members=tuple(sorted(self.bases)),
+            wire_bytes_by_client={p.client_id:len(json.dumps(encode(p.__dict__),separators=(',',':')).encode()) for p in packets}))
         return packets
 
 
-def run_native_round(state, bases, current_classes, **training):
+def run_native_round(state, bases, current_classes, *, log_progress=False, **training):
     """Canonical allocation -> real optimizers -> BN -> identical broadcast."""
     plan, allocation = prepare_native_round(state, bases, current_classes)
     packets, workers = [], []
     for cid in plan.reference.members:
+        if log_progress:
+            print(f'Native local T{state.task} R{plan.target_round} cluster={state.cluster_uid} client={cid} BASE={len(bases[cid].y):,}',flush=True)
         packet, receipt = train_native_worker(plan, bases[cid], **training)
         packets.append(packet)
         workers.append(receipt)
+        if log_progress:
+            print(f'  optimizer steps={receipt["steps"]} loss={receipt["loss_mean"]} skip={receipt.get("skipped")}',flush=True)
     collector = NativeBNCollector(plan, bases, batch_size=training.get('batch_size', 16), device=training.get('device', 'cpu'))
     result = aggregate_round(plan, packets, bn_provider=collector)
     copies = result.broadcast()
