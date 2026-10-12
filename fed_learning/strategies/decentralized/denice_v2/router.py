@@ -12,7 +12,7 @@ import torch
 
 from fed_learning.servers.nice_server import ContextDetector
 from .aggregation import _validate_contribution, parameter_names, permissions, topology_hash
-from .contracts import ClusterState, array, decode, encode, state_hash
+from .contracts import ClusterState, array, decode, encode, state_hash, routing_parameter_mask
 from .native import load_native, _validate_base
 from .normalization import model_hash
 from .state import restore, snapshot
@@ -25,8 +25,12 @@ MAX_BACKBONE_LOCK = .90  # Engineering gate locked before the real-data probe.
 
 def allocated_feature_mask(state, feature_policy='allocated_native_v1'):
     """Baseline mask: allocated native context units, fixed on first memory."""
-    if feature_policy not in ('allocated_native_v1', 'conv1_only_v1'):
+    if feature_policy not in ('allocated_native_v1', 'conv1_only_v1','cnn_coordinate_router_v1'):
         raise ValueError('Unknown routing feature policy')
+    if feature_policy=='cnn_coordinate_router_v1':
+        target=state.algorithm_state['coordinate_router_layer']
+        return np.concatenate([array(state.algorithm_state['unit_ranks'][k])>0 if k==target
+            else np.zeros_like(array(state.algorithm_state['unit_ranks'][k]),dtype=bool) for k in LAYERS])
     return np.concatenate([array(state.algorithm_state['unit_ranks'][k]) > 0
         if feature_policy == 'allocated_native_v1' or k == 'conv1'
         else np.zeros_like(array(state.algorithm_state['unit_ranks'][k]), dtype=bool) for k in LAYERS])
@@ -35,6 +39,10 @@ def allocated_feature_mask(state, feature_policy='allocated_native_v1'):
 def dependency_closure(state, feature_mask):
     """Whole-tensor closure, not a claim of minimal coordinate-level closure."""
     state.validate()
+    if state.algorithm_state.get('routing_contract_version')=='cnn_coordinate_router_v1':
+        from .coordinate_router import cnn_closure
+        closure=cnn_closure(state,feature_mask)
+        return tuple(sorted(closure['parameters'])),closure['selected']
     if tuple(state.router_state['context_layers']) != LAYERS or state.versions['architecture'] != 'denice_legacy_plain_v1':
         raise ValueError('Unsupported routing architecture/layers')
     mask = np.asarray(feature_mask)
@@ -73,7 +81,7 @@ def capacity_receipt(state, dependencies):
                 frozen = np.tile(frozen, 3)
             mask |= np.broadcast_to(frozen.reshape((-1,) + (1,) * (mask.ndim - 1)), mask.shape)
         if k in dependencies:
-            mask[:] = True
+            mask |= routing_parameter_mask(state,k) if k in state.routing_dependencies else np.ones(mask.shape,bool)
         if k.startswith('bn'):
             from .normalization import protected_bn_channels
             mask |= protected_bn_channels(state, k.split('.')[0])
@@ -81,8 +89,11 @@ def capacity_receipt(state, dependencies):
     locked = sum(int(protected[k].sum()) for k in backbone)
     # Compare canonical permissions before and after the proposed closure;
     # rank0 reserve is not mislabeled as currently trainable.
-    before = sum(int(m.sum()) for m in permissions(state).values())
-    after = sum(int(m.sum()) for k, m in permissions(state).items() if k not in dependencies)
+    allowed=permissions(state)
+    before = sum(int(m.sum()) for m in allowed.values())
+    remaining={k:m & ~(routing_parameter_mask(state,k) if k in state.routing_dependencies else np.ones(m.shape,bool))
+        if k in dependencies else m for k,m in allowed.items()}
+    after = sum(int(m.sum()) for m in remaining.values())
     ratio = locked / backbone_total
     passed = ratio < MAX_BACKBONE_LOCK and after > 0
     return dict(policy=CAPACITY_POLICY, max_backbone_locked_fraction=MAX_BACKBONE_LOCK,
@@ -93,18 +104,27 @@ def capacity_receipt(state, dependencies):
         currently_trainable_before=before, currently_trainable_after=after,
         currently_trainable_after_fraction=after / total,
         per_layer={layer: dict(total=sum(state.model_state[k].numel() for k in names if k.split('.')[0] == layer),
-            closure_locked=sum(state.model_state[k].numel() for k in names if k.split('.')[0] == layer and k in dependencies),
+            closure_locked=sum(int((routing_parameter_mask(state,k) if k in state.routing_dependencies else
+                np.ones(state.model_state[k].shape,bool)).sum()) for k in names if k.split('.')[0] == layer and k in dependencies),
             protected=sum(int(protected[k].sum()) for k in names if k.split('.')[0] == layer),
-            currently_trainable_after=sum(int(m.sum()) for k, m in permissions(state).items()
-                if k.split('.')[0] == layer and k not in dependencies))
+            currently_trainable_after=sum(int(m.sum()) for k, m in remaining.items() if k.split('.')[0] == layer))
             for layer in ('conv1', 'conv2', 'conv3', 'gru', 'bn1', 'bn2', 'bn3', 'fc1', 'fc2')},
-        closure_granularity='complete_named_tensors', classifier_learning_may_remain=True)
+        closure_granularity=('CNN_output_row_coordinates' if state.algorithm_state.get('routing_contract_version')=='cnn_coordinate_router_v1'
+                            else 'complete_named_tensors'), classifier_learning_may_remain=True)
 
 
 def probe_router_capacity(state, feature_policy='allocated_native_v1'):
     _check_feature_policy(state, feature_policy)
     mask = (np.asarray(state.router_state['stable_feature_mask'], bool) if state.router_state['activation_memory']
             else allocated_feature_mask(state, feature_policy))
+    if feature_policy=='cnn_coordinate_router_v1':
+        from .coordinate_router import protect_coordinate_closure
+        proposed,closure=protect_coordinate_closure(state,mask)
+        capacity=capacity_receipt(proposed,())
+        capacity['currently_trainable_before']=sum(int(m.sum()) for m in permissions(state).values())
+        return dict(selected_features=closure['selected'],selected_total=int(mask.sum()),
+            dependencies=proposed.routing_dependencies,capacity=capacity,
+            upstream_channels={k:int(v.sum()) for k,v in closure['channels'].items()})
     deps, selected = dependency_closure(state, mask)
     deps = tuple(sorted(set(deps) | set(state.routing_dependencies)))
     return dict(selected_features=selected, selected_total=int(mask.sum()), dependencies=deps,
@@ -112,10 +132,12 @@ def probe_router_capacity(state, feature_policy='allocated_native_v1'):
 
 
 def _check_feature_policy(state, policy):
+    if policy=='cnn_coordinate_router_v1' and state.algorithm_state.get('routing_contract_version')!='cnn_coordinate_router_v1':
+        raise ValueError('Coordinate routing requires a fresh versioned state')
     allocated_feature_mask(state, policy)  # Validate even for historical state.
     if state.router_state['activation_memory']:
         existing = state.algorithm_state.get('routing_contract_version', 'whole_native_closure_v1')
-        expected = 'conv1_only_v1' if policy == 'conv1_only_v1' else 'whole_native_closure_v1'
+        expected = policy if policy in ('conv1_only_v1','cnn_coordinate_router_v1') else 'whole_native_closure_v1'
         if existing != expected:
             raise ValueError('Cannot migrate a committed routing policy implicitly')
         if policy == 'conv1_only_v1' and np.asarray(state.router_state['stable_feature_mask'])[64:].any():
@@ -280,14 +302,19 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
     probe = probe_router_capacity(state, feature_policy)
     payload = snapshot(state)
     if not historical:
-        payload['router_state']['stable_feature_mask'] = allocated_feature_mask(state, feature_policy)
-        payload['routing_dependencies'] = tuple(sorted(set(state.routing_dependencies) | set(probe['dependencies'])))
-        for name in payload['routing_dependencies']:
-            payload['protected_parameters'][name] = torch.ones_like(state.model_state[name], dtype=torch.bool)
-        payload['versions']['feature'] = ('p2_conv1_only_binary_v1' if feature_policy == 'conv1_only_v1'
-                                           else 'p2_whole_dependency_binary_v1')
-        payload['algorithm_state']['routing_contract_version'] = ('conv1_only_v1' if feature_policy == 'conv1_only_v1'
-                                                                  else 'whole_native_closure_v1')
+        if feature_policy=='cnn_coordinate_router_v1':
+            from .coordinate_router import protect_coordinate_closure
+            staging,_=protect_coordinate_closure(state,allocated_feature_mask(state,feature_policy))
+            payload=snapshot(staging)
+        else:
+            payload['router_state']['stable_feature_mask'] = allocated_feature_mask(state, feature_policy)
+            payload['routing_dependencies'] = tuple(sorted(set(state.routing_dependencies) | set(probe['dependencies'])))
+            for name in payload['routing_dependencies']:
+                payload['protected_parameters'][name] = torch.ones_like(state.model_state[name], dtype=torch.bool)
+            payload['versions']['feature'] = ('p2_conv1_only_binary_v1' if feature_policy == 'conv1_only_v1'
+                                               else 'p2_whole_dependency_binary_v1')
+            payload['algorithm_state']['routing_contract_version'] = ('conv1_only_v1' if feature_policy == 'conv1_only_v1'
+                                                                      else 'whole_native_closure_v1')
     else:
         if not set(probe['dependencies']) <= set(state.routing_dependencies):
             raise ValueError('Historical dependency closure incomplete')
@@ -308,6 +335,9 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
     payload['router_state']['activation_memory'][state.task] = bits
     payload['router_state']['episode_classes'][state.task] = tuple(sorted(set(labels) |
         set(payload['router_state']['episode_classes'].get(state.task, ()))))
+    if feature_policy=='cnn_coordinate_router_v1':
+        payload['algorithm_state']['learned_classes_by_task'][state.task]=payload['router_state']['episode_classes'][state.task]
+        payload['algorithm_state']['seen_classes']=tuple(sorted({c for cs in payload['router_state']['episode_classes'].values() for c in cs}))
     candidate = ClusterState.create(**{k: v for k, v in payload.items() if k not in ('model_spec', 'routing_space_hash')})
     receipt = dict(task=state.task, round=state.round, reference_state_hash=state.fingerprint(),
         result_state_hash=candidate.fingerprint(), feature_policy=feature_policy,
@@ -331,6 +361,8 @@ class ClusterRouter:
         router = self.state.router_state
         if self.state.algorithm_state.get('routing_contract_version') == 'conv1_only_v1':
             _check_feature_policy(self.state, 'conv1_only_v1')
+        if self.state.algorithm_state.get('routing_contract_version')=='cnn_coordinate_router_v1':
+            _check_feature_policy(self.state,'cnn_coordinate_router_v1')
         if not router['activation_memory'] or router['binarize_thresholds'] is None:
             raise ValueError('Router is not built')
         deps, _ = dependency_closure(self.state, router['stable_feature_mask'])

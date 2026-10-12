@@ -204,3 +204,9 @@ cumulative learned-class union để argmax và opt-in cumulative CE. Pilot nati
 hai task đã chạy: technical PASS nhưng old validation accuracy55,08% →0%,
 quality NO-GO. Xem [routerless pilot](DENICE_V2_ROUTERLESS_RESULTS_20261012_VI.md).
 Binary-cosine giữ làm ablation; chưa khóa routerless cho full benchmark.
+
+Pilot `cnn_coordinate_router_v1` Conv2/Conv3 đã chạy fresh cumulative-CE cùng
+budget. Coordinate protection/stability PASS, nhưng balanced task accuracy
+47,70%/50,34%, new-task recall2,35%/0,94%: empirical NO-GO.179/179 tests PASS.
+Xem [CNN coordinate report](DENICE_V2_CNN_COORDINATE_RESULTS_20261012_VI.md).
+Chưa P3/full benchmark; không đổi default V1 hoặc lấy oracle làm actual result.

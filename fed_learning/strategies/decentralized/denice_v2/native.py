@@ -237,7 +237,7 @@ def train_native_worker(plan, base, *, seed=42, batch_size=16, epochs=1, lr=0.00
         trainer = DeNICETrainer(max_phases=1, phase_epochs=epochs)
         trainer.set_task(base.task, list(plan.current_classes))
         objective = {}
-        if plan.reference.router_state['router_mode'] == 'routerless_v1':
+        if plan.reference.algorithm_state.get('classification_objective') == 'cumulative_registered_ce_v1':
             from .routerless import CumulativeClassTrainer, training_classes, masked_logits
             active_classes = training_classes(plan)
             trainer = CumulativeClassTrainer(active_classes,max_phases=1,phase_epochs=epochs)

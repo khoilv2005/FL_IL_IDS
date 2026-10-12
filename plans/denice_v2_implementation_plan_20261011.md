@@ -425,3 +425,14 @@ Không train lại/fit calibration trong audit. Old class2 recall90%→0%; mean 
 norm ratioold/new1,004 không chứng minh norm-only alignment là lời giải.
 Ưu tiên logit competition và class-wise preservation; chưa distillation/full run.
 Xem [diagnostic](../docs/DENICE_V2_ROUTERLESS_OLD_LOGIT_AUDIT_20261012_VI.md).
+
+## 13. CNN coordinate router — 2026-10-12
+
+`cnn_coordinate_router_v1`: Conv2 trước, conditional fresh Conv3 fallback đúng
+protocol. Cumulative CE/full forward giống routerless, cùng BASE/VAL budget/seed.
+Capacity và activation/memory stability PASS;179/179 tests PASS. Routing empirical
+NO-GO: balanced47,70%/50,34%; actual class Macro-F1 thấp hơn own cumulative.
+Oracle77,34%/79,22% chỉ diagnostic trên từng checkpoint; class2 recall vẫn0%.
+Xem [báo cáo](../docs/DENICE_V2_CNN_COORDINATE_RESULTS_20261012_VI.md).
+Theo decision tree, dừng mở family này; quay routerless calibration/preservation
+với protocol mới. Chưa P3/full training, chưa áp dụng distillation/aligner.

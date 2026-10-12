@@ -4,7 +4,7 @@ import re
 
 import numpy as np
 
-from .contracts import array, binary, decode, encode, state_hash
+from .contracts import array, binary, decode, encode, state_hash, routing_parameter_mask
 from .knowledge import ClassKnowledgeLedger, LocalLearningEvent
 from .normalization import like, protected_bn_channels, recalibrate_bn
 from .state import broadcast, restore, snapshot
@@ -61,7 +61,7 @@ def permissions(state):
         if name in state.protected_parameters:
             allowed &= ~array(state.protected_parameters[name]).astype(bool)
         if name in state.routing_dependencies:
-            allowed[:] = False
+            allowed &= ~routing_parameter_mask(state,name)
         result[name] = allowed
     return result
 

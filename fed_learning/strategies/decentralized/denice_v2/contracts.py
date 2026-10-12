@@ -68,6 +68,16 @@ def state_hash(value):
     return hashlib.sha256(json.dumps(encode(value), separators=(',', ':'), allow_nan=False).encode()).hexdigest()
 
 
+def routing_parameter_mask(state,name):
+    """Actual immutable coordinates; legacy contracts freeze complete tensors."""
+    shape=state.model_state[name].shape
+    if name not in state.routing_dependencies:
+        return np.zeros(shape,bool)
+    if state.algorithm_state.get('routing_contract_version')=='cnn_coordinate_router_v1':
+        return array(state.algorithm_state['routing_coordinate_masks'][name]).astype(bool)
+    return np.ones(shape,bool)
+
+
 def array(value):
     if isinstance(value, torch.Tensor):
         return value.detach().cpu().float().numpy() if value.dtype == torch.bfloat16 else value.detach().cpu().numpy()
@@ -109,6 +119,9 @@ class ClusterState:
 
     def routing_fingerprint(self):
         router = self.router_state
+        if self.algorithm_state.get('routing_contract_version')=='cnn_coordinate_router_v1':
+            from .coordinate_router import coordinate_fingerprint
+            return coordinate_fingerprint(self)
         if router.get('router_mode') == 'routerless_v1':
             # Mode contract only: no encoder tensors or activation metadata.
             return state_hash(dict(mode='routerless_v1',architecture=self.versions['architecture'],
@@ -219,6 +232,7 @@ class ClusterState:
         if thresholds is not None and (set(thresholds) != set(layers) or not all(np.isfinite(v) for v in thresholds.values())):
             raise ValueError('Invalid router thresholds')
         memory, classes = router['activation_memory'], router['episode_classes']
+        coordinate=self.algorithm_state.get('routing_contract_version')=='cnn_coordinate_router_v1'
         if routerless:
             if layers or np.asarray(mask).size or thresholds is not None or memory or classes or self.routing_dependencies:
                 raise ValueError('Routerless state cannot carry task routing/dependencies/memory')
@@ -241,8 +255,11 @@ class ClusterState:
                 raise ValueError('Invalid activation memory')
             if np.any(array(values)[:, ~array(mask).astype(bool)]):
                 raise ValueError('Memory uses excluded routing features')
-        if (not self.routing_dependencies and not routerless) or len(set(self.routing_dependencies)) != len(self.routing_dependencies) or not set(self.routing_dependencies) <= set(self.model_state):
+        if (not self.routing_dependencies and not routerless and not coordinate) or len(set(self.routing_dependencies)) != len(self.routing_dependencies) or not set(self.routing_dependencies) <= set(self.model_state):
             raise ValueError('Missing/invalid routing dependencies')
+        if coordinate:
+            from .coordinate_router import validate_coordinate_contract
+            validate_coordinate_contract(self)
         if self.routing_space_hash != self.routing_fingerprint():
             raise ValueError('Routing dependency/threshold/mask version mismatch')
         encode(self.payload())  # Reject unsupported/opaque objects; no raw CAL fields in router schema.

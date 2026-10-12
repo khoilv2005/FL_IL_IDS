@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 
-from .contracts import array, state_hash
+from .contracts import array, state_hash, routing_parameter_mask
 from .state import restore, snapshot
 
 
@@ -36,7 +36,7 @@ def protected_bn_channels(state, layer):
     for suffix in ('running_mean', 'running_var', 'weight', 'bias'):
         name = layer + '.' + suffix
         if name in state.routing_dependencies:
-            protected[:] = True
+            protected |= routing_parameter_mask(state,name)
         if name in state.protected_parameters:
             protected |= array(state.protected_parameters[name]).astype(bool)
     return protected

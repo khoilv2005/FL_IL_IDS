@@ -22,8 +22,8 @@ def capture_routerless(model,**identity):
 
 def training_classes(plan):
     plan.validate()
-    if plan.reference.router_state['router_mode'] != 'routerless_v1':
-        raise ValueError('Not a routerless training plan')
+    if plan.reference.algorithm_state.get('classification_objective') != 'cumulative_registered_ce_v1':
+        raise ValueError('Not a cumulative class training plan')
     return tuple(sorted(set(plan.reference.algorithm_state['seen_classes']) |
         {c for counts in plan.base_counts.values() for c in counts}))
 
