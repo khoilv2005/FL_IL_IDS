@@ -415,3 +415,13 @@ memory. Fresh native T0→T1 dùng cùng budget/seed với shallow pilot đã ch
 Technical PASS, quality NO-GO: old accuracy55,08%→0%, new94,37%, cumulative34,24%.
 146/146 regression tests PASS, không thay quality gate. Chưa thêm distillation
 hoặc mở full training. Xem [báo cáo](../docs/DENICE_V2_ROUTERLESS_RESULTS_20261012_VI.md).
+
+## 12. Old-only diagnostic — 2026-10-12
+
+Inference checkpoint T1 hiện có: old-only273/374 =72,99%; cumulative0/374.
+Baseline T0 từ original receipt206/374 =55,08%, không re-execute T0 vì file T0
+chưa persist ở run trước. Runner đã thêm lưu checkpoint T0 cho các run sau.
+Không train lại/fit calibration trong audit. Old class2 recall90%→0%; mean FC2
+norm ratioold/new1,004 không chứng minh norm-only alignment là lời giải.
+Ưu tiên logit competition và class-wise preservation; chưa distillation/full run.
+Xem [diagnostic](../docs/DENICE_V2_ROUTERLESS_OLD_LOGIT_AUDIT_20261012_VI.md).

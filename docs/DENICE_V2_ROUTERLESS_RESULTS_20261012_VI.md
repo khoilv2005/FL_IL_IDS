@@ -140,3 +140,10 @@ hoặc thêm vào cùng experiment để cứu con số hiện tại.
 P0/P1, graph ξ0,8, V1, binary-cosine ablation, final TEST protocol giữ nguyên.
 Không cần full retrain lúc này; một cluster/two-task cap-budget chưa đủ để chốt
 routerless làm main architecture benchmark.
+
+## 10. Inference-only follow-up
+
+[Old-only/logit audit](DENICE_V2_ROUTERLESS_OLD_LOGIT_AUDIT_20261012_VI.md) đo T1
+old-only **72,99%**, trong khi cumulative trên cùng374 old rows vẫn0%. Không train
+lại, không áp dụng alignment. Class2 old-only recall90%→0% cho thấy cần class-wise
+retention; không kết luận mọi class cũ đều được bảo toàn từ overall72,99%.

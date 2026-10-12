@@ -140,13 +140,16 @@ def main():
     bases=current_bases(prepared,0)
     result,plan,packets,training=run_native_round(state,bases,tuple(range(6)),seed=42)
     state0,registration0=register_learned_classes(result.state,plan,packets)
+    checkpoint0=cache/'routerless_v1_task0_model_state.json'
+    checkpoint0.write_text(json.dumps(encode(snapshot(state0))),encoding='utf-8')
     x0,y0=current_validation(prepared,0)
     evaluation0,_,_=evaluate(state0,x0,y0,6)
     del x0,y0
     for p in packets:
         ledger.record(p.event,at_task=0,at_round=0)
     report['tasks'][0]=dict(training=training,registration=registration0,capacity=capacity_receipt(state0,()),
-        development=evaluation0)
+        development=evaluation0,checkpoint=dict(path=checkpoint0.name,sha256=file_sha256(checkpoint0),
+            bytes=checkpoint0.stat().st_size,scope='model_class_registry_only_not_optimizer_resume'))
     mature=consolidate_native_task(state0)
     next_state=handoff([mature],members=(9,30),cluster_uid='routerless-t1',task=1,ledger=ledger)
     del bases,result,plan,packets
