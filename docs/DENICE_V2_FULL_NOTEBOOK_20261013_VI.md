@@ -8,28 +8,23 @@ Upload lên Kaggle, bật GPU + Internet và gắn dataset gốc chứa
 Notebook clone GitHub tại commit đã pin; không nhúng source/checkpoint.
 
 `DATA_DIR` mặc định `/kaggle/input/datasets/khoilv2005/100-clients`; notebook tìm
-đúng thư mục dữ liệu nếu Kaggle giải nén thêm một tầng. `ROLES_DIR` trỏ tới `denice_clean_roles`
-chứa role manifest/lock và indices. Để trống: notebook tìm lock phù hợp hoặc
-tạo split content-disjoint trước fresh training. Không dùng guarded-head roles
-thay cho clean roles toàn federation.
-
-Roles là lựa chọn data protocol đang kế thừa: khoảng 80% BASE, 2% CAL,
-8% FIT, 10% VALIDATION theo unique input content. Main V2 chỉ train BASE;
-CAL/FIT đang được giữ riêng, không dùng cho CME/APPLIANCE. TEST có file riêng
-và chỉ được đánh giá ở Task 5 / Round 19. Role directory lưu indices và
-manifest/checksum để khóa split và resume, không yêu cầu upload thêm dataset.
+đúng thư mục dữ liệu nếu Kaggle giải nén thêm một tầng.
+Main dùng **100% TRAIN gốc của mỗi client**, chỉ lấy những rows thuộc current
+task. Không chia CAL/FIT/validation, không dùng role indices, không deduplicate
+hoặc subsample TRAIN. `ROLES_DIR` đã được bỏ khỏi notebook/CLI.
+TEST có file riêng và chỉ được đánh giá ở Task 5 / Round 19.
 
 ## Main đã khóa
 
 | Thành phần | Cấu hình |
 |---|---|
 | Training | Fresh seed 42, T0–T5, 20 rounds/task |
-| BASE | Toàn bộ BASE hợp lệ, không cap samples/class |
+| TRAIN | 100% `client_<id>_train.npz`, lọc current task, không cap/holdout |
 | Local budget | Batch 2048, Adam LR .001, một phase/một epoch mỗi round |
 | Numerics | FP32, không AMP, một GPU `cuda:0` |
 | Clustering | Auto K, complete-linkage, ξ=.8; membership cố định trong task |
-| Similarity | T0 Jaccard current BASE support; sau đó current BASE Conv2 means |
-| Context budget | Tối đa 1024 current BASE rows/client, không giới hạn training BASE |
+| Similarity | T0 Jaccard current TRAIN support; sau đó current TRAIN Conv2 means |
+| Context budget | Tối đa 1024 current TRAIN rows/client, không giới hạn training rows |
 | Handoff | Split/dormant/rejoin giữ state; reject merge không tương thích |
 | Coordinator | Số class thực sự train local, tie-break ID, không ưu tiên aggregation weights |
 | Model/router | Một shared model + binary-cosine router mỗi cluster |
@@ -52,12 +47,12 @@ Không gọi APPLIANCE/CGoFed/CME; DeNICE V1 và các variants vẫn giữ trong
 - Index 0–19 là training snapshots; index 20 là continuation sau consolidation
   (và final evaluation ở Task 5), không phải round training bổ sung.
 - Budget 18 GiB gồm cache và peak temporary trong output. Compression không
-  bảo đảm dung lượng cố định với mọi K/state. Current BASE cache bỏ sau task;
+  bảo đảm dung lượng cố định với mọi K/state. Current TRAIN cache bỏ sau task;
   TEST chỉ được nạp khi hoàn tất Task 5 / Round 19, cache bỏ sau final evaluation.
 - Persist model/router/masks/BN/protection, RNG, ledger, partition, dormant
   states, protocol/data lock và evaluation history. Không cần historical raw CAL.
 
-Mount output cũ, giữ clean role lock/index, các ZIP và `execution_provenance.json`:
+Mount output cũ của cùng full-TRAIN protocol, giữ các ZIP và `execution_provenance.json`:
 
 ```python
 RESUME_ROOT = '/kaggle/input/.../previous_output'
@@ -66,8 +61,9 @@ RESUME_ROUND = None
 ```
 
 `None` chọn snapshot mới nhất, gồm continuation. Resume yêu cầu đúng source,
-Torch runtime, device/config và data lock. Task đang dang dở import/verify prefix
+Torch runtime, device/config và original TRAIN checksums. Task đang dang dở import/verify prefix
 checkpoints vào output mới; archive task cũ có thể giữ ở dataset mount.
+Run BASE80 trước đây thuộc protocol khác; không resume nó thành run full-TRAIN.
 Auto K lớn làm tăng số predictor chạy final TEST; có thể cần tiếp tục qua nhiều session Kaggle.
 
 ## Kết quả xuất
@@ -81,6 +77,7 @@ rejected merges. `round_task_t_*.json`: optimizer/aggregation/BN/router receipts
 BN, router, metadata/handoff; chưa gồm TCP/TLS của distributed deployment.
 `checkpoint_task_t_all_rounds.zip`, `execution_provenance.json`,
 `completion.json` hoặc `failure.json`: checkpoint/provenance/trạng thái run.
+`training_data_lock.json`: source checksums và protocol dùng 100% original TRAIN.
 Forgetting ghi N/A khi lineage nhập nhằng hoặc thiếu task evidence.
 
 ## Engineering receipts đã có trước yêu cầu dừng local
@@ -94,5 +91,7 @@ Forgetting ghi N/A khi lineage nhập nhằng hoặc thiếu task evidence.
 
 Receipts `artifacts/denice_v2_p3_*.json` ghi source hashes local đã thực thi;
 Kaggle ghi provenance riêng của checkout pinned. Đây không phải full benchmark.
+Các receipts BASE80 ở trên thuộc protocol trước; bản sửa full-TRAIN hiện tại
+chưa chạy lại local theo yêu cầu, cần chạy notebook Kaggle.
 Theo yêu cầu mới, không chạy thêm thí nghiệm local. Full 6×20 trên Kaggle chưa
 được khởi chạy tự động; dùng notebook nói trên.

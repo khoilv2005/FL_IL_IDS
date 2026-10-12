@@ -17,7 +17,6 @@ from fed_learning.strategies.decentralized.denice_v2.runner import Runner, RunCo
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-dir',required=True)
-    parser.add_argument('--roles-dir',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--device',default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--resume-task',type=int)
@@ -45,15 +44,16 @@ def main():
     else:
         commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
         atomic_json(provenance,dict(commit=commit,source_sha256=source_hashes,
-            torch=torch.__version__,python=sys.version,full_base_uncapped=True,
+            torch=torch.__version__,python=sys.version,original_train_all_rows=True,
+            training_data_protocol='original_train_all_rows_current_task_v1',heldout_train_roles=False,
             evaluation_cadence='last_round_final_task',router='binary_cosine',feature_policy='cnn_coordinate_router_v1',
-            architecture='legacy_plain_no_CGoFed_no_CME_no_APPLIANCE',local_budget='one_phase_one_epoch_every_BASE_row_per_round',
+            architecture='legacy_plain_no_CGoFed_no_CME_no_APPLIANCE',local_budget='one_phase_one_epoch_every_current_TRAIN_row_per_round',
             numerical_policy='FP32_no_AMP_round_phase_optimizer_reset'))
     torch.set_num_threads(2)
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark=False
         torch.backends.cudnn.deterministic=True
-    data=TaskData(args.data_dir,args.roles_dir,output/'current_data_cache')
+    data=TaskData(args.data_dir,output/'current_data_cache')
     cfg=RunConfig(device=args.device,output_budget_gib=args.output_budget_gib,eval_batch_size=args.eval_batch_size)
     runner=Runner(data,output,cfg)
     if args.resume_task is not None:
@@ -64,7 +64,7 @@ def main():
                 task=args.resume_task,round=args.resume_round,source_archives={p.name:file_sha256(p)
                     for p in Path(args.resume_root).glob('checkpoint_task_*_*.zip')}))
     atomic_json(output/'protocol_lock.json',dict(lock=runner.lock,config=cfg.__dict__,data_binding=data.binding,
-        full_base_uncapped=True,test_selection_for_training=False,quality_is_report_only=True))
+        original_train_all_rows=True,heldout_train_roles=False,test_selection_for_training=False,quality_is_report_only=True))
     print('DeNICE V2 MAIN: fresh seed42, 6 x 20 rounds, auto K, xi=.8, shared Conv2 coordinate binary-cosine router.',flush=True)
     try:
         runner.run()

@@ -8,7 +8,7 @@ import time
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import numpy as np
 import torch
-from fed_learning.data.denice_clean_roles import file_sha256
+from fed_learning.data.denice_clean_roles import CleanRoleData,file_sha256
 from fed_learning.strategies.decentralized.denice_v2.data import TaskData
 from fed_learning.strategies.decentralized.denice_v2.runner import Runner,RunConfig
 from fed_learning.strategies.decentralized.denice_v2.contracts import state_hash
@@ -16,11 +16,16 @@ from fed_learning.strategies.decentralized.denice_v2.evaluation import atomic_js
 
 
 class OfficialBudgetSmokeData(TaskData):
+    # Historical BASE80 diagnostic only; the full notebook does not import it.
+    protocol='legacy_clean_BASE_development_smoke_v1'
     evaluation_role='validation'
-    def __init__(self,*args):
-        super().__init__(*args)
+    def __init__(self,dataset,roles,cache):
+        super().__init__(dataset,cache)
+        self.roles=CleanRoleData(roles,source_data_dir=dataset)
         self.client_ids=(9,30)
         self.binding=state_hash((self.binding,'official_BASE_uncapped_two_client_development_smoke_v1',self.client_ids))
+
+    def training_rows(self,cid):return self.roles.client_role(cid,'base')
 
     def test(self):
         chunks=[self.roles.client_role(cid,'validation') for cid in self.client_ids]

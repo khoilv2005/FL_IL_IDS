@@ -6,6 +6,8 @@
 > Xem `docs/DENICE_V2_FULL_NOTEBOOK_20261013_VI.md`. Không chạy thêm local.
 > Evaluation đã đổi theo yêu cầu mới: CHỈ Task 5 / Round 19, full TEST 34 class
 > cho mỗi cluster; Task 0–4 chỉ training/consolidation/checkpoint, không nạp TEST.
+> Data protocol đã đổi theo yêu cầu: 100% TRAIN gốc của mỗi client, chỉ current
+> task, bỏ CAL/FIT/validation holdout và ROLES_DIR. Dùng notebook mới cho fresh run.
 
 ## 0. Mục tiêu và trạng thái
 

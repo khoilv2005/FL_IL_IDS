@@ -336,7 +336,7 @@ def run_native_round(state, bases, current_classes, *, log_progress=False, **tra
     packets, workers = [], []
     for cid in plan.reference.members:
         if log_progress:
-            print(f'Native local T{state.task} R{plan.target_round} cluster={state.cluster_uid} client={cid} BASE={len(bases[cid].y):,}',flush=True)
+            print(f'Native local T{state.task} R{plan.target_round} cluster={state.cluster_uid} client={cid} TRAIN={len(bases[cid].y):,}',flush=True)
         packet, receipt = train_native_worker(plan, bases[cid], **training)
         packets.append(packet)
         workers.append(receipt)
