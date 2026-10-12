@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-CODE_REF = "3c02c38a6529c28103213b9caac5903c5d808466"
+CODE_REF = "29d8bd860ce60eaf94d44ad5db928610a1417d99"
 REPOSITORY = "https://github.com/khoilv2005/FL_IL_IDS.git"
 DATA_DIR = ""   # Directory with metadata.json, client_*_train.npz, global_test_data.npz
 ROLES_DIR = ""  # Existing denice_clean_roles with role_lock.json and indices; empty -> prepare once
@@ -67,7 +67,7 @@ if not torch.cuda.is_available():
 print("Pinned source:", actual, flush=True)
 print("Data:", DATA_DIR, "Roles:", ROLES_DIR, flush=True)
 print("DeNICE V2: auto K / xi=.8 / Conv2 coordinate / binary_cosine / seed42 / 6x20.", flush=True)
-print("All BASE rows; batch2048; 1 epoch/round; FP32; cuda:0. Evaluation at each task end.", flush=True)
+print("All BASE rows; batch2048; 1 epoch/round; FP32; cuda:0. FULL TEST only after Task 5 / Round 19.", flush=True)
 command=[sys.executable,"-u",str(code/"tools/train_denice_v2.py"),"--data-dir",DATA_DIR,
     "--roles-dir",ROLES_DIR,"--output",OUTPUT_DIR,"--device","cuda:0",
     "--output-budget-gib",str(OUTPUT_BUDGET_GIB)]
