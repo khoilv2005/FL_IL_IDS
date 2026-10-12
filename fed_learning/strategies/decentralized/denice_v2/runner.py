@@ -37,16 +37,18 @@ class RunConfig:
     engineering_baseline: bool = True
     policy: str = 'cnn_coordinate_router_v1'
     feature_layer: str = 'conv2'
+    eval_final_task_only: bool = True
     smoke: bool = False
 
     def validate(self):
         if (self.policy!='cnn_coordinate_router_v1' or self.feature_layer!='conv2' or self.xi!=.8
             or not self.engineering_baseline or not np.isfinite([self.learning_rate,self.output_budget_gib]).all()
             or self.learning_rate<=0 or self.output_budget_gib<=0 or self.batch_size<2 or self.local_epochs<1
-            or self.eval_batch_size<1 or self.context_rows<1 or self.rounds_per_task<1 or not 1<=self.tasks<=6):
+            or self.eval_batch_size<1 or self.context_rows<1 or self.rounds_per_task<1 or not 1<=self.tasks<=6
+            or type(self.eval_final_task_only) is not bool):
             raise ValueError('Invalid locked V2 configuration')
-        if not self.smoke and (self.tasks!=6 or self.rounds_per_task!=20 or self.seed!=42):
-            raise ValueError('Full main run is fresh seed42, six tasks, twenty rounds/task')
+        if not self.smoke and (self.tasks!=6 or self.rounds_per_task!=20 or self.seed!=42 or not self.eval_final_task_only):
+            raise ValueError('Full main run is seed42, six tasks, twenty rounds/task, final-task-only evaluation')
 
 
 def wire_bytes(value):
@@ -107,8 +109,9 @@ class Runner:
         for t in sorted({r['task'] for r in self.evaluations}):
             rows=[r for r in self.evaluations if r['task']==t]
             summary=aggregate_evaluations(rows)
-            summary['forgetting']=forgetting(rows,[r for r in self.evaluations if r['task']<t])
-            summary.update(task=t,quality_is_report_only=True)
+            summary['forgetting']=(dict(mean_forgetting=None,reason='NOT_MEASURED_FINAL_TASK_ONLY',lineage_task_pairs=[])
+                if self.config.eval_final_task_only else forgetting(rows,[r for r in self.evaluations if r['task']<t]))
+            summary.update(task=t,round=self.config.rounds_per_task-1,quality_is_report_only=True)
             atomic_json(self.output/f'metrics_task_{t}.json',summary)
         print(f'Restored checkpoint T{task} / round={round_id}; next T{self.next_task} R{self.next_round}',flush=True)
 
@@ -230,19 +233,25 @@ class Runner:
         print(f'Round complete T{task} R{round_id}: checkpoint {saved["bytes"]/1024**2:.1f} MiB; output {saved["total_output_bytes"]/1024**3:.2f} GiB',flush=True)
 
     def finish_task(self, task):
-        if self._test is None:self._test=self.data.test()
-        x,y,binding=self._test
-        TaskArchive(self.output,task,self.config.output_budget_gib).guard()
-        results=[evaluate_cluster(self.unique_states()[uid],x,y,binding,
-            self.output/f'evaluation_task_{task}_{uid}.json',batch_size=self.config.eval_batch_size,device=self.config.device,
-            evaluation_role=getattr(self.data,'evaluation_role','test'))
-            for uid in self.active]
-        # JSON-normalize keys so restored and uninterrupted forgetting coincide.
-        results=json.loads(json.dumps(results))
-        summary=aggregate_evaluations(results);summary['forgetting']=forgetting(results,self.evaluations)
-        summary.update(task=task,quality_is_report_only=True)
-        atomic_json(self.output/f'metrics_task_{task}.json',summary)
-        self.evaluations.extend(results)
+        summary=None
+        if not self.config.eval_final_task_only or task==self.config.tasks-1:
+            if self.next_round!=self.config.rounds_per_task:
+                raise ValueError('Evaluation requires the final completed training round')
+            if self._test is None:self._test=self.data.test()
+            x,y,binding=self._test
+            TaskArchive(self.output,task,self.config.output_budget_gib).guard()
+            results=[evaluate_cluster(self.unique_states()[uid],x,y,binding,
+                self.output/f'evaluation_task_{task}_{uid}.json',batch_size=self.config.eval_batch_size,device=self.config.device,
+                evaluation_role=getattr(self.data,'evaluation_role','test'))
+                for uid in self.active]
+            # JSON-normalize keys so restored and uninterrupted metrics coincide.
+            results=json.loads(json.dumps(results))
+            summary=aggregate_evaluations(results)
+            summary['forgetting']=(dict(mean_forgetting=None,reason='NOT_MEASURED_FINAL_TASK_ONLY',lineage_task_pairs=[])
+                if self.config.eval_final_task_only else forgetting(results,self.evaluations))
+            summary.update(task=task,round=self.config.rounds_per_task-1,quality_is_report_only=True)
+            atomic_json(self.output/f'metrics_task_{task}.json',summary)
+            self.evaluations.extend(results)
         for uid in self.active:
             state=self.unique_states()[uid]
             if task in state.router_state['activation_memory']:
@@ -254,7 +263,10 @@ class Runner:
         archive.save(self.config.rounds_per_task,self.checkpoint_payload()) # explicit task-boundary continuation
         archive.seal()
         self.data.release(task)
-        print(f'Task {task} DONE: Mean Cluster Accuracy={summary["mean_cluster_accuracy"]:.4%}, Macro-F1={summary["mean_cluster_macro_f1"]:.4%}',flush=True)
+        if summary is None:
+            print(f'Task {task} DONE: evaluation skipped (final task only); checkpoint archive sealed.',flush=True)
+        else:
+            print(f'Task {task} DONE: Mean Cluster Accuracy={summary["mean_cluster_accuracy"]:.4%}, Macro-F1={summary["mean_cluster_macro_f1"]:.4%}',flush=True)
 
     def run(self, *, stop_after_rounds=None):
         if not self.states:self.initialize()
@@ -277,6 +289,7 @@ class Runner:
         atomic_json(self.output/'completion.json',dict(completed=True,protocol_lock=self.lock,
             config=asdict(self.config),tasks_completed=self.config.tasks,quality_is_report_only=True,
             full_training=not self.config.smoke,total_application_wire_bytes=total,
-            metrics_files=[f'metrics_task_{t}.json' for t in range(self.config.tasks)],
+            evaluation_cadence='last_round_final_task' if self.config.eval_final_task_only else 'last_round_each_task',
+            metrics_files=[f'metrics_task_{t}.json' for t in sorted({r['task'] for r in self.evaluations})],
             checkpoints=[p.name for p in sorted(self.output.glob('checkpoint_task_*_all_rounds.zip'))],
             earlier_archives_may_remain_in_resume_dataset=True))

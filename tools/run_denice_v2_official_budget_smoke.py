@@ -37,7 +37,7 @@ def main():
     if output.exists() and any(output.iterdir()):raise ValueError('Use a fresh output')
     started=time.monotonic();torch.set_num_threads(2)
     data=OfficialBudgetSmokeData(args.data_dir,args.roles_dir,output/'cache')
-    cfg=RunConfig(smoke=True,tasks=2,rounds_per_task=1,batch_size=2048,device=args.device)
+    cfg=RunConfig(smoke=True,tasks=2,rounds_per_task=1,batch_size=2048,device=args.device,eval_final_task_only=False)
     runner=Runner(data,output,cfg);runner.run()
     checks=dict(completed=(output/'completion.json').exists(),two_tasks=len(runner.book.partitions)==2,
         historical_memory_preserved=any(set(s.router_state['activation_memory'])=={0,1} for s in runner.unique_states().values()),

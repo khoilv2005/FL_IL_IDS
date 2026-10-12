@@ -74,7 +74,7 @@ if not torch.cuda.is_available():
 print("Pinned source:", actual, flush=True)
 print("Data:", DATA_DIR, "Roles:", ROLES_DIR, flush=True)
 print("DeNICE V2: auto K / xi=.8 / Conv2 coordinate / binary_cosine / seed42 / 6x20.", flush=True)
-print("All BASE rows; batch2048; 1 epoch/round; FP32; cuda:0. Evaluation at each task end.", flush=True)
+print("All BASE rows; batch2048; 1 epoch/round; FP32; cuda:0. FULL TEST only after Task 5 / Round 19.", flush=True)
 command=[sys.executable,"-u",str(code/"tools/train_denice_v2.py"),"--data-dir",DATA_DIR,
     "--roles-dir",ROLES_DIR,"--output",OUTPUT_DIR,"--device","cuda:0",
     "--output-budget-gib",str(OUTPUT_BUDGET_GIB)]
@@ -100,7 +100,7 @@ def main():
 
 Shared cluster model + binary-cosine router; Conv2 coordinate protection.
 Auto K, xi=0.8, fresh seed 42, Task 0–5, 20 rounds/task, uncapped BASE.
-Each cluster runs the SAME full cumulative TEST at every task end.
+Only after Task 5 / Round 19: each cluster runs the SAME full 34-class TEST.
 Headline: Mean Cluster Accuracy / Mean Cluster Macro-F1.
 
 Enable GPU + Internet. Set DATA_DIR if more than one original dataset is mounted.

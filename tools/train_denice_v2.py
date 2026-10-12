@@ -46,7 +46,7 @@ def main():
         commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
         atomic_json(provenance,dict(commit=commit,source_sha256=source_hashes,
             torch=torch.__version__,python=sys.version,full_base_uncapped=True,
-            evaluation_cadence='last_round_each_task',router='binary_cosine',feature_policy='cnn_coordinate_router_v1',
+            evaluation_cadence='last_round_final_task',router='binary_cosine',feature_policy='cnn_coordinate_router_v1',
             architecture='legacy_plain_no_CGoFed_no_CME_no_APPLIANCE',local_budget='one_phase_one_epoch_every_BASE_row_per_round',
             numerical_policy='FP32_no_AMP_round_phase_optimizer_reset'))
     torch.set_num_threads(2)

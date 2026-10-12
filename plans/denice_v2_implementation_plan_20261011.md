@@ -4,6 +4,8 @@
 > P3 runner/checkpoint/evaluator và chuyển execution sang notebook Kaggle.
 > Quality NO-GO của các pilot dưới đây là lịch sử, không chặn engineering full run.
 > Xem `docs/DENICE_V2_FULL_NOTEBOOK_20261013_VI.md`. Không chạy thêm local.
+> Evaluation đã đổi theo yêu cầu mới: CHỈ Task 5 / Round 19, full TEST 34 class
+> cho mỗi cluster; Task 0–4 chỉ training/consolidation/checkpoint, không nạp TEST.
 
 ## 0. Mục tiêu và trạng thái
 

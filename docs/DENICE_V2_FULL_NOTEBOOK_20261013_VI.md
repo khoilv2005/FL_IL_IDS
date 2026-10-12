@@ -28,7 +28,7 @@ thay cho clean roles toàn federation.
 | Model/router | Một shared model + binary-cosine router mỗi cluster |
 | Protection | `cnn_coordinate_router_v1`, Conv2 |
 | Aggregation | P1 class-wise masked common-reference deltas + canonical BN |
-| Evaluation | Round 19 của MỖI task; mỗi cluster chạy cùng FULL cumulative TEST |
+| Evaluation | CHỈ Task 5 / Round 19; mỗi cluster chạy cùng FULL TEST 34 class |
 | Headline | Mean Cluster Accuracy, Mean Cluster Macro-F1, trọng số đều |
 
 Quality/capacity receipt là report-only. NaN, sai state/version/authority,
@@ -42,11 +42,11 @@ Không gọi APPLIANCE/CGoFed/CME; DeNICE V1 và các variants vẫn giữ trong
 - Lưu mỗi global round hoàn tất; resume tại round boundary, không mid-epoch.
 - Tensor chia khối 4 KiB, deduplicate bằng SHA-256, không quantize.
 - Cuối task seal ZIP self-contained; verify trước khi bỏ các round ZIP parts.
-- Index 0–19 là training snapshots; index 20 là continuation sau evaluation/
-  consolidation, không phải round training bổ sung.
+- Index 0–19 là training snapshots; index 20 là continuation sau consolidation
+  (và final evaluation ở Task 5), không phải round training bổ sung.
 - Budget 18 GiB gồm cache và peak temporary trong output. Compression không
   bảo đảm dung lượng cố định với mọi K/state. Current BASE cache bỏ sau task;
-  TEST cache bỏ sau khi toàn run hoàn tất.
+  TEST chỉ được nạp khi hoàn tất Task 5 / Round 19, cache bỏ sau final evaluation.
 - Persist model/router/masks/BN/protection, RNG, ledger, partition, dormant
   states, protocol/data lock và evaluation history. Không cần historical raw CAL.
 
@@ -61,11 +61,12 @@ RESUME_ROUND = None
 `None` chọn snapshot mới nhất, gồm continuation. Resume yêu cầu đúng source,
 Torch runtime, device/config và data lock. Task đang dang dở import/verify prefix
 checkpoints vào output mới; archive task cũ có thể giữ ở dataset mount.
-Auto K lớn làm tăng số lần full TEST; có thể cần tiếp tục qua nhiều session Kaggle.
+Auto K lớn làm tăng số predictor chạy final TEST; có thể cần tiếp tục qua nhiều session Kaggle.
 
 ## Kết quả xuất
 
-`metrics_task_t.json`: headline + từng cluster + forgetting.
+`metrics_task_5.json`: headline + từng cluster. Không đo average forgetting vì
+không chạy intermediate evaluation; trường forgetting ghi N/A với lý do rõ ràng.
 `evaluation_task_t_<cluster>.json`: class/router confusion, per-class/per-task,
 cursor/checksum. `partition_task_t.json`: K, members, coordinators, dormant,
 rejected merges. `round_task_t_*.json`: optimizer/aggregation/BN/router receipts.

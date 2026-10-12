@@ -61,7 +61,8 @@ def main():
     root=Path(args.output)
     if root.exists() and any(root.iterdir()):raise ValueError('Use a fresh smoke directory')
     started=time.monotonic();torch.set_num_threads(2)
-    config=RunConfig(tasks=args.tasks,rounds_per_task=args.rounds,batch_size=8,eval_batch_size=24,context_rows=16,smoke=True)
+    config=RunConfig(tasks=args.tasks,rounds_per_task=args.rounds,batch_size=8,eval_batch_size=24,context_rows=16,
+        eval_final_task_only=False,smoke=True)
     uninterrupted=Runner(FixtureData(),root/'uninterrupted',config)
     uninterrupted.run()
     expected={cid:state.fingerprint() for cid,state in uninterrupted.states.items()}
