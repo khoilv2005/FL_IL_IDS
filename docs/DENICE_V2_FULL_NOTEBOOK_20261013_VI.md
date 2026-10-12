@@ -7,10 +7,17 @@ Upload lên Kaggle, bật GPU + Internet và gắn dataset gốc chứa
 `metadata.json`, `client_*_train.npz`, `global_test_data.npz`.
 Notebook clone GitHub tại commit đã pin; không nhúng source/checkpoint.
 
-Điền `DATA_DIR` nếu mount nhiều dataset. `ROLES_DIR` trỏ tới `denice_clean_roles`
+`DATA_DIR` mặc định `/kaggle/input/datasets/khoilv2005/100-clients`; notebook tìm
+đúng thư mục dữ liệu nếu Kaggle giải nén thêm một tầng. `ROLES_DIR` trỏ tới `denice_clean_roles`
 chứa role manifest/lock và indices. Để trống: notebook tìm lock phù hợp hoặc
 tạo split content-disjoint trước fresh training. Không dùng guarded-head roles
 thay cho clean roles toàn federation.
+
+Roles là lựa chọn data protocol đang kế thừa: khoảng 80% BASE, 2% CAL,
+8% FIT, 10% VALIDATION theo unique input content. Main V2 chỉ train BASE;
+CAL/FIT đang được giữ riêng, không dùng cho CME/APPLIANCE. TEST có file riêng
+và chỉ được đánh giá ở Task 5 / Round 19. Role directory lưu indices và
+manifest/checksum để khóa split và resume, không yêu cầu upload thêm dataset.
 
 ## Main đã khóa
 

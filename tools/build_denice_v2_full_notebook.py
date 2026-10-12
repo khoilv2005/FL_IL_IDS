@@ -13,7 +13,7 @@ import sys
 
 CODE_REF = "__CODE_REF__"
 REPOSITORY = "https://github.com/khoilv2005/FL_IL_IDS.git"
-DATA_DIR = ""   # Directory with metadata.json, client_*_train.npz, global_test_data.npz
+DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"  # Mount root; nested dataset directory is detected below
 ROLES_DIR = ""  # Existing denice_clean_roles with role_lock.json and indices; empty -> prepare once
 OUTPUT_DIR = "/kaggle/working/results_denice_v2_conv2_xi_0p8_seed_42"
 RESUME_ROOT = ""  # Mounted previous output directory containing execution_provenance.json and ZIPs
@@ -34,15 +34,18 @@ sys.path.insert(0, str(code))
 import json
 import torch
 
-if not DATA_DIR:
+data_root=Path(DATA_DIR) if DATA_DIR else Path("/kaggle/input")
+if (data_root/"metadata.json").is_file() and (data_root/"global_test_data.npz").is_file() and list(data_root.glob("client_*_train.npz")):
+    candidates=[data_root]
+else:
     candidates=[]
-    for metadata in Path("/kaggle/input").rglob("metadata.json"):
+    for metadata in data_root.rglob("metadata.json"):
         parent=metadata.parent
         if (parent/"global_test_data.npz").is_file() and list(parent.glob("client_*_train.npz")):
             candidates.append(parent)
-    if len(candidates)!=1:
-        raise ValueError("Set DATA_DIR explicitly. Found original dataset candidates: " + str(candidates))
-    DATA_DIR=str(candidates[0])
+if len(candidates)!=1:
+    raise ValueError("Set DATA_DIR explicitly. Found original dataset candidates under " + str(data_root) + ": " + str(candidates))
+DATA_DIR=str(candidates[0])
 data=Path(DATA_DIR)
 if not (data/"global_test_data.npz").is_file():
     raise FileNotFoundError("DATA_DIR must include the entire global_test_data.npz")
