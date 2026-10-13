@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--output',required=True)
     parser.add_argument('--device',default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--worker-devices',default='cuda:0,cuda:1')
-    parser.add_argument('--batch-size',type=int,default=8192)
+    parser.add_argument('--batch-size',type=int,default=4086)
     parser.add_argument('--resume-task',type=int)
     parser.add_argument('--resume-round',type=int)
     parser.add_argument('--resume-root')

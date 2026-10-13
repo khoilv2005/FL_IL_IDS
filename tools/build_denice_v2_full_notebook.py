@@ -14,8 +14,8 @@ import sys
 CODE_REF = "__CODE_REF__"
 REPOSITORY = "https://github.com/khoilv2005/FL_IL_IDS.git"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"  # Mount root; nested dataset directory is detected below
-OUTPUT_DIR = "/kaggle/working/results_denice_v2_conv2_xi_0p8_seed_42_2gpu_bs8192"
-BATCH_SIZE = 8192  # Per-client mini-batch, not a global DDP batch
+OUTPUT_DIR = "/kaggle/working/results_denice_v2_conv2_xi_0p8_seed_42_2gpu_bs4086"
+BATCH_SIZE = 4086  # Per-client mini-batch, not a global DDP batch
 WORKER_DEVICES = "cuda:0,cuda:1"
 RESUME_ROOT = ""  # Mounted previous output directory containing execution_provenance.json and ZIPs
 RESUME_TASK = None
@@ -58,7 +58,7 @@ if not torch.cuda.is_available() or torch.cuda.device_count()<2:
 print("Pinned source:", actual, flush=True)
 print("Data:",DATA_DIR,"; using 100% original client TRAIN, current task only.",flush=True)
 print("DeNICE V2: auto K / xi=.8 / Conv2 coordinate / binary_cosine / seed42 / 6x20.", flush=True)
-print("All TRAIN rows; batch/client=8192; 1 epoch/round; FP32; parallel workers cuda:0 + cuda:1.",flush=True)
+print(f"All TRAIN rows; batch/client={BATCH_SIZE}; 1 epoch/round; FP32; parallel workers cuda:0 + cuda:1.",flush=True)
 print("FULL TEST only after Task 5 / Round 19. Output:",OUTPUT_DIR,flush=True)
 command=[sys.executable,"-u",str(code/"tools/train_denice_v2.py"),"--data-dir",DATA_DIR,
     "--output",OUTPUT_DIR,"--device","cuda:0",
@@ -88,7 +88,7 @@ Shared cluster model + binary-cosine router; Conv2 coordinate protection.
 Auto K, xi=0.8, fresh seed 42, Task 0–5, 20 rounds/task, 100% original TRAIN.
 Every client trains on ALL its current-task TRAIN rows. No CAL/FIT/validation split.
 Select Kaggle T4 x2. Two persistent GPU worker processes train different clients concurrently.
-Batch size 8192 PER CLIENT; this is not global-model DDP.
+Batch size 4086 PER CLIENT; this is not global-model DDP.
 Only after Task 5 / Round 19: each cluster runs the SAME full 34-class TEST.
 Headline: Mean Cluster Accuracy / Mean Cluster Macro-F1.
 

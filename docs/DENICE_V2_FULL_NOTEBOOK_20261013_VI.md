@@ -20,7 +20,7 @@ TEST có file riêng và chỉ được đánh giá ở Task 5 / Round 19.
 |---|---|
 | Training | Fresh seed 42, T0–T5, 20 rounds/task |
 | TRAIN | 100% `client_<id>_train.npz`, lọc current task, không cap/holdout |
-| Local budget | Batch **8192/client**, Adam LR .001, một phase/một epoch mỗi round |
+| Local budget | Batch **4086/client**, Adam LR .001, một phase/một epoch mỗi round |
 | Local execution | Hai persistent spawn processes: `cuda:0`, `cuda:1` |
 | Numerics | FP32, không AMP; aggregation/BN/router/final TEST chạy ở parent trên GPU 0 |
 | Clustering | Auto K, complete-linkage, ξ=.8; membership cố định trong task |
@@ -57,7 +57,7 @@ Log in `GPU=cuda:0` / `GPU=cuda:1`, step count và loss của mỗi client.
 overhead còn lại; không mặc định hứa tốc độ toàn run tăng gấp đôi.
 
 Theo yêu cầu, lượt mới chạy fresh. Output mặc định:
-`/kaggle/working/results_denice_v2_conv2_xi_0p8_seed_42_2gpu_bs8192`.
+`/kaggle/working/results_denice_v2_conv2_xi_0p8_seed_42_2gpu_bs4086`.
 Notebook sparse-clone code, bỏ các JSON kết quả cũ như `.tmp_denice2_json`.
 
 ## Checkpoint và resume
@@ -116,7 +116,7 @@ Receipts `artifacts/denice_v2_p3_*.json` ghi source hashes local đã thực thi
 Kaggle ghi provenance riêng của checkout pinned. Đây không phải full benchmark.
 Các receipts BASE80 ở trên thuộc protocol trước; bản sửa full-TRAIN hiện tại
 chưa chạy lại local theo yêu cầu, cần chạy notebook Kaggle.
-Phần hai-GPU/batch8192 cũng chưa chạy thực nghiệm local; notebook có GPU
+Phần hai-GPU/batch4086 cũng chưa chạy thực nghiệm local; notebook có GPU
 preflight và giữ các kiểm tra correctness khi chạy trên Kaggle.
 Theo yêu cầu mới, không chạy thêm thí nghiệm local. Full 6×20 trên Kaggle chưa
 được khởi chạy tự động; dùng notebook nói trên.

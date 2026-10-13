@@ -8,7 +8,7 @@
 > cho mỗi cluster; Task 0–4 chỉ training/consolidation/checkpoint, không nạp TEST.
 > Data protocol đã đổi theo yêu cầu: 100% TRAIN gốc của mỗi client, chỉ current
 > task, bỏ CAL/FIT/validation holdout và ROLES_DIR. Dùng notebook mới cho fresh run.
-> Execution mới: hai GPU `cuda:0,cuda:1`, batch 8192/client, parallel local jobs
+> Execution mới: hai GPU `cuda:0,cuda:1`, batch 4086/client, parallel local jobs
 > xuyên clusters; giữ common reference và P1 aggregation. Người dùng chốt fresh run.
 
 ## 0. Mục tiêu và trạng thái

@@ -28,7 +28,7 @@ class RunConfig:
     rounds_per_task: int = 20
     tasks: int = 6
     xi: float = .8
-    batch_size: int = 8192
+    batch_size: int = 4086
     local_epochs: int = 1
     learning_rate: float = .001
     eval_batch_size: int = 8192
