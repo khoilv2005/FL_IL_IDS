@@ -4,6 +4,7 @@ import gc
 import json
 from pathlib import Path
 import random
+import time
 
 import numpy as np
 import torch
@@ -15,7 +16,7 @@ from .coordinate_router import fresh_coordinate_state
 from .election import elect_leader
 from .evaluation import atomic_json, evaluate_cluster, aggregate_evaluations, forgetting
 from .knowledge import ClassKnowledgeLedger
-from .native import consolidate_native_task, load_native, run_native_round
+from .native import consolidate_native_task,load_native,run_native_round,prepare_native_round,finalize_native_round
 from .partition import bootstrap_similarity, SimilaritySnapshot, partition_clients, PartitionBook
 from .router import stage_cluster_router
 from .state import snapshot, restore, handoff, merge_gate
@@ -27,13 +28,14 @@ class RunConfig:
     rounds_per_task: int = 20
     tasks: int = 6
     xi: float = .8
-    batch_size: int = 2048
+    batch_size: int = 8192
     local_epochs: int = 1
     learning_rate: float = .001
     eval_batch_size: int = 8192
     context_rows: int = 1024
     output_budget_gib: float = 18.
     device: str = 'cpu'
+    worker_devices: tuple = ()
     engineering_baseline: bool = True
     policy: str = 'cnn_coordinate_router_v1'
     feature_layer: str = 'conv2'
@@ -49,6 +51,11 @@ class RunConfig:
             raise ValueError('Invalid locked V2 configuration')
         if not self.smoke and (self.tasks!=6 or self.rounds_per_task!=20 or self.seed!=42 or not self.eval_final_task_only):
             raise ValueError('Full main run is seed42, six tasks, twenty rounds/task, final-task-only evaluation')
+        if self.worker_devices:
+            if len(self.worker_devices)!=2 or len(set(self.worker_devices))!=2:
+                raise ValueError('Parallel training requires exactly two distinct GPU workers')
+            if any(torch.device(d).type!='cuda' or torch.device(d).index is None for d in self.worker_devices):
+                raise ValueError('Worker devices must use explicit cuda:N identifiers')
 
 
 def wire_bytes(value):
@@ -69,6 +76,8 @@ class Runner:
             input_shape=data.input_shape,clients=data.client_ids,task_classes=data.task_classes,
             optimizer_policy='round_phase_reset_fp32_v1',evaluation='full_cumulative_each_cluster_uniform_mean_v1'))
         self._test = None
+        self._gpu_pool=None
+        self._parallel_timing={}
 
     def unique_states(self):
         return {s.cluster_uid:s for s in self.states.values()}
@@ -184,14 +193,46 @@ class Runner:
             coordinators={uid:self.unique_states()[uid].coordinator_id for uid in self.active}))
         print(f'Task {task}: auto K={partition.K}, active={len(active)}, dormant={len(new)-len(active)}, singleton={sum(len(g)==1 for g in partition.clusters)}',flush=True)
 
-    def round(self, task, round_id):
+    def cluster_round_results(self,task,round_id):
+        training=dict(seed=self.config.seed+task*100000+round_id*1000,batch_size=self.config.batch_size,
+            epochs=self.config.local_epochs,lr=self.config.learning_rate,engineering_baseline=True)
+        if not self.config.worker_devices:
+            for uid in self.active:
+                state=self.unique_states()[uid]
+                bases={cid:self.data.base(cid) for cid in state.members}
+                result,plan,packets,receipt=run_native_round(state,bases,self.data.task_classes[task],
+                    device=self.config.device,log_progress=True,**training)
+                yield uid,bases,result,plan,packets,receipt
+            return
+        if self._gpu_pool is None:
+            from .multi_gpu import GpuWorkerPool
+            self._gpu_pool=GpuWorkerPool(self.config.worker_devices,self.output/'current_data_cache')
+        started=time.monotonic();prepared={}
         for uid in self.active:
             state=self.unique_states()[uid]
             bases={cid:self.data.base(cid) for cid in state.members}
-            result,plan,packets,receipt=run_native_round(state,bases,self.data.task_classes[task],
-                seed=self.config.seed+task*100000+round_id*1000,batch_size=self.config.batch_size,
-                epochs=self.config.local_epochs,lr=self.config.learning_rate,device=self.config.device,
-                engineering_baseline=True,log_progress=True)
+            plan,allocation=prepare_native_round(state,bases,self.data.task_classes[task])
+            prepared[uid]=(plan,allocation,bases)
+            print(f'Common reference ready T{task} R{round_id} cluster={uid} members={len(state.members)}',flush=True)
+        prepare_seconds=time.monotonic()-started
+        outputs,execution=self._gpu_pool.train_round(prepared,self.data,
+            self.output/'current_data_cache'/f'gpu_jobs_task_{task}_round_{round_id}',training,
+            budget_guard=TaskArchive(self.output,task,self.config.output_budget_gib).guard)
+        self._parallel_timing=dict(prepare_seconds=prepare_seconds,**execution)
+        for uid in self.active:
+            plan,allocation,bases=prepared[uid]
+            rows=[outputs[uid][cid] for cid in plan.reference.members]
+            packets=[r[0] for r in rows];workers=[r[1] for r in rows]
+            result,plan,packets,receipt=finalize_native_round(plan,bases,packets,workers,allocation,
+                batch_size=self.config.batch_size,device=self.config.device)
+            receipt['parallel_execution']=dict(policy=execution['policy'],devices=self.config.worker_devices,
+                client_assignments={cid:execution['client_assignments'][cid] for cid in plan.reference.members})
+            yield uid,bases,result,plan,packets,receipt
+
+    def round(self, task, round_id):
+        started=time.monotonic();self._parallel_timing={}
+        for uid,bases,result,plan,packets,receipt in self.cluster_round_results(task,round_id):
+            state=plan.reference
             if any(p.event.successful_steps for p in packets):
                 proposal=stage_cluster_router(result.state,plan,packets,bases,feature_policy=self.config.policy,
                     batch_size=self.config.batch_size,device=self.config.device,engineering_baseline=True)
@@ -229,8 +270,16 @@ class Runner:
             del bases,result,plan,packets,receipt,final;gc.collect()
             if torch.cuda.is_available():torch.cuda.empty_cache()
         self.next_round=round_id+1;self.task_end_pending=self.next_round==self.config.rounds_per_task
+        compute_seconds=time.monotonic()-started
+        checkpoint_started=time.monotonic()
         saved=TaskArchive(self.output,task,self.config.output_budget_gib).save(round_id,self.checkpoint_payload())
-        print(f'Round complete T{task} R{round_id}: checkpoint {saved["bytes"]/1024**2:.1f} MiB; output {saved["total_output_bytes"]/1024**3:.2f} GiB',flush=True)
+        checkpoint_seconds=time.monotonic()-checkpoint_started
+        atomic_json(self.output/f'timing_task_{task}_round_{round_id:03d}.json',dict(task=task,round=round_id,
+            compute_seconds=compute_seconds,checkpoint_seconds=checkpoint_seconds,parallel=self._parallel_timing))
+        print(f'Round complete T{task} R{round_id}: checkpoint {self.output/saved["path"]}; '
+            f'{saved["bytes"]/1024**2:.1f} MiB; output {saved["total_output_bytes"]/1024**3:.2f} GiB',flush=True)
+        print(f'Round timing: compute={compute_seconds:.1f}s, parallel_local={self._parallel_timing.get("parallel_local_seconds",0):.1f}s, '
+            f'checkpoint={checkpoint_seconds:.1f}s',flush=True)
 
     def finish_task(self, task):
         summary=None
@@ -269,6 +318,13 @@ class Runner:
             print(f'Task {task} DONE: Mean Cluster Accuracy={summary["mean_cluster_accuracy"]:.4%}, Macro-F1={summary["mean_cluster_macro_f1"]:.4%}',flush=True)
 
     def run(self, *, stop_after_rounds=None):
+        try:
+            return self._run(stop_after_rounds=stop_after_rounds)
+        finally:
+            if self._gpu_pool is not None:
+                self._gpu_pool.close();self._gpu_pool=None
+
+    def _run(self, *, stop_after_rounds=None):
         if not self.states:self.initialize()
         completed=0
         while self.next_task<self.config.tasks:

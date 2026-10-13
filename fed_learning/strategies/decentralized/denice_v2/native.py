@@ -342,13 +342,25 @@ def run_native_round(state, bases, current_classes, *, log_progress=False, **tra
         workers.append(receipt)
         if log_progress:
             print(f'  optimizer steps={receipt["steps"]} loss={receipt["loss_mean"]} skip={receipt.get("skipped")}',flush=True)
-    collector = NativeBNCollector(plan, bases, batch_size=training.get('batch_size', 16), device=training.get('device', 'cpu'))
+    return finalize_native_round(plan,bases,packets,workers,allocation,
+        batch_size=training.get('batch_size',16),device=training.get('device','cpu'))
+
+
+def finalize_native_round(plan,bases,packets,workers,allocation,*,batch_size=16,device='cpu'):
+    """Common deterministic aggregation path after serial or parallel workers."""
+    plan.validate()
+    if set(bases)!=set(plan.reference.members):raise ValueError('Incomplete cluster BASE providers')
+    packets=sorted(packets,key=lambda p:p.event.client_id)
+    workers=sorted(workers,key=lambda r:r['client'])
+    if [p.event.client_id for p in packets]!=list(plan.reference.members):
+        raise ValueError('Missing/duplicate cluster worker results')
+    collector = NativeBNCollector(plan,bases,batch_size=batch_size,device=device)
     result = aggregate_round(plan, packets, bn_provider=collector)
     copies = result.broadcast()
     witness = torch.cat([base.x[:4] for base in bases.values()])
     logits = []
     for cid in sorted(copies):
-        model = load_native(copies[cid], training.get('device', 'cpu')).eval()
+        model = load_native(copies[cid],device).eval()
         with torch.no_grad():
             logits.append(model(witness.to(next(model.parameters()).device)).cpu())
     same_state = len({s.fingerprint() for s in copies.values()}) == 1

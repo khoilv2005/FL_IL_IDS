@@ -19,12 +19,21 @@ def main():
     parser.add_argument('--data-dir',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--device',default='cuda' if torch.cuda.is_available() else 'cpu')
+    parser.add_argument('--worker-devices',default='cuda:0,cuda:1')
+    parser.add_argument('--batch-size',type=int,default=8192)
     parser.add_argument('--resume-task',type=int)
     parser.add_argument('--resume-round',type=int)
     parser.add_argument('--resume-root')
     parser.add_argument('--output-budget-gib',type=float,default=18)
     parser.add_argument('--eval-batch-size',type=int,default=8192)
     args=parser.parse_args()
+    worker_devices=tuple(d.strip() for d in args.worker_devices.split(',') if d.strip())
+    if len(worker_devices)!=2 or len(set(worker_devices))!=2:
+        raise ValueError('Main training needs two distinct GPU worker devices')
+    for name in worker_devices:
+        device=torch.device(name)
+        if device.type!='cuda' or device.index is None or device.index>=torch.cuda.device_count():
+            raise RuntimeError('Enable Kaggle T4 x2; both requested GPU workers must be available')
     output=Path(args.output).resolve()
     if args.resume_task is None and output.exists() and any(output.iterdir()):
         raise ValueError('Fresh training requires an empty output; use --resume-task for continuation')
@@ -48,13 +57,15 @@ def main():
             training_data_protocol='original_train_all_rows_current_task_v1',heldout_train_roles=False,
             evaluation_cadence='last_round_final_task',router='binary_cosine',feature_policy='cnn_coordinate_router_v1',
             architecture='legacy_plain_no_CGoFed_no_CME_no_APPLIANCE',local_budget='one_phase_one_epoch_every_current_TRAIN_row_per_round',
+            worker_devices=worker_devices,batch_size=args.batch_size,parallel_execution_policy='spawn_process_per_gpu_lpt_v1',
             numerical_policy='FP32_no_AMP_round_phase_optimizer_reset'))
     torch.set_num_threads(2)
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark=False
         torch.backends.cudnn.deterministic=True
     data=TaskData(args.data_dir,output/'current_data_cache')
-    cfg=RunConfig(device=args.device,output_budget_gib=args.output_budget_gib,eval_batch_size=args.eval_batch_size)
+    cfg=RunConfig(device=args.device,worker_devices=worker_devices,batch_size=args.batch_size,
+        output_budget_gib=args.output_budget_gib,eval_batch_size=args.eval_batch_size)
     runner=Runner(data,output,cfg)
     if args.resume_task is not None:
         runner.resume(args.resume_task,args.resume_round,args.resume_root)
@@ -66,6 +77,7 @@ def main():
     atomic_json(output/'protocol_lock.json',dict(lock=runner.lock,config=cfg.__dict__,data_binding=data.binding,
         original_train_all_rows=True,heldout_train_roles=False,test_selection_for_training=False,quality_is_report_only=True))
     print('DeNICE V2 MAIN: fresh seed42, 6 x 20 rounds, auto K, xi=.8, shared Conv2 coordinate binary-cosine router.',flush=True)
+    print(f'Parallel GPU workers={worker_devices}; batch/client={cfg.batch_size}; output={output}',flush=True)
     try:
         runner.run()
     except Exception as exc:

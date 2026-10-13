@@ -3,7 +3,7 @@
 ## File chạy
 
 `train_denice_v2_full_kaggle.ipynb` ở thư mục gốc repo.
-Upload lên Kaggle, bật GPU + Internet và gắn dataset gốc chứa
+Upload lên Kaggle, bật **T4 ×2 + Internet** và gắn dataset gốc chứa
 `metadata.json`, `client_*_train.npz`, `global_test_data.npz`.
 Notebook clone GitHub tại commit đã pin; không nhúng source/checkpoint.
 
@@ -20,8 +20,9 @@ TEST có file riêng và chỉ được đánh giá ở Task 5 / Round 19.
 |---|---|
 | Training | Fresh seed 42, T0–T5, 20 rounds/task |
 | TRAIN | 100% `client_<id>_train.npz`, lọc current task, không cap/holdout |
-| Local budget | Batch 2048, Adam LR .001, một phase/một epoch mỗi round |
-| Numerics | FP32, không AMP, một GPU `cuda:0` |
+| Local budget | Batch **8192/client**, Adam LR .001, một phase/một epoch mỗi round |
+| Local execution | Hai persistent spawn processes: `cuda:0`, `cuda:1` |
+| Numerics | FP32, không AMP; aggregation/BN/router/final TEST chạy ở parent trên GPU 0 |
 | Clustering | Auto K, complete-linkage, ξ=.8; membership cố định trong task |
 | Similarity | T0 Jaccard current TRAIN support; sau đó current TRAIN Conv2 means |
 | Context budget | Tối đa 1024 current TRAIN rows/client, không giới hạn training rows |
@@ -38,6 +39,26 @@ protected mutation và checkpoint checksum sai vẫn dừng. Không có learner
 capacity thì ghi zero-step receipt; không bỏ protection. Binary memory toàn
 zero được ghi nhận, dùng binary-cosine tie-break sẵn có, không dùng true task.
 Không gọi APPLIANCE/CGoFed/CME; DeNICE V1 và các variants vẫn giữ trong repo.
+
+## Hai GPU
+
+Scheduler phân công local jobs của tất cả cluster bằng longest-job-first dựa
+trên số current TRAIN rows; mỗi GPU xử lý một client tại một thời điểm.
+Singleton clusters cũng có thể chạy song song với những cluster khác.
+Các workers trong cùng cluster cùng bắt đầu từ reference/masks/version,
+giữ optimizer và RNG riêng. Chỉ gom contributions sau barrier local training,
+sắp thứ tự client ID và dùng lại P1 aggregation/BN/protection/broadcast checks.
+Đây là client-job parallelism, không phải DDP của một global model.
+
+Workers đọc current TRAIN cache bằng mmap, nhận reference CPU có checksum;
+không truyền toàn bộ TRAIN hoặc CUDA tensors qua multiprocessing IPC.
+Log in `GPU=cuda:0` / `GPU=cuda:1`, step count và loss của mỗi client.
+`timing_task_t_round_rrr.json` ghi prepare/local/checkpoint timings để kiểm tra
+overhead còn lại; không mặc định hứa tốc độ toàn run tăng gấp đôi.
+
+Theo yêu cầu, lượt mới chạy fresh. Output mặc định:
+`/kaggle/working/results_denice_v2_conv2_xi_0p8_seed_42_2gpu_bs8192`.
+Notebook sparse-clone code, bỏ các JSON kết quả cũ như `.tmp_denice2_json`.
 
 ## Checkpoint và resume
 
@@ -78,6 +99,8 @@ BN, router, metadata/handoff; chưa gồm TCP/TLS của distributed deployment.
 `checkpoint_task_t_all_rounds.zip`, `execution_provenance.json`,
 `completion.json` hoặc `failure.json`: checkpoint/provenance/trạng thái run.
 `training_data_lock.json`: source checksums và protocol dùng 100% original TRAIN.
+Log `Round complete ... checkpoint <absolute path>` xuất hiện sau khi checkpoint
+được ghi và readback thành công. Round đang train chưa có checkpoint mới.
 Forgetting ghi N/A khi lineage nhập nhằng hoặc thiếu task evidence.
 
 ## Engineering receipts đã có trước yêu cầu dừng local
@@ -93,5 +116,7 @@ Receipts `artifacts/denice_v2_p3_*.json` ghi source hashes local đã thực thi
 Kaggle ghi provenance riêng của checkout pinned. Đây không phải full benchmark.
 Các receipts BASE80 ở trên thuộc protocol trước; bản sửa full-TRAIN hiện tại
 chưa chạy lại local theo yêu cầu, cần chạy notebook Kaggle.
+Phần hai-GPU/batch8192 cũng chưa chạy thực nghiệm local; notebook có GPU
+preflight và giữ các kiểm tra correctness khi chạy trên Kaggle.
 Theo yêu cầu mới, không chạy thêm thí nghiệm local. Full 6×20 trên Kaggle chưa
 được khởi chạy tự động; dùng notebook nói trên.

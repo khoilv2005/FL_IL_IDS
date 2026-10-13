@@ -100,6 +100,13 @@ class TaskData:
         return CurrentBase(cid, self.task, torch.from_numpy(values[0]), torch.from_numpy(values[1]),
                            values[2], source_hash,allow_singleton=True)
 
+    def base_descriptor(self,cid):
+        """Small IPC message: workers map the current cache instead of copying TRAIN."""
+        directory=self.cache/f'task_{self.task}'
+        record=json.loads((directory/f'{cid}.json').read_text(encoding='utf-8'))
+        return dict(client_id=cid,task=self.task,source_hash=state_hash(record),role='base',allow_singleton=True,
+            paths={s:str(directory/f'{cid}_{s}.npy') for s in ('x','y','rows')})
+
     def release(self, task):
         directory = (self.cache/f'task_{task}').resolve()
         if directory.parent != self.cache:
