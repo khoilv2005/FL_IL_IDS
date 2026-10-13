@@ -485,6 +485,14 @@ if TRAIN_VARIANT != 'legacy':
         raise RuntimeError('Push the complete DeNICE source before running this launcher.') from exc
     CONFIG.update(variant_preset(TRAIN_VARIANT))
 
+_config_file = os.environ.get('DENICE_CONFIG_FILE')
+if _config_file:
+    with open(_config_file, encoding='utf-8') as _handle:
+        _file_overrides = json.load(_handle)
+    if not isinstance(_file_overrides, dict):
+        raise ValueError('DENICE_CONFIG_FILE must contain a JSON object')
+    CONFIG.update(_file_overrides)
+
 _config_overrides_raw = os.environ.get("DENICE_CONFIG_OVERRIDES")
 if _config_overrides_raw:
     try:
@@ -495,6 +503,9 @@ if _config_overrides_raw:
         raise ValueError("DENICE_CONFIG_OVERRIDES must decode to a JSON object")
     CONFIG.update(_config_overrides)
     print("Applied DENICE_CONFIG_OVERRIDES:", sorted(_config_overrides))
+
+from fed_learning.strategies.decentralized.denice_appliance import validate_config as validate_appliance_config
+validate_appliance_config(CONFIG)
 
 if CONFIG.get('denice_cl_method', 'legacy') != 'legacy':
     from fed_learning.strategies.incremental.denice_variants import variant_config

@@ -2256,6 +2256,8 @@ def _evaluate_clients(
 
 def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     """Run DeNICE with decentralized capsule clustering and age-aware aggregation."""
+    from fed_learning.strategies.decentralized.denice_appliance import ApplianceProtocol
+    appliance = ApplianceProtocol(config) if config.get('appliance_enabled', False) else None
     set_seed(config.get("random_seed", config.get("seed", 42)))
     output_dir = _resolve_output_dir(config, "decentralized", "denice")
     os.makedirs(output_dir, exist_ok=True)
@@ -2729,6 +2731,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
 
                 clients[cid].X_validation = validation_X
                 clients[cid].y_validation = validation_y
+                if appliance is not None:
+                    appliance.add_local_task(int(cid), validation_X, validation_y, y)
 
         active_ids = sorted(active_ids)
         print(f"  Active DeNICE clients: {len(active_ids)}")
@@ -3132,6 +3136,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         round_id=round_id,
                         batch_size=router_refresh_batch_size,
                     )
+            if appliance is not None:
+                appliance_audit = appliance.run_round(
+                    models, context_detectors, cluster_summary['labels'], task_id, round_id,
+                    data_loader.task_classes)
+                cluster_summary['appliance'] = appliance_audit
+                _append_jsonl(os.path.join(output_dir, 'appliance_rounds.jsonl'), appliance_audit)
+                print(f"    APPLIANCE: leaders={appliance_audit['leaders']}, "
+                      f"packets={appliance_audit['packets']}, accepted={appliance_audit['accepted']}", flush=True)
             router_refresh_time = time.perf_counter() - router_refresh_start
             router_refresh_encode_time = sum(
                 float(profile.get("encode_time", 0.0))
