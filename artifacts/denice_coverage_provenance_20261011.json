@@ -1,0 +1,328 @@
+{
+  "passed": true,
+  "checks": {
+    "original_checkpoint_bound_to_history": true,
+    "role_and_metadata_hashes": true,
+    "all_local_base_histograms_match": true,
+    "all_terminal_registration_and_profile_keys_reconstructed": true,
+    "full_test_row_accounting": true,
+    "missing_profile_count_matches": true,
+    "missing_profile_rows_match": true,
+    "missing_class_mask_rows_match": true,
+    "all_missing_tasks_correspond_to_recorded_weight_catchup": true,
+    "missing_locally_trained_class_count_zero": true,
+    "unseen_predictions_impossible": true,
+    "inventory_unreachable_pairs_match": true,
+    "full_test_original_receivers_unchanged": true
+  },
+  "rows": 13505771,
+  "receivers": 98,
+  "receiver_task_pairs": 588,
+  "receiver_class_pairs": 3332,
+  "reconstructed_receivers": 98,
+  "training_commit": "4a45a7176ac4f8cb8671dba83f3e52071e44a3ca",
+  "no_training": true,
+  "no_inference": true,
+  "no_raw_train_or_cal_read": true,
+  "no_test_reassignment": true,
+  "no_foreign_profile_install": true,
+  "no_acceptance_claim": true,
+  "source_hashes": {
+    "config.json": {
+      "member": "results_denice_legacy_multiclass_xi_0p8_seed_42/config.json",
+      "sha256": "066669c38206668a55c1619b75bb8d10b9d26aa1039d73eb2465a0a7b875e118",
+      "bytes": 7614
+    },
+    "denice_debug_history.json": {
+      "member": "results_denice_legacy_multiclass_xi_0p8_seed_42/denice_debug_history.json",
+      "sha256": "7ceea455f57a690877c9369b06cc5e5aceaf2ff6ea3c7a08bfd6ca56ff3fddc5",
+      "bytes": 53313955
+    },
+    "cluster_history.json": {
+      "member": "results_denice_legacy_multiclass_xi_0p8_seed_42/cluster_history.json",
+      "sha256": "9ad5387425881ca51d5729c1b02ccd4dcdc096f4b63df2506f2b0d9d9f3ac9c3",
+      "bytes": 47399454
+    }
+  },
+  "audited_source_code": {
+    "fed_learning/training/decentralized_denice_il.py": {
+      "commit": "4a45a7176ac4f8cb8671dba83f3e52071e44a3ca",
+      "sha256": "4f10f5054a71b16c8b61263fd51ceacf8b1cc602249d5548aef1f89548a71f7d"
+    },
+    "fed_learning/strategies/decentralized/denice_aggregation.py": {
+      "commit": "4a45a7176ac4f8cb8671dba83f3e52071e44a3ca",
+      "sha256": "83a8dc67aeea26fa3ea165b0fb55accb39bf1ed69dd9641d186354633971805b"
+    },
+    "prepare_data/step2_federated_splits.py": {
+      "commit": "4a45a7176ac4f8cb8671dba83f3e52071e44a3ca",
+      "sha256": "e1f8fe0395a2f2ad5b050453e4d2a70da5410193d5a9c1f80b6de5f8a043d377"
+    }
+  },
+  "checkpoint_archive_sha256": "ea34082d6866bf502100d1b1f70206248db2532a3968369ae85374190e910fa9",
+  "role_manifest_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+  "dataset_participation": {
+    "old_client_data_prob_metadata": 1.0,
+    "probability_option_read_lines_in_allocator_at_training_commit": [],
+    "allocation_is_observed_not_regenerated": true,
+    "generator_producer_commit_unknown": true,
+    "per_task": [
+      {
+        "task": 0,
+        "allocated": 50,
+        "trained": 50,
+        "dropped_since_previous": [],
+        "allocated_without_base": []
+      },
+      {
+        "task": 1,
+        "allocated": 60,
+        "trained": 60,
+        "dropped_since_previous": [
+          0,
+          9,
+          14,
+          19,
+          25,
+          32,
+          33,
+          38,
+          42,
+          46,
+          47,
+          48,
+          52,
+          53,
+          56,
+          57,
+          58,
+          60,
+          65,
+          68,
+          70,
+          71,
+          88,
+          89,
+          96,
+          99
+        ],
+        "allocated_without_base": []
+      },
+      {
+        "task": 2,
+        "allocated": 70,
+        "trained": 70,
+        "dropped_since_previous": [
+          4,
+          13,
+          23,
+          27,
+          28,
+          41,
+          51,
+          54,
+          55,
+          66,
+          72,
+          81,
+          84,
+          86
+        ],
+        "allocated_without_base": []
+      },
+      {
+        "task": 3,
+        "allocated": 80,
+        "trained": 80,
+        "dropped_since_previous": [
+          2,
+          10,
+          12,
+          21,
+          26,
+          31,
+          45,
+          56,
+          58,
+          62,
+          63,
+          71,
+          78,
+          93
+        ],
+        "allocated_without_base": []
+      },
+      {
+        "task": 4,
+        "allocated": 90,
+        "trained": 89,
+        "dropped_since_previous": [
+          5,
+          15,
+          50,
+          64,
+          72,
+          88,
+          99
+        ],
+        "allocated_without_base": [
+          47
+        ]
+      },
+      {
+        "task": 5,
+        "allocated": 100,
+        "trained": 98,
+        "dropped_since_previous": [],
+        "allocated_without_base": [
+          19,
+          81
+        ]
+      }
+    ],
+    "limitation": "Generator source at training commit corroborates metadata; original dataset-generation commit is not recorded."
+  },
+  "counters": {
+    "profile_local_participation_pairs": 442,
+    "covered_receiver_class_pairs": 2132,
+    "covered_rows": 7796356,
+    "missing_class_mask_receiver_class_pairs": 756,
+    "missing_class_mask_rows": 2807415,
+    "missing_class_mask_local_class_subset_pairs": 754,
+    "missing_class_mask_local_class_subset_rows": 2795524,
+    "unreachable_with_local_base_pairs": 0,
+    "unreachable_locally_active_with_birth_peer_owner_pairs": 686,
+    "unreachable_locally_active_with_birth_peer_owner_rows": 2665681,
+    "profile_skipped_task_after_join_pairs": 74,
+    "profile_skipped_task_after_join_rows": 2902000,
+    "missing_profile_not_allocated_to_task_pairs": 73,
+    "missing_profile_not_allocated_to_task_rows": 2897559,
+    "missing_profile_with_later_weight_catchup_pairs": 74,
+    "missing_profile_with_later_weight_catchup_rows": 2902000,
+    "catchup_source_had_missing_profile_pairs": 74,
+    "catchup_source_had_missing_profile_rows": 2902000,
+    "missing_profile_receiver_class_pairs": 444,
+    "missing_profile_rows": 2902000,
+    "profile_exact_clone_inheritance_pairs": 72,
+    "missing_class_mask_inherited_class_subset_pairs": 2,
+    "missing_class_mask_inherited_class_subset_rows": 11891,
+    "missing_profile_allocated_without_usable_base_pairs": 1,
+    "missing_profile_allocated_without_usable_base_rows": 4441
+  },
+  "oracle_counts": {
+    "covered_global_task_oracle_tp": 7349189,
+    "covered_matched_oracle_tp": 7408838,
+    "missing_class_mask_global_task_oracle_tp": 1456009,
+    "missing_class_mask_matched_oracle_tp": 0,
+    "missing_profile_global_task_oracle_tp": 2091272,
+    "missing_profile_matched_oracle_tp": 0
+  },
+  "terminal_peer_metadata_coverage": {
+    "unreachable_with_live_peer_owner_pairs": 686,
+    "unreachable_with_live_peer_owner_rows": 3102338,
+    "unreachable_with_live_peer_owner_and_route_pairs": 686,
+    "unreachable_with_live_peer_owner_and_route_rows": 3102338
+  },
+  "per_task_history": [
+    {
+      "task": 0,
+      "active_clients": 50,
+      "bootstrap_policies": {
+        "initial_template": 50
+      },
+      "reconstructed_models": 50
+    },
+    {
+      "task": 1,
+      "active_clients": 60,
+      "bootstrap_policies": {
+        "representative_clone": 36
+      },
+      "reconstructed_models": 86
+    },
+    {
+      "task": 2,
+      "active_clients": 70,
+      "bootstrap_policies": {
+        "representative_clone": 9,
+        "rejoining_plastic_catch_up": 15
+      },
+      "reconstructed_models": 95
+    },
+    {
+      "task": 3,
+      "active_clients": 80,
+      "bootstrap_policies": {
+        "rejoining_plastic_catch_up": 21,
+        "representative_clone": 3
+      },
+      "reconstructed_models": 98
+    },
+    {
+      "task": 4,
+      "active_clients": 89,
+      "bootstrap_policies": {
+        "rejoining_plastic_catch_up": 16,
+        "representative_clone": 1
+      },
+      "reconstructed_models": 99
+    },
+    {
+      "task": 5,
+      "active_clients": 98,
+      "bootstrap_policies": {
+        "rejoining_plastic_catch_up": 10,
+        "representative_clone": 1
+      },
+      "reconstructed_models": 100
+    }
+  ],
+  "interpretation": {
+    "missing_profiles": "Offline at task birth; later plastic-weight catch-up does not clone the detector.",
+    "missing_class_masks": "Local task class subset or inherited source subset; registration is not aggregated.",
+    "native_fc2_transfer": "fc2 pair mask requires receiver AND sender class support; graph membership alone adds no class.",
+    "peer_owner_is_not_competence": "Metadata counts do not certify functional transfer, historical CAL authorization or safety.",
+    "oracle_is_not_deployable": "True-task/global-mask TP only measures latent capacity, not an implementable route.",
+    "foreign_profile_warning": "Partial catch-up does not align all receiver features to donor sketches; blind import is invalid."
+  },
+  "classifier_rank_audit": {
+    "passed": true,
+    "checks": {
+      "all_checkpoint_registration_matches_provenance": true,
+      "all_unreachable_rows_have_young_classifier_rank": true,
+      "all_reachable_rows_have_mature_classifier_rank": true,
+      "full_receiver_class_matrix": true,
+      "test_rows_match": true
+    },
+    "no_inference": true,
+    "no_parameter_update": true,
+    "no_raw_train_or_cal_read": true,
+    "checkpoint_hashes": {
+      "terminal_sha256": "96dcc1cdb00a4e15a7d8b917faa8b551948158a93b004cdb778e38796cd239bb",
+      "graph_sha256": "1f534e07743ccc3073afa2056b3d5c1aa73e4325f41b4a9adf81fbd69f23482d"
+    },
+    "counters": {
+      "covered_rank_5": 423,
+      "covered_rank_group_mature_test_rows": 7796356,
+      "missing_class_mask_rank_0": 756,
+      "missing_class_mask_rank_group_young_test_rows": 2807415,
+      "missing_profile_rank_0": 444,
+      "missing_profile_rank_group_young_test_rows": 2902000,
+      "covered_rank_4": 410,
+      "covered_rank_3": 412,
+      "covered_rank_2": 259,
+      "covered_rank_7": 236,
+      "covered_rank_6": 392
+    },
+    "receiver_class_pairs": 3332,
+    "interpretation": "Every unreachable class has fc2 rank 0; no mature class was hidden by registration in this fixture.",
+    "limitation": "Maturity is not a functional competence or ownership certificate. Rank 0 weights may have changed during catch-up."
+  },
+  "audit_source_sha256": {
+    "tools/audit_denice_coverage_provenance.py": "fbfd3f5e76e712059fa20e6f2062fdaf5a120803eb9ca030877192a94fd6a345",
+    "tools/audit_denice_coverage_ranks.py": "99021deaf5a4dbc750ca16253c1dad4c00a1f651c23aa1fac8ce9bcc72034f10"
+  },
+  "completed_at": "2026-10-11T00:16:02.903031+07:00",
+  "production_changes": false,
+  "coverage_fixed": false,
+  "retraining_started": false
+}

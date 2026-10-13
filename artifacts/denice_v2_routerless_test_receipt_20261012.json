@@ -1,0 +1,30 @@
+{
+  "tests": 146,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 75.19766009999967,
+  "command": "python -m unittest discover -s tests -p 'test_denice_v2_p*.py' -v",
+  "test_log_sha256": "fd657bc4304d5415f4d2e7f0150e7e112c4476b2ada14e535305c3f1042e82cd",
+  "source_sha256": {
+    "fed_learning/strategies/decentralized/denice_v2/__init__.py": "d1b27f8fe555a5f265f90f57c6bfb29ca9ef90d60da3331474da0712ddc1b246",
+    "fed_learning/strategies/decentralized/denice_v2/aggregation.py": "f5d4081fc92bfa7dafe25edd84593bc88db32323a658e56bdd8b0ad51219f75e",
+    "fed_learning/strategies/decentralized/denice_v2/contracts.py": "310ba346e1471f28f4365c9c81a5edd4075c68f7e8071c1d5e5c66942f04a4b6",
+    "fed_learning/strategies/decentralized/denice_v2/election.py": "da3b553226c8596459ccc00bd2b2d4482036d638ccab010e2c6105a4f2b2786c",
+    "fed_learning/strategies/decentralized/denice_v2/knowledge.py": "117e334c2206b7d1db8a189eab20e71b597ab5263d34f03f24731f0b711bee3e",
+    "fed_learning/strategies/decentralized/denice_v2/native.py": "da9d234324bc6f0270fe7054e05c810be8aad64c2f3cd802dd692d0bcb6562c0",
+    "fed_learning/strategies/decentralized/denice_v2/normalization.py": "479b9e40b61adc446b2e38afbd0870f4ebccc2e0917e0f36b9e126895e427e8e",
+    "fed_learning/strategies/decentralized/denice_v2/partition.py": "707bc4e5a33798f02fb54d523c0b7314d73a737f73a4304d8f5f758b218e0959",
+    "fed_learning/strategies/decentralized/denice_v2/router.py": "b632bccdd482d9373390535db3482c3bc590df8a0f0b7e5b8dcb5f1bf2dad41a",
+    "fed_learning/strategies/decentralized/denice_v2/routerless.py": "cdb013df207628e98ecff897f4b33fedf1ecfd266e043b51e87429d197bf9063",
+    "fed_learning/strategies/decentralized/denice_v2/state.py": "7eafad3458b3731367e5ad08fc6273473e4cf3a9628e1ffca8ee48b314daa838",
+    "tests/test_denice_v2_p0.py": "00749f5a62af96440c7665809213c9c403830ce5d869a27dc230bf4328f15304",
+    "tests/test_denice_v2_p1.py": "962fce75bb34b992f94c4bf0d6defbb0e7bb17b52cc6f42f01338cd320c2a66e",
+    "tests/test_denice_v2_p1_native.py": "9084c23069fd09f4dd450cd3bda97b6912110674754261078e6b964e2cb07a40",
+    "tests/test_denice_v2_p2.py": "3b6f59bb211cd3d105540f6ba32ee01782984bdc9586b8b78cc519036d1bc9d5",
+    "tests/test_denice_v2_p2_routerless.py": "9a4455d1521f141be85f0efb9aab77ba4c555c7168325d4542a9b5fc2d27ee7a",
+    "tests/test_denice_v2_p2_shallow.py": "1acd900c5a814af7282357a881796ee84e2b76beb4ac1dc856410c8beaf5f3f4",
+    "tools/run_denice_v2_routerless_smoke.py": "d1880d1be952f7e553b598f6839482651c16a7ed640d0d9eadc019e73e129726"
+  }
+}

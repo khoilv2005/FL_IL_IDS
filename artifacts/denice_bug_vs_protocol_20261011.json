@@ -1,0 +1,96 @@
+{
+  "passed": true,
+  "checks": {
+    "full_audit_complete": true,
+    "full_audit_verification": true,
+    "provenance_verified": true,
+    "classifier_ranks_verified": true,
+    "valid_scope_verified": true,
+    "same_checkpoint": true,
+    "same_role_manifest": true,
+    "same_full_audit": true,
+    "historical_source_hash:fed_learning/training/decentralized_denice_il.py": true,
+    "historical_source_hash:fed_learning/strategies/decentralized/denice_aggregation.py": true,
+    "historical_source_hash:prepare_data/step2_federated_splits.py": true,
+    "task_matrix_complete": true,
+    "class_matrix_complete": true,
+    "no_missing_local_profile": true,
+    "missing_task_count": true,
+    "missing_task_rows": true,
+    "missing_task_allocation_breakdown": true,
+    "no_local_class_hidden": true,
+    "missing_class_rows": true,
+    "full_row_accounting": true,
+    "allocator_option_is_stored_but_never_read": true,
+    "full_metrics_unchanged:BinarySelf": true,
+    "full_metrics_unchanged:MulticlassSelf": true
+  },
+  "checks_passed": 23,
+  "checks_total": 23,
+  "training_commit": "4a45a7176ac4f8cb8671dba83f3e52071e44a3ca",
+  "findings": {
+    "coverage": "PROTOCOL_BEHAVIOR_NOT_PROVEN_BUG",
+    "registration_or_restore_loss": "NOT_OBSERVED_IN_AUDITED_FIXTURE",
+    "routing": "EMPIRICAL_ALGORITHM_LIMITATION_CODE_DEFECT_NOT_ESTABLISHED",
+    "rare_class_classifier": "FAILURE_OBSERVED_CAUSE_NOT_IDENTIFIED",
+    "allocator_configuration": {
+      "name": "old_client_data_prob",
+      "source": "prepare_data/step2_federated_splits.py",
+      "commit": "4a45a7176ac4f8cb8671dba83f3e52071e44a3ca",
+      "stores": [
+        168
+      ],
+      "reads": [],
+      "dataset_value": 1.0,
+      "producer_commit_known": false,
+      "finding": "CONFIG_OPTION_INERT_IN_AUDITED_ALLOCATOR",
+      "impact_on_existing_dataset": "NOT_CAUSALLY_ESTABLISHED"
+    },
+    "forgetting": "NOT_MEASURED",
+    "collaboration_negative_transfer": "NOT_IDENTIFIED"
+  },
+  "metrics": {
+    "BinarySelf": {
+      "full_accuracy": 0.3124458425957319,
+      "registered_accuracy": 0.5412556840657353,
+      "registered_samples": 7796356,
+      "registered_oracle_accuracy": 0.9502949839643033,
+      "registered_macro_f1_34": 0.26310005813930804,
+      "registered_oracle_macro_f1_34": 0.6334481179274059,
+      "registered_errors": 3576534,
+      "routing_errors": 3189016,
+      "routing_fraction_of_registered_errors": 0.8916498487082746,
+      "classifier_errors": 387518
+    },
+    "MulticlassSelf": {
+      "full_accuracy": 0.3714629842309632,
+      "registered_accuracy": 0.6434921648010943,
+      "registered_samples": 7796356,
+      "registered_oracle_accuracy": 0.9502949839643033,
+      "registered_macro_f1_34": 0.3476115640500069,
+      "registered_oracle_macro_f1_34": 0.6334481179274059,
+      "registered_errors": 2779462,
+      "routing_errors": 2391944,
+      "routing_fraction_of_registered_errors": 0.8605780543141083,
+      "classifier_errors": 387518
+    }
+  },
+  "limitations": [
+    "Receipt checks do not prove every training component is bug-free.",
+    "Original dataset producer commit is unavailable; do not regenerate splits.",
+    "No matched task-end evaluation or no-collaboration control was added.",
+    "Routing accuracy below oracle does not alone prove a software defect."
+  ],
+  "no_training": true,
+  "no_new_inference": true,
+  "no_raw_train_or_cal_read": true,
+  "production_changed": false,
+  "source_sha256": {
+    "artifacts/denice_coverage_provenance_20261011.json": "392f78724ae74454ef1e2cb2ee42b0f24046c27281659798013f6f360c405a19",
+    "artifacts/denice_valid_scope_20261011.json": "2526c329154da9980958134bdd9a6348087b3fd4375fcac4e4690ad5d00924da",
+    "audit_denice\\denice_bottleneck_20261010\\full_cuda\\verification.json": "7af1347452bb5b600026cb579e04a61fe898f9dbe2efb67f6adf12a4313d48c5",
+    "audit_denice\\denice_coverage_provenance_20261011_v2\\receiver_task_provenance.csv": "0551344fc4ed0020cc76479e6b9d60bff1fb495c115c04754e153c7f3614ea53",
+    "audit_denice\\denice_coverage_provenance_20261011_v2\\receiver_class_coverage.csv": "19cabc7063a483b6da7a987916a76604d0010a55e27392b50feb751407dd2039",
+    "E:\\School\\UIT\\FL_IL_IDS\\tools\\audit_denice_bug_vs_protocol.py": "3d243fb812da2436681f3812f0c2e3f850fe53e23615e8054a221a61da93ff68"
+  }
+}

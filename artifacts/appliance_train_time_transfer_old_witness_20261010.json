@@ -1,0 +1,708 @@
+{
+  "completed": true,
+  "protocol": {
+    "kind": "metadata-selected graph-witness old FIT qualification",
+    "terminal_sha256": "b057f27a763b63bd5ffff936926f5e7d4bb0696c07b35ada8c2d4de209799a87",
+    "graph_sha256": "0c4c7acd41b31627ef32591c31aa72d561adfc2721028dead91e459d697d3a22",
+    "prepared_completion_sha256": "6b7b3b99f69019515d56ed7bf1bf30c812902734bcc4764545e9fba7f5141603",
+    "rules": {
+      "version": "appliance_train_time_readout_v1",
+      "seed": 42,
+      "steps": 128,
+      "integration_steps": 64,
+      "learning_rate": 0.02,
+      "parameter_l2": 0.001,
+      "old_probability_regularization": 1.0,
+      "cap_BASE_per_class": 1024,
+      "cap_development_per_owner_class": 256,
+      "batch_size": 256,
+      "min_target_recall": 0.95,
+      "max_current_negative_FAR": 0.001,
+      "max_current_break": 0,
+      "max_development_old_accuracy_drop": 0.01,
+      "max_development_old_false_positive_rate": 0.001
+    },
+    "witness_owners": [
+      78
+    ],
+    "missing_old_classes_by_role_metadata": [],
+    "selection": "greedy old FIT class coverage; capped row capacity; owner ID tie",
+    "peer_alphas": {
+      "78": 0.019677100422437872
+    },
+    "historical_CAL_reads": 0,
+    "new_CAL_reads": 0,
+    "refitting": false,
+    "hyperparameters_changed": false,
+    "historical_FIT_is_offline_diagnostic": true,
+    "current_CAL_results_reused_not_replication": true,
+    "raw_examples_sent": false,
+    "independence_claim": false,
+    "production_install_authorized": false,
+    "population_FAR_claim": false,
+    "final_test_opened": false
+  },
+  "reports": [
+    {
+      "pair": {
+        "receiver": 2,
+        "donor": 62,
+        "class_id": 6
+      },
+      "current_CAL": {
+        "2": {
+          "primary_all_seen": {
+            "rows": 565,
+            "positive_rows": 0,
+            "negative_rows": 565,
+            "accuracy_before": 0.9893805309734514,
+            "accuracy_after": 0.9893805309734514,
+            "target_recall_before": null,
+            "target_recall": null,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "9": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 0,
+            "correct_delta": 0,
+            "negative_break": 0
+          },
+          "secondary_existing_router": {
+            "rows": 565,
+            "positive_rows": 0,
+            "negative_rows": 565,
+            "accuracy_before": 0.8955752212389381,
+            "accuracy_after": 0.8955752212389381,
+            "target_recall_before": null,
+            "target_recall": null,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "9": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 0,
+            "correct_delta": 0,
+            "negative_break": 0
+          }
+        },
+        "62": {
+          "primary_all_seen": {
+            "rows": 1187,
+            "positive_rows": 589,
+            "negative_rows": 598,
+            "accuracy_before": 0.4995787700084246,
+            "accuracy_after": 0.9949452401010952,
+            "target_recall_before": 0.0,
+            "target_recall": 0.99830220713073,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 588,
+            "break_count": 0,
+            "correct_delta": 588,
+            "negative_break": 0
+          },
+          "secondary_existing_router": {
+            "rows": 1187,
+            "positive_rows": 589,
+            "negative_rows": 598,
+            "accuracy_before": 0.3016006739679865,
+            "accuracy_after": 0.7885425442291492,
+            "target_recall_before": 0.0,
+            "target_recall": 0.9813242784380306,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 578,
+            "break_count": 0,
+            "correct_delta": 578,
+            "negative_break": 0
+          }
+        }
+      },
+      "current_CAL_pass": true,
+      "initial_development": {
+        "2": {
+          "primary_all_seen": {
+            "rows": 830,
+            "positive_rows": 0,
+            "negative_rows": 830,
+            "accuracy_before": 0.9506024096385542,
+            "accuracy_after": 0.9506024096385542,
+            "target_recall_before": null,
+            "target_recall": null,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "9": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 0,
+            "correct_delta": 0,
+            "negative_break": 0
+          },
+          "secondary_existing_router": {
+            "rows": 830,
+            "positive_rows": 0,
+            "negative_rows": 830,
+            "accuracy_before": 0.8060240963855422,
+            "accuracy_after": 0.8060240963855422,
+            "target_recall_before": null,
+            "target_recall": null,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "9": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 0,
+            "correct_delta": 0,
+            "negative_break": 0
+          }
+        },
+        "62": {
+          "primary_all_seen": {
+            "rows": 1254,
+            "positive_rows": 256,
+            "negative_rows": 998,
+            "accuracy_before": 0.7854864433811802,
+            "accuracy_after": 0.988835725677831,
+            "target_recall_before": 0.0,
+            "target_recall": 0.99609375,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 255,
+            "break_count": 0,
+            "correct_delta": 255,
+            "negative_break": 0
+          },
+          "secondary_existing_router": {
+            "rows": 1254,
+            "positive_rows": 256,
+            "negative_rows": 998,
+            "accuracy_before": 0.47767145135566186,
+            "accuracy_after": 0.6738437001594896,
+            "target_recall_before": 0.0,
+            "target_recall": 0.9609375,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 246,
+            "break_count": 0,
+            "correct_delta": 246,
+            "negative_break": 0
+          }
+        }
+      },
+      "old_witness_development": {
+        "78": {
+          "metrics": {
+            "primary_all_seen": {
+              "rows": 609,
+              "positive_rows": 0,
+              "negative_rows": 609,
+              "accuracy_before": 0.8325123152709359,
+              "accuracy_after": 0.8292282430213465,
+              "target_recall_before": null,
+              "target_recall": null,
+              "negative_FAR": 0.008210180623973728,
+              "negative_FAR_by_class": {
+                "0": 0.0,
+                "1": 0.0078125,
+                "2": 0.0,
+                "3": 0.0379746835443038,
+                "4": 0.0,
+                "5": 0.0
+              },
+              "old_rows": 609,
+              "old_accuracy_before": 0.8325123152709359,
+              "old_accuracy_after": 0.8292282430213465,
+              "old_false_positive_rate": 0.008210180623973728,
+              "rescue": 0,
+              "break_count": 2,
+              "correct_delta": -2,
+              "negative_break": 2
+            },
+            "secondary_existing_router": {
+              "rows": 609,
+              "positive_rows": 0,
+              "negative_rows": 609,
+              "accuracy_before": 0.5155993431855501,
+              "accuracy_after": 0.5155993431855501,
+              "target_recall_before": null,
+              "target_recall": null,
+              "negative_FAR": 0.0,
+              "negative_FAR_by_class": {
+                "0": 0.0,
+                "1": 0.0,
+                "2": 0.0,
+                "3": 0.0,
+                "4": 0.0,
+                "5": 0.0
+              },
+              "old_rows": 609,
+              "old_accuracy_before": 0.5155993431855501,
+              "old_accuracy_after": 0.5155993431855501,
+              "old_false_positive_rate": 0.0,
+              "rescue": 0,
+              "break_count": 0,
+              "correct_delta": 0,
+              "negative_break": 0
+            }
+          },
+          "class_rows": {
+            "0": 9,
+            "1": 256,
+            "2": 5,
+            "3": 79,
+            "4": 256,
+            "5": 4
+          },
+          "classes_below32": [
+            0,
+            2,
+            5
+          ]
+        }
+      },
+      "old_risk": {
+        "rows": 609,
+        "accuracy_before": 0.8325123152709359,
+        "accuracy_after": 0.8292282430213465,
+        "accuracy_drop": 0.003284072249589491,
+        "false_positives": 5,
+        "false_positive_rate": 0.008210180623973728,
+        "present_old_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "missing_old_classes": [],
+        "all_observed_owner_class_FAR_pass": false,
+        "empirical_development_risk_pass": false,
+        "strict_safety_certified": false,
+        "raw_CAL_read": false
+      },
+      "useful_prototype": false,
+      "candidate_function_binding_verified": true,
+      "transfer_communication": {
+        "application_egress_bytes": 6688161,
+        "sent": {
+          "2": 6685240,
+          "62": 2921
+        },
+        "received": {
+          "62": 6685240,
+          "2": 2921
+        },
+        "retained_base_exchange_measured": false,
+        "limitation": "Pairwise simulated application payload only; no network, security or full-round baseline-byte claim"
+      },
+      "capability_bytes": 2921,
+      "qualification_cost_separate": "local offline emulator; endpoint capsules/aggregate wire not implemented, no production communication claim",
+      "decision": "rollback_do_not_integrate",
+      "production_install_authorized": false,
+      "old_raw_CAL_reads": 0
+    },
+    {
+      "pair": {
+        "receiver": 2,
+        "donor": 64,
+        "class_id": 8
+      },
+      "current_CAL": {
+        "2": {
+          "primary_all_seen": {
+            "rows": 565,
+            "positive_rows": 0,
+            "negative_rows": 565,
+            "accuracy_before": 0.9893805309734514,
+            "accuracy_after": 0.9893805309734514,
+            "target_recall_before": null,
+            "target_recall": null,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "9": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 0,
+            "correct_delta": 0,
+            "negative_break": 0
+          },
+          "secondary_existing_router": {
+            "rows": 565,
+            "positive_rows": 0,
+            "negative_rows": 565,
+            "accuracy_before": 0.8955752212389381,
+            "accuracy_after": 0.8955752212389381,
+            "target_recall_before": null,
+            "target_recall": null,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "9": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 0,
+            "correct_delta": 0,
+            "negative_break": 0
+          }
+        },
+        "64": {
+          "primary_all_seen": {
+            "rows": 807,
+            "positive_rows": 123,
+            "negative_rows": 684,
+            "accuracy_before": 0.27757125154894674,
+            "accuracy_after": 0.2503097893432466,
+            "target_recall_before": 0.959349593495935,
+            "target_recall": 0.7804878048780488,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "6": 0.0,
+              "7": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 22,
+            "correct_delta": -22,
+            "negative_break": 0
+          },
+          "secondary_existing_router": {
+            "rows": 807,
+            "positive_rows": 123,
+            "negative_rows": 684,
+            "accuracy_before": 0.08550185873605948,
+            "accuracy_after": 0.22428748451053285,
+            "target_recall_before": 0.0,
+            "target_recall": 0.9105691056910569,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "6": 0.0,
+              "7": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 112,
+            "break_count": 0,
+            "correct_delta": 112,
+            "negative_break": 0
+          }
+        }
+      },
+      "current_CAL_pass": false,
+      "initial_development": {
+        "2": {
+          "primary_all_seen": {
+            "rows": 830,
+            "positive_rows": 0,
+            "negative_rows": 830,
+            "accuracy_before": 0.9506024096385542,
+            "accuracy_after": 0.9506024096385542,
+            "target_recall_before": null,
+            "target_recall": null,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "9": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 0,
+            "correct_delta": 0,
+            "negative_break": 0
+          },
+          "secondary_existing_router": {
+            "rows": 830,
+            "positive_rows": 0,
+            "negative_rows": 830,
+            "accuracy_before": 0.8060240963855422,
+            "accuracy_after": 0.8060240963855422,
+            "target_recall_before": null,
+            "target_recall": null,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "7": 0.0,
+              "9": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 0,
+            "old_accuracy_before": null,
+            "old_accuracy_after": null,
+            "old_false_positive_rate": null,
+            "rescue": 0,
+            "break_count": 0,
+            "correct_delta": 0,
+            "negative_break": 0
+          }
+        },
+        "64": {
+          "primary_all_seen": {
+            "rows": 1519,
+            "positive_rows": 256,
+            "negative_rows": 1263,
+            "accuracy_before": 0.7412771560236998,
+            "accuracy_after": 0.7261356155365372,
+            "target_recall_before": 0.953125,
+            "target_recall": 0.86328125,
+            "negative_FAR": 0.0,
+            "negative_FAR_by_class": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "4": 0.0,
+              "5": 0.0,
+              "6": 0.0,
+              "7": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 490,
+            "old_accuracy_before": 0.7653061224489796,
+            "old_accuracy_after": 0.7653061224489796,
+            "old_false_positive_rate": 0.0,
+            "rescue": 5,
+            "break_count": 28,
+            "correct_delta": -23,
+            "negative_break": 0
+          },
+          "secondary_existing_router": {
+            "rows": 1519,
+            "positive_rows": 256,
+            "negative_rows": 1263,
+            "accuracy_before": 0.4470046082949309,
+            "accuracy_after": 0.5990783410138248,
+            "target_recall_before": 0.0,
+            "target_recall": 0.90234375,
+            "negative_FAR": 0.001583531274742676,
+            "negative_FAR_by_class": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.0,
+              "4": 0.016260162601626018,
+              "5": 0.0,
+              "6": 0.0,
+              "7": 0.0,
+              "10": 0.0,
+              "11": 0.0
+            },
+            "old_rows": 490,
+            "old_accuracy_before": 0.5775510204081633,
+            "old_accuracy_after": 0.5775510204081633,
+            "old_false_positive_rate": 0.004081632653061225,
+            "rescue": 231,
+            "break_count": 0,
+            "correct_delta": 231,
+            "negative_break": 0
+          }
+        }
+      },
+      "old_witness_development": {
+        "78": {
+          "metrics": {
+            "primary_all_seen": {
+              "rows": 609,
+              "positive_rows": 0,
+              "negative_rows": 609,
+              "accuracy_before": 0.8325123152709359,
+              "accuracy_after": 0.8325123152709359,
+              "target_recall_before": null,
+              "target_recall": null,
+              "negative_FAR": 0.0,
+              "negative_FAR_by_class": {
+                "0": 0.0,
+                "1": 0.0,
+                "2": 0.0,
+                "3": 0.0,
+                "4": 0.0,
+                "5": 0.0
+              },
+              "old_rows": 609,
+              "old_accuracy_before": 0.8325123152709359,
+              "old_accuracy_after": 0.8325123152709359,
+              "old_false_positive_rate": 0.0,
+              "rescue": 0,
+              "break_count": 0,
+              "correct_delta": 0,
+              "negative_break": 0
+            },
+            "secondary_existing_router": {
+              "rows": 609,
+              "positive_rows": 0,
+              "negative_rows": 609,
+              "accuracy_before": 0.5155993431855501,
+              "accuracy_after": 0.5155993431855501,
+              "target_recall_before": null,
+              "target_recall": null,
+              "negative_FAR": 0.0,
+              "negative_FAR_by_class": {
+                "0": 0.0,
+                "1": 0.0,
+                "2": 0.0,
+                "3": 0.0,
+                "4": 0.0,
+                "5": 0.0
+              },
+              "old_rows": 609,
+              "old_accuracy_before": 0.5155993431855501,
+              "old_accuracy_after": 0.5155993431855501,
+              "old_false_positive_rate": 0.0,
+              "rescue": 0,
+              "break_count": 0,
+              "correct_delta": 0,
+              "negative_break": 0
+            }
+          },
+          "class_rows": {
+            "0": 9,
+            "1": 256,
+            "2": 5,
+            "3": 79,
+            "4": 256,
+            "5": 4
+          },
+          "classes_below32": [
+            0,
+            2,
+            5
+          ]
+        }
+      },
+      "old_risk": {
+        "rows": 609,
+        "accuracy_before": 0.8325123152709359,
+        "accuracy_after": 0.8325123152709359,
+        "accuracy_drop": 0.0,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "present_old_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "missing_old_classes": [],
+        "all_observed_owner_class_FAR_pass": true,
+        "empirical_development_risk_pass": true,
+        "strict_safety_certified": false,
+        "raw_CAL_read": false
+      },
+      "useful_prototype": false,
+      "candidate_function_binding_verified": true,
+      "transfer_communication": {
+        "application_egress_bytes": 6688161,
+        "sent": {
+          "2": 6685240,
+          "64": 2921
+        },
+        "received": {
+          "64": 6685240,
+          "2": 2921
+        },
+        "retained_base_exchange_measured": false,
+        "limitation": "Pairwise simulated application payload only; no network, security or full-round baseline-byte claim"
+      },
+      "capability_bytes": 2921,
+      "qualification_cost_separate": "local offline emulator; endpoint capsules/aggregate wire not implemented, no production communication claim",
+      "decision": "rollback_do_not_integrate",
+      "production_install_authorized": false,
+      "old_raw_CAL_reads": 0
+    }
+  ],
+  "useful_prototypes": 0,
+  "native_survival_verified": false,
+  "production_ready": false,
+  "full_training_started": false,
+  "final_test_opened": false
+}

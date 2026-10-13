@@ -16,8 +16,10 @@ from fed_learning.training.denice_eval import _denice_routed_logits_with_episode
 
 
 def validate_config(config):
-    if not config.get('appliance_enabled', False):
+    if not config.get('denice_appliance_enabled', False):
         return
+    if config.get('appliance_enabled', False):
+        raise ValueError('The DENICE row overlay and upstream APPLIANCE service cannot run together')
     required = {'mode': 'decentralized', 'algorithm': 'denice',
                 'denice_clustering_mode': 'adaptive_ap',
                 'denice_shared_context_eval': False, 'denice_eval_route_mode': 'hard',

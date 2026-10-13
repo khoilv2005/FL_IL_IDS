@@ -1,0 +1,827 @@
+{
+  "kind": "APPLIANCE discriminative linear guard; development only",
+  "protocol": {
+    "receiver": 65,
+    "donor": 88,
+    "class_id": 20,
+    "dimension": 16,
+    "ridge": 0.001,
+    "model": "balanced linear ridge; no MLP or parameter sweep",
+    "negative_fit": "peer-owned BASE moments only, all supported classes except target",
+    "negative_class_weight": "equal class mass, within class weighted by usable row counts",
+    "linear_score_floor": 0.0,
+    "current_CAL_recall_gate": 0.95,
+    "FAR_budget": 0.001,
+    "max_break": 0,
+    "validation_rule": "skip first 256 rows/class previously inspected; take next 512",
+    "content_overlap": "report exact BASE/FIT overlap; no post-score filtering or independent-test claim",
+    "validation_used_for_threshold_selection": false,
+    "production_enabled": false,
+    "retrospective_summary_simulation": true,
+    "historical_raw_CAL_opened": false,
+    "historical_summary_not_present_in_original_checkpoint": true,
+    "test_opened": false
+  },
+  "guard": {
+    "version": "appliance_discriminative_sketch_ridge_v1",
+    "method": "balanced standardized ridge least squares from sufficient statistics",
+    "ridge": 0.001,
+    "weight": [
+      -1.0963947772979736,
+      -0.8469564914703369,
+      0.3042735755443573,
+      1.1336281299591064,
+      0.8950070738792419,
+      0.6622867584228516,
+      1.7242214679718018,
+      -0.07921131700277328,
+      1.1094677448272705,
+      0.21379901468753815,
+      -0.26119738817214966,
+      0.6558213829994202,
+      1.2138891220092773,
+      -0.5331675410270691,
+      -1.5167670249938965,
+      -0.3605578541755676
+    ],
+    "bias": -0.595697820186615,
+    "binding": {
+      "receiver": 65,
+      "donor": 88,
+      "class_id": 20,
+      "task": 3,
+      "round": 19,
+      "authorized_sources": [
+        52,
+        88,
+        89
+      ],
+      "sketch": {
+        "kind": "shared_sketch",
+        "input_shape": [
+          39,
+          1
+        ],
+        "dimension": 16,
+        "seed": 20261008,
+        "preprocessing_sha256": "3130588004269bd1006fb239070132d5acf494a1a532e136473f602222c8c08a",
+        "projection_algorithm": "numpy PCG64 integers -> {-1,+1} FP32",
+        "projection_sha256": "a8b1d139c0a9ae30dc570129f3ad58ff302903f842c3eaaaff33a4d321a7a985",
+        "local_generated_matrix_bytes": 2496,
+        "encoder_transfer_bytes": 0,
+        "input_width": 39
+      },
+      "role_sha": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+      "receiver_function": "f7c0e97e55f22274632c9ebae16fbab332fc8774",
+      "patch_head": "79bec784d8154851fe671c9657b6abeb977fbedb",
+      "fixed_margin_reference": [
+        18,
+        19,
+        21
+      ],
+      "owned_veto": "e271cad1b7fe359b9814b14b12be79cd3b00a31b",
+      "required_old_classes": [
+        0,
+        2,
+        4,
+        5,
+        12,
+        14,
+        15,
+        16
+      ],
+      "positive_FIT_rows_sha256": "221eee347fb15533fb4d90c940bed1cfa65ed86e9d47de452433cf89eadcbfa8",
+      "code_sha256": "e5c0fce3bda58d22664bbc3e28bf21c78593b30df8298df925ce71b255223988"
+    },
+    "positive_valid_rows": 306,
+    "negative_classes": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15,
+      17,
+      18,
+      19,
+      21,
+      22,
+      23
+    ],
+    "negative_packet_digests": [
+      "05612d1d90442670704ccd019a29eed85c5ef422",
+      "cb65dda29018e34596938558b7229ef5ff4ce47c",
+      "ec35324c57bda810a43b3a4a0199708577dcab81"
+    ],
+    "positive_moments_digest": "32edf90a3033a67a25a7fa62f33f8bf50288d0ea",
+    "individual_negative_features_retained": 0,
+    "inference_requires_labels": false,
+    "score": "tanh(linear), ranking score; not calibrated probability",
+    "state_digest": "4f2f812b82a0c1a195cf5ac67400486c353b4f6a"
+  },
+  "threshold_lock": {
+    "binding": {
+      "receiver": 65,
+      "donor": 88,
+      "class_id": 20,
+      "task": 3,
+      "round": 19,
+      "authorized_sources": [
+        52,
+        88,
+        89
+      ],
+      "sketch": {
+        "kind": "shared_sketch",
+        "input_shape": [
+          39,
+          1
+        ],
+        "dimension": 16,
+        "seed": 20261008,
+        "preprocessing_sha256": "3130588004269bd1006fb239070132d5acf494a1a532e136473f602222c8c08a",
+        "projection_algorithm": "numpy PCG64 integers -> {-1,+1} FP32",
+        "projection_sha256": "a8b1d139c0a9ae30dc570129f3ad58ff302903f842c3eaaaff33a4d321a7a985",
+        "local_generated_matrix_bytes": 2496,
+        "encoder_transfer_bytes": 0,
+        "input_width": 39
+      },
+      "role_sha": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+      "receiver_function": "f7c0e97e55f22274632c9ebae16fbab332fc8774",
+      "patch_head": "79bec784d8154851fe671c9657b6abeb977fbedb",
+      "fixed_margin_reference": [
+        18,
+        19,
+        21
+      ],
+      "owned_veto": "e271cad1b7fe359b9814b14b12be79cd3b00a31b",
+      "required_old_classes": [
+        0,
+        2,
+        4,
+        5,
+        12,
+        14,
+        15,
+        16
+      ],
+      "positive_FIT_rows_sha256": "221eee347fb15533fb4d90c940bed1cfa65ed86e9d47de452433cf89eadcbfa8",
+      "code_sha256": "e5c0fce3bda58d22664bbc3e28bf21c78593b30df8298df925ce71b255223988"
+    },
+    "linear_guard": "4f2f812b82a0c1a195cf5ac67400486c353b4f6a",
+    "selected": {
+      "tau": 0.0,
+      "gamma": 21.346172332763672,
+      "beta": 1.0,
+      "grid_id": "ab604076b4f17c8f43e9bde3041099ce7672081f34f0e1ac686305dad296d321",
+      "index": 15,
+      "selection_positive_rows": 153,
+      "selection_target_activations": 141,
+      "receiver_rows": 46,
+      "receiver_false_activations": 0,
+      "pooled_break": 0,
+      "selection_locked_before_holdout": true
+    },
+    "policy": "experimental_discriminative_linear_guard_v1",
+    "activation": "valid sketch AND cosine>FIT floor AND no owned veto AND tanh(linear)>tau AND patch_margin>gamma",
+    "cosine_floor": 0.1398645043373108,
+    "session": {
+      "receiver": 65,
+      "donor": 88,
+      "class_id": 20,
+      "task": 3,
+      "round_id": 19,
+      "current_classes": [
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "receiver_snapshot_sha": "f7c0e97e55f22274632c9ebae16fbab332fc8774",
+      "capability_sha": "53737628e376ce8e7a2b29041cf1338d11d12b3c",
+      "role_manifest_sha": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+      "nonce": "linear-only-holdout",
+      "protocol": "appliance_current_client_calibration_v1"
+    },
+    "production_enabled": false,
+    "old_CUDA_certificate_revalidated": false,
+    "peer_negative_budget": 0.001,
+    "max_break": 0,
+    "thresholds_locked_before_HOLDOUT_and_validation": true
+  },
+  "completion": {
+    "completed": true,
+    "controls": {
+      "capsule_restores_identical_receiver": true,
+      "peer_52_historical_BASE_runtime_rejected": true,
+      "peer_88_historical_BASE_runtime_rejected": true,
+      "peer_89_historical_BASE_runtime_rejected": true,
+      "save_restore_exact": true,
+      "capability_head_restores_exact": true,
+      "coefficient_tamper_rejected": true,
+      "function_version_change_rejected": true,
+      "nonfinite_input_rejected": true,
+      "outside_graph_source_rejected": true,
+      "negative_source_version_change_rejected": true,
+      "negative_role_change_rejected": true,
+      "feature_space_change_rejected": true,
+      "label_blind_inputs": true,
+      "CAL_roles_disjoint": true,
+      "receiver_unchanged": true,
+      "no_individual_negative_rows_in_packets": true
+    },
+    "acceptance": {
+      "passed_current_scope": true,
+      "recall": 0.9869281045751634,
+      "receiver_far": 0.0,
+      "receiver_far_by_class": {
+        "18": 0.0,
+        "19": 0.0,
+        "21": 0.0
+      },
+      "break_count": 0,
+      "rescue": 151,
+      "positive_rows": 153,
+      "receiver_rows": 48,
+      "historical_classes_certified": false,
+      "main_install_authorized": false,
+      "session_id": "b994508b57480e4c12769a4017633b885adf910dca02b2ca8ce30ffb589d3a02",
+      "guard_id": "8188b2cd3c1e12a94a5479e3ab881fb31af3de7ce8e5c5052a7c35dcaa232d92",
+      "thresholds_retuned": false,
+      "limitation": "current task only; cannot certify all old classes or positive function after backbone drift"
+    },
+    "peer_negatives_passed": false,
+    "development_gate_passed": false,
+    "results": [
+      {
+        "pool": "receiver_validation_tail",
+        "owner": 65,
+        "rows": 1789,
+        "target_rows": 0,
+        "original_route_activations": 0,
+        "original_route_false_activations": 0,
+        "activations": 0,
+        "false_activations": 0,
+        "negative_rows": 1789,
+        "far": 0.0,
+        "target_recall": null,
+        "per_class": {
+          "12": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.9316293530782052,
+              -0.8662883457747124,
+              -0.8162498914967189,
+              -0.503288378077453,
+              0.1806468524078732
+            ]
+          },
+          "14": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.7572195074636717,
+              -0.732525348310254,
+              -0.6907452178098694,
+              -0.5826306836761366,
+              -0.1376489721045885
+            ]
+          },
+          "15": {
+            "rows": 253,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.7940537474382364,
+              -0.7303001142260124,
+              -0.710519557785966,
+              -0.6657856999118644,
+              0.13805704784263914
+            ]
+          },
+          "21": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.8726356773254526,
+              -0.7914205134406201,
+              -0.7235854854962169,
+              -0.6494138708883962,
+              -0.34690724534892214
+            ]
+          }
+        },
+        "transitions": {
+          "rescue": 0,
+          "break_count": 0,
+          "wrong_wrong": 558,
+          "correct_correct": 1231,
+          "rows": 1789,
+          "before_correct": 1231,
+          "after_correct": 1231,
+          "before_accuracy": 0.6880939072107323,
+          "after_accuracy": 0.6880939072107323,
+          "delta_correct": 0,
+          "delta_accuracy": 0.0,
+          "identity_exact": true,
+          "changed_wrong": 0,
+          "harmless_changed": 0,
+          "unchanged_rows": 1789
+        },
+        "passed_negative_gate": true,
+        "declared_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ],
+        "missing_tail_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          13,
+          16,
+          17,
+          18,
+          19,
+          20,
+          22,
+          23
+        ],
+        "exact_content_overlap_with_guard_training": 0,
+        "role_row_disjoint_from_guard_training": true,
+        "independent_content_holdout_claim": false,
+        "validation_not_CAL_certificate": true
+      },
+      {
+        "pool": "donor_positive_validation_tail",
+        "owner": 88,
+        "rows": 512,
+        "target_rows": 512,
+        "original_route_activations": 464,
+        "original_route_false_activations": 0,
+        "activations": 464,
+        "false_activations": 0,
+        "negative_rows": 0,
+        "far": 0.0,
+        "target_recall": 0.90625,
+        "per_class": {
+          "20": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 464,
+            "original_activations": 464,
+            "linear_score_quantiles": [
+              -0.5790575344441915,
+              0.21418986524259256,
+              0.714734066206981,
+              0.7774512473276598,
+              0.8335600579689217
+            ]
+          }
+        },
+        "transitions": {
+          "rescue": 464,
+          "break_count": 0,
+          "wrong_wrong": 48,
+          "correct_correct": 0,
+          "rows": 512,
+          "before_correct": 0,
+          "after_correct": 464,
+          "before_accuracy": 0.0,
+          "after_accuracy": 0.90625,
+          "delta_correct": 464,
+          "delta_accuracy": 0.90625,
+          "identity_exact": true,
+          "changed_wrong": 0,
+          "harmless_changed": 0,
+          "unchanged_rows": 48
+        },
+        "passed_negative_gate": true,
+        "declared_classes": [
+          20
+        ],
+        "missing_tail_classes": [],
+        "exact_content_overlap_with_guard_training": 0,
+        "role_row_disjoint_from_guard_training": true,
+        "independent_content_holdout_claim": false,
+        "validation_not_CAL_certificate": true
+      },
+      {
+        "pool": "peer_52_negative_validation_tail",
+        "owner": 52,
+        "rows": 1536,
+        "target_rows": 0,
+        "original_route_activations": 502,
+        "original_route_false_activations": 502,
+        "activations": 501,
+        "false_activations": 501,
+        "negative_rows": 1536,
+        "far": 0.326171875,
+        "target_recall": null,
+        "per_class": {
+          "1": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.9345828633196737,
+              -0.8723891562360344,
+              -0.7231735601623132,
+              -0.5701487359448114,
+              0.017121549010652985
+            ]
+          },
+          "12": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.9317881221982016,
+              -0.8771513147851372,
+              -0.8179261596302929,
+              -0.499265634559177,
+              0.31461222040754405
+            ]
+          },
+          "13": {
+            "rows": 512,
+            "false_activation": 501,
+            "activations": 501,
+            "original_activations": 502,
+            "linear_score_quantiles": [
+              -0.6086783465981738,
+              0.49731574294483305,
+              0.6828646748793126,
+              0.7714512153257335,
+              0.8162829526203312
+            ]
+          }
+        },
+        "transitions": {
+          "rescue": 0,
+          "break_count": 0,
+          "wrong_wrong": 1043,
+          "correct_correct": 493,
+          "rows": 1536,
+          "before_correct": 493,
+          "after_correct": 493,
+          "before_accuracy": 0.3209635416666667,
+          "after_accuracy": 0.3209635416666667,
+          "delta_correct": 0,
+          "delta_accuracy": 0.0,
+          "identity_exact": true,
+          "changed_wrong": 501,
+          "harmless_changed": 0,
+          "unchanged_rows": 1035
+        },
+        "passed_negative_gate": false,
+        "declared_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          12,
+          13,
+          15,
+          17
+        ],
+        "missing_tail_classes": [
+          0,
+          2,
+          3,
+          4,
+          15,
+          17
+        ],
+        "exact_content_overlap_with_guard_training": 0,
+        "role_row_disjoint_from_guard_training": true,
+        "independent_content_holdout_claim": false,
+        "validation_not_CAL_certificate": true
+      },
+      {
+        "pool": "peer_88_negative_validation_tail",
+        "owner": 88,
+        "rows": 1276,
+        "target_rows": 0,
+        "original_route_activations": 505,
+        "original_route_false_activations": 505,
+        "activations": 501,
+        "false_activations": 501,
+        "negative_rows": 1276,
+        "far": 0.3926332288401254,
+        "target_recall": null,
+        "per_class": {
+          "12": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 1,
+            "linear_score_quantiles": [
+              -0.9323431997291022,
+              -0.858068805100159,
+              -0.8181725785929643,
+              -0.5016564066293595,
+              -0.03761328186957897
+            ]
+          },
+          "13": {
+            "rows": 512,
+            "false_activation": 501,
+            "activations": 501,
+            "original_activations": 504,
+            "linear_score_quantiles": [
+              -0.6086866763617796,
+              0.48983495179257447,
+              0.67686965282447,
+              0.7653551623985606,
+              0.8209443164503867
+            ]
+          },
+          "15": {
+            "rows": 252,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.8372616733245857,
+              -0.7270886194045132,
+              -0.7106990696014703,
+              -0.5706398373638483,
+              -0.10403488638644742
+            ]
+          }
+        },
+        "transitions": {
+          "rescue": 0,
+          "break_count": 0,
+          "wrong_wrong": 562,
+          "correct_correct": 714,
+          "rows": 1276,
+          "before_correct": 714,
+          "after_correct": 714,
+          "before_accuracy": 0.5595611285266457,
+          "after_accuracy": 0.5595611285266457,
+          "delta_correct": 0,
+          "delta_accuracy": 0.0,
+          "identity_exact": true,
+          "changed_wrong": 501,
+          "harmless_changed": 0,
+          "unchanged_rows": 775
+        },
+        "passed_negative_gate": false,
+        "declared_classes": [
+          0,
+          2,
+          3,
+          5,
+          12,
+          13,
+          15,
+          17
+        ],
+        "missing_tail_classes": [
+          0,
+          2,
+          3,
+          5,
+          17
+        ],
+        "exact_content_overlap_with_guard_training": 0,
+        "role_row_disjoint_from_guard_training": true,
+        "independent_content_holdout_claim": false,
+        "validation_not_CAL_certificate": true
+      },
+      {
+        "pool": "peer_89_negative_validation_tail",
+        "owner": 89,
+        "rows": 2091,
+        "target_rows": 0,
+        "original_route_activations": 505,
+        "original_route_false_activations": 505,
+        "activations": 505,
+        "false_activations": 505,
+        "negative_rows": 2091,
+        "far": 0.2415112386417982,
+        "target_recall": null,
+        "per_class": {
+          "1": {
+            "rows": 43,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.904244207823523,
+              -0.7998150766621632,
+              -0.709153373147527,
+              -0.5662739612170291,
+              -0.5559172389849824
+            ]
+          },
+          "4": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.8575466688683092,
+              -0.7000835786453701,
+              -0.6770257985573125,
+              -0.5059596916694218,
+              0.19891606607550538
+            ]
+          },
+          "12": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.9337012515353749,
+              -0.8699095204434288,
+              -0.8161053255069156,
+              -0.5044911606509654,
+              -0.023549136039216535
+            ]
+          },
+          "13": {
+            "rows": 512,
+            "false_activation": 505,
+            "activations": 505,
+            "original_activations": 505,
+            "linear_score_quantiles": [
+              -0.30782521146406466,
+              0.39994421567367294,
+              0.688114856112785,
+              0.7576269696862162,
+              0.7982438790408515
+            ]
+          },
+          "14": {
+            "rows": 512,
+            "false_activation": 0,
+            "activations": 0,
+            "original_activations": 0,
+            "linear_score_quantiles": [
+              -0.8716252038475103,
+              -0.7349592602906759,
+              -0.6921241114153285,
+              -0.5730658741200451,
+              -0.3049691372061518
+            ]
+          }
+        },
+        "transitions": {
+          "rescue": 0,
+          "break_count": 0,
+          "wrong_wrong": 1069,
+          "correct_correct": 1022,
+          "rows": 2091,
+          "before_correct": 1022,
+          "after_correct": 1022,
+          "before_accuracy": 0.4887613582018173,
+          "after_accuracy": 0.4887613582018173,
+          "delta_correct": 0,
+          "delta_accuracy": 0.0,
+          "identity_exact": true,
+          "changed_wrong": 505,
+          "harmless_changed": 0,
+          "unchanged_rows": 1586
+        },
+        "passed_negative_gate": false,
+        "declared_classes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          12,
+          13,
+          14
+        ],
+        "missing_tail_classes": [
+          0,
+          2,
+          3
+        ],
+        "exact_content_overlap_with_guard_training": 0,
+        "role_row_disjoint_from_guard_training": true,
+        "independent_content_holdout_claim": false,
+        "validation_not_CAL_certificate": true
+      }
+    ],
+    "linear_score_discrimination": {
+      "available": true,
+      "auroc": 0.85999862169845,
+      "average_precision": 0.3024539352254004,
+      "positive_rows": 512,
+      "negative_rows": 4903,
+      "scores": "linear-only, before cosine/margin/veto; descriptive, not threshold tuning"
+    },
+    "wire": {
+      "application_egress_bytes": 6926708,
+      "sent": {
+        "65": 6833610,
+        "52": 26305,
+        "88": 44204,
+        "89": 22589
+      },
+      "received": {
+        "88": 6833610,
+        "65": 93098
+      },
+      "retained_base_exchange_measured": false,
+      "limitation": "Pairwise simulated application payload only; no network, security or full-round baseline-byte claim"
+    },
+    "wire_categories": {
+      "CAL_HOLDOUT_counts": 748,
+      "CAL_SELECTION_counts": 8426,
+      "CAL_SELECTION_quantiles": 1484,
+      "complete_experimental_capability": 12835,
+      "linear_detector_and_function_binding": 2031,
+      "locked_threshold_declaration": 2171,
+      "negative_support_receipt": 1253,
+      "peer_BASE_sketch_moments_and_provenance": 68352,
+      "receiver_function_capsule": 6829408
+    },
+    "classifier_numeric_FP32_bytes": 68,
+    "measurement": "actual serialized simulator application messages; not network/TLS",
+    "raw_historical_CAL_opened": false,
+    "BASE_chronological_simulation": true,
+    "original_checkpoint_persisted_moments": false,
+    "old_CAL_holdout_previously_observed": true,
+    "validation_tail_is_development_not_final_test": true,
+    "installation_authorized": false,
+    "production_enabled": false,
+    "backbone_trained": false,
+    "next_step": "native smoke only after development protection gate passes; otherwise reconsider sketch/donor, no automatic expansion"
+  },
+  "peer_negative_rows": 4903,
+  "original_route_false_activation": 1512,
+  "linear_guard_false_activation": 1507,
+  "peer_class13_false_activation": 1507,
+  "all_evaluation_content_overlap": 0,
+  "source_sha256": {
+    "appliance/discriminative_guard.py": "e5c0fce3bda58d22664bbc3e28bf21c78593b30df8298df925ce71b255223988",
+    "tools/audit_appliance_discriminative_guard.py": "eee831c3f01782f9b7c312f064a719e3d099e83d71c29427edde2e602dde146f",
+    "tools/summarize_appliance_discriminative_development.py": "4b80e37a5baa6a7e5800875ae9717dd68152d950025c83c1bd7ee24980e6a397"
+  },
+  "lock_sha256": {
+    "protocol_before_data.json": "1379dfa38aa89178d3c31334b6b13e5700ede93781d97e80082a94ef8e68813d",
+    "linear_guard_before_SELECTION.json": "90128f43f7127940852895166f38720a5b36120539a7e6cbb6c226ae26dd1855",
+    "threshold_lock_before_HOLDOUT.json": "08e30272305ac185b71cffb711a01d8a05cd7aebbd9f749cfd7cf9af4f6b16ce"
+  },
+  "audit_source": "audit_denice\\appliance_provenance_v1\\discriminative_guard65_04",
+  "installation_authorized": false,
+  "production_enabled": false,
+  "repetitions_are_instrumentation_reruns_not_independent_seeds": true,
+  "aborted_instrumentation_run_excluded": "discriminative_guard65_03: empty content-hash slice; no completed evaluation",
+  "current_CAL_holdout_previously_observed": true,
+  "main_conclusion": "Linear guard preserves current CAL recall but fails peer-negative protection; no native/full run"
+}

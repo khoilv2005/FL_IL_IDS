@@ -250,6 +250,11 @@ Local files and checkpoints in Kaggle are visible to the notebook process. Do no
 
 ## 8. Implementation and configuration
 
+After merging the newer upstream APPLIANCE service, this row-transfer overlay
+uses `denice_appliance_enabled`. The upstream service retains `appliance_enabled`.
+The supplied preset enables only the overlay; enabling both raises an error.
+These are separate experimental methods, not interchangeable activation flags.
+
 New files:
 
 - `fed_learning/strategies/decentralized/denice_appliance.py`: election, packet validation, structural hashing, two-stage masked row aggregation, private historical validation and commit rules.
@@ -274,7 +279,7 @@ Pre-register the task order, client split, final test source and primary metric 
 Baselines:
 
 1. Original entry-point DENICE defaults, clearly labeled with its different capsule/CANC/clustering settings.
-2. **Matched preset, `appliance_enabled=false`**: primary causal comparison; identical split, clustering, allocation, replay and evaluation.
+2. **Matched preset, `denice_appliance_enabled=false`**: primary causal comparison; identical split, clustering, allocation, replay and evaluation.
 3. Matched local/self-only aggregation as a collaboration control.
 4. Standard FedAvg/FedProx incremental baselines only with matched architecture, local steps, data roles and a specified forgetting-control method; existing repository implementations need separate protocol audits.
 
@@ -364,7 +369,7 @@ with open('/kaggle/working/environment.txt', 'w') as log:
     subprocess.run([sys.executable, '-m', 'pip', 'freeze'], stdout=log, check=True)
 ```
 
-For a paired baseline, use a separate output directory and change only `appliance_enabled` to false. For new seeds set both seed keys plus `DENICE_SEED`. Full test evaluation over 100 clients can be expensive; if capped, label it a panel rather than full-test evaluation. Full training was not launched by this coding task.
+For a paired baseline, use a separate output directory and change only `denice_appliance_enabled` to false. For new seeds set both seed keys plus `DENICE_SEED`. Full test evaluation over 100 clients can be expensive; if capped, label it a panel rather than full-test evaluation. Full training was not launched by this coding task.
 
 ### Outputs
 

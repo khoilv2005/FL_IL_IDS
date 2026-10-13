@@ -1,0 +1,16 @@
+{
+  "tests": 7,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 6.531920900000841,
+  "training_runs": 0,
+  "scope": "inference/statistics/plot helpers only; no native optimizer suite rerun",
+  "command": "python -m unittest discover -s tests -p test_denice_v2_routerless_logit_audit.py -v",
+  "source_sha256": {
+    "tools/audit_denice_v2_routerless_old_logits.py": "a1ffc35247c3c87205f15ed27d67b6a3af5c72ddbc66eb171580b6eb5ba31017",
+    "tools/run_denice_v2_routerless_smoke.py": "76eb1e3a6d1fcb74a930d169e9fde2095d51b4046c918f7d4ad2916addb6f764",
+    "tests/test_denice_v2_routerless_logit_audit.py": "fd03c4a122066b7bdcb9e8291b3fb25673a7bea5d6a185456f01e637b14e23db"
+  }
+}

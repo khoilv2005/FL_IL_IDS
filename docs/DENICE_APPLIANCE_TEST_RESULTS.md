@@ -1,5 +1,21 @@
 # APPLIANCE verification — 14 October 2026
 
+## Verification after merging upstream main
+
+Merged upstream `9a5630a` with local `63004b1`, preserving the upstream runner
+and all three local overlay hooks. Restored the missing preset and renamed
+the local activation flag to `denice_appliance_enabled`; upstream
+`appliance_enabled` retains its original meaning. Simultaneous activation is rejected.
+
+The combined overlay/transfer/V2 P0/P1 run passed 92 tests, with two P0
+checkpoint tests blocked by Windows sandbox temporary-directory permissions.
+Re-running the P0 suite outside the sandbox passed all 44 tests and 34 subtests,
+including both previously blocked tests. The merged Kaggle entry-point smoke
+completed three tasks and six rounds: 46 packets, zero accepted transfers.
+Its local summary is `output/appliance_merge_smoke/summary.json`.
+Python compilation and conflict-marker checks passed. Git whitespace checks
+were run with `cr-at-eol` to respect upstream's deliberately preserved CRLF files.
+
 ## Completed checks
 
 | Check | Result |

@@ -451,16 +451,39 @@ def evaluate_denice_model(
     route_total = 0
     classification_correct_on_correct_route = 0
     route_confusion: Dict[str, Dict[str, int]] = {}
+    appliance_entries = getattr(model, 'appliance_guarded_head_entries', {})
+    appliance_scope = getattr(model, 'appliance_runtime_scope', None)
+    appliance_registry = None
+    appliance_activated = 0
+    if appliance_entries and appliance_scope is not None and route_mode == 'hard':
+        from appliance.stable_head import StableHeadRegistry
+        appliance_registry = StableHeadRegistry()
+        appliance_registry.entries = appliance_entries
 
     for batch_idx, i in enumerate(range(0, len(y_test), batch_size), start=1):
         X_batch = X_test[i : i + batch_size].to(device)
         y_batch = y_test[i : i + batch_size].to(device)
 
-        routed_logits, episodes = _denice_routed_logits_with_episodes(
-            model, X_batch, context_detector, seen_classes, device, route_mode, route_topk
-        )
+        # APPLIANCE baseline restores original local heads. A suspended import
+        # must not compete through the ordinary router and bypass its scope.
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            if appliance_registry:
+                from appliance.guarded_head import original_local_head
+                for c, entry in appliance_registry.entries.items():
+                    stack.enter_context(original_local_head(model, c, entry['backup']))
+            routed_logits, episodes = _denice_routed_logits_with_episodes(
+                model, X_batch, context_detector, seen_classes, device, route_mode, route_topk
+            )
         total_loss += criterion(routed_logits, y_batch).item() * len(y_batch)
         preds = routed_logits.argmax(dim=1)
+        if appliance_registry:
+            # Label-blind API: only x, owned model/router, and predeclared scope.
+            record = appliance_registry.records(model, context_detector,
+                X_batch.detach().cpu().numpy(), seen_classes, device, batch_size,
+                runtime_scope=appliance_scope)
+            preds = torch.as_tensor(record['pred'], device=device)
+            appliance_activated += int(record['activated'].sum())
         all_preds.extend(preds.detach().cpu().tolist())
         all_targets.extend(y_batch.detach().cpu().tolist())
 
@@ -512,6 +535,10 @@ def evaluate_denice_model(
         "route_accuracy": (route_correct / route_total) if route_total > 0 else 0.0,
         "route_coverage": (route_total / len(y_test)) if len(y_test) > 0 else 0.0,
     }
+    if appliance_registry:
+        metrics.update(appliance_enabled=True, appliance_activated=appliance_activated,
+            appliance_runtime_scope=appliance_scope, loss_scope='original local router logits',
+            route_accuracy_scope='original task router; imported route reported separately')
     covered_mask = np.asarray([int(y) in label2episode for y in y_true], dtype=bool)
     covered_count = int(covered_mask.sum())
     covered_correct = int(((y_true == y_pred) & covered_mask).sum())

@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "tests_run": 74,
+  "p0_tests": 44,
+  "p1_tests": 30,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "duration_seconds": 13.446,
+  "utc": "2026-10-11T08:09:50.403277+00:00",
+  "python": "3.14.7",
+  "numpy": "2.5.2",
+  "torch": "2.14.0+cpu",
+  "device": "CPU",
+  "command": "python -m unittest discover -s tests -p 'test_denice_v2_p[01].py' -v",
+  "scope": "P0 regression + P1 pure engine/moments tests; no optimizer training/native smoke/P2",
+  "normalized_lf_sha256": {
+    "fed_learning/strategies/decentralized/denice_v2/__init__.py": "d1b27f8fe555a5f265f90f57c6bfb29ca9ef90d60da3331474da0712ddc1b246",
+    "fed_learning/strategies/decentralized/denice_v2/aggregation.py": "f5d4081fc92bfa7dafe25edd84593bc88db32323a658e56bdd8b0ad51219f75e",
+    "fed_learning/strategies/decentralized/denice_v2/contracts.py": "2405fe3bc328fae66275db39e6eca7b526168daacbe2233bda47195fe65dad80",
+    "fed_learning/strategies/decentralized/denice_v2/election.py": "da3b553226c8596459ccc00bd2b2d4482036d638ccab010e2c6105a4f2b2786c",
+    "fed_learning/strategies/decentralized/denice_v2/knowledge.py": "117e334c2206b7d1db8a189eab20e71b597ab5263d34f03f24731f0b711bee3e",
+    "fed_learning/strategies/decentralized/denice_v2/normalization.py": "479b9e40b61adc446b2e38afbd0870f4ebccc2e0917e0f36b9e126895e427e8e",
+    "fed_learning/strategies/decentralized/denice_v2/partition.py": "707bc4e5a33798f02fb54d523c0b7314d73a737f73a4304d8f5f758b218e0959",
+    "fed_learning/strategies/decentralized/denice_v2/state.py": "7eafad3458b3731367e5ad08fc6273473e4cf3a9628e1ffca8ee48b314daa838",
+    "tests/test_denice_v2_p0.py": "00749f5a62af96440c7665809213c9c403830ce5d869a27dc230bf4328f15304",
+    "tests/test_denice_v2_p1.py": "962fce75bb34b992f94c4bf0d6defbb0e7bb17b52cc6f42f01338cd320c2a66e",
+    "tools/dry_run_denice_v2_partition.py": "00a872dca22820641a9d5c958dbed156842e00a9b9cae008e49688cfa0736872"
+  }
+}

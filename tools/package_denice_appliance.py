@@ -11,6 +11,7 @@ def main():
              root / 'configs/denice_appliance.json',
              root / 'tests/test_denice_appliance.py', root / 'tests/test_denice_transfer.py']
     paths += list((root / 'fed_learning').rglob('*.py'))
+    paths += list((root / 'appliance').rglob('*.py'))
     paths += list((root / 'tools').glob('*.py'))
     paths += list((root / 'docs').glob('DENICE_APPLIANCE*.md'))
     paths = sorted(set(p for p in paths if p.is_file()))
