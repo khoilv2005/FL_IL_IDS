@@ -2328,6 +2328,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         'denice_cgofed_optimizer', 'denice_cgofed_mu',
         'denice_cgofed_decay', 'denice_cgofed_energy', 'denice_cgofed_max_samples',
         'denice_cgofed_peer_projection', 'seed', 'random_seed')}
+    from fed_learning.training.denice_run_audit import method_manifest, optimizer_health
+    source_audit.update(method_manifest(config))
     source_audit['runner_file'] = os.path.abspath(__file__)
     source_audit['appliance_enabled'] = bool(config.get('appliance_enabled', False))
     if config.get('appliance_enabled', False):
@@ -3069,6 +3071,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         'task': int(task_id), 'round': int(round_id),
                         'client_id': int(cid), **result['cgofed_projection'],
                     })
+                health = optimizer_health(result)
+                _append_jsonl(os.path.join(output_dir, 'optimizer_health.jsonl'),
+                              {'task': task_id, 'round': round_id, 'client_id': int(cid), **health})
+                optimizer_health(result, fail_on_zero=bool(config.get('denice_fail_on_zero_update', False)))
                 if result.get('skipped_optimizer_steps', 0):
                     print(f"    Optimizer audit client={cid}: "
                           f"steps={result['optimizer_steps']}, "

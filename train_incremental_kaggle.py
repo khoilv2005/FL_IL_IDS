@@ -506,6 +506,9 @@ if _config_overrides_raw:
 
 from fed_learning.strategies.decentralized.denice_appliance import validate_config as validate_appliance_config
 validate_appliance_config(CONFIG)
+from fed_learning.training.denice_run_audit import method_manifest
+if CONFIG.get('algorithm') == 'denice' and CONFIG.get('mode') == 'decentralized':
+    print('DENICE effective method:', method_manifest(CONFIG), flush=True)
 
 if CONFIG.get('denice_cl_method', 'legacy') != 'legacy':
     from fed_learning.strategies.incremental.denice_variants import variant_config

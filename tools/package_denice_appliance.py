@@ -9,7 +9,9 @@ def main():
     root = Path(__file__).resolve().parents[1]
     paths = [root / 'train_incremental_kaggle.py', root / 'eval_checkpoint.py', root / 'requirements.txt',
              root / 'configs/denice_appliance.json',
-             root / 'tests/test_denice_appliance.py', root / 'tests/test_denice_transfer.py']
+             root / 'tests/test_denice_appliance.py', root / 'tests/test_denice_transfer.py',
+             root / 'tests/test_denice_recovery.py', root / 'tests/test_denice_router_replay.py',
+             root / 'docs/DENICE_KAGGLE_V44_RECOVERY_VI.md']
     paths += list((root / 'fed_learning').rglob('*.py'))
     paths += list((root / 'appliance').rglob('*.py'))
     paths += list((root / 'tools').glob('*.py'))
