@@ -12,13 +12,26 @@ import zipfile
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
 # Default phase 5 starts all six tasks fresh with upgraded DENICE.
 # On Kaggle set DENICE_CODE_DIR to the extracted source bundle to train these
-# local fixes; cloning main only includes changes already pushed to GitHub.
+# local fixes; standalone uploads clone the pinned supporting revision below.
 TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_VARIANT = os.environ.get('DENICE_VARIANT', 'legacy').lower()
+# Uploading this file alone now selects the updated row-overlay experiment.
+# Explicit experiment launchers/configs retain control of their own settings.
+_default_profile = 'legacy' if (TRAIN_VARIANT != 'legacy' or
+    os.environ.get('DENICE_CONFIG_FILE') or os.environ.get('DENICE_CONFIG_OVERRIDES')) else 'row_overlay'
+TRAIN_PROFILE = os.environ.get('DENICE_RUN_PROFILE', _default_profile).lower()
+if TRAIN_PROFILE not in ('row_overlay', 'legacy'):
+    raise ValueError('DENICE_RUN_PROFILE must be row_overlay or legacy')
+if TRAIN_PROFILE == 'row_overlay' and TRAIN_PHASE != 5:
+    raise ValueError('The row_overlay profile requires DENICE_TRAIN_PHASE=5 (fresh run)')
+_output_label = 'row_overlay' if TRAIN_PROFILE == 'row_overlay' else TRAIN_VARIANT
 TRAIN_OUTPUT_DIR = os.environ.get(
-    "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_{TRAIN_VARIANT}_seed_{TRAIN_SEED}"
+    "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_{_output_label}_seed_{TRAIN_SEED}"
 )
+# Verified supporting code includes the overlay, balanced router and run audit.
+DEFAULT_CODE_REF = 'd802d46944b2628a079b6238395c915d1637fbcb'
+print('DENICE launch profile:', TRAIN_PROFILE, flush=True)
 
 PHASE_CONFIG = {
     1: {
@@ -142,7 +155,7 @@ Usage:
     - decentralized: "plexus", "denice"
     - il: "ewc", "lwf", "der", "nice", "denice"
 
-    Upload fed_learning folder to Kaggle dataset, then run this script.
+    Upload this script alone and enable Kaggle Internet; supporting code is cloned automatically.
 """
 
 import os
@@ -168,11 +181,12 @@ def setup_imports():
             raise FileNotFoundError("DENICE_CODE_DIR must contain fed_learning")
         REPO_PATH = os.path.abspath(local)
     else:
-        # No local source or pinned ref supplied: fall back to the latest main.
-        revision = os.environ.get("DENICE_CODE_REF", "main")
+        # Pin supporting code so an uploaded launcher is reproducible.
+        revision = os.environ.get("DENICE_CODE_REF", DEFAULT_CODE_REF)
         REPO_PATH = tempfile.mkdtemp(prefix="denice-source-")
-        subprocess.run(["git", "clone", "https://github.com/khoilv2005/FL_IL_IDS.git", REPO_PATH], check=True)
-        subprocess.run(["git", "-C", REPO_PATH, "checkout", "--detach", revision], check=True)
+        clone_env = dict(os.environ, GIT_LFS_SKIP_SMUDGE="1")
+        subprocess.run(["git", "clone", "https://github.com/khoilv2005/FL_IL_IDS.git", REPO_PATH], check=True, env=clone_env)
+        subprocess.run(["git", "-C", REPO_PATH, "checkout", "--detach", revision], check=True, env=clone_env)
     sys.path.insert(0, REPO_PATH)
     for name in list(sys.modules):
         if name == "fed_learning" or name.startswith("fed_learning."):
@@ -478,6 +492,25 @@ CONFIG = {
 # investigation without editing this production configuration.  It keeps D1
 # peer/self-only smoke runs exactly comparable and records the effective config
 # in the normal DeNICE artifacts.
+if TRAIN_PROFILE == 'row_overlay':
+    preset_path = os.path.join(REPO_PATH, 'configs', 'denice_appliance.json')
+    if not os.path.isfile(preset_path):
+        raise FileNotFoundError(f'Updated source required; missing {preset_path}')
+    with open(preset_path, encoding='utf-8') as handle:
+        CONFIG.update(json.load(handle))
+    CONFIG.update({
+        'denice_expected_method': 'row_overlay',
+        'denice_amp_enabled': False,
+        'denice_fail_on_zero_update': True,
+        'denice_router_mode': 'multiclass_balanced',
+        'denice_eval_require_full_coverage': False,
+        'denice_eval_max_clients': None,
+        'denice_eval_max_samples': 50000,
+        'task_start': 0, 'task_end': 5,
+        'resume_state_path': None, 'resume_output_dir': None,
+        'output_dir': TRAIN_OUTPUT_DIR,
+    })
+
 if TRAIN_VARIANT != 'legacy':
     try:
         from fed_learning.strategies.incremental.denice_variants import variant_preset
@@ -560,6 +593,10 @@ if (CONFIG.get("algorithm") == "denice"
             ) from exc
         classifier_config(CONFIG)
 
+
+if os.environ.get('DENICE_CONFIG_ONLY') == '1':
+    print('DENICE effective config JSON:', json.dumps(CONFIG, sort_keys=True), flush=True)
+    raise SystemExit(0)
 
 # =============================================================================
 # MAIN
