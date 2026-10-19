@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def embedded_setup_namespace(monkeypatch, tmp_path):
+def download_setup_namespace(monkeypatch, tmp_path):
     import os
     import subprocess
     import tempfile
@@ -13,46 +13,51 @@ def embedded_setup_namespace(monkeypatch, tmp_path):
     for key in ('DENICE_CODE_DIR', 'DENICE_CODE_REF'):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr(tempfile, 'mkdtemp', lambda **kw: str(tmp_path))
-    def no_clone(*args, **kwargs):
-        raise AssertionError('Standalone launcher must not clone old GitHub code')
-    monkeypatch.setattr(subprocess, 'run', no_clone)
-    import zipfile
-    namespace = dict(os=os, subprocess=subprocess, zipfile=zipfile,
+    calls = []
+    def fake_git(command, **kwargs):
+        calls.append(command)
+        if command[1] == 'clone':
+            support = tmp_path / 'fed_learning/training/denice_overlay_resume.py'
+            support.parent.mkdir(parents=True, exist_ok=True)
+            support.write_bytes((ROOT / 'fed_learning/training/denice_overlay_resume.py').read_bytes())
+    monkeypatch.setattr(subprocess, 'run', fake_git)
+    namespace = dict(os=os, subprocess=subprocess,
                      sys=SimpleNamespace(path=[], modules={}),
                      TRAIN_PROFILE='row_overlay', target='continuation_state_task_3.pt')
     nodes = []
     for node in ast.parse((ROOT / 'train_incremental_kaggle.py').read_text(encoding='utf-8')).body:
-        if (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id.startswith('EMBEDDED_SUPPORT_') for t in node.targets)
+        if (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'DEFAULT_CODE_REF' for t in node.targets)
                 or isinstance(node, ast.FunctionDef) and node.name == 'setup_imports'):
             nodes.append(node)
-    exec(compile(ast.Module(body=nodes, type_ignores=[]), '<embedded-setup>', 'exec'), namespace)
-    return namespace
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), '<download-setup>', 'exec'), namespace)
+    return namespace, calls
 
 
-def test_standalone_root_launcher_extracts_new_resume_code_without_git(monkeypatch, tmp_path):
-    namespace = embedded_setup_namespace(monkeypatch, tmp_path)
+def test_small_launcher_downloads_pinned_resume_capable_revision(monkeypatch, tmp_path):
+    namespace, calls = download_setup_namespace(monkeypatch, tmp_path)
     namespace['setup_imports']()
     assert namespace['REPO_PATH'] == str(tmp_path)
-    validator = (tmp_path / 'fed_learning/strategies/decentralized/denice_appliance.py').read_text(encoding='utf-8')
-    assert 'private bank is not resumed' not in validator
-    assert (tmp_path / 'fed_learning/training/denice_overlay_resume.py').is_file()
-    runner = (tmp_path / 'fed_learning/training/decentralized_denice_il.py').read_text(encoding='utf-8')
-    assert 'row_overlay=appliance' in runner
-    assert (ROOT / 'train_incremental_kaggle.py').read_bytes() == (ROOT / 'output/single_file/train_incremental_kaggle.py').read_bytes()
+    assert calls[1][-1] == 'd074f0e8cf4870e26150975b9e9df988cbe425f9'
+    assert 'checkout' in calls[1]
+    data = (ROOT / 'train_incremental_kaggle.py').read_bytes()
+    assert len(data) < 100_000
+    assert b'EMBEDDED_SUPPORT_B85' not in data
+    assert data == (ROOT / 'output/single_file/train_incremental_kaggle.py').read_bytes()
 
 
 def test_explicit_stale_source_fails_with_actionable_error(monkeypatch, tmp_path):
     import pytest
-    namespace = embedded_setup_namespace(monkeypatch, tmp_path)
+    namespace, _ = download_setup_namespace(monkeypatch, tmp_path)
     (tmp_path / 'fed_learning').mkdir()
     monkeypatch.setenv('DENICE_CODE_DIR', str(tmp_path))
     with pytest.raises(RuntimeError, match='Selected source lacks overlay resume support'):
         namespace['setup_imports']()
 
 
-def test_default_resume_enables_recovery_and_stops_after_task4(monkeypatch):
+def test_default_resume_enables_recovery_and_runs_tasks4_and5(monkeypatch):
     config = resolve(monkeypatch)
-    assert config['task_start'] == config['task_end'] == 4
+    assert config['task_start'] == 4
+    assert config['task_end'] == 5
     assert config['denice_overlay_rebuild_private_state'] is True
 
 
