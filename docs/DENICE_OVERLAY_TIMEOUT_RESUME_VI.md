@@ -1,5 +1,13 @@
 # Tiếp tục row overlay sau timeout tại task 4
 
+## Chạy trực tiếp bằng link Drive có sẵn — không cần cell cấu hình
+
+Bản `train_incremental_kaggle.py` ở thư mục gốc và bản `output/single_file/train_incremental_kaggle.py` hiện giống nhau từng byte. Cả hai nhúng mã hỗ trợ resume mới, giữ link `resume_drive_url` đã có trong file, mặc định phase 4, kết thúc task 4 và bật dựng lại private bank cho checkpoint cũ. Không cần clone GitHub khi upload một file; không được bỏ khối `GENERATED DENICE SUPPORT` khi sao chép vào notebook.
+
+Upload bản đóng gói mới, giữ dataset 100-clients đúng phiên bản, bật Internet và chạy file. Không cần thêm checkpoint vào Kaggle Input nếu link Drive tải được ZIP chứa đúng một `continuation_state_task_3.pt`. Mã chỉ giải nén checkpoint cần dùng, không lấy checkpoint tồn dư từ lần chạy trước. Kiểm tra tương thích nội dung checkpoint và audit dữ liệu vẫn được thực hiện khi resume. Link Drive thực tế chưa được tải kiểm chứng trong lần sửa này; 9 kiểm thử launcher đã qua với tải ZIP giả lập.
+
+Các cell cấu hình bên dưới là phương án tùy chọn cho người dùng Kaggle Input hoặc muốn ghi đè cấu hình bằng biến môi trường. Biến môi trường đã đặt từ trước vẫn có quyền ưu tiên; để dùng đúng mặc định trong file, chạy trong phiên kernel mới không có các override cũ.
+
 ## Bằng chứng từ lần chạy 20261017_082002
 
 Đã đọc trực tiếp `continuation_state_task_3.pt` trong thư mục kết quả người dùng cung cấp:
@@ -16,10 +24,10 @@ Giải pháp hiện tại: giữ task 0–3, chạy lại task 4 từ đầu tro
 ## Mã đã thay đổi
 
 - Launcher nhận `DENICE_RESUME_STATE_PATH`, `DENICE_TASK_END`, `DENICE_DATA_DIR` và cho phép overlay resume.
-- Không dùng ngầm checkpoint Google Drive mặc định của legacy cho overlay.
+- Dùng link Google Drive đã khai báo trong file khi không có đường dẫn checkpoint cục bộ; kiểm tra checkpoint overlay ở bước resume.
 - Runner giữ checkpoint được chọn thay vì profile ghi đè thành fresh run.
 - Checkpoint mới lưu `denice_appliance_state`: validation banks riêng, tập lớp đã học và số mẫu theo lớp của từng client. Ghi qua file tạm rồi rename.
-- Checkpoint cũ thiếu state này: phải bật `DENICE_OVERLAY_REBUILD_PRIVATE_STATE=1`, đọc lại các train NPZ lịch sử, áp dụng cùng cap, thứ tự client, seed và chia validation để dựng lại state. Không huấn luyện lại model và không đọc test trong bước dựng bank.
+- Checkpoint cũ thiếu state này: bản chạy trực tiếp bật sẵn reconstruction; đọc lại các train NPZ lịch sử, áp dụng cùng cap, thứ tự client, seed và chia validation để dựng lại state. Không huấn luyện lại model và không đọc test trong bước dựng bank. Có thể tắt bằng `DENICE_OVERLAY_REBUILD_PRIVATE_STATE=0`.
 - Kiểm tra số mẫu, histogram lớp, tập client mỗi task với audit đã lưu; từ chối sai seed/partition hoặc thiếu audit. RNG được bảo toàn quanh recovery.
 - Histogram không chứng minh features/thứ tự dòng giống nhau. Bắt buộc dùng nguyên phiên bản dataset và metadata của lần chạy gốc; không shuffle, chia lại hay tiền xử lý lại dữ liệu.
 - `overlay_recovery.json` ghi phương thức phục hồi. Không tự vô hiệu hóa overlay khi tiếp tục checkpoint overlay.
@@ -32,7 +40,9 @@ Chạy ở repo nếu cần đóng gói lại sau sửa mã:
 python tools/package_denice_single_file.py
 ```
 
-Upload **`output/single_file/train_incremental_kaggle.py`**, không nhầm với launcher ở thư mục gốc. File sinh ra chứa ZIP source được mã hóa, có kiểm tra SHA256, giải nén vào thư mục tạm và dùng mã này. Không cần clone GitHub, không cần upload riêng `fed_learning`. Không chứa dataset hoặc checkpoint.
+Upload **`train_incremental_kaggle.py`** ở thư mục gốc hoặc bản sao giống hệt trong `output/single_file/`. File chứa ZIP source được mã hóa, có kiểm tra SHA256, giải nén vào thư mục tạm và dùng mã này. Không cần clone GitHub, không cần upload riêng `fed_learning`. Không chứa dataset hoặc checkpoint. Khi sửa mã hỗ trợ trong repo, chạy lại công cụ đóng gói để cập nhật cả hai file.
+
+Log đúng khi upload một file là `Bundled training source SHA256: ...` và `Training source: /tmp/denice-overlay-resume-...`. Nếu vẫn là `/tmp/denice-source-...`, đang dùng launcher cũ hoặc có `DENICE_CODE_REF` ghi đè. Đường dẫn local/commit được chỉ định rõ vẫn được ưu tiên; mã mới sẽ báo lỗi rõ nếu source đó thiếu module resume. Kiểm thử bổ sung xác minh đường chạy từ file gốc tự giải nén đúng module mới và không gọi Git.
 
 Thêm vào notebook:
 

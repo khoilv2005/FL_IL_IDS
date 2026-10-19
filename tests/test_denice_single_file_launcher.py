@@ -5,6 +5,107 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def embedded_setup_namespace(monkeypatch, tmp_path):
+    import os
+    import subprocess
+    import tempfile
+    from types import SimpleNamespace
+    for key in ('DENICE_CODE_DIR', 'DENICE_CODE_REF'):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(tempfile, 'mkdtemp', lambda **kw: str(tmp_path))
+    def no_clone(*args, **kwargs):
+        raise AssertionError('Standalone launcher must not clone old GitHub code')
+    monkeypatch.setattr(subprocess, 'run', no_clone)
+    import zipfile
+    namespace = dict(os=os, subprocess=subprocess, zipfile=zipfile,
+                     sys=SimpleNamespace(path=[], modules={}),
+                     TRAIN_PROFILE='row_overlay', target='continuation_state_task_3.pt')
+    nodes = []
+    for node in ast.parse((ROOT / 'train_incremental_kaggle.py').read_text(encoding='utf-8')).body:
+        if (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id.startswith('EMBEDDED_SUPPORT_') for t in node.targets)
+                or isinstance(node, ast.FunctionDef) and node.name == 'setup_imports'):
+            nodes.append(node)
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), '<embedded-setup>', 'exec'), namespace)
+    return namespace
+
+
+def test_standalone_root_launcher_extracts_new_resume_code_without_git(monkeypatch, tmp_path):
+    namespace = embedded_setup_namespace(monkeypatch, tmp_path)
+    namespace['setup_imports']()
+    assert namespace['REPO_PATH'] == str(tmp_path)
+    validator = (tmp_path / 'fed_learning/strategies/decentralized/denice_appliance.py').read_text(encoding='utf-8')
+    assert 'private bank is not resumed' not in validator
+    assert (tmp_path / 'fed_learning/training/denice_overlay_resume.py').is_file()
+    runner = (tmp_path / 'fed_learning/training/decentralized_denice_il.py').read_text(encoding='utf-8')
+    assert 'row_overlay=appliance' in runner
+    assert (ROOT / 'train_incremental_kaggle.py').read_bytes() == (ROOT / 'output/single_file/train_incremental_kaggle.py').read_bytes()
+
+
+def test_explicit_stale_source_fails_with_actionable_error(monkeypatch, tmp_path):
+    import pytest
+    namespace = embedded_setup_namespace(monkeypatch, tmp_path)
+    (tmp_path / 'fed_learning').mkdir()
+    monkeypatch.setenv('DENICE_CODE_DIR', str(tmp_path))
+    with pytest.raises(RuntimeError, match='Selected source lacks overlay resume support'):
+        namespace['setup_imports']()
+
+
+def test_default_resume_enables_recovery_and_stops_after_task4(monkeypatch):
+    config = resolve(monkeypatch)
+    assert config['task_start'] == config['task_end'] == 4
+    assert config['denice_overlay_rebuild_private_state'] is True
+
+
+def drive_download_prefix(monkeypatch, tmp_path, members):
+    import os
+    import subprocess
+    import tempfile
+    import zipfile
+    for key in list(os.environ):
+        if key.startswith('DENICE_'):
+            monkeypatch.delenv(key)
+    monkeypatch.setattr(tempfile, 'mkdtemp', lambda **kw: str(tmp_path))
+    calls = []
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if 'gdown' in command and '-O' in command:
+            with zipfile.ZipFile(command[-1], 'w') as archive:
+                for name in members:
+                    archive.writestr(name, b'fixture-checkpoint')
+    monkeypatch.setattr(subprocess, 'run', fake_run)
+    prefix = []
+    for node in ast.parse((ROOT / 'train_incremental_kaggle.py').read_text(encoding='utf-8')).body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'REPO_PATH' for t in node.targets):
+            break
+        prefix.append(node)
+    namespace = {}
+    exec(compile(ast.Module(body=prefix, type_ignores=[]), '<download>', 'exec'), namespace)
+    return namespace, calls
+
+
+def test_in_file_drive_url_works_without_environment(monkeypatch, tmp_path):
+    namespace, calls = drive_download_prefix(monkeypatch, tmp_path,
+        ['nested/continuation_state_task_3.pt', 'nested/checkpoint_task_4_base.pt'])
+    assert calls[1][calls[1].index('--fuzzy') + 1] == namespace['resume_drive_url']
+    assert '1UMtq48e1z0MnOMWDoscGMVEjsmtAizO0' in namespace['resume_drive_url']
+    assert Path(namespace['target']).read_bytes() == b'fixture-checkpoint'
+    assert not (tmp_path / 'nested').exists()
+
+
+def test_wrong_drive_archive_does_not_reuse_stale_checkpoint(monkeypatch, tmp_path):
+    import pytest
+    (tmp_path / 'continuation_state_task_3.pt').write_bytes(b'stale')
+    with pytest.raises(ValueError, match='found 0'):
+        drive_download_prefix(monkeypatch, tmp_path, ['continuation_state_task_2.pt'])
+
+
+def test_ambiguous_drive_archive_is_rejected(monkeypatch, tmp_path):
+    import pytest
+    with pytest.raises(ValueError, match='found 2'):
+        drive_download_prefix(monkeypatch, tmp_path,
+            ['run_a/continuation_state_task_3.pt', 'run_b/continuation_state_task_3.pt'])
+
+
 def resolve(monkeypatch, **environment):
     import os
     for key in list(os.environ):
