@@ -140,7 +140,7 @@ def test_overlay_transfer_protection_drop_and_failure(problem):
 def test_bad_configuration():
     cfg = json.loads((Path(__file__).parents[1] / 'configs/denice_appliance.json').read_text())
     ap.validate_config(cfg)
-    for changes in [{'appliance_enabled': True}, {'resume_state_path': 'checkpoint.pt'}, {'appliance_eta': 2},
+    for changes in [{'appliance_enabled': True}, {'task_start': 4}, {'appliance_eta': 2},
                     {'denice_capsule_mode': 'paper'}, {'appliance_min_evidence': 0}]:
         with pytest.raises(ValueError):
             ap.validate_config({**cfg, **changes})

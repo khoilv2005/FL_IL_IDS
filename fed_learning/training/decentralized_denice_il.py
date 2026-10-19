@@ -1243,12 +1243,15 @@ def _build_denice_continuation_state(
     debug_history: List[Dict[str, Any]],
     replay_memories=None,
     appliance_service=None,
+    row_overlay=None,
     round_state=None,
     clients=None,
 ) -> Dict[str, Any]:
     """Build a complete task/round boundary continuation (old schema compatible)."""
+    from fed_learning.training.denice_overlay_resume import snapshot as overlay_snapshot
     client_ids = sorted(int(cid) for cid in models)
     return {
+        "denice_appliance_state": overlay_snapshot(row_overlay) if row_overlay else None,
         "continuation_type": DENICE_CONTINUATION_TYPE,
         "denice_continuation_schema_version": DENICE_CONTINUATION_SCHEMA_VERSION,
         "meta": {
@@ -2647,7 +2650,25 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         adapter_history = _resume_clone(resume_state.get("adapter_history") or [])
         debug_history = _resume_clone(resume_state.get("debug_history") or [])
         task_start = int(resume_state["meta"]["resume_from_task"])
+        if not 0 <= task_start <= task_end < num_tasks:
+            raise ValueError("Checkpoint resume task is outside requested task range")
         _restore_rng_state(resume_state.get("rng_state"))
+
+    if resume_state and appliance:
+        from fed_learning.training.denice_overlay_resume import restore as restore_overlay
+        recovery_rng = _snapshot_rng_state()
+        try:
+            recovery = restore_overlay(appliance, resume_state, data_loader,
+                                       _split_local_validation, _stratified_limit_client_task_data)
+        finally:
+            _restore_rng_state(recovery_rng)
+        _write_json(os.path.join(output_dir, 'overlay_recovery.json'), {
+            'source': config['resume_state_path'], 'recovery': recovery,
+            'resume_from_task': task_start,
+            'private_state_in_checkpoint': True})
+        print(f'  Row overlay restored: {recovery}', flush=True)
+    elif resume_state and resume_state.get('config', {}).get('denice_appliance_enabled'):
+        raise ValueError('Cannot silently disable row overlay when resuming')
 
     appliance_service = None
     if config.get('appliance_enabled', False):
@@ -4116,12 +4137,14 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 debug_history=debug_history,
                 replay_memories=replay_memories,
                 appliance_service=appliance_service,
+                row_overlay=appliance,
                 clients=clients,
             )
             continuation_path = os.path.join(
                 output_dir, f"continuation_state_task_{task_id}.pt"
             )
-            torch.save(continuation_state, continuation_path)
+            torch.save(continuation_state, continuation_path + ".tmp")
+            os.replace(continuation_path + ".tmp", continuation_path)
             if appliance_service:
                 temporary = os.path.join(output_dir, 'continuation_state_latest.pt.tmp')
                 torch.save(continuation_state, temporary)

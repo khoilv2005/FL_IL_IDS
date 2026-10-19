@@ -1,0 +1,127 @@
+🌱 Seed set to 42
+DENICE source/config audit: {'source_sha256': 'b57a4316e54523168a76f3a3d6f3fd2145ba234444f8ed329b297b9f1756fa5f', 'git_commit': 'e014a538938101b7ef0faffe95c2d7e84ab582b4', 'denice_continual_width': None, 'denice_eval_route_mode': 'hard', 'denice_router_replay_enabled': True, 'denice_calibrate_plastic_bn': None, 'denice_plasticity_enabled': None, 'denice_capacity_frontload': None, 'denice_mature_fraction': None, 'denice_elastic_strength': None, 'denice_elastic_decay': None, 'denice_cl_method': None, 'denice_cl_train_mature': None, 'denice_cl_logit_scope': None, 'denice_der_alpha': None, 'denice_der_beta': None, 'denice_der_reduction': None, 'denice_ewc_lambda': None, 'denice_ewc_mode': None, 'denice_ewc_fisher_samples': None, 'denice_ewc_fisher_labels': None, 'denice_ewc_decay': None, 'denice_eval_local_validation': True, 'denice_eval_final_task_only': True, 'denice_eval_split_test_by_client': False, 'denice_eval_require_full_coverage': True, 'denice_eval_report_nomask': False, 'denice_eval_representative_ensemble': False, 'denice_validation_fraction': 0.2, 'denice_replay_capacity': 48, 'round_checkpoint_every': None, 'denice_checkpoint_format': 'full', 'denice_cgofed_optimizer': None, 'denice_cgofed_mu': None, 'denice_cgofed_decay': None, 'denice_cgofed_energy': None, 'denice_cgofed_max_samples': None, 'denice_cgofed_peer_projection': None, 'seed': 42, 'random_seed': 42, 'effective_method': 'row_overlay', 'denice_appliance_enabled': True, 'appliance_enabled': False, 'denice_router_mode': 'binary_cosine', 'denice_amp_enabled': False, 'denice_amp_initial_scale': None, 'denice_eval_max_clients': None, 'denice_eval_max_samples': None, 'denice_clustering_mode': 'adaptive_ap', 'runner_file': 'E:\\Study\\DACN_KLTN\\Code\\FL_IL_IDS\\fed_learning\\training\\decentralized_denice_il.py'}
+
+================================================================================
+DECENTRALIZED DeNICE-IL
+================================================================================
+
+================================================================================
+TASK 0/2 - Decentralized DeNICE-IL
+================================================================================
+  Active DeNICE clients: 2
+  Round 0/1
+    DeNICE collaboration guard: streak=1/2, failed=['effective_k_below_active_clients', 'mean_group_size_above_one', 'has_positive_peer_weight', 'mean_peer_alpha_above_threshold'], effective_K=2/2, group_mean=1.000, peer_alpha_mean=0.000000
+    APPLIANCE overlay: leaders={0: 0, 1: 1}, packets=2, accepted=0
+    Metrics skipped -> train_loss=1.7267, eval_every=999999
+   Round checkpoint saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\initial_denice_20261019_120556\checkpoint_task_0_round_0.pt
+  Round 1/1
+    DeNICE collaboration guard: streak=2/2, failed=['effective_k_below_active_clients', 'mean_group_size_above_one', 'has_positive_peer_weight', 'mean_peer_alpha_above_threshold'], effective_K=2/2, group_mean=1.000, peer_alpha_mean=0.000000
+    APPLIANCE overlay: leaders={0: 0, 1: 1}, packets=2, accepted=0
+    Metrics skipped -> train_loss=1.4299, eval_every=999999
+   Round checkpoint saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\initial_denice_20261019_120556\checkpoint_task_0_round_1.pt
+  Post-task DeNICE eval skipped -> not_final_task
+  DeNICE eval start [LOCAL_VALIDATION task=0,client=0]: clients=1, test_samples=16, batch_size=8192, routing=per-client, episodes=group/local, seen_classes=[0, 1]
+    Eval client 1/1 cid=0 done: samples=16, acc=50.00%, f1=33.33%, route_acc=100.00%, time=0.1s, total_elapsed=0.1s
+  DeNICE eval done [LOCAL_VALIDATION task=0,client=0]: accuracy=50.00%, f1=33.33%, route_acc=100.00% (routing=per-client), elapsed=0.1s
+  DeNICE coverage audit: {'accuracy': 0.5, 'route_coverage': 1.0, 'accuracy_on_covered_classes': 0.5, 'route_accuracy': 1.0, 'accuracy_given_correct_route': 0.5}; counts={'total': 16, 'correct': 8, 'covered': 16, 'covered_correct': 8, 'correct_route': 16, 'correct_on_correct_route': 8}
+  DeNICE eval start [LOCAL_VALIDATION task=0,client=1]: clients=1, test_samples=16, batch_size=8192, routing=per-client, episodes=group/local, seen_classes=[0, 1]
+    Eval client 1/1 cid=1 done: samples=16, acc=50.00%, f1=33.33%, route_acc=100.00%, time=0.1s, total_elapsed=0.1s
+  DeNICE eval done [LOCAL_VALIDATION task=0,client=1]: accuracy=50.00%, f1=33.33%, route_acc=100.00% (routing=per-client), elapsed=0.1s
+  DeNICE coverage audit: {'accuracy': 0.5, 'route_coverage': 1.0, 'accuracy_on_covered_classes': 0.5, 'route_accuracy': 1.0, 'accuracy_given_correct_route': 0.5}; counts={'total': 16, 'correct': 8, 'covered': 16, 'covered_correct': 8, 'correct_route': 16, 'correct_on_correct_route': 8}
+  Task summary -> eval skipped, train_loss=1.429898589849472
+  DeNICE continuation state saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\initial_denice_20261019_120556\continuation_state_task_0.pt
+
+================================================================================
+TASK 1/2 - Decentralized DeNICE-IL
+================================================================================
+  Active DeNICE clients: 2
+  Round 0/1
+    DeNICE collaboration guard: streak=1/2, failed=['effective_k_below_active_clients', 'mean_group_size_above_one', 'has_positive_peer_weight', 'mean_peer_alpha_above_threshold'], effective_K=2/2, group_mean=1.000, peer_alpha_mean=0.000000
+    APPLIANCE overlay: leaders={0: 0, 1: 1}, packets=4, accepted=0
+    Metrics skipped -> train_loss=1.7325, eval_every=999999
+   Round checkpoint saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\initial_denice_20261019_120556\checkpoint_task_1_round_0.pt
+  Round 1/1
+    DeNICE collaboration guard: streak=2/2, failed=['effective_k_below_active_clients', 'mean_group_size_above_one', 'has_positive_peer_weight', 'mean_peer_alpha_above_threshold'], effective_K=2/2, group_mean=1.000, peer_alpha_mean=0.000000
+    APPLIANCE overlay: leaders={0: 0, 1: 1}, packets=6, accepted=0
+    Metrics skipped -> train_loss=1.4627, eval_every=999999
+   Round checkpoint saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\initial_denice_20261019_120556\checkpoint_task_1_round_1.pt
+  Post-task DeNICE eval skipped -> not_final_task
+  DeNICE eval start [LOCAL_VALIDATION task=1,client=0]: clients=1, test_samples=32, batch_size=8192, routing=per-client, episodes=group/local, seen_classes=[0, 1, 2, 3]
+    Eval client 1/1 cid=0 done: samples=32, acc=71.88%, f1=63.53%, route_acc=100.00%, time=0.1s, total_elapsed=0.1s
+  DeNICE eval done [LOCAL_VALIDATION task=1,client=0]: accuracy=71.88%, f1=63.53%, route_acc=100.00% (routing=per-client), elapsed=0.1s
+  DeNICE coverage audit: {'accuracy': 0.71875, 'route_coverage': 1.0, 'accuracy_on_covered_classes': 0.71875, 'route_accuracy': 1.0, 'accuracy_given_correct_route': 0.71875}; counts={'total': 32, 'correct': 23, 'covered': 32, 'covered_correct': 23, 'correct_route': 32, 'correct_on_correct_route': 23}
+  DeNICE eval start [LOCAL_VALIDATION task=1,client=1]: clients=1, test_samples=32, batch_size=8192, routing=per-client, episodes=group/local, seen_classes=[0, 1, 2, 3]
+    Eval client 1/1 cid=1 done: samples=32, acc=68.75%, f1=60.32%, route_acc=100.00%, time=0.1s, total_elapsed=0.1s
+  DeNICE eval done [LOCAL_VALIDATION task=1,client=1]: accuracy=68.75%, f1=60.32%, route_acc=100.00% (routing=per-client), elapsed=0.1s
+  DeNICE coverage audit: {'accuracy': 0.6875, 'route_coverage': 1.0, 'accuracy_on_covered_classes': 0.6875, 'route_accuracy': 1.0, 'accuracy_given_correct_route': 0.6875}; counts={'total': 32, 'correct': 22, 'covered': 32, 'covered_correct': 22, 'correct_route': 32, 'correct_on_correct_route': 22}
+  Task summary -> eval skipped, train_loss=1.46269953250885
+  DeNICE continuation state saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\initial_denice_20261019_120556\continuation_state_task_1.pt
+🌱 Seed set to 42
+DENICE source/config audit: {'source_sha256': 'b57a4316e54523168a76f3a3d6f3fd2145ba234444f8ed329b297b9f1756fa5f', 'git_commit': 'e014a538938101b7ef0faffe95c2d7e84ab582b4', 'denice_continual_width': None, 'denice_eval_route_mode': 'hard', 'denice_router_replay_enabled': True, 'denice_calibrate_plastic_bn': None, 'denice_plasticity_enabled': None, 'denice_capacity_frontload': None, 'denice_mature_fraction': None, 'denice_elastic_strength': None, 'denice_elastic_decay': None, 'denice_cl_method': None, 'denice_cl_train_mature': None, 'denice_cl_logit_scope': None, 'denice_der_alpha': None, 'denice_der_beta': None, 'denice_der_reduction': None, 'denice_ewc_lambda': None, 'denice_ewc_mode': None, 'denice_ewc_fisher_samples': None, 'denice_ewc_fisher_labels': None, 'denice_ewc_decay': None, 'denice_eval_local_validation': True, 'denice_eval_final_task_only': True, 'denice_eval_split_test_by_client': False, 'denice_eval_require_full_coverage': True, 'denice_eval_report_nomask': False, 'denice_eval_representative_ensemble': False, 'denice_validation_fraction': 0.2, 'denice_replay_capacity': 48, 'round_checkpoint_every': None, 'denice_checkpoint_format': 'full', 'denice_cgofed_optimizer': None, 'denice_cgofed_mu': None, 'denice_cgofed_decay': None, 'denice_cgofed_energy': None, 'denice_cgofed_max_samples': None, 'denice_cgofed_peer_projection': None, 'seed': 42, 'random_seed': 42, 'effective_method': 'row_overlay', 'denice_appliance_enabled': True, 'appliance_enabled': False, 'denice_router_mode': 'binary_cosine', 'denice_amp_enabled': False, 'denice_amp_initial_scale': None, 'denice_eval_max_clients': None, 'denice_eval_max_samples': None, 'denice_clustering_mode': 'adaptive_ap', 'runner_file': 'E:\\Study\\DACN_KLTN\\Code\\FL_IL_IDS\\fed_learning\\training\\decentralized_denice_il.py'}
+
+================================================================================
+DECENTRALIZED DeNICE-IL
+================================================================================
+  Restoring DeNICE continuation: completed task 0, resume at task 1
+  Row overlay restored: checkpoint
+
+================================================================================
+TASK 1/2 - Decentralized DeNICE-IL
+================================================================================
+  Active DeNICE clients: 2
+  Round 0/1
+    DeNICE collaboration guard: streak=1/2, failed=['effective_k_below_active_clients', 'mean_group_size_above_one', 'has_positive_peer_weight', 'mean_peer_alpha_above_threshold'], effective_K=2/2, group_mean=1.000, peer_alpha_mean=0.000000
+    APPLIANCE overlay: leaders={0: 0, 1: 1}, packets=4, accepted=0
+    Metrics skipped -> train_loss=1.7325, eval_every=999999
+   Round checkpoint saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\saved\checkpoint_task_1_round_0.pt
+  Round 1/1
+    DeNICE collaboration guard: streak=2/2, failed=['effective_k_below_active_clients', 'mean_group_size_above_one', 'has_positive_peer_weight', 'mean_peer_alpha_above_threshold'], effective_K=2/2, group_mean=1.000, peer_alpha_mean=0.000000
+    APPLIANCE overlay: leaders={0: 0, 1: 1}, packets=6, accepted=0
+    Metrics skipped -> train_loss=1.4627, eval_every=999999
+   Round checkpoint saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\saved\checkpoint_task_1_round_1.pt
+  Post-task DeNICE eval skipped -> not_final_task
+  DeNICE eval start [LOCAL_VALIDATION task=1,client=0]: clients=1, test_samples=32, batch_size=8192, routing=per-client, episodes=group/local, seen_classes=[0, 1, 2, 3]
+    Eval client 1/1 cid=0 done: samples=32, acc=71.88%, f1=63.53%, route_acc=100.00%, time=0.1s, total_elapsed=0.1s
+  DeNICE eval done [LOCAL_VALIDATION task=1,client=0]: accuracy=71.88%, f1=63.53%, route_acc=100.00% (routing=per-client), elapsed=0.1s
+  DeNICE coverage audit: {'accuracy': 0.71875, 'route_coverage': 1.0, 'accuracy_on_covered_classes': 0.71875, 'route_accuracy': 1.0, 'accuracy_given_correct_route': 0.71875}; counts={'total': 32, 'correct': 23, 'covered': 32, 'covered_correct': 23, 'correct_route': 32, 'correct_on_correct_route': 23}
+  DeNICE eval start [LOCAL_VALIDATION task=1,client=1]: clients=1, test_samples=32, batch_size=8192, routing=per-client, episodes=group/local, seen_classes=[0, 1, 2, 3]
+    Eval client 1/1 cid=1 done: samples=32, acc=68.75%, f1=60.32%, route_acc=100.00%, time=0.1s, total_elapsed=0.1s
+  DeNICE eval done [LOCAL_VALIDATION task=1,client=1]: accuracy=68.75%, f1=60.32%, route_acc=100.00% (routing=per-client), elapsed=0.1s
+  DeNICE coverage audit: {'accuracy': 0.6875, 'route_coverage': 1.0, 'accuracy_on_covered_classes': 0.6875, 'route_accuracy': 1.0, 'accuracy_given_correct_route': 0.6875}; counts={'total': 32, 'correct': 22, 'covered': 32, 'covered_correct': 22, 'correct_route': 32, 'correct_on_correct_route': 22}
+  Task summary -> eval skipped, train_loss=1.46269953250885
+  DeNICE continuation state saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\saved\continuation_state_task_1.pt
+🌱 Seed set to 42
+DENICE source/config audit: {'source_sha256': 'b57a4316e54523168a76f3a3d6f3fd2145ba234444f8ed329b297b9f1756fa5f', 'git_commit': 'e014a538938101b7ef0faffe95c2d7e84ab582b4', 'denice_continual_width': None, 'denice_eval_route_mode': 'hard', 'denice_router_replay_enabled': True, 'denice_calibrate_plastic_bn': None, 'denice_plasticity_enabled': None, 'denice_capacity_frontload': None, 'denice_mature_fraction': None, 'denice_elastic_strength': None, 'denice_elastic_decay': None, 'denice_cl_method': None, 'denice_cl_train_mature': None, 'denice_cl_logit_scope': None, 'denice_der_alpha': None, 'denice_der_beta': None, 'denice_der_reduction': None, 'denice_ewc_lambda': None, 'denice_ewc_mode': None, 'denice_ewc_fisher_samples': None, 'denice_ewc_fisher_labels': None, 'denice_ewc_decay': None, 'denice_eval_local_validation': True, 'denice_eval_final_task_only': True, 'denice_eval_split_test_by_client': False, 'denice_eval_require_full_coverage': True, 'denice_eval_report_nomask': False, 'denice_eval_representative_ensemble': False, 'denice_validation_fraction': 0.2, 'denice_replay_capacity': 48, 'round_checkpoint_every': None, 'denice_checkpoint_format': 'full', 'denice_cgofed_optimizer': None, 'denice_cgofed_mu': None, 'denice_cgofed_decay': None, 'denice_cgofed_energy': None, 'denice_cgofed_max_samples': None, 'denice_cgofed_peer_projection': None, 'seed': 42, 'random_seed': 42, 'effective_method': 'row_overlay', 'denice_appliance_enabled': True, 'appliance_enabled': False, 'denice_router_mode': 'binary_cosine', 'denice_amp_enabled': False, 'denice_amp_initial_scale': None, 'denice_eval_max_clients': None, 'denice_eval_max_samples': None, 'denice_clustering_mode': 'adaptive_ap', 'runner_file': 'E:\\Study\\DACN_KLTN\\Code\\FL_IL_IDS\\fed_learning\\training\\decentralized_denice_il.py'}
+
+================================================================================
+DECENTRALIZED DeNICE-IL
+================================================================================
+  Restoring DeNICE continuation: completed task 0, resume at task 1
+  Restored private overlay banks: task 0, 2 clients
+  Row overlay restored: reconstructed_from_identical_dataset_required
+
+================================================================================
+TASK 1/2 - Decentralized DeNICE-IL
+================================================================================
+  Active DeNICE clients: 2
+  Round 0/1
+    DeNICE collaboration guard: streak=1/2, failed=['effective_k_below_active_clients', 'mean_group_size_above_one', 'has_positive_peer_weight', 'mean_peer_alpha_above_threshold'], effective_K=2/2, group_mean=1.000, peer_alpha_mean=0.000000
+    APPLIANCE overlay: leaders={0: 0, 1: 1}, packets=4, accepted=0
+    Metrics skipped -> train_loss=1.7325, eval_every=999999
+   Round checkpoint saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\rebuilt\checkpoint_task_1_round_0.pt
+  Round 1/1
+    DeNICE collaboration guard: streak=2/2, failed=['effective_k_below_active_clients', 'mean_group_size_above_one', 'has_positive_peer_weight', 'mean_peer_alpha_above_threshold'], effective_K=2/2, group_mean=1.000, peer_alpha_mean=0.000000
+    APPLIANCE overlay: leaders={0: 0, 1: 1}, packets=6, accepted=0
+    Metrics skipped -> train_loss=1.4627, eval_every=999999
+   Round checkpoint saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\rebuilt\checkpoint_task_1_round_1.pt
+  Post-task DeNICE eval skipped -> not_final_task
+  DeNICE eval start [LOCAL_VALIDATION task=1,client=0]: clients=1, test_samples=32, batch_size=8192, routing=per-client, episodes=group/local, seen_classes=[0, 1, 2, 3]
+    Eval client 1/1 cid=0 done: samples=32, acc=71.88%, f1=63.53%, route_acc=100.00%, time=0.1s, total_elapsed=0.1s
+  DeNICE eval done [LOCAL_VALIDATION task=1,client=0]: accuracy=71.88%, f1=63.53%, route_acc=100.00% (routing=per-client), elapsed=0.1s
+  DeNICE coverage audit: {'accuracy': 0.71875, 'route_coverage': 1.0, 'accuracy_on_covered_classes': 0.71875, 'route_accuracy': 1.0, 'accuracy_given_correct_route': 0.71875}; counts={'total': 32, 'correct': 23, 'covered': 32, 'covered_correct': 23, 'correct_route': 32, 'correct_on_correct_route': 23}
+  DeNICE eval start [LOCAL_VALIDATION task=1,client=1]: clients=1, test_samples=32, batch_size=8192, routing=per-client, episodes=group/local, seen_classes=[0, 1, 2, 3]
+    Eval client 1/1 cid=1 done: samples=32, acc=68.75%, f1=60.32%, route_acc=100.00%, time=0.1s, total_elapsed=0.1s
+  DeNICE eval done [LOCAL_VALIDATION task=1,client=1]: accuracy=68.75%, f1=60.32%, route_acc=100.00% (routing=per-client), elapsed=0.1s
+  DeNICE coverage audit: {'accuracy': 0.6875, 'route_coverage': 1.0, 'accuracy_on_covered_classes': 0.6875, 'route_accuracy': 1.0, 'accuracy_given_correct_route': 0.6875}; counts={'total': 32, 'correct': 22, 'covered': 32, 'covered_correct': 22, 'correct_route': 32, 'correct_on_correct_route': 22}
+  Task summary -> eval skipped, train_loss=1.46269953250885
+  DeNICE continuation state saved: E:\Study\DACN_KLTN\Code\FL_IL_IDS\output\overlay_resume_bv598thf\rebuilt\continuation_state_task_1.pt

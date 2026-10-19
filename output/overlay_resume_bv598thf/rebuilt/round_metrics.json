@@ -1,0 +1,550 @@
+[
+  {
+    "task": 0,
+    "round": 0,
+    "train_loss": 1.7267252206802368,
+    "round_time": 17.070996522903442,
+    "train_time": 15.65215516090393,
+    "context_update_time": 0.057436466217041016,
+    "context_sample_time": 0.0038918000063858926,
+    "context_encode_time": 0.051397699979133904,
+    "router_fit_time": 1.0500021744519472e-05,
+    "context_reference_sample_count": 128,
+    "capsule_time": 0.04079842567443848,
+    "aggregation_time": 0.2207648754119873,
+    "clustering_time": 0.015262999979313463,
+    "aggregation_apply_time": 0.19884470000397414,
+    "router_refresh_time": 0.7114281999529339,
+    "router_refresh_encode_time": 0.0,
+    "router_refresh_fit_time": 0.0,
+    "router_refresh_sample_count": 0,
+    "appliance_time": 0.0,
+    "checkpoint_time": 0.12802743911743164,
+    "eval_time": 2.19999928958714e-05,
+    "debug_write_time": 0.0,
+    "unattributed_time": null,
+    "test_loss": null,
+    "accuracy": null,
+    "precision_macro": null,
+    "recall_macro": null,
+    "precision_weighted": null,
+    "recall_weighted": null,
+    "f1_macro": null,
+    "f1_weighted": null,
+    "avg_forgetting": null,
+    "evaluated": false,
+    "num_clients": 2,
+    "K_t": 2,
+    "silhouette": 0.0,
+    "imbalance_controls": {
+      "configured": {
+        "denice_batch_sampling": "natural",
+        "denice_class_weight_mode": "none",
+        "denice_class_weight_smoothing": 1.0,
+        "denice_class_weight_effective_beta": 0.999,
+        "denice_class_weight_min": 0.25,
+        "denice_class_weight_max": 4.0,
+        "denice_allow_combined_imbalance_ablation": false
+      },
+      "clients": {
+        "0": {
+          "batch_sampling": "natural",
+          "sampling_epochs": [],
+          "class_weights": {
+            "mode": "none",
+            "enabled": false
+          },
+          "replay": {
+            "buffer_type": "local_balanced_dark_replay",
+            "has_replay": false,
+            "capacity": 48,
+            "size": 0,
+            "class_counts": {},
+            "bytes": 0,
+            "steps": 2,
+            "optimization_loss": 1.7310751676559448,
+            "losses": {
+              "replay_ce": 0.0,
+              "dark_mse": 0.0,
+              "calibration_ce": 0.0
+            }
+          }
+        },
+        "1": {
+          "batch_sampling": "natural",
+          "sampling_epochs": [],
+          "class_weights": {
+            "mode": "none",
+            "enabled": false
+          },
+          "replay": {
+            "buffer_type": "local_balanced_dark_replay",
+            "has_replay": false,
+            "capacity": 48,
+            "size": 0,
+            "class_counts": {},
+            "bytes": 0,
+            "steps": 2,
+            "optimization_loss": 1.7223752737045288,
+            "losses": {
+              "replay_ce": 0.0,
+              "dark_mse": 0.0,
+              "calibration_ce": 0.0
+            }
+          }
+        }
+      }
+    },
+    "nice_loss_semantics": {
+      "clients": {
+        "0": {
+          "sample_count": 64,
+          "learner_output_count": 2,
+          "nonlearner_output_count": 4,
+          "mean_nonlearner_probability_mass": 0.6648983359336853,
+          "full_output_ce": 1.7840120792388916,
+          "learner_only_ce": 0.6906906366348267,
+          "all_targets_are_learner_outputs": true
+        },
+        "1": {
+          "sample_count": 64,
+          "learner_output_count": 2,
+          "nonlearner_output_count": 4,
+          "mean_nonlearner_probability_mass": 0.6648484468460083,
+          "full_output_ce": 1.784098744392395,
+          "learner_only_ce": 0.6909264326095581,
+          "all_targets_are_learner_outputs": true
+        }
+      },
+      "mean_nonlearner_probability_mass": {
+        "min": 0.6648484468460083,
+        "mean": 0.6648733913898468,
+        "max": 0.6648983359336853
+      },
+      "full_output_ce": {
+        "min": 1.7840120792388916,
+        "mean": 1.7840554118156433,
+        "max": 1.784098744392395
+      },
+      "learner_only_ce": {
+        "min": 0.6906906366348267,
+        "mean": 0.6908085346221924,
+        "max": 0.6909264326095581
+      }
+    }
+  },
+  {
+    "task": 0,
+    "round": 1,
+    "train_loss": 1.429898589849472,
+    "round_time": 7.31075382232666,
+    "train_time": 6.571207046508789,
+    "context_update_time": 0.01607060432434082,
+    "context_sample_time": 0.0019295999663881958,
+    "context_encode_time": 0.014167300018016249,
+    "router_fit_time": 6.100046448409557e-06,
+    "context_reference_sample_count": 128,
+    "capsule_time": 0.021061420440673828,
+    "aggregation_time": 0.18465852737426758,
+    "clustering_time": 0.004014100006315857,
+    "aggregation_apply_time": 0.17947219999041408,
+    "router_refresh_time": 0.3651098000118509,
+    "router_refresh_encode_time": 0.0,
+    "router_refresh_fit_time": 0.0,
+    "router_refresh_sample_count": 0,
+    "appliance_time": 0.0,
+    "checkpoint_time": 0.06438064575195312,
+    "eval_time": 1.580000389367342e-05,
+    "debug_write_time": 0.0,
+    "unattributed_time": null,
+    "test_loss": null,
+    "accuracy": null,
+    "precision_macro": null,
+    "recall_macro": null,
+    "precision_weighted": null,
+    "recall_weighted": null,
+    "f1_macro": null,
+    "f1_weighted": null,
+    "avg_forgetting": null,
+    "evaluated": false,
+    "num_clients": 2,
+    "K_t": 2,
+    "silhouette": null,
+    "imbalance_controls": {
+      "configured": {
+        "denice_batch_sampling": "natural",
+        "denice_class_weight_mode": "none",
+        "denice_class_weight_smoothing": 1.0,
+        "denice_class_weight_effective_beta": 0.999,
+        "denice_class_weight_min": 0.25,
+        "denice_class_weight_max": 4.0,
+        "denice_allow_combined_imbalance_ablation": false
+      },
+      "clients": {
+        "0": {
+          "batch_sampling": "natural",
+          "sampling_epochs": [],
+          "class_weights": {
+            "mode": "none",
+            "enabled": false
+          },
+          "replay": {
+            "buffer_type": "local_balanced_dark_replay",
+            "has_replay": false,
+            "capacity": 48,
+            "size": 0,
+            "class_counts": {},
+            "bytes": 0,
+            "steps": 2,
+            "optimization_loss": 1.41933012008667,
+            "losses": {
+              "replay_ce": 0.0,
+              "dark_mse": 0.0,
+              "calibration_ce": 0.0
+            }
+          }
+        },
+        "1": {
+          "batch_sampling": "natural",
+          "sampling_epochs": [],
+          "class_weights": {
+            "mode": "none",
+            "enabled": false
+          },
+          "replay": {
+            "buffer_type": "local_balanced_dark_replay",
+            "has_replay": false,
+            "capacity": 48,
+            "size": 0,
+            "class_counts": {},
+            "bytes": 0,
+            "steps": 2,
+            "optimization_loss": 1.4404670596122742,
+            "losses": {
+              "replay_ce": 0.0,
+              "dark_mse": 0.0,
+              "calibration_ce": 0.0
+            }
+          }
+        }
+      }
+    },
+    "nice_loss_semantics": {
+      "clients": {
+        "0": {
+          "sample_count": 64,
+          "learner_output_count": 2,
+          "nonlearner_output_count": 4,
+          "mean_nonlearner_probability_mass": 0.6608606576919556,
+          "full_output_ce": 1.7677828073501587,
+          "learner_only_ce": 0.6864384412765503,
+          "all_targets_are_learner_outputs": true
+        },
+        "1": {
+          "sample_count": 64,
+          "learner_output_count": 2,
+          "nonlearner_output_count": 4,
+          "mean_nonlearner_probability_mass": 0.6607488989830017,
+          "full_output_ce": 1.7674846649169922,
+          "learner_only_ce": 0.6864696145057678,
+          "all_targets_are_learner_outputs": true
+        }
+      },
+      "mean_nonlearner_probability_mass": {
+        "min": 0.6607488989830017,
+        "mean": 0.6608047783374786,
+        "max": 0.6608606576919556
+      },
+      "full_output_ce": {
+        "min": 1.7674846649169922,
+        "mean": 1.7676337361335754,
+        "max": 1.7677828073501587
+      },
+      "learner_only_ce": {
+        "min": 0.6864384412765503,
+        "mean": 0.6864540278911591,
+        "max": 0.6864696145057678
+      }
+    }
+  },
+  {
+    "task": 1,
+    "round": 0,
+    "train_loss": 1.7325293719768524,
+    "round_time": 5.553065299987793,
+    "train_time": 3.815723419189453,
+    "context_update_time": 0.06090998649597168,
+    "context_sample_time": 0.0013470000703819096,
+    "context_encode_time": 0.0596335000009276,
+    "router_fit_time": 9.300012607127428e-06,
+    "context_reference_sample_count": 128,
+    "capsule_time": 0.05418872833251953,
+    "aggregation_time": 0.35576844215393066,
+    "clustering_time": 0.008318699954543263,
+    "aggregation_apply_time": 0.3457776000723243,
+    "router_refresh_time": 0.9060491999844089,
+    "router_refresh_encode_time": 0.0,
+    "router_refresh_fit_time": 0.0,
+    "router_refresh_sample_count": 0,
+    "appliance_time": 0.0,
+    "checkpoint_time": 0.09298300743103027,
+    "eval_time": 1.479999627918005e-05,
+    "debug_write_time": 0.0,
+    "unattributed_time": null,
+    "test_loss": null,
+    "accuracy": null,
+    "precision_macro": null,
+    "recall_macro": null,
+    "precision_weighted": null,
+    "recall_weighted": null,
+    "f1_macro": null,
+    "f1_weighted": null,
+    "avg_forgetting": null,
+    "evaluated": false,
+    "num_clients": 2,
+    "K_t": 2,
+    "silhouette": null,
+    "imbalance_controls": {
+      "configured": {
+        "denice_batch_sampling": "natural",
+        "denice_class_weight_mode": "none",
+        "denice_class_weight_smoothing": 1.0,
+        "denice_class_weight_effective_beta": 0.999,
+        "denice_class_weight_min": 0.25,
+        "denice_class_weight_max": 4.0,
+        "denice_allow_combined_imbalance_ablation": false
+      },
+      "clients": {
+        "0": {
+          "batch_sampling": "natural",
+          "sampling_epochs": [],
+          "class_weights": {
+            "mode": "none",
+            "enabled": false
+          },
+          "replay": {
+            "buffer_type": "local_balanced_dark_replay",
+            "has_replay": true,
+            "capacity": 48,
+            "size": 48,
+            "class_counts": {
+              "0": 24,
+              "1": 24
+            },
+            "bytes": 5088,
+            "steps": 2,
+            "optimization_loss": 3.3745416402816772,
+            "losses": {
+              "replay_ce": 1.3664013147354126,
+              "dark_mse": 0.0,
+              "calibration_ce": 1.3956583142280579
+            }
+          }
+        },
+        "1": {
+          "batch_sampling": "natural",
+          "sampling_epochs": [],
+          "class_weights": {
+            "mode": "none",
+            "enabled": false
+          },
+          "replay": {
+            "buffer_type": "local_balanced_dark_replay",
+            "has_replay": true,
+            "capacity": 48,
+            "size": 48,
+            "class_counts": {
+              "0": 24,
+              "1": 24
+            },
+            "bytes": 5088,
+            "steps": 2,
+            "optimization_loss": 3.388748526573181,
+            "losses": {
+              "replay_ce": 1.3732447028160095,
+              "dark_mse": 0.0,
+              "calibration_ce": 1.3972686529159546
+            }
+          }
+        }
+      }
+    },
+    "nice_loss_semantics": {
+      "clients": {
+        "0": {
+          "sample_count": 64,
+          "learner_output_count": 2,
+          "nonlearner_output_count": 4,
+          "mean_nonlearner_probability_mass": 0.6626145839691162,
+          "full_output_ce": 1.7722387313842773,
+          "learner_only_ce": 0.6857080459594727,
+          "all_targets_are_learner_outputs": true
+        },
+        "1": {
+          "sample_count": 64,
+          "learner_output_count": 2,
+          "nonlearner_output_count": 4,
+          "mean_nonlearner_probability_mass": 0.6636260747909546,
+          "full_output_ce": 1.7759618759155273,
+          "learner_only_ce": 0.6864295601844788,
+          "all_targets_are_learner_outputs": true
+        }
+      },
+      "mean_nonlearner_probability_mass": {
+        "min": 0.6626145839691162,
+        "mean": 0.6631203293800354,
+        "max": 0.6636260747909546
+      },
+      "full_output_ce": {
+        "min": 1.7722387313842773,
+        "mean": 1.7741003036499023,
+        "max": 1.7759618759155273
+      },
+      "learner_only_ce": {
+        "min": 0.6857080459594727,
+        "mean": 0.6860688030719757,
+        "max": 0.6864295601844788
+      }
+    }
+  },
+  {
+    "task": 1,
+    "round": 1,
+    "train_loss": 1.46269953250885,
+    "round_time": 9.324427843093872,
+    "train_time": 7.47669243812561,
+    "context_update_time": 0.036348581314086914,
+    "context_sample_time": 0.0021625999943353236,
+    "context_encode_time": 0.034728000056929886,
+    "router_fit_time": 9.499955922365189e-06,
+    "context_reference_sample_count": 128,
+    "capsule_time": 0.040720462799072266,
+    "aggregation_time": 0.31943845748901367,
+    "clustering_time": 0.00890160002745688,
+    "aggregation_apply_time": 0.30614439997589216,
+    "router_refresh_time": 1.114677399978973,
+    "router_refresh_encode_time": 0.0,
+    "router_refresh_fit_time": 0.0,
+    "router_refresh_sample_count": 0,
+    "appliance_time": 0.0,
+    "checkpoint_time": 0.10233235359191895,
+    "eval_time": 1.5600002370774746e-05,
+    "debug_write_time": 0.0,
+    "unattributed_time": null,
+    "test_loss": null,
+    "accuracy": null,
+    "precision_macro": null,
+    "recall_macro": null,
+    "precision_weighted": null,
+    "recall_weighted": null,
+    "f1_macro": null,
+    "f1_weighted": null,
+    "avg_forgetting": null,
+    "evaluated": false,
+    "num_clients": 2,
+    "K_t": 2,
+    "silhouette": null,
+    "imbalance_controls": {
+      "configured": {
+        "denice_batch_sampling": "natural",
+        "denice_class_weight_mode": "none",
+        "denice_class_weight_smoothing": 1.0,
+        "denice_class_weight_effective_beta": 0.999,
+        "denice_class_weight_min": 0.25,
+        "denice_class_weight_max": 4.0,
+        "denice_allow_combined_imbalance_ablation": false
+      },
+      "clients": {
+        "0": {
+          "batch_sampling": "natural",
+          "sampling_epochs": [],
+          "class_weights": {
+            "mode": "none",
+            "enabled": false
+          },
+          "replay": {
+            "buffer_type": "local_balanced_dark_replay",
+            "has_replay": true,
+            "capacity": 48,
+            "size": 48,
+            "class_counts": {
+              "0": 24,
+              "1": 24
+            },
+            "bytes": 5088,
+            "steps": 2,
+            "optimization_loss": 3.103388547897339,
+            "losses": {
+              "replay_ce": 1.3769853711128235,
+              "dark_mse": 0.0,
+              "calibration_ce": 1.3765809535980225
+            }
+          }
+        },
+        "1": {
+          "batch_sampling": "natural",
+          "sampling_epochs": [],
+          "class_weights": {
+            "mode": "none",
+            "enabled": false
+          },
+          "replay": {
+            "buffer_type": "local_balanced_dark_replay",
+            "has_replay": true,
+            "capacity": 48,
+            "size": 48,
+            "class_counts": {
+              "0": 24,
+              "1": 24
+            },
+            "bytes": 5088,
+            "steps": 2,
+            "optimization_loss": 3.120398759841919,
+            "losses": {
+              "replay_ce": 1.370431900024414,
+              "dark_mse": 0.0,
+              "calibration_ce": 1.378273844718933
+            }
+          }
+        }
+      }
+    },
+    "nice_loss_semantics": {
+      "clients": {
+        "0": {
+          "sample_count": 64,
+          "learner_output_count": 2,
+          "nonlearner_output_count": 4,
+          "mean_nonlearner_probability_mass": 0.6634231209754944,
+          "full_output_ce": 1.7593451738357544,
+          "learner_only_ce": 0.6704132556915283,
+          "all_targets_are_learner_outputs": true
+        },
+        "1": {
+          "sample_count": 64,
+          "learner_output_count": 2,
+          "nonlearner_output_count": 4,
+          "mean_nonlearner_probability_mass": 0.6626062393188477,
+          "full_output_ce": 1.7570924758911133,
+          "learner_only_ce": 0.6705827713012695,
+          "all_targets_are_learner_outputs": true
+        }
+      },
+      "mean_nonlearner_probability_mass": {
+        "min": 0.6626062393188477,
+        "mean": 0.663014680147171,
+        "max": 0.6634231209754944
+      },
+      "full_output_ce": {
+        "min": 1.7570924758911133,
+        "mean": 1.7582188248634338,
+        "max": 1.7593451738357544
+      },
+      "learner_only_ce": {
+        "min": 0.6704132556915283,
+        "mean": 0.6704980134963989,
+        "max": 0.6705827713012695
+      }
+    }
+  }
+]

@@ -1,0 +1,199 @@
+[
+  {
+    "task": 0,
+    "per_client": {
+      "0": {
+        "classifier_mode": "hard",
+        "loss": 0.6862497925758362,
+        "accuracy": 0.5,
+        "precision_macro": 0.25,
+        "recall_macro": 0.5,
+        "precision_weighted": 0.25,
+        "recall_weighted": 0.5,
+        "f1_macro": 0.3333333333333333,
+        "f1_weighted": 0.3333333333333333,
+        "route_accuracy": 1.0,
+        "route_coverage": 1.0,
+        "coverage_counts": {
+          "total": 16,
+          "correct": 8,
+          "covered": 16,
+          "covered_correct": 8,
+          "correct_route": 16,
+          "correct_on_correct_route": 8
+        },
+        "accuracy_on_covered_classes": 0.5,
+        "route_confusion": {
+          "0": {
+            "0": 16
+          }
+        },
+        "accuracy_given_correct_route": 0.5,
+        "correct_route_sample_count": 16,
+        "per_task": {
+          "0": {
+            "sample_count": 16,
+            "accuracy": 0.5,
+            "f1_macro": 0.3333333333333333
+          }
+        },
+        "eval_sample_count": 16
+      },
+      "1": {
+        "classifier_mode": "hard",
+        "loss": 0.6868396997451782,
+        "accuracy": 0.5,
+        "precision_macro": 0.25,
+        "recall_macro": 0.5,
+        "precision_weighted": 0.25,
+        "recall_weighted": 0.5,
+        "f1_macro": 0.3333333333333333,
+        "f1_weighted": 0.3333333333333333,
+        "route_accuracy": 1.0,
+        "route_coverage": 1.0,
+        "coverage_counts": {
+          "total": 16,
+          "correct": 8,
+          "covered": 16,
+          "covered_correct": 8,
+          "correct_route": 16,
+          "correct_on_correct_route": 8
+        },
+        "accuracy_on_covered_classes": 0.5,
+        "route_confusion": {
+          "0": {
+            "0": 16
+          }
+        },
+        "accuracy_given_correct_route": 0.5,
+        "correct_route_sample_count": 16,
+        "per_task": {
+          "0": {
+            "sample_count": 16,
+            "accuracy": 0.5,
+            "f1_macro": 0.3333333333333333
+          }
+        },
+        "eval_sample_count": 16
+      }
+    },
+    "split": "local_heldout",
+    "client_count": 2,
+    "accuracy": 0.5,
+    "f1_macro": 0.3333333333333333,
+    "route_accuracy": 1.0,
+    "avg_forgetting": null,
+    "forgetting_matched_client_task_count": 0,
+    "per_task_accuracy": {
+      "0": 0.5
+    },
+    "forgetting_definition": "mean_previous_best_minus_current_on_matched_client_task_pairs"
+  },
+  {
+    "task": 1,
+    "per_client": {
+      "0": {
+        "classifier_mode": "hard",
+        "loss": 0.6786070466041565,
+        "accuracy": 0.71875,
+        "precision_macro": 0.5972222222222222,
+        "recall_macro": 0.71875,
+        "precision_weighted": 0.5972222222222222,
+        "recall_weighted": 0.71875,
+        "f1_macro": 0.6352941176470588,
+        "f1_weighted": 0.6352941176470588,
+        "route_accuracy": 1.0,
+        "route_coverage": 1.0,
+        "coverage_counts": {
+          "total": 32,
+          "correct": 23,
+          "covered": 32,
+          "covered_correct": 23,
+          "correct_route": 32,
+          "correct_on_correct_route": 23
+        },
+        "accuracy_on_covered_classes": 0.71875,
+        "route_confusion": {
+          "0": {
+            "0": 16
+          },
+          "1": {
+            "1": 16
+          }
+        },
+        "accuracy_given_correct_route": 0.71875,
+        "correct_route_sample_count": 32,
+        "per_task": {
+          "0": {
+            "sample_count": 16,
+            "accuracy": 0.5,
+            "f1_macro": 0.3333333333333333
+          },
+          "1": {
+            "sample_count": 16,
+            "accuracy": 0.9375,
+            "f1_macro": 0.9372549019607843
+          }
+        },
+        "eval_sample_count": 32
+      },
+      "1": {
+        "classifier_mode": "hard",
+        "loss": 0.6787173748016357,
+        "accuracy": 0.6875,
+        "precision_macro": 0.575,
+        "recall_macro": 0.6875,
+        "precision_weighted": 0.575,
+        "recall_weighted": 0.6875,
+        "f1_macro": 0.6031746031746031,
+        "f1_weighted": 0.6031746031746031,
+        "route_accuracy": 1.0,
+        "route_coverage": 1.0,
+        "coverage_counts": {
+          "total": 32,
+          "correct": 22,
+          "covered": 32,
+          "covered_correct": 22,
+          "correct_route": 32,
+          "correct_on_correct_route": 22
+        },
+        "accuracy_on_covered_classes": 0.6875,
+        "route_confusion": {
+          "0": {
+            "0": 16
+          },
+          "1": {
+            "1": 16
+          }
+        },
+        "accuracy_given_correct_route": 0.6875,
+        "correct_route_sample_count": 32,
+        "per_task": {
+          "0": {
+            "sample_count": 16,
+            "accuracy": 0.5,
+            "f1_macro": 0.3333333333333333
+          },
+          "1": {
+            "sample_count": 16,
+            "accuracy": 0.875,
+            "f1_macro": 0.873015873015873
+          }
+        },
+        "eval_sample_count": 32
+      }
+    },
+    "split": "local_heldout",
+    "client_count": 2,
+    "accuracy": 0.703125,
+    "f1_macro": 0.619234360410831,
+    "route_accuracy": 1.0,
+    "avg_forgetting": 0.0,
+    "forgetting_matched_client_task_count": 2,
+    "per_task_accuracy": {
+      "0": 0.5,
+      "1": 0.90625
+    },
+    "forgetting_definition": "mean_previous_best_minus_current_on_matched_client_task_pairs"
+  }
+]

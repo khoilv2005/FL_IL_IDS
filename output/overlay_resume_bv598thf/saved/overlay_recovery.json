@@ -1,0 +1,6 @@
+{
+  "source": "E:\\Study\\DACN_KLTN\\Code\\FL_IL_IDS\\output\\overlay_resume_bv598thf\\initial_denice_20261019_120556\\continuation_state_task_0.pt",
+  "recovery": "checkpoint",
+  "resume_from_task": 1,
+  "private_state_in_checkpoint": true
+}

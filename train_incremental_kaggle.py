@@ -10,10 +10,10 @@ import zipfile
 
 # Environment overrides make P6 multi-seed runs reproducible without editing
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
-# Default phase 5 starts all six tasks fresh with upgraded DENICE.
+# Phase 4 resumes tasks 4-5; use phase 5 to start all six tasks fresh.
 # On Kaggle set DENICE_CODE_DIR to the extracted source bundle to train these
 # local fixes; standalone uploads clone the pinned supporting revision below.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5"))  # 1..6
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "4"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_VARIANT = os.environ.get('DENICE_VARIANT', 'legacy').lower()
 # Uploading this file alone now selects the updated row-overlay experiment.
@@ -23,8 +23,6 @@ _default_profile = 'legacy' if (TRAIN_VARIANT != 'legacy' or
 TRAIN_PROFILE = os.environ.get('DENICE_RUN_PROFILE', _default_profile).lower()
 if TRAIN_PROFILE not in ('row_overlay', 'legacy'):
     raise ValueError('DENICE_RUN_PROFILE must be row_overlay or legacy')
-if TRAIN_PROFILE == 'row_overlay' and TRAIN_PHASE != 5:
-    raise ValueError('The row_overlay profile requires DENICE_TRAIN_PHASE=5 (fresh run)')
 _output_label = 'row_overlay' if TRAIN_PROFILE == 'row_overlay' else TRAIN_VARIANT
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_{_output_label}_seed_{TRAIN_SEED}"
@@ -74,18 +72,29 @@ PHASE_CONFIG = {
     },
 }
 
-phase_config = PHASE_CONFIG[TRAIN_PHASE]
+phase_config = dict(PHASE_CONFIG[TRAIN_PHASE])
+if 'DENICE_TASK_END' in os.environ:
+    phase_config['task_end'] = int(os.environ['DENICE_TASK_END'])
+if not phase_config['task_start'] <= phase_config['task_end'] <= 5:
+    raise ValueError('DENICE_TASK_END must be between the phase start and 5')
 desired_resume_file = phase_config["resume_file"]
 target = None
 
 resume_drive_url = os.environ.get(
     "DENICE_RESUME_DRIVE_URL",
-    "https://drive.google.com/file/d/1AyQCx62mfbpRKDEwnECPKLLDY00AZQhu/view?usp=sharing",
+    "https://drive.google.com/file/d/1UMtq48e1z0MnOMWDoscGMVEjsmtAizO0/view?usp=sharing",
 )
 
-if desired_resume_file is None:
+if os.environ.get('DENICE_RESUME_STATE_PATH'):
+    target = os.path.abspath(os.environ['DENICE_RESUME_STATE_PATH'])
+    if not os.path.isfile(target):
+        raise FileNotFoundError(target)
+elif desired_resume_file is None:
     print(f"Phase {TRAIN_PHASE}: no resume state needed.")
 else:
+    if TRAIN_PROFILE == 'row_overlay' and not os.environ.get('DENICE_RESUME_DRIVE_URL'):
+        raise ValueError('Set DENICE_RESUME_STATE_PATH to your overlay continuation checkpoint; '
+                         'the legacy default Drive checkpoint is not suitable for overlay.')
     os.makedirs("/tmp/next/continue", exist_ok=True)
 
     archive_path = "/tmp/next/continue/continue.zip"
@@ -202,7 +211,7 @@ setup_imports()
 # =============================================================================
 CONFIG = {
     # Data
-    "data_dir": "/kaggle/input/datasets/khoilv2005/100-clients/100-clients",
+    "data_dir": os.environ.get("DENICE_DATA_DIR", "/kaggle/input/datasets/khoilv2005/100-clients/100-clients"),
     # Reproducibility
     "random_seed": TRAIN_SEED,
     # Training Mode
@@ -506,8 +515,9 @@ if TRAIN_PROFILE == 'row_overlay':
         'denice_eval_require_full_coverage': False,
         'denice_eval_max_clients': None,
         'denice_eval_max_samples': 50000,
-        'task_start': 0, 'task_end': 5,
-        'resume_state_path': None, 'resume_output_dir': None,
+        'task_start': phase_config['task_start'], 'task_end': phase_config['task_end'],
+        'resume_state_path': target, 'resume_output_dir': TRAIN_OUTPUT_DIR,
+        'denice_overlay_rebuild_private_state': os.environ.get('DENICE_OVERLAY_REBUILD_PRIVATE_STATE') == '1',
         'output_dir': TRAIN_OUTPUT_DIR,
     })
 

@@ -1,0 +1,345 @@
+{
+  "training_cluster_mode": "adaptive_ap",
+  "global_cluster_K": 2,
+  "training_peer_count_stats": {
+    "mean": 0.0,
+    "median": 0.0,
+    "p90": 0.0,
+    "max": 0,
+    "zero_peer_fraction": 1.0
+  },
+  "positive_alpha_peer_count_stats": {
+    "min": 0.0,
+    "mean": 0.0,
+    "max": 0.0
+  },
+  "training_edge_density": 0.0,
+  "dense_model_transfer_upper_bound_bytes": 0,
+  "communication_estimate_policy": "dense state_dict payload; excludes masks, compression, capsules and transport overhead",
+  "K_t": 2,
+  "raw_K_t": 2,
+  "effective_K_t": 2,
+  "silhouette": 0.0,
+  "valid": false,
+  "raw_valid": false,
+  "aggregation_mode": "peer",
+  "local_transfer_selection": {},
+  "accepted_peer_client_count": null,
+  "effective_policy": "self_only",
+  "fallback_reason": "raw_cluster_invalid_without_compatible_previous_valid_labels",
+  "labels": {
+    "0": 0,
+    "1": 1
+  },
+  "groups": {
+    "0": [
+      0
+    ],
+    "1": [
+      1
+    ]
+  },
+  "cluster_sizes": {
+    "0": 1,
+    "1": 1
+  },
+  "similarity_stats": {
+    "min": 0.9333210502721866,
+    "mean": 0.9333210502721866,
+    "max": 0.9333210502721866
+  },
+  "group_size_stats": {
+    "min": 1.0,
+    "mean": 1.0,
+    "max": 1.0
+  },
+  "alpha_stats": {
+    "min": 1.0,
+    "mean": 1.0,
+    "max": 1.0
+  },
+  "peer_alpha_sum_stats": {
+    "min": 0.0,
+    "mean": 0.0,
+    "max": 0.0
+  },
+  "peer_aggregated_client_count": 0,
+  "alpha_debug": {
+    "0": {
+      "group_ids": [
+        0
+      ],
+      "similarities": [
+        1.0
+      ],
+      "sample_counts": [
+        64.0
+      ],
+      "reliabilities": [
+        0.6691358024691358
+      ],
+      "alphas": [
+        1.0
+      ],
+      "peer_alpha_sum": 0.0,
+      "centroid_distances": {
+        "0": 0.0
+      },
+      "centroid_gate_threshold": 0.75,
+      "similarity_source": "clustering_effective_similarity"
+    },
+    "1": {
+      "group_ids": [
+        1
+      ],
+      "similarities": [
+        1.0
+      ],
+      "sample_counts": [
+        64.0
+      ],
+      "reliabilities": [
+        0.6691358024691358
+      ],
+      "alphas": [
+        1.0
+      ],
+      "peer_alpha_sum": 0.0,
+      "centroid_distances": {
+        "1": 0.0
+      },
+      "centroid_gate_threshold": 0.75,
+      "similarity_source": "clustering_effective_similarity"
+    }
+  },
+  "effective_weights": {
+    "proto": 0.35,
+    "age": 0.1,
+    "importance": 0.15,
+    "label": 0.25,
+    "capacity": 0.05,
+    "reliability": 0.1,
+    "update": 0.0
+  },
+  "similarity_threshold": 0.933250842763215,
+  "age_peer_promotions": {
+    "0": {
+      "conv1": 0,
+      "conv2": 0,
+      "conv3": 0,
+      "gru": 0,
+      "fc1": 0,
+      "fc2": 0
+    },
+    "1": {
+      "conv1": 0,
+      "conv2": 0,
+      "conv3": 0,
+      "gru": 0,
+      "fc1": 0,
+      "fc2": 0
+    }
+  },
+  "capacity_after_aggregation": {
+    "0": {
+      "conv1": {
+        "rho0": 0.671875,
+        "rhom": 0.0,
+        "free": 43.0,
+        "learner": 21.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 64.0
+      },
+      "conv2": {
+        "rho0": 0.671875,
+        "rhom": 0.0,
+        "free": 86.0,
+        "learner": 42.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 128.0
+      },
+      "conv3": {
+        "rho0": 0.66796875,
+        "rhom": 0.0,
+        "free": 171.0,
+        "learner": 85.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 256.0
+      },
+      "gru": {
+        "rho0": 0.67,
+        "rhom": 0.0,
+        "free": 67.0,
+        "learner": 33.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 100.0
+      },
+      "fc1": {
+        "rho0": 0.66796875,
+        "rhom": 0.0,
+        "free": 171.0,
+        "learner": 85.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 256.0
+      }
+    },
+    "1": {
+      "conv1": {
+        "rho0": 0.671875,
+        "rhom": 0.0,
+        "free": 43.0,
+        "learner": 21.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 64.0
+      },
+      "conv2": {
+        "rho0": 0.671875,
+        "rhom": 0.0,
+        "free": 86.0,
+        "learner": 42.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 128.0
+      },
+      "conv3": {
+        "rho0": 0.66796875,
+        "rhom": 0.0,
+        "free": 171.0,
+        "learner": 85.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 256.0
+      },
+      "gru": {
+        "rho0": 0.67,
+        "rhom": 0.0,
+        "free": 67.0,
+        "learner": 33.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 100.0
+      },
+      "fc1": {
+        "rho0": 0.66796875,
+        "rhom": 0.0,
+        "free": 171.0,
+        "learner": 85.0,
+        "mature": 0.0,
+        "retired": 0.0,
+        "total": 256.0
+      }
+    }
+  },
+  "capacity_guardrails": {},
+  "plastic_fc2_row_audit": {},
+  "selective_fc2_row_protection": {
+    "enabled": false,
+    "plastic_row_count": 0,
+    "blocked_row_count": 0,
+    "blocked_row_ratio": 0.0,
+    "blocked_peer_alpha_before_sum": 0.0,
+    "clients": {}
+  },
+  "cgofed_peer_projection": {},
+  "clustering_time": 0.015262999979313463,
+  "aggregation_apply_time": 0.19884470000397414,
+  "collaboration_guard": {
+    "mode": "off",
+    "collapsed": true,
+    "triggered": false,
+    "consecutive_self_only_rounds": 1,
+    "max_consecutive_self_only_rounds": 2,
+    "min_mean_peer_alpha": 0.0,
+    "active_client_count": 2,
+    "effective_K_t": 2,
+    "mean_group_size": 1.0,
+    "mean_peer_alpha": 0.0,
+    "max_peer_alpha": 0.0,
+    "peer_aggregated_client_count": 0,
+    "checks": {
+      "effective_k_below_active_clients": false,
+      "mean_group_size_above_one": false,
+      "has_positive_peer_weight": false,
+      "mean_peer_alpha_above_threshold": false
+    },
+    "failed_checks": [
+      "effective_k_below_active_clients",
+      "mean_group_size_above_one",
+      "has_positive_peer_weight",
+      "mean_peer_alpha_above_threshold"
+    ]
+  },
+  "router_replay": {
+    "0": {
+      "updated": false,
+      "reason": "single_episode"
+    },
+    "1": {
+      "updated": false,
+      "reason": "single_episode"
+    }
+  },
+  "denice_appliance": {
+    "task": 0,
+    "round": 0,
+    "leaders": {
+      "0": 0,
+      "1": 1
+    },
+    "topology": "full_mesh",
+    "dropped": 0,
+    "packets": 2,
+    "row_payload_bytes": 4112,
+    "decisions": [
+      {
+        "receiver": 0,
+        "class_id": 0,
+        "accepted": false,
+        "reason": "no_compatible_donor"
+      },
+      {
+        "receiver": 0,
+        "class_id": 1,
+        "accepted": false,
+        "reason": "no_functional_gap"
+      },
+      {
+        "receiver": 1,
+        "class_id": 0,
+        "accepted": false,
+        "reason": "no_compatible_donor"
+      },
+      {
+        "receiver": 1,
+        "class_id": 1,
+        "accepted": false,
+        "reason": "no_functional_gap"
+      }
+    ],
+    "compatibility": "structural_plus_validation",
+    "leader_deliveries": 4,
+    "inter_leader_deliveries": 2,
+    "accepted": 0
+  },
+  "task": 0,
+  "round": 0,
+  "router_memory_refresh": {},
+  "router_freshness": {
+    "schedule": "every_round",
+    "refresh_executed": false,
+    "fresh_client_count": 2,
+    "stale_client_count": 0,
+    "last_refresh_tasks": [
+      0
+    ],
+    "last_refresh_rounds": [
+      0
+    ]
+  }
+}

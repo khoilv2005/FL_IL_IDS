@@ -27,8 +27,8 @@ def validate_config(config):
     for key, value in required.items():
         if config.get(key) != value:
             raise ValueError(f'APPLIANCE requires {key}={value!r}')
-    if config.get('resume_state_path') or config.get('task_start', 0):
-        raise ValueError('APPLIANCE currently requires a fresh task-0 run (private bank is not resumed)')
+    if config.get('task_start', 0) and not config.get('resume_state_path'):
+        raise ValueError('Row overlay task_start > 0 requires a continuation checkpoint')
     if config.get('denice_capsule_mode') == 'paper':
         raise ValueError('APPLIANCE reserves validation exclusively for local checking; use training capsules')
     if config.get('denice_transfer_enabled') or config.get('denice_classifier_enabled'):

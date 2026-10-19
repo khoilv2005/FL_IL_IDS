@@ -1,0 +1,20 @@
+{
+  "task": 0,
+  "round": 1,
+  "clients": {
+    "0": {
+      "num_adapters": 0,
+      "total_adapter_params": 0,
+      "per_layer": {},
+      "adapters": [],
+      "recycling": {}
+    },
+    "1": {
+      "num_adapters": 0,
+      "total_adapter_params": 0,
+      "per_layer": {},
+      "adapters": [],
+      "recycling": {}
+    }
+  }
+}
