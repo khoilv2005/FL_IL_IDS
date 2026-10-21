@@ -1,0 +1,4042 @@
+{
+  "version": "candle_v1_head_unlock_development_20261022",
+  "source_git_base": "caee418",
+  "source_hashes": {
+    "tools/audit_candle_v1_head_unlock.py": "100af5f29c1cc3ec7d740a679c5568a5b4f55aaa1239f13ba96596af8a16e623",
+    "tools/audit_candle_v1_positive_quantile_gate.py": "89df408dad0f7833c5f3c77bf73458909deb147443dcbdf26f0f0e60439d1b56",
+    "tools/candle_head_unlock_runtime.py": "0c8701f31646850c4182c3c0bd101aa3b14ec53baf061ce1b05e3d4fe70be7b3",
+    "tools/replay_candle_head_unlock_packets.py": "de68c36c1692671459522ff18980bf6a6741c9222037a175665fd3d59f90890e",
+    "tools/audit_candle_v1_head_unlock_controls.py": "eb9cab2f146ae9b4bad0bfb450044b6efe1319af79aef0546ffe0a6b0c63ce4e",
+    "tools/audit_candle_v1_two_tier.py": "dce732f296195ae53a9cd9321c72fe0ef865307f260f14d6f358c4674c746879",
+    "eval_checkpoint.py": "b2c55414330139337c316a08c12496156fb239da783fa2b3bb039acd7353ad7d",
+    "fed_learning/training/denice_eval.py": "8854922f33b535404918432fa165abdf775471ca57981c1ad20e67924d1ccf1b",
+    "fed_learning/models/nice_model.py": "7c9e0786242eaf238509e77fa00b355994106167de0de5fd4566ba2112d1de3a"
+  },
+  "checkpoint_hashes": {
+    "terminal_sha256": "2ef27c9190bc35a74b3a9581681cf42b67efd5ffd8e1e080c2bd25270aca7130",
+    "graph_sha256": "8668ceea44e3fd4225fd8527fc0644c8a47e53c82a3dfdaf5859636bb44eddae"
+  },
+  "prior_audit": "CANDLE_V1_TWO_TIER_CHECKPOINT_AUDIT_20261022_VI.md",
+  "no_optimizer": true,
+  "final_TEST_read": false,
+  "original_model_router_unchanged": true,
+  "primary_gate": "recall>=0.95, observed FAR<=0.001, negative_break=0",
+  "primary_pass_count": 0,
+  "conclusion": "Input-based head unlocking works on development panels; primary recall gate fails; prototype-only matches frozen packet predictions, so incremental head benefit over prototype-only is unproven",
+  "amendment": "After exploratory validation failure, fixed q grid [0,.01,.05,.1] with primary .05 before META-FIT evaluation; secondary .01 remains secondary",
+  "limitations": [
+    "Single-process offline harness; no production installer or full network protocol",
+    "Donor-origin target samples and incomplete/sparse receiver negatives",
+    "Multiple exposed development roles; not pristine confirmation",
+    "Historical validation/META-FIT used for scoring only, not raw historical CAL",
+    "Extra-neighborhood receiver65 is counterfactual; not native graph eligibility",
+    "No global safety guarantee or full TEST accuracy claim"
+  ],
+  "cases": [
+    {
+      "receiver": 7,
+      "donor": 11,
+      "class_id": 24,
+      "graph_alpha": 0.18480529454762556,
+      "exploratory": {
+        "selection_trials": 6112,
+        "selected": {
+          "id": 5250,
+          "head": "diagonal_moment_transport",
+          "spec": {
+            "family": "targeted_donor_proto",
+            "gate": "donor_proto",
+            "tau": 0.49372246861457825,
+            "gamma": null,
+            "score": "raw"
+          },
+          "selection": {
+            "rows": 108,
+            "positives": 64,
+            "negatives": 44,
+            "recall": 1.0,
+            "accuracy": 0.6018518518518519,
+            "FAR": 0.0,
+            "rescue": 64,
+            "breaks": 0,
+            "negative_break": 0,
+            "net": 64,
+            "false_activation": 0,
+            "per_negative_class": {
+              "25": {
+                "rows": 2,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "26": {
+                "rows": 10,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "27": {
+                "rows": 31,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "28": {
+                "rows": 1,
+                "false_activation": 0,
+                "breaks": 0
+              }
+            }
+          },
+          "negative_gate": true,
+          "full_selection_gate": true
+        },
+        "validation": {
+          "rows": 3088,
+          "positives": 256,
+          "negatives": 2832,
+          "recall": 0.99609375,
+          "accuracy": 0.38406735751295334,
+          "FAR": 0.3707627118644068,
+          "rescue": 255,
+          "breaks": 644,
+          "negative_break": 644,
+          "net": -389,
+          "false_activation": 1050
+        },
+        "diagnostics": {
+          "donor_proto": {
+            "AUROC": 0.9986744681320621,
+            "target_quantiles": [
+              0.6931626796722412,
+              0.7786229848861694,
+              0.7900671064853668,
+              0.8014959245920181,
+              0.8078261017799377
+            ],
+            "negative_quantiles": [
+              0.36029288172721863,
+              0.37695482820272447,
+              0.509348452091217,
+              0.7363744229078293,
+              0.7701471447944641
+            ]
+          },
+          "receiver_proto": {
+            "AUROC": 0.9982703257415254,
+            "target_quantiles": [
+              0.7893772721290588,
+              0.9811111390590668,
+              0.9979092180728912,
+              0.9984510540962219,
+              0.9989187121391296
+            ],
+            "negative_quantiles": [
+              0.4047483503818512,
+              0.4138850912451744,
+              0.5826913714408875,
+              0.8834304749965668,
+              0.9390865564346313
+            ]
+          },
+          "weight_cos": {
+            "AUROC": 0.9970330707097458,
+            "target_quantiles": [
+              0.07290373742580414,
+              0.26083804666996,
+              0.2702879160642624,
+              0.2939305007457733,
+              0.2971601188182831
+            ],
+            "negative_quantiles": [
+              -0.23497670888900757,
+              -0.16485508754849434,
+              0.06252346001565456,
+              0.22922493591904639,
+              0.2587875425815582
+            ]
+          },
+          "donor_FC1_binary": {
+            "AUROC": 0.989061948269774,
+            "target_quantiles": [
+              0.24444444444444444,
+              0.5091463414634146,
+              0.5833333333333334,
+              0.6419753086419753,
+              0.654320987654321
+            ],
+            "negative_quantiles": [
+              0.0,
+              0.029571927781013398,
+              0.25961538461538464,
+              0.5227272727272727,
+              0.5955056179775281
+            ]
+          },
+          "receiver_FC1_binary": {
+            "AUROC": 0.9918792207362288,
+            "target_quantiles": [
+              0.31645569620253167,
+              0.671583850931677,
+              0.8529411764705882,
+              0.884472049689441,
+              0.9117647058823529
+            ],
+            "negative_quantiles": [
+              0.0,
+              0.025,
+              0.3113207547169811,
+              0.6233766233766234,
+              0.7428571428571429
+            ]
+          },
+          "task_rank": {
+            "target_rows": 256,
+            "counts": {
+              "5": 252,
+              "2": 1,
+              "3": 2,
+              "1": 1
+            },
+            "top1": 0.00390625,
+            "top2": 0.0078125,
+            "top3": 0.015625,
+            "ranking": "stable task-ID tie break; raw cosine, not softmax confidence"
+          }
+        },
+        "all_family_results": [
+          {
+            "family": "baseline",
+            "head": "availability",
+            "spec": {
+              "family": "baseline"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.0,
+              "accuracy": 0.510038860103627,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "family": "native_head",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "native_head",
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.0,
+              "accuracy": 0.510038860103627,
+              "FAR": 0.00035310734463276836,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 1
+            }
+          },
+          {
+            "family": "top2_energy",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "top2_energy",
+              "k": 2,
+              "gap": 0.0,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.0,
+              "accuracy": 0.510038860103627,
+              "FAR": 0.00035310734463276836,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 1
+            }
+          },
+          {
+            "family": "top3_energy",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "top3_energy",
+              "k": 3,
+              "gap": 0.0,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.0,
+              "accuracy": 0.510038860103627,
+              "FAR": 0.00035310734463276836,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 1
+            }
+          },
+          {
+            "family": "targeted_donor_proto",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.49372246861457825,
+              "gamma": null,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.99609375,
+              "accuracy": 0.38406735751295334,
+              "FAR": 0.3707627118644068,
+              "rescue": 255,
+              "breaks": 644,
+              "negative_break": 644,
+              "net": -389,
+              "false_activation": 1050
+            }
+          },
+          {
+            "family": "targeted_receiver_proto",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.5306842923164368,
+              "gamma": null,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.99609375,
+              "accuracy": 0.28983160621761656,
+              "FAR": 0.4887005649717514,
+              "rescue": 255,
+              "breaks": 935,
+              "negative_break": 935,
+              "net": -680,
+              "false_activation": 1384
+            }
+          },
+          {
+            "family": "targeted_weight_cos",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": -0.013965259306132793,
+              "gamma": null,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.99609375,
+              "accuracy": 0.2865932642487047,
+              "FAR": 0.4947033898305085,
+              "rescue": 255,
+              "breaks": 945,
+              "negative_break": 945,
+              "net": -690,
+              "false_activation": 1401
+            }
+          },
+          {
+            "family": "targeted_donor_FC1_binary",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.05333333333333334,
+              "gamma": null,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.99609375,
+              "accuracy": 0.2865932642487047,
+              "FAR": 0.4947033898305085,
+              "rescue": 255,
+              "breaks": 945,
+              "negative_break": 945,
+              "net": -690,
+              "false_activation": 1401
+            }
+          },
+          {
+            "family": "targeted_receiver_FC1_binary",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.042105263157894736,
+              "gamma": null,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 3088,
+              "positives": 256,
+              "negatives": 2832,
+              "recall": 0.99609375,
+              "accuracy": 0.2865932642487047,
+              "FAR": 0.4947033898305085,
+              "rescue": 255,
+              "breaks": 945,
+              "negative_break": 945,
+              "net": -690,
+              "false_activation": 1401
+            }
+          }
+        ]
+      },
+      "amended": {
+        "primary": {
+          "head": "direct_eta_1.0",
+          "quantile": 0.05,
+          "spec": {
+            "family": "targeted_donor_proto",
+            "gate": "donor_proto",
+            "tau": 0.7786591053009033,
+            "gamma": null,
+            "score": "raw"
+          },
+          "primary": true,
+          "metrics": {
+            "rows": 2996,
+            "positives": 256,
+            "negatives": 2740,
+            "recall": 0.9453125,
+            "accuracy": 0.605807743658211,
+            "FAR": 0.0,
+            "rescue": 242,
+            "breaks": 0,
+            "negative_break": 0,
+            "net": 242,
+            "false_activation": 0,
+            "per_negative_class": {
+              "6": {
+                "rows": 249,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "7": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "8": {
+                "rows": 251,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "9": {
+                "rows": 244,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "11": {
+                "rows": 115,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "12": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "13": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "14": {
+                "rows": 255,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "15": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "16": {
+                "rows": 5,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "18": {
+                "rows": 106,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "19": {
+                "rows": 6,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "22": {
+                "rows": 37,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "25": {
+                "rows": 48,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "26": {
+                "rows": 144,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "27": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              }
+            }
+          },
+          "empirical_gate": false
+        },
+        "baseline": {
+          "rows": 2996,
+          "positives": 256,
+          "negatives": 2740,
+          "recall": 0.0,
+          "accuracy": 0.5250333778371161,
+          "FAR": 0.0,
+          "rescue": 0,
+          "breaks": 0,
+          "negative_break": 0,
+          "net": 0,
+          "false_activation": 0
+        },
+        "old_class_negative_rows": 2292,
+        "evaluation_class_counts": {
+          "6": 249,
+          "7": 256,
+          "8": 251,
+          "9": 244,
+          "11": 115,
+          "12": 256,
+          "13": 256,
+          "14": 255,
+          "15": 256,
+          "16": 5,
+          "18": 106,
+          "19": 6,
+          "22": 37,
+          "24": 256,
+          "25": 48,
+          "26": 144,
+          "27": 256
+        },
+        "all_40_fixed_ablations": [
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.7644339799880981,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9765625,
+              "accuracy": 0.6084779706275033,
+              "FAR": 0.0,
+              "rescue": 250,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 250,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.7696107625961304,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.97265625,
+              "accuracy": 0.6081441922563418,
+              "FAR": 0.0,
+              "rescue": 249,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 249,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.7786591053009033,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": true,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9453125,
+              "accuracy": 0.605807743658211,
+              "FAR": 0.0,
+              "rescue": 242,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 242,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.7814306616783142,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.90234375,
+              "accuracy": 0.6021361815754339,
+              "FAR": 0.0,
+              "rescue": 231,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 231,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9712108373641968,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96875,
+              "accuracy": 0.6078104138851802,
+              "FAR": 0.0,
+              "rescue": 248,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 248,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9722207188606262,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96875,
+              "accuracy": 0.6078104138851802,
+              "FAR": 0.0,
+              "rescue": 248,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 248,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9873541593551636,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9375,
+              "accuracy": 0.6051401869158879,
+              "FAR": 0.0,
+              "rescue": 240,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 240,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9892681837081909,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9296875,
+              "accuracy": 0.6044726301735648,
+              "FAR": 0.0,
+              "rescue": 238,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 238,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.2598174512386322,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96484375,
+              "accuracy": 0.6074766355140186,
+              "FAR": 0.0010948905109489052,
+              "rescue": 247,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 247,
+              "false_activation": 3
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.2618386745452881,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.94921875,
+              "accuracy": 0.6061415220293725,
+              "FAR": 0.00072992700729927,
+              "rescue": 243,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 243,
+              "false_activation": 2
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.26450473070144653,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.87890625,
+              "accuracy": 0.6001335113484646,
+              "FAR": 0.00072992700729927,
+              "rescue": 225,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 225,
+              "false_activation": 2
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.2657194137573242,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.828125,
+              "accuracy": 0.5957943925233645,
+              "FAR": 0.000364963503649635,
+              "rescue": 212,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 212,
+              "false_activation": 1
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.5294117647058824,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.95703125,
+              "accuracy": 0.5861148197596796,
+              "FAR": 0.02335766423357664,
+              "rescue": 245,
+              "breaks": 62,
+              "negative_break": 62,
+              "net": 183,
+              "false_activation": 64
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.5318823529411765,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.953125,
+              "accuracy": 0.589452603471295,
+              "FAR": 0.019343065693430656,
+              "rescue": 244,
+              "breaks": 51,
+              "negative_break": 51,
+              "net": 193,
+              "false_activation": 53
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.5603011204481793,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.93359375,
+              "accuracy": 0.6041388518024032,
+              "FAR": 0.0010948905109489052,
+              "rescue": 239,
+              "breaks": 2,
+              "negative_break": 2,
+              "net": 237,
+              "false_activation": 3
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.5662650602409639,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9140625,
+              "accuracy": 0.6024699599465955,
+              "FAR": 0.0010948905109489052,
+              "rescue": 234,
+              "breaks": 2,
+              "negative_break": 2,
+              "net": 232,
+              "false_activation": 3
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.6666666666666666,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96484375,
+              "accuracy": 0.6011348464619493,
+              "FAR": 0.008394160583941606,
+              "rescue": 247,
+              "breaks": 19,
+              "negative_break": 19,
+              "net": 228,
+              "false_activation": 23
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.6695433789954338,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96484375,
+              "accuracy": 0.6014686248331108,
+              "FAR": 0.008029197080291971,
+              "rescue": 247,
+              "breaks": 18,
+              "negative_break": 18,
+              "net": 229,
+              "false_activation": 22
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.7521792919680244,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.94140625,
+              "accuracy": 0.6054739652870494,
+              "FAR": 0.0,
+              "rescue": 241,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 241,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.8124451273046532,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.87890625,
+              "accuracy": 0.6001335113484646,
+              "FAR": 0.0,
+              "rescue": 225,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 225,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.7644339799880981,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9765625,
+              "accuracy": 0.6084779706275033,
+              "FAR": 0.0,
+              "rescue": 250,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 250,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.7696107625961304,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.97265625,
+              "accuracy": 0.6081441922563418,
+              "FAR": 0.0,
+              "rescue": 249,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 249,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.7786591053009033,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9453125,
+              "accuracy": 0.605807743658211,
+              "FAR": 0.0,
+              "rescue": 242,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 242,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.7814306616783142,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.90234375,
+              "accuracy": 0.6021361815754339,
+              "FAR": 0.0,
+              "rescue": 231,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 231,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9712108373641968,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96875,
+              "accuracy": 0.6078104138851802,
+              "FAR": 0.0,
+              "rescue": 248,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 248,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9722207188606262,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96875,
+              "accuracy": 0.6078104138851802,
+              "FAR": 0.0,
+              "rescue": 248,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 248,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9873541593551636,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9375,
+              "accuracy": 0.6051401869158879,
+              "FAR": 0.0,
+              "rescue": 240,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 240,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9892681837081909,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9296875,
+              "accuracy": 0.6044726301735648,
+              "FAR": 0.0,
+              "rescue": 238,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 238,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.23882035911083221,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.97265625,
+              "accuracy": 0.6071428571428571,
+              "FAR": 0.017518248175182483,
+              "rescue": 249,
+              "breaks": 3,
+              "negative_break": 3,
+              "net": 246,
+              "false_activation": 48
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.2395535260438919,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.97265625,
+              "accuracy": 0.6071428571428571,
+              "FAR": 0.016423357664233577,
+              "rescue": 249,
+              "breaks": 3,
+              "negative_break": 3,
+              "net": 246,
+              "false_activation": 45
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.2419411838054657,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.921875,
+              "accuracy": 0.6031375166889186,
+              "FAR": 0.010583941605839416,
+              "rescue": 236,
+              "breaks": 2,
+              "negative_break": 2,
+              "net": 234,
+              "false_activation": 29
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.2432415634393692,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.84375,
+              "accuracy": 0.5964619492656876,
+              "FAR": 0.008759124087591242,
+              "rescue": 216,
+              "breaks": 2,
+              "negative_break": 2,
+              "net": 214,
+              "false_activation": 24
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.5294117647058824,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.95703125,
+              "accuracy": 0.585113484646195,
+              "FAR": 0.024817518248175182,
+              "rescue": 245,
+              "breaks": 65,
+              "negative_break": 65,
+              "net": 180,
+              "false_activation": 68
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.5318823529411765,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.953125,
+              "accuracy": 0.5887850467289719,
+              "FAR": 0.020437956204379562,
+              "rescue": 244,
+              "breaks": 53,
+              "negative_break": 53,
+              "net": 191,
+              "false_activation": 56
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.5603011204481793,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.93359375,
+              "accuracy": 0.6041388518024032,
+              "FAR": 0.00145985401459854,
+              "rescue": 239,
+              "breaks": 2,
+              "negative_break": 2,
+              "net": 237,
+              "false_activation": 4
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.5662650602409639,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9140625,
+              "accuracy": 0.6024699599465955,
+              "FAR": 0.0010948905109489052,
+              "rescue": 234,
+              "breaks": 2,
+              "negative_break": 2,
+              "net": 232,
+              "false_activation": 3
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.6666666666666666,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96484375,
+              "accuracy": 0.6011348464619493,
+              "FAR": 0.008759124087591242,
+              "rescue": 247,
+              "breaks": 19,
+              "negative_break": 19,
+              "net": 228,
+              "false_activation": 24
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.6695433789954338,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.96484375,
+              "accuracy": 0.6014686248331108,
+              "FAR": 0.008394160583941606,
+              "rescue": 247,
+              "breaks": 18,
+              "negative_break": 18,
+              "net": 229,
+              "false_activation": 23
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.7521792919680244,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.94140625,
+              "accuracy": 0.6054739652870494,
+              "FAR": 0.0,
+              "rescue": 241,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 241,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.8124451273046532,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.87890625,
+              "accuracy": 0.6001335113484646,
+              "FAR": 0.0,
+              "rescue": 225,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 225,
+              "false_activation": 0
+            }
+          }
+        ],
+        "pass_count": 8,
+        "lock_sha256": "811ecac48fa849de5fcde829a95aad8fa6e37c7b4b7552012940f2d568bff25e"
+      },
+      "mechanism_controls": {
+        "head_norms": {
+          "original_masked_row": {
+            "norm": 0.5718944072723389,
+            "bias": 0.009883925318717957
+          },
+          "receiver_row_donor_mask": {
+            "norm": 0.4823828637599945,
+            "bias": 0.009883925318717957
+          },
+          "receiver_row_full_unmask": {
+            "norm": 0.5718944072723389,
+            "bias": 0.009883925318717957
+          },
+          "direct_donor_row": {
+            "norm": 0.8840132355690002,
+            "bias": 0.06756731867790222
+          },
+          "frozen_packet": {
+            "norm": 0.8840132355690002,
+            "bias": 0.06756731867790222
+          }
+        },
+        "current_episode_row_norms": {
+          "25": {
+            "effective_norm": 0.6111540198326111,
+            "effective_bias": 0.015988247469067574
+          },
+          "26": {
+            "effective_norm": 0.5984575748443604,
+            "effective_bias": -0.012020805850625038
+          },
+          "27": {
+            "effective_norm": 0.5010915994644165,
+            "effective_bias": 0.05163862928748131
+          },
+          "28": {
+            "effective_norm": 0.6576975584030151,
+            "effective_bias": -0.001165427966043353
+          }
+        },
+        "controls": [
+          {
+            "quantile": 0.05,
+            "control": "original_masked_row",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.0,
+              "accuracy": 0.5250333778371161,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "receiver_row_donor_mask",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.0,
+              "accuracy": 0.5250333778371161,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "receiver_row_full_unmask",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.0,
+              "accuracy": 0.5250333778371161,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "direct_donor_row",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9453125,
+              "accuracy": 0.605807743658211,
+              "FAR": 0.0,
+              "rescue": 242,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 242,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "frozen_packet",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9453125,
+              "accuracy": 0.605807743658211,
+              "FAR": 0.0,
+              "rescue": 242,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 242,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "prototype_gate_only",
+            "predictions_equal_frozen_packet": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.9453125,
+              "accuracy": 0.605807743658211,
+              "FAR": 0.0,
+              "rescue": 242,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 242,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "original_masked_row",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.0,
+              "accuracy": 0.5250333778371161,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "receiver_row_donor_mask",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.0,
+              "accuracy": 0.5250333778371161,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "receiver_row_full_unmask",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.0,
+              "accuracy": 0.5250333778371161,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "direct_donor_row",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.97265625,
+              "accuracy": 0.6081441922563418,
+              "FAR": 0.0,
+              "rescue": 249,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 249,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "frozen_packet",
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.97265625,
+              "accuracy": 0.6081441922563418,
+              "FAR": 0.0,
+              "rescue": 249,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 249,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "prototype_gate_only",
+            "predictions_equal_frozen_packet": true,
+            "metrics": {
+              "rows": 2996,
+              "positives": 256,
+              "negatives": 2740,
+              "recall": 0.97265625,
+              "accuracy": 0.6081441922563418,
+              "FAR": 0.0,
+              "rescue": 249,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 249,
+              "false_activation": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "receiver": 65,
+      "donor": 11,
+      "class_id": 24,
+      "graph_alpha": 0,
+      "exploratory": {
+        "selection_trials": 6112,
+        "selected": {
+          "id": 5316,
+          "head": "diagonal_moment_transport",
+          "spec": {
+            "family": "targeted_receiver_proto",
+            "gate": "receiver_proto",
+            "tau": 0.887543797492981,
+            "gamma": 2.93548583984375,
+            "score": "raw"
+          },
+          "selection": {
+            "rows": 124,
+            "positives": 64,
+            "negatives": 60,
+            "recall": 0.984375,
+            "accuracy": 0.6451612903225806,
+            "FAR": 0.0,
+            "rescue": 63,
+            "breaks": 0,
+            "negative_break": 0,
+            "net": 63,
+            "false_activation": 0,
+            "per_negative_class": {
+              "25": {
+                "rows": 50,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "26": {
+                "rows": 7,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "27": {
+                "rows": 3,
+                "false_activation": 0,
+                "breaks": 0
+              }
+            }
+          },
+          "negative_gate": true,
+          "full_selection_gate": true
+        },
+        "validation": {
+          "rows": 2050,
+          "positives": 256,
+          "negatives": 1794,
+          "recall": 0.984375,
+          "accuracy": 0.5014634146341463,
+          "FAR": 0.07803790412486064,
+          "rescue": 252,
+          "breaks": 92,
+          "negative_break": 92,
+          "net": 160,
+          "false_activation": 140
+        },
+        "diagnostics": {
+          "donor_proto": {
+            "AUROC": 0.7153576156633222,
+            "target_quantiles": [
+              0.2777634561061859,
+              0.31212523579597473,
+              0.32033751904964447,
+              0.34109343588352203,
+              0.4107118546962738
+            ],
+            "negative_quantiles": [
+              0.15469028055667877,
+              0.16008815169334412,
+              0.26689305901527405,
+              0.36775786727666854,
+              0.4211812913417816
+            ]
+          },
+          "receiver_proto": {
+            "AUROC": 0.9926708821070235,
+            "target_quantiles": [
+              0.7907204031944275,
+              0.9926449060440063,
+              0.9990744292736053,
+              0.9993400871753693,
+              0.9994301795959473
+            ],
+            "negative_quantiles": [
+              0.6046715974807739,
+              0.6100324004888534,
+              0.8284007906913757,
+              0.9523520618677139,
+              0.9797502756118774
+            ]
+          },
+          "weight_cos": {
+            "AUROC": 0.7787851867335563,
+            "target_quantiles": [
+              -0.1431935578584671,
+              -0.057530772872269154,
+              -0.04564392939209938,
+              -0.012636087834835052,
+              0.04002444073557854
+            ],
+            "negative_quantiles": [
+              -0.24086730182170868,
+              -0.19441134259104728,
+              -0.13480881601572037,
+              0.05132106915116308,
+              0.08180706202983856
+            ]
+          },
+          "donor_FC1_binary": {
+            "AUROC": 0.44919588733277593,
+            "target_quantiles": [
+              0.046511627906976744,
+              0.06172839506172839,
+              0.0963855421686747,
+              0.10843373493975904,
+              0.18823529411764706
+            ],
+            "negative_quantiles": [
+              0.0,
+              0.037037037037037035,
+              0.09375,
+              0.13653110047846886,
+              0.27956989247311825
+            ]
+          },
+          "receiver_FC1_binary": {
+            "AUROC": 0.9793288827341137,
+            "target_quantiles": [
+              0.0196078431372549,
+              0.5593297101449275,
+              0.7916666666666666,
+              0.8636363636363636,
+              0.8695652173913043
+            ],
+            "negative_quantiles": [
+              0.0,
+              0.0,
+              0.10909090909090909,
+              0.5341666666666665,
+              0.6923076923076923
+            ]
+          },
+          "task_rank": {
+            "target_rows": 256,
+            "counts": {
+              "4": 256
+            },
+            "top1": 0.0,
+            "top2": 0.0,
+            "top3": 0.0,
+            "ranking": "stable task-ID tie break; raw cosine, not softmax confidence"
+          }
+        },
+        "all_family_results": [
+          {
+            "family": "baseline",
+            "head": "availability",
+            "spec": {
+              "family": "baseline"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.0,
+              "accuracy": 0.42341463414634145,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "family": "native_head",
+            "head": "availability",
+            "spec": {
+              "family": "native_head",
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.0,
+              "accuracy": 0.42341463414634145,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "family": "top2_energy",
+            "head": "availability",
+            "spec": {
+              "family": "top2_energy",
+              "k": 2,
+              "gap": 0.0,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.0,
+              "accuracy": 0.42341463414634145,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "family": "top3_energy",
+            "head": "availability",
+            "spec": {
+              "family": "top3_energy",
+              "k": 3,
+              "gap": 0.0,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.0,
+              "accuracy": 0.42341463414634145,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "family": "targeted_donor_proto",
+            "head": "availability",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.3035234808921814,
+              "gamma": null,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.0,
+              "accuracy": 0.42341463414634145,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "family": "targeted_receiver_proto",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.887543797492981,
+              "gamma": 2.93548583984375,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.984375,
+              "accuracy": 0.5014634146341463,
+              "FAR": 0.07803790412486064,
+              "rescue": 252,
+              "breaks": 92,
+              "negative_break": 92,
+              "net": 160,
+              "false_activation": 140
+            }
+          },
+          {
+            "family": "targeted_weight_cos",
+            "head": "availability",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": -0.05701983720064163,
+              "gamma": null,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.0,
+              "accuracy": 0.42341463414634145,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "family": "targeted_donor_FC1_binary",
+            "head": "availability",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.047619047619047616,
+              "gamma": null,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.0,
+              "accuracy": 0.42341463414634145,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "family": "targeted_receiver_FC1_binary",
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.23333333333333334,
+              "gamma": 2.93548583984375,
+              "score": "raw"
+            },
+            "validation": {
+              "rows": 2050,
+              "positives": 256,
+              "negatives": 1794,
+              "recall": 0.96875,
+              "accuracy": 0.5048780487804878,
+              "FAR": 0.057971014492753624,
+              "rescue": 248,
+              "breaks": 81,
+              "negative_break": 81,
+              "net": 167,
+              "false_activation": 104
+            }
+          }
+        ]
+      },
+      "amended": {
+        "primary": {
+          "head": "diagonal_moment_transport",
+          "quantile": 0.05,
+          "spec": {
+            "family": "targeted_receiver_proto",
+            "gate": "receiver_proto",
+            "tau": 0.9943324327468872,
+            "gamma": null,
+            "score": "raw"
+          },
+          "primary": true,
+          "metrics": {
+            "rows": 1967,
+            "positives": 256,
+            "negatives": 1711,
+            "recall": 0.92578125,
+            "accuracy": 0.5632943568886629,
+            "FAR": 0.0,
+            "rescue": 237,
+            "breaks": 0,
+            "negative_break": 0,
+            "net": 237,
+            "false_activation": 0,
+            "per_negative_class": {
+              "0": {
+                "rows": 1,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "2": {
+                "rows": 11,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "4": {
+                "rows": 93,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "12": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "14": {
+                "rows": 253,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "15": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "16": {
+                "rows": 1,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "18": {
+                "rows": 51,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "19": {
+                "rows": 96,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "21": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "25": {
+                "rows": 256,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "26": {
+                "rows": 96,
+                "false_activation": 0,
+                "breaks": 0
+              },
+              "27": {
+                "rows": 85,
+                "false_activation": 0,
+                "breaks": 0
+              }
+            }
+          },
+          "empirical_gate": false
+        },
+        "baseline": {
+          "rows": 1967,
+          "positives": 256,
+          "negatives": 1711,
+          "recall": 0.0,
+          "accuracy": 0.4428063040162684,
+          "FAR": 0.0,
+          "rescue": 0,
+          "breaks": 0,
+          "negative_break": 0,
+          "net": 0,
+          "false_activation": 0
+        },
+        "old_class_negative_rows": 1274,
+        "evaluation_class_counts": {
+          "0": 1,
+          "2": 11,
+          "4": 93,
+          "12": 256,
+          "14": 253,
+          "15": 256,
+          "16": 1,
+          "18": 51,
+          "19": 96,
+          "21": 256,
+          "24": 256,
+          "25": 256,
+          "26": 96,
+          "27": 85
+        },
+        "all_40_fixed_ablations": [
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.3036401569843292,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.30832919478416443,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.3115016520023346,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.313302218914032,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9838049411773682,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9882068634033203,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9943324327468872,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9961574673652649,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": -0.07228928804397583,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": -0.07139834016561508,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": -0.06428612023591995,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": -0.05784604698419571,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.060240963855421686,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.06117804551539491,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.06172839506172839,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.07407407407407407,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.5,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.5126000000000001,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.6387351778656126,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "direct_eta_1.0",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.7221818181818181,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.3036401569843292,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.99609375,
+              "accuracy": 0.4367056431113371,
+              "FAR": 0.3383985973115137,
+              "rescue": 255,
+              "breaks": 267,
+              "negative_break": 267,
+              "net": -12,
+              "false_activation": 579
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.30832919478416443,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.98046875,
+              "accuracy": 0.4351804778851042,
+              "FAR": 0.3255406195207481,
+              "rescue": 251,
+              "breaks": 266,
+              "negative_break": 266,
+              "net": -15,
+              "false_activation": 557
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.3115016520023346,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.9453125,
+              "accuracy": 0.43213014743263856,
+              "FAR": 0.3185271770894214,
+              "rescue": 242,
+              "breaks": 263,
+              "negative_break": 263,
+              "net": -21,
+              "false_activation": 545
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_proto",
+              "gate": "donor_proto",
+              "tau": 0.313302218914032,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.91015625,
+              "accuracy": 0.4280630401626843,
+              "FAR": 0.31326709526592633,
+              "rescue": 233,
+              "breaks": 262,
+              "negative_break": 262,
+              "net": -29,
+              "false_activation": 536
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9838049411773682,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.96484375,
+              "accuracy": 0.5678698525673614,
+              "FAR": 0.0005844535359438924,
+              "rescue": 247,
+              "breaks": 1,
+              "negative_break": 1,
+              "net": 246,
+              "false_activation": 1
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9882068634033203,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": true,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.9609375,
+              "accuracy": 0.5678698525673614,
+              "FAR": 0.0,
+              "rescue": 246,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 246,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9943324327468872,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": true,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.92578125,
+              "accuracy": 0.5632943568886629,
+              "FAR": 0.0,
+              "rescue": 237,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 237,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_proto",
+              "gate": "receiver_proto",
+              "tau": 0.9961574673652649,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.87109375,
+              "accuracy": 0.556176919166243,
+              "FAR": 0.0,
+              "rescue": 223,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 223,
+              "false_activation": 0
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.04789872094988823,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.9921875,
+              "accuracy": 0.44687341128622265,
+              "FAR": 0.23670368205727646,
+              "rescue": 254,
+              "breaks": 246,
+              "negative_break": 246,
+              "net": 8,
+              "false_activation": 405
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.05035503953695297,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.98828125,
+              "accuracy": 0.44687341128622265,
+              "FAR": 0.23495032144944478,
+              "rescue": 253,
+              "breaks": 245,
+              "negative_break": 245,
+              "net": 8,
+              "false_activation": 402
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.051987648010253906,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.9609375,
+              "accuracy": 0.4443314692425013,
+              "FAR": 0.23027469316189364,
+              "rescue": 246,
+              "breaks": 243,
+              "negative_break": 243,
+              "net": 3,
+              "false_activation": 394
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_weight_cos",
+              "gate": "weight_cos",
+              "tau": 0.05300343036651611,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.921875,
+              "accuracy": 0.43975597356380275,
+              "FAR": 0.2261835184102864,
+              "rescue": 236,
+              "breaks": 242,
+              "negative_break": 242,
+              "net": -6,
+              "false_activation": 387
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.060240963855421686,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.9921875,
+              "accuracy": 0.157600406710727,
+              "FAR": 0.8655756867329047,
+              "rescue": 254,
+              "breaks": 815,
+              "negative_break": 815,
+              "net": -561,
+              "false_activation": 1481
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.06117804551539491,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.98828125,
+              "accuracy": 0.15810879511947126,
+              "FAR": 0.859146697837522,
+              "rescue": 253,
+              "breaks": 813,
+              "negative_break": 813,
+              "net": -560,
+              "false_activation": 1470
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.06172839506172839,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.98828125,
+              "accuracy": 0.15810879511947126,
+              "FAR": 0.859146697837522,
+              "rescue": 253,
+              "breaks": 813,
+              "negative_break": 813,
+              "net": -560,
+              "false_activation": 1470
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_donor_FC1_binary",
+              "gate": "donor_FC1_binary",
+              "tau": 0.07407407407407407,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.91796875,
+              "accuracy": 0.16166751398068124,
+              "FAR": 0.8118059614260666,
+              "rescue": 235,
+              "breaks": 788,
+              "negative_break": 788,
+              "net": -553,
+              "false_activation": 1389
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.5,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.0,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.96484375,
+              "accuracy": 0.5266903914590747,
+              "FAR": 0.12857977790765635,
+              "rescue": 247,
+              "breaks": 82,
+              "negative_break": 82,
+              "net": 165,
+              "false_activation": 220
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.5126000000000001,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.01,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.9609375,
+              "accuracy": 0.534316217590239,
+              "FAR": 0.09351256575102279,
+              "rescue": 246,
+              "breaks": 66,
+              "negative_break": 66,
+              "net": 180,
+              "false_activation": 160
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.6387351778656126,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.05,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.93359375,
+              "accuracy": 0.5638027452974073,
+              "FAR": 0.0029222676797194622,
+              "rescue": 239,
+              "breaks": 1,
+              "negative_break": 1,
+              "net": 238,
+              "false_activation": 5
+            }
+          },
+          {
+            "head": "diagonal_moment_transport",
+            "spec": {
+              "family": "targeted_receiver_FC1_binary",
+              "gate": "receiver_FC1_binary",
+              "tau": 0.7221818181818181,
+              "gamma": null,
+              "score": "raw"
+            },
+            "quantile": 0.1,
+            "primary": false,
+            "empirical_gate": false,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.91015625,
+              "accuracy": 0.5612608032536858,
+              "FAR": 0.0,
+              "rescue": 233,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 233,
+              "false_activation": 0
+            }
+          }
+        ],
+        "pass_count": 1,
+        "lock_sha256": "15e4d050b14948d66db4f1f228bff569936f052d366deef796c2fe0201db8bc9"
+      },
+      "mechanism_controls": {
+        "head_norms": {
+          "original_masked_row": {
+            "norm": 0.5718944072723389,
+            "bias": 0.009883925318717957
+          },
+          "receiver_row_donor_mask": {
+            "norm": 0.4823828637599945,
+            "bias": 0.009883925318717957
+          },
+          "receiver_row_full_unmask": {
+            "norm": 0.5718944072723389,
+            "bias": 0.009883925318717957
+          },
+          "direct_donor_row": {
+            "norm": 0.8840132355690002,
+            "bias": 0.06756731867790222
+          },
+          "frozen_packet": {
+            "norm": 1.9389805793762207,
+            "bias": 11.145659893751144
+          }
+        },
+        "current_episode_row_norms": {
+          "25": {
+            "effective_norm": 0.393699586391449,
+            "effective_bias": 0.01218161080032587
+          },
+          "26": {
+            "effective_norm": 0.3706224262714386,
+            "effective_bias": -0.02828841470181942
+          },
+          "27": {
+            "effective_norm": 0.3447692096233368,
+            "effective_bias": 0.053279172629117966
+          }
+        },
+        "controls": [
+          {
+            "quantile": 0.05,
+            "control": "original_masked_row",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "receiver_row_donor_mask",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "receiver_row_full_unmask",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "direct_donor_row",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "frozen_packet",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.92578125,
+              "accuracy": 0.5632943568886629,
+              "FAR": 0.0,
+              "rescue": 237,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 237,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.05,
+            "control": "prototype_gate_only",
+            "predictions_equal_frozen_packet": true,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.92578125,
+              "accuracy": 0.5632943568886629,
+              "FAR": 0.0,
+              "rescue": 237,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 237,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "original_masked_row",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "receiver_row_donor_mask",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "receiver_row_full_unmask",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "direct_donor_row",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.0,
+              "accuracy": 0.4428063040162684,
+              "FAR": 0.0,
+              "rescue": 0,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 0,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "frozen_packet",
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.9609375,
+              "accuracy": 0.5678698525673614,
+              "FAR": 0.0,
+              "rescue": 246,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 246,
+              "false_activation": 0
+            }
+          },
+          {
+            "quantile": 0.01,
+            "control": "prototype_gate_only",
+            "predictions_equal_frozen_packet": true,
+            "metrics": {
+              "rows": 1967,
+              "positives": 256,
+              "negatives": 1711,
+              "recall": 0.9609375,
+              "accuracy": 0.5678698525673614,
+              "FAR": 0.0,
+              "rescue": 246,
+              "breaks": 0,
+              "negative_break": 0,
+              "net": 246,
+              "false_activation": 0
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "replay": {
+    "completed": true,
+    "seconds": 12.014634099999967,
+    "records": [
+      {
+        "receiver": 7,
+        "quantile": 0.05,
+        "primary": true,
+        "metrics": {
+          "rows": 2996,
+          "positives": 256,
+          "negatives": 2740,
+          "recall": 0.9453125,
+          "accuracy": 0.605807743658211,
+          "FAR": 0.0,
+          "rescue": 242,
+          "breaks": 0,
+          "negative_break": 0,
+          "net": 242,
+          "false_activation": 0,
+          "per_negative_class": {
+            "6": {
+              "rows": 249,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "7": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "8": {
+              "rows": 251,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "9": {
+              "rows": 244,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "11": {
+              "rows": 115,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "12": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "13": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "14": {
+              "rows": 255,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "15": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "16": {
+              "rows": 5,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "18": {
+              "rows": 106,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "19": {
+              "rows": 6,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "22": {
+              "rows": 37,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "25": {
+              "rows": 48,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "26": {
+              "rows": 144,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "27": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            }
+          }
+        },
+        "label_blind_runtime_matches_locked_predictions": true,
+        "activated": 242,
+        "receiver_function_reference_serialized_bytes": 7374584,
+        "capability_npz_bytes": 2595,
+        "raw_head_and_prototype_FP32_bytes": 2052,
+        "serialized_inventory_not_full_network_traffic": true
+      },
+      {
+        "receiver": 7,
+        "quantile": 0.01,
+        "primary": false,
+        "metrics": {
+          "rows": 2996,
+          "positives": 256,
+          "negatives": 2740,
+          "recall": 0.97265625,
+          "accuracy": 0.6081441922563418,
+          "FAR": 0.0,
+          "rescue": 249,
+          "breaks": 0,
+          "negative_break": 0,
+          "net": 249,
+          "false_activation": 0,
+          "per_negative_class": {
+            "6": {
+              "rows": 249,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "7": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "8": {
+              "rows": 251,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "9": {
+              "rows": 244,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "11": {
+              "rows": 115,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "12": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "13": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "14": {
+              "rows": 255,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "15": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "16": {
+              "rows": 5,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "18": {
+              "rows": 106,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "19": {
+              "rows": 6,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "22": {
+              "rows": 37,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "25": {
+              "rows": 48,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "26": {
+              "rows": 144,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "27": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            }
+          }
+        },
+        "label_blind_runtime_matches_locked_predictions": true,
+        "activated": 249,
+        "receiver_function_reference_serialized_bytes": 7374584,
+        "capability_npz_bytes": 2595,
+        "raw_head_and_prototype_FP32_bytes": 2052,
+        "serialized_inventory_not_full_network_traffic": true
+      },
+      {
+        "receiver": 65,
+        "quantile": 0.05,
+        "primary": true,
+        "metrics": {
+          "rows": 1967,
+          "positives": 256,
+          "negatives": 1711,
+          "recall": 0.92578125,
+          "accuracy": 0.5632943568886629,
+          "FAR": 0.0,
+          "rescue": 237,
+          "breaks": 0,
+          "negative_break": 0,
+          "net": 237,
+          "false_activation": 0,
+          "per_negative_class": {
+            "0": {
+              "rows": 1,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "2": {
+              "rows": 11,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "4": {
+              "rows": 93,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "12": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "14": {
+              "rows": 253,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "15": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "16": {
+              "rows": 1,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "18": {
+              "rows": 51,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "19": {
+              "rows": 96,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "21": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "25": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "26": {
+              "rows": 96,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "27": {
+              "rows": 85,
+              "false_activation": 0,
+              "breaks": 0
+            }
+          }
+        },
+        "label_blind_runtime_matches_locked_predictions": true,
+        "activated": 237,
+        "receiver_function_reference_serialized_bytes": 6868664,
+        "capability_npz_bytes": 2640,
+        "raw_head_and_prototype_FP32_bytes": 2052,
+        "serialized_inventory_not_full_network_traffic": true
+      },
+      {
+        "receiver": 65,
+        "quantile": 0.01,
+        "primary": false,
+        "metrics": {
+          "rows": 1967,
+          "positives": 256,
+          "negatives": 1711,
+          "recall": 0.9609375,
+          "accuracy": 0.5678698525673614,
+          "FAR": 0.0,
+          "rescue": 246,
+          "breaks": 0,
+          "negative_break": 0,
+          "net": 246,
+          "false_activation": 0,
+          "per_negative_class": {
+            "0": {
+              "rows": 1,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "2": {
+              "rows": 11,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "4": {
+              "rows": 93,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "12": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "14": {
+              "rows": 253,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "15": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "16": {
+              "rows": 1,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "18": {
+              "rows": 51,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "19": {
+              "rows": 96,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "21": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "25": {
+              "rows": 256,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "26": {
+              "rows": 96,
+              "false_activation": 0,
+              "breaks": 0
+            },
+            "27": {
+              "rows": 85,
+              "false_activation": 0,
+              "breaks": 0
+            }
+          }
+        },
+        "label_blind_runtime_matches_locked_predictions": true,
+        "activated": 246,
+        "receiver_function_reference_serialized_bytes": 6868664,
+        "capability_npz_bytes": 2640,
+        "raw_head_and_prototype_FP32_bytes": 2052,
+        "serialized_inventory_not_full_network_traffic": true
+      }
+    ],
+    "final_TEST_read": false,
+    "no_fitting": true,
+    "reference_states_unchanged": true
+  }
+}
