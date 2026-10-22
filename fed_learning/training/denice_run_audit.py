@@ -4,14 +4,18 @@
 def method_manifest(config):
     overlay = bool(config.get('denice_appliance_enabled', False))
     service = bool(config.get('appliance_enabled', False))
+    candle_v2 = bool(config.get('candle_v2_enabled', False))
+    if candle_v2 and (overlay or service):
+        raise ValueError('CANDLE V2 cannot combine with APPLIANCE')
     if overlay and service:
         raise ValueError('Choose only one APPLIANCE implementation')
-    method = 'row_overlay' if overlay else 'appliance_service' if service else 'denice_base'
+    method = 'candle_v2' if candle_v2 else 'row_overlay' if overlay else 'appliance_service' if service else 'denice_base'
     expected = config.get('denice_expected_method')
     if expected is not None and expected != method:
         raise ValueError(f'Expected method {expected!r}, effective method is {method!r}')
     return {
         'effective_method': method,
+        'candle_v2_enabled': candle_v2,
         'denice_appliance_enabled': overlay,
         'appliance_enabled': service,
         'denice_router_mode': config.get('denice_router_mode', 'binary_cosine'),

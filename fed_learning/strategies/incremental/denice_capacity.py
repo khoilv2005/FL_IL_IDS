@@ -72,9 +72,9 @@ class CANCConfig:
     def from_dict(cls, config: Optional[Dict]) -> "CANCConfig":
         config = config or {}
         defaults = cls()
-        adapter_layers = _parse_adapter_layers(
+        adapter_layers = ([] if config.get('candle_v2_enabled', False) else _parse_adapter_layers(
             config.get("denice_adapter_layers", defaults.enabled_adapter_layers)
-        )
+        ))
         return cls(
             epsilon_free=float(config.get("denice_epsilon_free", defaults.epsilon_free)),
             epsilon_adapter=float(config.get("denice_epsilon_adapter", defaults.epsilon_adapter)),
