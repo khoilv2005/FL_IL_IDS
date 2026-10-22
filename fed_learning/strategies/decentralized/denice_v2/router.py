@@ -324,6 +324,11 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
     staging = ClusterState.create(**{k: v for k, v in payload.items() if k not in ('model_spec', 'routing_space_hash')})
     first = not historical
     moment_packets = []
+    # Full-state download accounting for ephemeral statistic/sketch workers.
+    import json
+    def state_bytes(s):
+        return len(json.dumps(encode(snapshot(s)),sort_keys=True,separators=(',',':')).encode())
+    threshold_download_bytes = state_bytes(staging) * sum(cid != state.coordinator_id and bool(len(base.y)) for cid,base in bases.items()) if first else 0
     if first:
         mask = staging.router_state['stable_feature_mask']
         moment_packets = [collect_routing_moments(staging, plan, base, mask, batch_size=batch_size, device=device)
@@ -331,6 +336,7 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
         payload = snapshot(staging)
         payload['router_state']['binarize_thresholds'] = aggregate_thresholds(moment_packets, staging, plan, mask)
         staging = ClusterState.create(**{k: v for k, v in payload.items() if k not in ('model_spec', 'routing_space_hash')})
+    sketch_download_bytes = state_bytes(staging) * sum(cid != state.coordinator_id and bool(labels) for cid,labels in actual.items())
     sketches = [collect_sketch(staging, plan, bases[cid], labels, memo_per_class=memo_per_class,
                               batch_size=batch_size, device=device) for cid, labels in sorted(actual.items()) if labels]
     bits, labels = merge_sketches(staging, plan, sketches, actual, memo_per_class,
@@ -344,6 +350,7 @@ def stage_cluster_router(state, plan, contributions, bases, *, memo_per_class=8,
         payload['algorithm_state']['seen_classes']=tuple(sorted({c for cs in payload['router_state']['episode_classes'].values() for c in cs}))
     candidate = ClusterState.create(**{k: v for k, v in payload.items() if k not in ('model_spec', 'routing_space_hash')})
     receipt = dict(task=state.task, round=state.round, reference_state_hash=state.fingerprint(),
+        reference_download_bytes=threshold_download_bytes+sketch_download_bytes,
         result_state_hash=candidate.fingerprint(), feature_policy=feature_policy,
         capacity=probe['capacity'], selected_features=probe['selected_features'],
         threshold_policy='first_current_BASE_global_mean_plus_unbiased_std', threshold_calibrated=first,

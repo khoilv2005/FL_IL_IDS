@@ -138,7 +138,7 @@ def protect_coordinate_closure(state,feature_mask):
     payload['routing_dependencies']=tuple(sorted(params))
     for name,mask in params.items():
         old=payload['protected_parameters'].get(name,torch.zeros_like(state.model_state[name],dtype=torch.bool))
-        payload['protected_parameters'][name]=torch.as_tensor(array(old).astype(bool)|array(mask).astype(bool))
+        payload['protected_parameters'][name]=torch.as_tensor(np.asarray(array(old).astype(bool)|array(mask).astype(bool)))
     for key,required_key in (('routing_weight_mask_coordinates','weight_masks'),('routing_bias_mask_coordinates','bias_masks')):
         for layer,mask in required[required_key].items():
             alg[key][layer]=array(alg[key].get(layer,np.zeros_like(mask))).astype(bool)|mask

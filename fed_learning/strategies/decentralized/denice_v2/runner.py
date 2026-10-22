@@ -41,13 +41,16 @@ class RunConfig:
     feature_layer: str = 'conv2'
     eval_final_task_only: bool = True
     smoke: bool = False
+    defer_evaluation: bool = False
+    server_only_storage: bool = False
 
     def validate(self):
         if (self.policy!='cnn_coordinate_router_v1' or self.feature_layer!='conv2' or self.xi!=.8
             or not self.engineering_baseline or not np.isfinite([self.learning_rate,self.output_budget_gib]).all()
             or self.learning_rate<=0 or self.output_budget_gib<=0 or self.batch_size<2 or self.local_epochs<1
             or self.eval_batch_size<1 or self.context_rows<1 or self.rounds_per_task<1 or not 1<=self.tasks<=6
-            or type(self.eval_final_task_only) is not bool):
+            or type(self.eval_final_task_only) is not bool
+            or type(self.defer_evaluation) is not bool or type(self.server_only_storage) is not bool):
             raise ValueError('Invalid locked V2 configuration')
         if not self.smoke and (self.tasks!=6 or self.rounds_per_task!=20 or self.seed!=42 or not self.eval_final_task_only):
             raise ValueError('Full main run is seed42, six tasks, twenty rounds/task, final-task-only evaluation')
@@ -186,7 +189,12 @@ class Runner:
         metadata=sum(wire_bytes(dict(client=cid,counts=self.data.counts[cid],knowledge=self.ledger.learned_classes(cid,task=task))) for cid in active)
         self.communication.append(dict(task=task,round=-1,phase='task_partition_handoff',metadata_bytes=metadata,
             current_context_bytes=0 if task==0 else sum(wire_bytes(z) for z in prototypes),
-            state_handoff_bytes=sum(wire_bytes(snapshot(new[min(g)]))*(len(g)-1) for g in partition.clusters)))
+            context_reference_download_bytes=(sum(wire_bytes(snapshot(previous[cid])) for cid in active
+                if cid!=previous[cid].coordinator_id) if self.config.server_only_storage and task>0 else 0),
+            state_handoff_bytes=(sum(wire_bytes(snapshot(parent)) for g in partition.clusters
+                for parent in {previous[cid].cluster_uid:previous[cid] for cid in g}.values()
+                if parent.coordinator_id!=new[min(g)].coordinator_id) if self.config.server_only_storage else
+                sum(wire_bytes(snapshot(new[min(g)]))*(len(g)-1) for g in partition.clusters))))
         atomic_json(self.output/f'partition_task_{task}.json',dict(task=task,K=partition.K,
             clusters=partition.clusters,active_clients=active,dormant_clients=sorted(set(self.data.client_ids)-set(active)),
             source=partition.source,rejected_merges=partition.rejected_merges,similarity_hash=partition.similarity_hash,
@@ -201,7 +209,7 @@ class Runner:
                 state=self.unique_states()[uid]
                 bases={cid:self.data.base(cid) for cid in state.members}
                 result,plan,packets,receipt=run_native_round(state,bases,self.data.task_classes[task],
-                    device=self.config.device,log_progress=True,**training)
+                    device=self.config.device,log_progress=True,verify_broadcast=not self.config.server_only_storage,**training)
                 yield uid,bases,result,plan,packets,receipt
             return
         if self._gpu_pool is None:
@@ -224,7 +232,8 @@ class Runner:
             rows=[outputs[uid][cid] for cid in plan.reference.members]
             packets=[r[0] for r in rows];workers=[r[1] for r in rows]
             result,plan,packets,receipt=finalize_native_round(plan,bases,packets,workers,allocation,
-                batch_size=self.config.batch_size,device=self.config.device)
+                batch_size=self.config.batch_size,device=self.config.device,
+                verify_broadcast=not self.config.server_only_storage)
             receipt['parallel_execution']=dict(policy=execution['policy'],devices=self.config.worker_devices,
                 client_assignments={cid:execution['client_assignments'][cid] for cid in plan.reference.members})
             yield uid,bases,result,plan,packets,receipt
@@ -262,9 +271,13 @@ class Runner:
                 reference_broadcast_bytes=wire_bytes(snapshot(plan.reference))*(len(state.members)-1),
                 model_delta_upload_bytes=sum(wire_bytes(asdict(p)) for p in packets if p.event.client_id!=leader),
                 bn_moment_upload_bytes=bn_bytes,
+                bn_reference_download_bytes=sum(call.get('input_state_wire_bytes',0)*(len(state.members)-1)
+                    for call in receipt['bn_collector_calls']),
+                router_reference_download_bytes=routing.get('reference_download_bytes',0),
                 router_upload_bytes=sum(n for k in ('threshold_wire_bytes_by_client','sketch_wire_bytes_by_client')
                     for cid,n in routing[k].items() if cid!=leader),
-                final_state_broadcast_bytes=wire_bytes(snapshot(final))*(len(state.members)-1)))
+                final_state_broadcast_bytes=(0 if self.config.server_only_storage else
+                    wire_bytes(snapshot(final))*(len(state.members)-1))))
             atomic_json(self.output/f'round_task_{task}_{round_id:02d}_{uid}.json',
                 dict(task=task,round=round_id,cluster_uid=uid,native=receipt,router=routing,final_state_hash=final.fingerprint()))
             del bases,result,plan,packets,receipt,final;gc.collect()
@@ -283,7 +296,7 @@ class Runner:
 
     def finish_task(self, task):
         summary=None
-        if not self.config.eval_final_task_only or task==self.config.tasks-1:
+        if not self.config.defer_evaluation and (not self.config.eval_final_task_only or task==self.config.tasks-1):
             if self.next_round!=self.config.rounds_per_task:
                 raise ValueError('Evaluation requires the final completed training round')
             if self._test is None:self._test=self.data.test()
@@ -311,9 +324,15 @@ class Runner:
         archive=TaskArchive(self.output,task,self.config.output_budget_gib)
         archive.save(self.config.rounds_per_task,self.checkpoint_payload()) # explicit task-boundary continuation
         archive.seal()
+        atomic_json(self.output/f'temporary_servers_task_{task}.json',dict(task=task,
+            round=self.config.rounds_per_task-1,checkpoint=archive.sealed.name,
+            persistent_model_policy='one_per_cluster',
+            servers=[dict(cluster_uid=uid,temporary_server=self.unique_states()[uid].coordinator_id,
+                members=self.unique_states()[uid].members,state_hash=self.unique_states()[uid].fingerprint())
+                for uid in self.active]))
         self.data.release(task)
         if summary is None:
-            print(f'Task {task} DONE: evaluation skipped (final task only); checkpoint archive sealed.',flush=True)
+            print(f'Task {task} DONE: evaluation deferred/skipped; checkpoint archive sealed.',flush=True)
         else:
             print(f'Task {task} DONE: Mean Cluster Accuracy={summary["mean_cluster_accuracy"]:.4%}, Macro-F1={summary["mean_cluster_macro_f1"]:.4%}',flush=True)
 
@@ -345,7 +364,11 @@ class Runner:
         atomic_json(self.output/'completion.json',dict(completed=True,protocol_lock=self.lock,
             config=asdict(self.config),tasks_completed=self.config.tasks,quality_is_report_only=True,
             full_training=not self.config.smoke,total_application_wire_bytes=total,
-            evaluation_cadence='last_round_final_task' if self.config.eval_final_task_only else 'last_round_each_task',
+            evaluation_cadence=('external_eval_selective' if self.config.defer_evaluation else
+                'last_round_final_task' if self.config.eval_final_task_only else 'last_round_each_task'),
+            checkpoint_format='denice_v2_cluster_archive_v1',
+            persistent_model_policy='one_per_cluster',
+            evaluation_pending=self.config.defer_evaluation,
             metrics_files=[f'metrics_task_{t}.json' for t in sorted({r['task'] for r in self.evaluations})],
             checkpoints=[p.name for p in sorted(self.output.glob('checkpoint_task_*_all_rounds.zip'))],
             earlier_archives_may_remain_in_resume_dataset=True))

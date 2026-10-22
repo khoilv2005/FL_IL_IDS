@@ -12,26 +12,52 @@ import shutil
 
 # Environment overrides make P6 multi-seed runs reproducible without editing
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
-# Phase 4 resumes tasks 4-5; use phase 5 to start all six tasks fresh.
+# Default cluster_server profile trains Task 0 plus incremental Tasks 1-5, with external eval.
 # On Kaggle set DENICE_CODE_DIR to the extracted source bundle to train these
 # local fixes; standalone uploads download the verified supporting revision below.
-TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "4"))  # 1..6
 TRAIN_SEED = int(os.environ.get("DENICE_SEED", "42"))
 TRAIN_VARIANT = os.environ.get('DENICE_VARIANT', 'legacy').lower()
-# Uploading this file alone now selects the updated row-overlay experiment.
+# Default: one persistent model per cluster; bundled source supports standalone Kaggle use.
 # Explicit experiment launchers/configs retain control of their own settings.
 _default_profile = 'legacy' if (TRAIN_VARIANT != 'legacy' or
-    os.environ.get('DENICE_CONFIG_FILE') or os.environ.get('DENICE_CONFIG_OVERRIDES')) else 'row_overlay'
+    os.environ.get('DENICE_CONFIG_FILE') or os.environ.get('DENICE_CONFIG_OVERRIDES')) else 'cluster_server'
 TRAIN_PROFILE = os.environ.get('DENICE_RUN_PROFILE', _default_profile).lower()
-if TRAIN_PROFILE not in ('row_overlay', 'legacy'):
-    raise ValueError('DENICE_RUN_PROFILE must be row_overlay or legacy')
-_output_label = 'row_overlay' if TRAIN_PROFILE == 'row_overlay' else TRAIN_VARIANT
+if TRAIN_PROFILE not in ('cluster_server', 'row_overlay', 'legacy'):
+    raise ValueError('DENICE_RUN_PROFILE must be cluster_server, row_overlay or legacy')
+TRAIN_PHASE = int(os.environ.get("DENICE_TRAIN_PHASE", "5" if TRAIN_PROFILE == "cluster_server" else "4"))
+_output_label = TRAIN_PROFILE if TRAIN_PROFILE in ('cluster_server', 'row_overlay') else TRAIN_VARIANT
 TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_{_output_label}_seed_{TRAIN_SEED}"
 )
 # Verified supporting code includes the overlay, balanced router and run audit.
 DEFAULT_CODE_REF = 'd074f0e8cf4870e26150975b9e9df988cbe425f9'
 print('DENICE launch profile:', TRAIN_PROFILE, flush=True)
+
+if TRAIN_PROFILE == 'cluster_server' and __name__ == '__main__':
+    from pathlib import Path
+    local = os.environ.get('DENICE_CODE_DIR')
+    here = Path(__file__).resolve().parent
+    if not local and (here/'fed_learning').is_dir():
+        local = str(here)
+    if not local:
+        bundle = Path(os.environ.get('DENICE_SOURCE_ZIP', str(here/'denice_cluster_server_source.zip')))
+        if not bundle.is_file():
+            raise FileNotFoundError('Place denice_cluster_server_source.zip beside this launcher, '
+                'or set DENICE_SOURCE_ZIP / DENICE_CODE_DIR to the supplied source. '
+                'The old downloaded revision does not implement cluster-server training.')
+        local = tempfile.mkdtemp(prefix='denice-cluster-source-')
+        with zipfile.ZipFile(bundle) as source:
+            root = Path(local).resolve()
+            for entry in source.infolist():
+                destination = (root/entry.filename).resolve()
+                if not destination.is_relative_to(root):
+                    raise ValueError('Unsafe source archive path')
+            source.extractall(root)
+    sys.path.insert(0, local)
+    from tools.train_cluster_server import main
+    main()
+    raise SystemExit(0)
+
 
 PHASE_CONFIG = {
     1: {

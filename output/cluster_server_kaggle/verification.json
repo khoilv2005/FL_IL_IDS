@@ -1,0 +1,23 @@
+{
+  "test_result": "30 passed",
+  "elapsed_seconds": 389.16,
+  "suites": [
+    "tests/test_cluster_server_workflow.py (4 workflow tests)",
+    "tests/test_denice_v2_p3.py"
+  ],
+  "additional_checks": [
+    "default launcher dispatch before legacy downloads",
+    "notebook and launcher syntax",
+    "source bundle hash verification",
+    "git diff --check"
+  ],
+  "training_fixture": {
+    "tasks": 6,
+    "rounds_per_task": 1,
+    "clients": 4,
+    "device": "cpu"
+  },
+  "full_kaggle_training_run": false,
+  "environment_notes": "Local Windows test process used a workspace temporary directory and disabled the optional pyarrow import because the installed extension raised an access violation. Product code does not disable pyarrow.",
+  "source_bundle_sha256": "9f90fccce20df3d956295952208d19d7cf45d8bfc6f26aca7c9de827f940ccbb"
+}

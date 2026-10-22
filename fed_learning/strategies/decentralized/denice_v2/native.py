@@ -326,11 +326,12 @@ class NativeBNCollector:
                 self.plan.hash, len(base.y), np.full(width, observations, np.int64), total, squared, base.task))
         import json
         self.calls.append(dict(layer=layer, input_model_hash=model_hash(stage), members=tuple(sorted(self.bases)),
+            input_state_wire_bytes=len(json.dumps(encode(snapshot(stage)),sort_keys=True,separators=(',',':')).encode()),
             wire_bytes_by_client={p.client_id:len(json.dumps(encode(p.__dict__),separators=(',',':')).encode()) for p in packets}))
         return packets
 
 
-def run_native_round(state, bases, current_classes, *, log_progress=False, **training):
+def run_native_round(state, bases, current_classes, *, log_progress=False, verify_broadcast=True, **training):
     """Canonical allocation -> real optimizers -> BN -> identical broadcast."""
     plan, allocation = prepare_native_round(state, bases, current_classes)
     packets, workers = [], []
@@ -343,10 +344,10 @@ def run_native_round(state, bases, current_classes, *, log_progress=False, **tra
         if log_progress:
             print(f'  optimizer steps={receipt["steps"]} loss={receipt["loss_mean"]} skip={receipt.get("skipped")}',flush=True)
     return finalize_native_round(plan,bases,packets,workers,allocation,
-        batch_size=training.get('batch_size',16),device=training.get('device','cpu'))
+        batch_size=training.get('batch_size',16),device=training.get('device','cpu'),verify_broadcast=verify_broadcast)
 
 
-def finalize_native_round(plan,bases,packets,workers,allocation,*,batch_size=16,device='cpu'):
+def finalize_native_round(plan,bases,packets,workers,allocation,*,batch_size=16,device='cpu',verify_broadcast=True):
     """Common deterministic aggregation path after serial or parallel workers."""
     plan.validate()
     if set(bases)!=set(plan.reference.members):raise ValueError('Incomplete cluster BASE providers')
@@ -356,6 +357,14 @@ def finalize_native_round(plan,bases,packets,workers,allocation,*,batch_size=16,
         raise ValueError('Missing/duplicate cluster worker results')
     collector = NativeBNCollector(plan,bases,batch_size=batch_size,device=device)
     result = aggregate_round(plan, packets, bn_provider=collector)
+    if not verify_broadcast:
+        # The coordinator owns the only persistent state. Workers download the
+        # next reference on demand; no post-round model copies/broadcast.
+        result.state.validate()
+        receipt = dict(allocation=allocation, workers=workers, aggregation=result.receipt,
+            bn_collector_calls=collector.calls, broadcast_performed=False,
+            persistent_model_policy='one_per_cluster', router_fitted=False, test_read=False)
+        return result, plan, packets, receipt
     copies = result.broadcast()
     witness = torch.cat([base.x[:4] for base in bases.values()])
     logits = []

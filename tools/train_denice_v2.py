@@ -21,6 +21,8 @@ def main():
     parser.add_argument('--device',default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--worker-devices',default='cuda:0,cuda:1')
     parser.add_argument('--batch-size',type=int,default=4086)
+    parser.add_argument('--defer-evaluation',action='store_true',help='Never load TEST; evaluate separately with eval_selective')
+    parser.add_argument('--server-only-storage',action='store_true',help='Keep only cluster states; omit post-round client broadcast')
     parser.add_argument('--resume-task',type=int)
     parser.add_argument('--resume-round',type=int)
     parser.add_argument('--resume-root')
@@ -28,7 +30,7 @@ def main():
     parser.add_argument('--eval-batch-size',type=int,default=8192)
     args=parser.parse_args()
     worker_devices=tuple(d.strip() for d in args.worker_devices.split(',') if d.strip())
-    if len(worker_devices)!=2 or len(set(worker_devices))!=2:
+    if worker_devices and (len(worker_devices)!=2 or len(set(worker_devices))!=2):
         raise ValueError('Main training needs two distinct GPU worker devices')
     for name in worker_devices:
         device=torch.device(name)
@@ -51,13 +53,17 @@ def main():
         if old['torch']!=torch.__version__:
             raise ValueError('Resume requires the original torch version/runtime')
     else:
-        commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
+        try:
+            commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True,stderr=subprocess.DEVNULL).strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            commit=None  # Packaged source is identified by the hashes above.
         atomic_json(provenance,dict(commit=commit,source_sha256=source_hashes,
             torch=torch.__version__,python=sys.version,original_train_all_rows=True,
             training_data_protocol='original_train_all_rows_current_task_v1',heldout_train_roles=False,
-            evaluation_cadence='last_round_final_task',router='binary_cosine',feature_policy='cnn_coordinate_router_v1',
+            evaluation_cadence='external_eval_selective' if args.defer_evaluation else 'last_round_final_task',
+            persistent_model_policy='one_per_cluster',post_round_broadcast=not args.server_only_storage,router='binary_cosine',feature_policy='cnn_coordinate_router_v1',
             architecture='legacy_plain_no_CGoFed_no_CME_no_APPLIANCE',local_budget='one_phase_one_epoch_every_current_TRAIN_row_per_round',
-            worker_devices=worker_devices,batch_size=args.batch_size,parallel_execution_policy='spawn_process_per_gpu_lpt_v1',
+            worker_devices=worker_devices,batch_size=args.batch_size,parallel_execution_policy='spawn_process_per_gpu_lpt_v1' if worker_devices else 'sequential_ephemeral_workers',
             numerical_policy='FP32_no_AMP_round_phase_optimizer_reset'))
     torch.set_num_threads(2)
     if torch.cuda.is_available():
@@ -65,7 +71,8 @@ def main():
         torch.backends.cudnn.deterministic=True
     data=TaskData(args.data_dir,output/'current_data_cache')
     cfg=RunConfig(device=args.device,worker_devices=worker_devices,batch_size=args.batch_size,
-        output_budget_gib=args.output_budget_gib,eval_batch_size=args.eval_batch_size)
+        output_budget_gib=args.output_budget_gib,eval_batch_size=args.eval_batch_size,
+        defer_evaluation=args.defer_evaluation,server_only_storage=args.server_only_storage)
     runner=Runner(data,output,cfg)
     if args.resume_task is not None:
         runner.resume(args.resume_task,args.resume_round,args.resume_root)
