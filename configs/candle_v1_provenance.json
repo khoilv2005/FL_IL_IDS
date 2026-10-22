@@ -1,0 +1,21 @@
+{
+  "experiment": "CANDLE V1",
+  "engine": "denice",
+  "configuration_source": "results (11).zip / training_artifacts/config.json",
+  "source_config_sha256": "066669c38206668a55c1619b75bb8d10b9d26aa1039d73eb2465a0a7b875e118",
+  "historical_git_commit": "4a45a7176ac4f8cb8671dba83f3e52071e44a3ca",
+  "historical_runner_source_sha256": "1f893edb39525ac759c704f36b056d5597e1063b5c022b016317e070911008d2",
+  "historical_role_manifest_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+  "role_split_seed": 20261006,
+  "runtime_changes": [
+    "data/output/role paths",
+    "fresh provenance hashes generated for this run"
+  ],
+  "explicit_disable_flags": [
+    "denice_appliance_enabled=false",
+    "appliance_enabled=false"
+  ],
+  "method_identity_assertion": "denice_expected_method=denice_base",
+  "legacy_config_key_count": 210,
+  "limitation": "Same historical configuration; current supporting-source revision is separately pinned. Numerical reproduction is not claimed."
+}

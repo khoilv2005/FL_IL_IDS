@@ -161,6 +161,8 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
         state['capacity_per_class'] = _clone_value(getattr(model, 'capacity_per_class', {}))
         state['adapter_mode'] = getattr(model, 'adapter_mode', 'legacy_output')
         state['candle_state'] = _clone_value(getattr(model, 'candle_state', {}))
+        if hasattr(model, 'candle_v2_state'):
+            state['candle_v2_state'] = _clone_value(model.candle_v2_state)
         state['elastic_state'] = _clone_value(getattr(model, 'elastic_state', {}))
         state['ewc_state'] = _clone_value(getattr(model, 'ewc_state', {}))
         state['cgofed_projection_state'] = _clone_value(
@@ -233,6 +235,10 @@ def restore_denice_state(
     model.configure_adapter_mode(state.get('adapter_mode', 'legacy_output'))
     model.architecture_version = int(state.get('architecture_version', model.architecture_version))
     model.candle_state = _clone_value(state.get('candle_state', {}))
+    if 'candle_v2_state' in state:
+        model.candle_v2_state = _clone_value(state['candle_v2_state'])
+    elif hasattr(model, 'candle_v2_state'):
+        delattr(model, 'candle_v2_state')
     model.elastic_state = _clone_value(state.get('elastic_state', {}))
     model.ewc_state = _clone_value(state.get('ewc_state', {}))
     projection_state = state.get('cgofed_projection_state')

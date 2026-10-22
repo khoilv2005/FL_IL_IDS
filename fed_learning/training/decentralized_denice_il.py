@@ -1374,7 +1374,8 @@ def _build_round_capsule(
         capsule_labels = ref_labels.to(device)
     else:
         capsule_labels = client.y_train[: len(capsule_data)].to(device)
-    if config.get('denice_capsule_mode') == 'paper' and len(getattr(client, 'y_validation', [])):
+    if (not config.get('candle_v2_enabled', False)
+            and config.get('denice_capsule_mode') == 'paper' and len(getattr(client, 'y_validation', []))):
         capsule_data = client.X_validation.to(device)
         capsule_labels = client.y_validation.to(device)
         # Bound prototype/Fisher work and represent rare validation classes.
@@ -2677,6 +2678,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             (resume_state or {}).get('appliance_service_state'))
     elif (resume_state or {}).get('appliance_service_state'):
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
+    candle_v2 = None
+    if config.get('candle_v2_enabled', False):
+        from fed_learning.strategies.decentralized.candle_v2 import CANDLEV2Service
+        candle_v2 = CANDLEV2Service(config, (resume_state or {}).get('config'))
+    elif (resume_state or {}).get('config', {}).get('candle_v2_enabled'):
+        raise ValueError('Cannot silently disable CANDLE V2 while resuming')
     round_resume = (resume_state or {}).get('round_state')
     if round_resume:
         for key in ('rounds_per_task', 'batch_size', 'nice_phase_epochs', 'denice_max_train_samples_per_client',
@@ -3064,6 +3071,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 client = clients[cid]
                 client.setup_for_gpu(model, str(device))
                 model.local_classifier = None
+                prototype_hooks = (candle_v2.training_hooks(cid, model, client, task_id, round_id, new_classes)
+                                   if candle_v2 else {})
                 client_train_start = time.time()
                 result = client.train(
                     trainer=trainer,
@@ -3080,11 +3089,18 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     continual_controls=continual_controls,
                     local_replay=(replay_memories.setdefault(cid, make_replay())
                                   if replay_config.capacity else None),
+                    **prototype_hooks,
                     **imbalance_controls,
                     **(appliance_service.training_hooks(cid, model) if appliance_service else
                        appliance_probe.training_hooks(cid,model) if appliance_probe else {}),
                 )
                 client_train_time = time.time() - client_train_start
+                if candle_v2:
+                    result['candle_v2'] = candle_v2.after_train(cid, model, result)
+                    _append_jsonl(os.path.join(output_dir, 'candle_v2_training.jsonl'),
+                                  {'task': task_id, 'round': round_id, 'client_id': cid,
+                                   'real_CE': result['loss'], 'objective': result['optimization_loss'],
+                                   **result['candle_v2']})
                 history.setdefault('continual_losses', []).append(
                     {'task': task_id, 'round': round_id, 'client_id': cid, **result.get('continual', {})})
                 if 'cgofed_projection' in result:
@@ -3375,10 +3391,18 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     models, context_detectors, clients, active_ids, cluster_summary,
                     _seen_classes(data_loader, task_id))
 
+            if candle_v2:
+                cluster_summary['candle_v2'] = candle_v2.after_round(
+                    models, clients, active_ids, cluster_summary, task_id, round_id, device)
+                _append_jsonl(os.path.join(output_dir, 'candle_v2_communication.jsonl'),
+                              {'task': task_id, 'round': round_id, **cluster_summary['candle_v2']})
+                print(f"    CANDLE V2 prototype exchange: {cluster_summary['candle_v2']}", flush=True)
+
             round_record = {
                 "task": task_id,
                 "round": round_id,
                 "train_loss": float(np.mean(list(losses.values()))),
+                **({'candle_v2': cluster_summary['candle_v2']} if candle_v2 else {}),
                 "round_time": time.time() - start,
                 "train_time": train_time_total,
                 "context_update_time": context_time_total,
