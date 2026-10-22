@@ -118,14 +118,14 @@ không tự chọn tùy ý. Không yêu cầu tạo hoặc upload runtime ZIP m�
 
 **`eval_candle_v2_repair_kaggle.ipynb`** — đánh giá lại weights hiện có, không train.
 
-Attach hai dataset:
+Attach dataset gốc **`100-clients`**, bật GPU + Internet và chạy notebook.
+Notebook tải `results (14)` trực tiếp từ link Google Drive đã cấu hình, vào
+`/kaggle/temp/candle_v2_results14.zip`, rồi dùng checkpoint/roles trong ZIP đó.
+Source clone từ GitHub với full commit SHA, không nhúng source.
 
-1. Outputs `results (14)`, gồm task5 checkpoint và original roles.
-2. Dataset gốc `100-clients`.
-
-Bật GPU + Internet, chạy notebook. Source clone từ GitHub với full commit SHA,
-không nhúng source. Mặc định tự tìm một CANDLE V2 run trong `/kaggle/input`.
-Nếu có nhiều run thì đặt `RESULTS_ROOT` hoặc `CHECKPOINT` trong cell cấu hình.
+Nếu muốn dùng results đã mount thay vì Drive, xóa `RESULTS_DRIVE_URL` và đặt
+`RESULTS_ROOT` hoặc `CHECKPOINT` trong cell cấu hình. Cơ chế tải dùng cùng mẫu
+gdown như `tools/build_denice_class_meta_notebook.py` trong repository.
 
 Full evaluator giữ đúng protocol cũ: 13.505.771 TEST rows chia disjoint cho các
 receiver, mỗi row tính một lần. Cùng một forward lấy cả baseline task-free và
