@@ -4,12 +4,13 @@ from pathlib import Path
 import subprocess
 import sys
 
-CODE_REF = "a7830e20ab88abf4e0c39a0a04e1eb79594e6a8f"
+CODE_REF = "97e922ccab67f433ba07793cf0f2e23738bab144"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
 OUTPUT_DIR = "/kaggle/working/results_candle_v2_xi_0p8_seed_42"
 # Reuse a mounted V1 roles directory if available; otherwise prepare the same split.
 ROLES_DIR = "/kaggle/temp/candle_v2_roles"
 BATCH_SIZE = 2048
+INFERENCE_POLICY = "binary_cosine_registered_v1"
 # Empty => fresh Task0..5. For resume, mount a CANDLE V2 continuation/task ZIP.
 RESUME_STATE = ""
 
@@ -32,7 +33,7 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "-r",
 print("CANDLE V2 source:", actual, flush=True)
 command = [sys.executable, "-u", str(code / "tools/train_candle_v2.py"),
     "--data-dir", DATA_DIR, "--output", OUTPUT_DIR, "--roles", ROLES_DIR,
-    "--batch-size", str(BATCH_SIZE)]
+    "--batch-size", str(BATCH_SIZE), "--inference-policy", INFERENCE_POLICY]
 if RESUME_STATE:
     command += ["--resume", RESUME_STATE]
 subprocess.check_call(command, cwd=code, env=env)
