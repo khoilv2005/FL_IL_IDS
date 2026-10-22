@@ -1,5 +1,9 @@
 # CANDLE V2 — kết quả full TEST của routing repair, results (15)
 
+Audit tiếp theo so V1/V2 với cùng loại router trên development:
+[Matched-router debug](CANDLE_V1_V2_MATCHED_ROUTER_DEBUG_20261022_VI.md).
+Không thay thế các số full TEST trong báo cáo này.
+
 Ngày 22/10/2026. Archive `C:\Users\khoak\Downloads\results (15).zip`, 179.989 bytes.
 Audit chỉ đọc outputs đã lưu, không train hoặc chạy thêm model inference.
 
