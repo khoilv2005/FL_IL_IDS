@@ -16,6 +16,7 @@ OUTPUT_DIR = "/kaggle/working/results_candle_v2_xi_0p8_seed_42"
 # Reuse a mounted V1 roles directory if available; otherwise prepare the same split.
 ROLES_DIR = "/kaggle/temp/candle_v2_roles"
 BATCH_SIZE = 2048
+INFERENCE_POLICY = "binary_cosine_registered_v1"
 # Empty => fresh Task0..5. For resume, mount a CANDLE V2 continuation/task ZIP.
 RESUME_STATE = ""
 
@@ -38,7 +39,7 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "-r",
 print("CANDLE V2 source:", actual, flush=True)
 command = [sys.executable, "-u", str(code / "tools/train_candle_v2.py"),
     "--data-dir", DATA_DIR, "--output", OUTPUT_DIR, "--roles", ROLES_DIR,
-    "--batch-size", str(BATCH_SIZE)]
+    "--batch-size", str(BATCH_SIZE), "--inference-policy", INFERENCE_POLICY]
 if RESUME_STATE:
     command += ["--resume", RESUME_STATE]
 subprocess.check_call(command, cwd=code, env=env)
@@ -62,8 +63,10 @@ Fresh seed42, Tasks0–5, 20 rounds/task, xi=0.8, batch2048 by default.
 One personalized model/client; decentralized neighborhood aggregation.
 
 Changes from V1: peer-prototype representation alignment, virtual missing-class
-CE, current-input teacher preservation, and task-free cosine FC2 inference.
-Context-specific adapters are disabled; no oracle/task router at primary inference.
+CE and current-input teacher preservation. The registered-router repair uses the
+saved binary_cosine detector to select task from input, then masks cosine FC2
+to saved available classes in class_tasks for that task. Context-specific
+adapters are disabled. No true task labels are provided at inference.
 No raw historical replay, CGoFed, CME, APPLIANCE, or donor models at inference.
 
 Uses the same content-disjoint V1 BASE training split and internal local holdout;
@@ -76,8 +79,10 @@ Only terminal Task5/Round19 is evaluated, on the full34-class TEST partitioned
 across receiver models exactly once, matching V1 sample allocation.
 Read `candle_v2_completion.json` for Accuracy and Macro-F1.
 
-This is a new implementation/configuration awaiting training and smoke results.
-Accuracy gains and historical safety have not been established.
+This is an updated inference policy; the training objective is unchanged.
+Development checkpoint diagnostics showed improvement with remaining breaks
+and lower new-class recall. Full TEST gains and historical safety are unproven.
+For existing results (14), use eval_candle_v2_repair_kaggle.ipynb without retraining.
 The notebook clones pinned GitHub source; no embedded source/runtime ZIP.
 '''
     notebook = dict(nbformat=4, nbformat_minor=5, metadata=dict(

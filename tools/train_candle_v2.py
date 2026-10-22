@@ -21,10 +21,12 @@ def main():
     p.add_argument('--roles', required=True)
     p.add_argument('--resume', default='')
     p.add_argument('--batch-size', type=int, default=2048)
+    p.add_argument('--inference-policy', choices=['taskfree_cosine_v1','binary_cosine_registered_v1'])
     a = p.parse_args()
     import torch
     from fed_learning.data.denice_clean_roles import CleanRoleData, file_sha256
     from fed_learning.strategies.decentralized.candle_v2 import validate
+    from fed_learning.strategies.decentralized.candle_v2_inference import resolve_policy, PRIMARY
     from tools.prepare_denice_clean_roles import prepare
     if not torch.cuda.is_available():
         raise RuntimeError('Enable GPU in Kaggle settings')
@@ -54,6 +56,11 @@ def main():
         raise ValueError('Use the V1-matched locked split for this comparison')
     config.update(data_dir=str(data), output_dir=str(output), resume_output_dir=str(output),
                   denice_clean_roles_dir=str(roles_dir), batch_size=a.batch_size)
+    if a.inference_policy is not None:
+        config['candle_v2_inference_policy'] = a.inference_policy
+    inference_policy = resolve_policy(config)
+    if inference_policy == 'binary_cosine_registered_v1' and config.get('denice_router_mode') != 'binary_cosine':
+        raise ValueError('Registered inference requires binary_cosine router training')
     if a.resume:
         from fed_learning.training.decentralized_denice_il import _load_denice_continuation_state
         resume_path = Path(a.resume).resolve()
@@ -83,12 +90,16 @@ def main():
     ref = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     write_json(output/'candle_v2_requested_config.json', config)
     write_json(output/'candle_v2_protocol.json', dict(experiment='CANDLE V2', source_commit=ref,
-        primary='TaskFreeCosineSelf', config_sha256=file_sha256(cfg_path),
+        primary=PRIMARY[inference_policy], inference_policy=inference_policy,
+        config_sha256=file_sha256(cfg_path),
         module_sha256=file_sha256(ROOT/'fed_learning/strategies/decentralized/candle_v2.py'),
+        inference_module_sha256=file_sha256(ROOT/'fed_learning/strategies/decentralized/candle_v2_inference.py'),
         role_manifest_sha256=file_sha256(roles_dir/'role_manifest.json'),
         changes_from_V1=['training prototype alignment', 'virtual missing-class CE',
-                         'current-input frozen-teacher preservation', 'task-free cosine FC2',
-                         'no context-specific micro-adapters'],
+                         'current-input frozen-teacher preservation', 'cosine FC2 training objective',
+                         'no context-specific micro-adapters'] + (
+                            ['saved input-driven binary router with CANDLE class authorization']
+                            if inference_policy != 'taskfree_cosine_v1' else []),
         data_protocol='Same V1 BASE split and internal current-task holdout; not full original TRAIN',
         evaluation='Only terminal Task5/Round19, one full TEST partition across receiver models',
         effectiveness_unverified=True, GPU=torch.cuda.get_device_name(0)))
@@ -99,7 +110,7 @@ def main():
         DENICE_CONFIG_OVERRIDES=json.dumps(config))
     print('CANDLE V2: fresh T0..T5, 20 rounds/task, xi=.8, seed42; one GPU.', flush=True)
     print('Real cumulative CE + peer alignment + virtual prototype CE + current-input preservation.', flush=True)
-    print('No raw replay/donor inference; task-free cosine FC2; only final TEST.', flush=True)
+    print(f'No raw replay/donor inference; inference={inference_policy}; only final TEST.', flush=True)
     runpy.run_path(str(ROOT/'train_incremental_kaggle.py'), run_name='__main__')
     from tools.eval_candle_v2 import run
     gc.collect()

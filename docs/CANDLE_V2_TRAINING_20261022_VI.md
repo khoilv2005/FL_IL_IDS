@@ -1,7 +1,12 @@
 # CANDLE V2 — Training-Time Prototype Integration
 
-Ngày: 22/10/2026. Implementation/engineering configuration mới, chưa có training
-hoặc smoke receipt. Không gọi đây là phương pháp đã cải thiện Accuracy/F1.
+Ngày: 22/10/2026. Full run đầu tiên đã hoàn thành: Accuracy 3,1548%, pooled
+Macro-F1 2,4369%. Debug sau run xác định cross-task competition; inference đã
+được cập nhật sang policy `binary_cosine_registered_v1`. Training objective giữ
+nguyên. Xem `CANDLE_V2_ROUTING_REPAIR_20261022_VI.md` cho receipts và giới hạn.
+
+Với `results (14)` đã có, chạy **`eval_candle_v2_repair_kaggle.ipynb`** để đo
+lại checkpoint; không cần bắt đầu một training run mới.
 
 ## Chạy notebook
 
@@ -67,19 +72,23 @@ activation; việc này chưa bảo đảm generalization sang mọi class cũ.
 
 ## Inference thay đổi có chủ đích
 
-Main policy: **TaskFreeCosineSelf**.
+Policy mới cho config/notebook cập nhật: **BinaryCosineRegisteredSelf**.
+Checkpoint cũ không có policy key vẫn mặc định **TaskFreeCosineSelf**; muốn
+đánh giá repair phải chọn override có tên rõ ràng.
 
 ```
-x → local CNN/GRU/FC1 → normalized cosine FC2
-  → mask class chưa có successful local/virtual training
+x → local CNN/GRU/FC1 → cosine FC2 + saved binary_cosine router
+  → router chọn task từ input
+  → mask theo saved available + class_tasks của task được chọn
   → argmax
 ```
 
 Scale10, không dùng FC2 bias. Chỉ dùng allocated FC1 coordinates cho cả real và
 virtual inputs. Không nhận true task/class, không imported router gate, không
-donor-model inference. Context-specific adapters được tắt để training và
-task-free inference dùng cùng feature function. Native binary router metadata
-vẫn phục vụ đường DeNICE/capsule hiện hữu, không quyết định prediction chính.
+donor-model inference. Context-specific adapters được tắt. CNN/GRU chỉ forward
+một lần để lấy cả FC1 features và context activations. Router giữ nguyên memory
+và thresholds; class import được xét theo registry CANDLE thay vì chỉ local
+`episode_classes`. Empty authorized scope dùng task-free fallback và ghi count.
 
 Training softmax gồm cumulative available classes và toàn bộ label IDs của
 **current** task đã được protocol công bố. Những row current chưa train vẫn
@@ -140,15 +149,16 @@ một model local. Headline là pooled Accuracy/Macro-F1 trên mọi class, kể
 class receiver chưa học. Có confusion matrix, per-class/per-client metrics và
 label coverage. Đây không phải mean cluster accuracy hoặc ensemble.
 
-Route accuracy=null vì main policy không dự đoán task. Không dùng oracle mask,
-không chọn config từ TEST, không eval trung gian; vì vậy run này cũng chưa tạo
+Route accuracy được báo khi dùng policy routed; task-free control vẫn có
+route accuracy=null. Không dùng oracle mask, không eval trung gian; run chưa tạo
 được đường forgetting theo từng task. Cần campaign riêng nếu báo cáo forgetting.
 
 ## Tình trạng và giới hạn
 
-Đã viết service/losses, runner hooks, snapshot/restore, terminal evaluator,
-launcher/config và notebook builder. Chưa chạy unit tests, native smoke hoặc
-training của implementation mới trong phiên này. Chưa có bằng chứng V2 vượt V1.
+Đã chạy full engineering baseline và checkpoint-only development diagnostics.
+Repair đã kiểm tra 98 model với hai panel validation, một panel không trùng
+nội dung panel trước, cùng evaluator integration trên validation shards.
+Chưa đo full TEST của repair và chưa có bằng chứng V2 vượt V1.
 Fresh full run đầu tiên là engineering baseline; nếu TEST dùng để cải tiến
 thiết kế, cần confirmation độc lập sau khi khóa cấu hình.
 
