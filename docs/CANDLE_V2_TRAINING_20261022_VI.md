@@ -5,6 +5,9 @@ Macro-F1 2,4369%. Debug sau run xác định cross-task competition; inference �
 được cập nhật sang policy `binary_cosine_registered_v1`. Training objective giữ
 nguyên. Xem `CANDLE_V2_ROUTING_REPAIR_20261022_VI.md` cho receipts và giới hạn.
 
+Full TEST repair đã có ở results (15): **35,7030% Accuracy / 18,4767% Macro-F1**,
+route accuracy **38,8590%**. Xem `CANDLE_V2_RESULTS15_FULL_TEST_20261022_VI.md`.
+
 Với `results (14)` đã có, chạy **`eval_candle_v2_repair_kaggle.ipynb`** để đo
 lại checkpoint; không cần bắt đầu một training run mới.
 
@@ -158,7 +161,8 @@ route accuracy=null. Không dùng oracle mask, không eval trung gian; run chưa
 Đã chạy full engineering baseline và checkpoint-only development diagnostics.
 Repair đã kiểm tra 98 model với hai panel validation, một panel không trùng
 nội dung panel trước, cùng evaluator integration trên validation shards.
-Chưa đo full TEST của repair và chưa có bằng chứng V2 vượt V1.
+Full TEST repair đã đo: cao hơn historical V1 BinarySelf, thấp hơn V1
+MulticlassSelf. Chưa có controlled ablation hoặc multi-seed confirmation.
 Fresh full run đầu tiên là engineering baseline; nếu TEST dùng để cải tiến
 thiết kế, cần confirmation độc lập sau khi khóa cấu hình.
 

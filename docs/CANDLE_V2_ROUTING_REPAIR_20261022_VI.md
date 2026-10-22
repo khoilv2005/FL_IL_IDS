@@ -2,6 +2,11 @@
 
 Ngày 22/10/2026. Nối tiếp debug checkpoint tại `eb9b281`.
 
+Cập nhật: full TEST của repair đã hoàn tất trong results (15), Accuracy
+**35,7030%**, pooled Macro-F1 **18,4767%**, route accuracy **38,8590%**.
+Xem `CANDLE_V2_RESULTS15_FULL_TEST_20261022_VI.md`. Các mục development và trạng
+thái chưa chạy TEST bên dưới ghi lại thời điểm triển khai trước lượt eval đó.
+
 ## 1. Đã sửa gì
 
 Policy mới: **`binary_cosine_registered_v1`**, primary **BinaryCosineRegisteredSelf**.
