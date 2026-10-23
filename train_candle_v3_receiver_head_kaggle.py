@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-CODE_REF = "645f353bf3591876810df35fda6b3a79328f79c5"
+CODE_REF = "e0565dd4c1a18c11d84007d0b60cb2bc9110dcee"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
 OUTPUT_DIR = "/kaggle/working/results_candle_v3_receiver_head_xi_0p8_seed_42"
 # Point to mounted historical role_lock.json's DIRECTORY to reuse the exact split.
