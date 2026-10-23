@@ -13,8 +13,8 @@ import zipfile
 
 CODE_REF = "__REF__"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
-ROLES_DIR = "/kaggle/working/candle_v4_roles"
-OUTPUT_DIR = "/kaggle/working/results_candle_v4_seed42"
+OUTPUT_DIR = "/kaggle/working/results_candle_v4_original_seed42"
+VARIANT = "coverage"  # "native-only" reruns V1 with the SAME original-TRAIN protocol.
 # Optional mounted round continuation .pt or task archive .zip; empty=fresh T0.
 # Resume also needs the original run lock/threshold locks in that folder/archive.
 RESUME_STATE = ""
@@ -25,7 +25,7 @@ env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1"}
 for name in ('DENICE_CONFIG_FILE','DENICE_CONFIG_OVERRIDES','DENICE_RESUME_STATE_PATH',
              'DENICE_CONFIG_ONLY','DENICE_TASK_END'):
     env.pop(name,None)
-code = Path('/kaggle/working/candle_v4_source')
+code = Path('/kaggle/working/candle_v4_original_source')
 if not code.exists():
     subprocess.check_call(['git','clone','--filter=blob:none','--no-checkout',
         'https://github.com/khoilv2005/FL_IL_IDS.git',str(code)],env=env)
@@ -37,7 +37,7 @@ runtime = code/'candle_v4_runtime'
 subprocess.check_call([sys.executable,'-m','pip','install','-q','-r',
                        str(runtime/'requirements-candle-v1-kaggle.txt')],env=env)
 args = [sys.executable,'-u',str(runtime/'tools/train_candle_v4.py'),
-        '--data-dir',DATA_DIR,'--roles',ROLES_DIR,'--output',OUTPUT_DIR]
+        '--data-dir',DATA_DIR,'--output',OUTPUT_DIR,'--variant',VARIANT]
 if RESUME_STATE:
     source = Path(RESUME_STATE);out=Path(OUTPUT_DIR);out.mkdir(parents=True,exist_ok=True)
     if source.suffix=='.zip':
@@ -71,13 +71,16 @@ def main():
 
 100 benchmark clients, six tasks ×20 rounds; native V1 batch2048/AMP, one GPU.
 Experts use donor positives, receiver/donor negatives and current eligible
-auxiliary peers. Includes matched no-auxiliary and donor-only controls plus V1.
+auxiliary peers. One coverage-aware bank; no shadow V1 model or parallel control banks.
 ACTIVE only after unchanged risk gates; rejection does not prevent completing training.
 
-Uses the locked V1 BASE/FIT/CAL/validation split. Cumulative VALIDATION after each
-task; **full 34-class TEST runs once after Task5/Round19 and consolidation**.
-V1 and three V4 arms use identical disjoint receiver shards covering the entire TEST.
-This remains a development run, not independent confirmation. TEST never tunes gates.
+Uses original client TRAIN, filtered by current task; retains only native V1 local
+validation. NO BASE/FIT/CAL role preparation, no role manifest or global re-partition.
+Fixed threshold .5; observed native-validation gate, not independent CAL confirmation.
+**Full 34-class TEST runs once after Task5/Round19 and consolidation**.
+V1 native counterfactual and V4 use identical disjoint shards covering the entire TEST.
+Set VARIANT="native-only" and a separate OUTPUT_DIR for a standalone matched V1 rerun.
+Old role-based checkpoints cannot resume this NEW data protocol. Start fresh.
 No historical raw-data replay. Round continuation and task ZIPs contain expert state.
 Enable **GPU and Internet**. Source is cloned at a fixed Git SHA; no embedded runtime.
 Keep the output with Kaggle Save Version. A stopped interactive session is not an

@@ -12,31 +12,29 @@ import time
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-dir',required=True)
-    parser.add_argument('--roles',required=True)
     parser.add_argument('--output',required=True)
-    parser.add_argument('--resume',help='Extracted continuation_state_latest.pt, same output/role authority')
+    parser.add_argument('--variant',choices=('coverage','native-only'),default='coverage')
+    parser.add_argument('--resume',help='Original-TRAIN continuation only; role-based checkpoints are incompatible')
     args=parser.parse_args()
     if not Path('/kaggle/working').is_dir():raise RuntimeError('Full training is Kaggle-only')
     root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root))
     import torch
-    from fed_learning.data.denice_clean_roles import CleanRoleData,file_sha256
-    from tools.prepare_denice_clean_roles import prepare
     from tools.train_candle_v1 import resolve_data
-    from fed_learning.training.candle_v4_service import VERSION
+    from fed_learning.training.candle_v4_original_train import VERSION
+    import hashlib
     if not torch.cuda.is_available():raise RuntimeError('Enable Kaggle GPU')
-    data=resolve_data(args.data_dir);roles=Path(args.roles).resolve();output=Path(args.output).resolve()
-    if roles==output or roles in output.parents or output in roles.parents:raise ValueError('Separate roles/output')
-    if not (roles/'role_lock.json').is_file():prepare(str(data),str(roles),20261006)
-    authority=CleanRoleData(roles,source_data_dir=data)
-    if authority.manifest['split_seed']!=20261006 or authority.manifest['requested_fractions']!={'base':.8,'fit':.08,'calibration':.02,'validation':.1}:
-        raise ValueError('V1 role split required for matched controls')
+    data=resolve_data(args.data_dir);output=Path(args.output).resolve()
+    metadata_sha256=hashlib.sha256((data/'metadata.json').read_bytes()).hexdigest()
+    for owner in range(100):
+        if not (data/f'client_{owner}_train.npz').is_file():raise FileNotFoundError(f'Original TRAIN missing for client {owner}')
     if not args.resume and output.exists() and any(output.iterdir()):raise ValueError('Fresh output required')
     config=json.loads((root/'configs/candle_v1.json').read_text())
-    spec=dict(version=VERSION,seed=42,input_sha256=file_sha256(roles/'role_manifest.json'),
-              roles_dir=str(roles),data_dir=str(data),output_dir=str(output),
+    spec=dict(version=VERSION,seed=42,input_sha256=metadata_sha256,
+              data_dir=str(data),output_dir=str(output),arms=['coverage'] if args.variant=='coverage' else [],
+              data_protocol='original TRAIN; existing native local validation only',fixed_threshold=.5,
               per_expert_bytes=128*1024**2,per_arm_bytes=64*1024**3)
     config.update(data_dir=str(data),output_dir=str(output),resume_output_dir=str(output),
-                  denice_clean_roles_dir=str(roles),candle_v4_full_service=spec,
+                  denice_clean_roles_dir=None,candle_v4_full_service=spec,candle_v4_original_train=True,
                   denice_post_task_eval_tasks=[],denice_eval_final_round=False,
                   denice_evaluation_data_role='validation',
                   candle_v4_terminal_full_test=True,
@@ -44,16 +42,16 @@ def main():
     source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
     output.mkdir(parents=True,exist_ok=True)
     lock=dict(version=VERSION,source_commit=source,seed=42,config=config,
-              protocol='Full development; quality rejection continues native run; no two-ACTIVE prerequisite',
-              evaluation='Cumulative VALIDATION after each task; one full 34-class TEST after T5/R19 consolidation, disjoint receiver shards, pooled, identical rows for V1 and three V4 arms',
-              controls=['isolated V1','V4 no auxiliary negatives','class-balanced donor-only'],
-              risk='Recall>=.95, observed per-owner/class FAR<=.001, break=0; historical unobserved risk UNKNOWN',
+              protocol='Original TRAIN per task; native local validation only; no new roles or shadow native model',
+              evaluation='Current native local validation for gate/report; full 34-class TEST only after T5/R19 consolidation',
+              controls=['native V1 counterfactual from same backbone; historical 80/2/8/10 V1 is not a matched baseline'],
+              risk='Fixed threshold .5; recall>=.95, observed per-owner/class FAR<=.001, break=0; native validation is not independent CAL',
               runtime=dict(python=sys.version,torch=str(torch.__version__),cuda=torch.version.cuda,gpu=torch.cuda.get_device_name(0)))
-    lock['resource_preflight']=dict(max_expert_count=100*34*3,
-        max_expert_parameter_bytes=100*34*3*2625*4,
-        max_adam_moment_bytes=100*34*3*2625*8,
+    lock['resource_preflight']=dict(max_expert_count=100*34*len(spec['arms']),
+        max_expert_parameter_bytes=100*34*len(spec['arms'])*2625*4,
+        max_adam_moment_bytes=100*34*len(spec['arms'])*2625*8,
         serialized_wire_cap_per_arm=spec['per_arm_bytes'],
-        total_expert_wire_cap_all_controls=3*spec['per_arm_bytes'],
+        total_expert_wire_cap_all_controls=len(spec['arms'])*spec['per_arm_bytes'],
         native_output_guard_gib=config['denice_checkpoint_storage_budget_gib'],
         policy='Caps are enforced, not a prediction of measured traffic; native traffic additional')
     lock_path=output/'candle_v4_run_lock.json'
@@ -68,7 +66,8 @@ def main():
     os.environ.update(DENICE_RUN_PROFILE='legacy',DENICE_VARIANT='legacy',DENICE_TRAIN_PHASE='5',
                       DENICE_CODE_DIR=str(root),DENICE_SEED='42',DENICE_OUTPUT_DIR=str(output),
                       DENICE_CONFIG_OVERRIDES=json.dumps(config))
-    print('CANDLE V4: fresh/resume seed42, T0..T5 x20 rounds; native V1 unchanged; coverage-aware + matched controls.',flush=True)
+    print('CANDLE V4: ORIGINAL TRAIN, native local validation only; NO ROLE PREPARATION; NO SHADOW NATIVE MODEL.',flush=True)
+    print(f'Seed42 T0..T5 x20 rounds; variant={args.variant}; active expert arms={spec["arms"]}.',flush=True)
     print('One GPU, native batch2048 AMP; experts CPU; per-round continuation; task ZIP. Final full TEST after T5/R19 consolidation only.',flush=True)
     started=time.perf_counter()
     runpy.run_path(str(root/'train_incremental_kaggle.py'),run_name='__main__')

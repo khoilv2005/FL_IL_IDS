@@ -33,7 +33,17 @@ class CoverageService(ShadowService):
 
     def train_step(self,name,data,step,task,round_id):
         target=self.spec['target'];donor=self.spec['donor'];receiver=self.spec['receiver']
-        all_counts={o:Counter(y.tolist()) for o,(_,y) in data.items()}
+        sampling=getattr(self,'sampling_cache',None)
+        def view(owner):
+            y=data[owner][1]
+            key=(owner,id(y),len(y))
+            if sampling is None:return dict(counts=Counter(y.tolist()))
+            if key not in sampling:
+                labels,counts=torch.unique(y,sorted=True,return_counts=True)
+                sampling[key]=dict(counts=Counter(dict(zip(labels.tolist(),counts.tolist()))),
+                    indices={c:torch.nonzero(y==c).flatten() for c in labels.tolist()})
+            return sampling[key]
+        views={o:view(o) for o in data};all_counts={o:v['counts'] for o,v in views.items()}
         proposed=negative_contributors(receiver,donor,target,all_counts,self.graph)
         selected=proposed if self.coverage_enabled else {}
         parents={donor} if self.spec.get('donor_only_control') else {donor,receiver}
@@ -68,7 +78,8 @@ class CoverageService(ShadowService):
             x,y=data[owner];rows=[];weights=[]
             for c,n in sorted(request.items()):
                 g=torch.Generator().manual_seed(42+step*100003+(0 if c==target else owner*1009)+c*17)
-                local=torch.nonzero(y==c).flatten()
+                local=views[owner].get('indices',{}).get(c)
+                if local is None:local=torch.nonzero(y==c).flatten()
                 if not len(local):raise ValueError('Requested class missing in local current BASE')
                 rows.append(local[torch.randint(len(local),(n,),generator=g)])
                 w=.5/128

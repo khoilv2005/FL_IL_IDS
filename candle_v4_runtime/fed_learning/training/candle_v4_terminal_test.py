@@ -39,8 +39,8 @@ def evaluate_terminal(service,models,detectors,task,round_id):
     expected=len(y);ids=sorted(models)
     if not ids:raise ValueError('No terminal receiver predictors')
     shards,partition=_partition_test_data_by_client(x,y,ids,seed=42+104729*5,lazy_features=True)
-    names=('V1',*ARMS);cms={a:np.zeros((34,34),dtype=np.int64) for a in names}
-    per_client={};rescue={a:0 for a in ARMS};broken={a:0 for a in ARMS}
+    names=('V1',*service.arms);cms={a:np.zeros((34,34),dtype=np.int64) for a in names}
+    per_client={};rescue={a:0 for a in service.arms};broken={a:0 for a in service.arms}
     timing={a:0. for a in names};evaluated=0;started=time.perf_counter()
     for position,receiver in enumerate(ids,1):
         local={a:np.zeros((34,34),dtype=np.int64) for a in names};shard=shards[receiver]
@@ -50,7 +50,7 @@ def evaluate_terminal(service,models,detectors,task,round_id):
             clock=time.perf_counter();native=base_predictions(models[receiver],detectors[receiver],inputs,list(range(34)))
             if torch.cuda.is_available():torch.cuda.synchronize()
             timing['V1']+=time.perf_counter()-clock;predictions={'V1':native}
-            for arm in ARMS:
+            for arm in service.arms:
                 clock=time.perf_counter();predictions[arm]=service.infer(receiver,arm,native,inputs)[0]
                 timing[arm]+=time.perf_counter()-clock
                 rescue[arm]+=int(((native!=truth)&(predictions[arm]==truth)).sum())
@@ -70,9 +70,9 @@ def evaluate_terminal(service,models,detectors,task,round_id):
         test_rows=expected,evaluated_rows=evaluated,classes=list(range(34)),receivers=ids,
         partition=partition,metrics={a:statistics(cm) for a,cm in cms.items()},per_client=per_client,
         rescue=rescue,break_count=broken,native_sha256=before,expert_state_sha256=expert_before,
-        native_inference_seconds=timing['V1'],extra_inference_seconds={a:timing[a] for a in ARMS},
+        native_inference_seconds=timing['V1'],extra_inference_seconds={a:timing[a] for a in service.arms},
         wall_seconds=time.perf_counter()-started,
-        evaluation_protocol='Entire original TEST partitioned once across receivers, V1-identical seed; pooled metrics; identical rows for all four arms',
+        evaluation_protocol='Entire original TEST partitioned once across receivers, V1-identical seed; pooled metrics; identical rows for native counterfactual and enabled expert arms',
         scientific_status='Frozen terminal readout of a development run; no TEST-based selection or acceptance')
     temporary=target.with_suffix('.tmp');temporary.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8');temporary.replace(target)
     return result

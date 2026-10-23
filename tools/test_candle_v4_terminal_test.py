@@ -54,6 +54,18 @@ class TerminalTests(unittest.TestCase):
         self.assertGreater(code.index("if config.get('candle_v4_terminal_full_test'):"),code.index('seal_task_archive(output_dir,task_id'))
         self.assertFalse((Path(self.directory.name)/'candle_v4_final_test.json').exists())
 
+    def test_original_train_single_bank_and_native_only_terminal(self):
+        from fed_learning.training.candle_v4_original_train import OriginalTrainService,VERSION
+        for index,arms in enumerate((['coverage'],[])):
+            spec=dict(self.service.spec,version=VERSION,arms=arms,fixed_threshold=.5,
+                      output_dir=str(Path(self.directory.name)/str(index)))
+            Path(spec['output_dir']).mkdir()
+            self.service=OriginalTrainService(spec);self.prepare_terminal()
+            with patch.object(terminal,'IncrementalDataLoader',return_value=self.loader),patch.object(terminal,'base_predictions',side_effect=lambda m,d,x,seen:np.full(len(x),2,dtype=np.int64)):
+                result=terminal.evaluate_terminal(self.service,self.models,self.detectors,5,19)
+            self.assertEqual(set(result['metrics']),{'V1',*arms})
+            self.assertEqual(result['evaluated_rows'],102)
+
 
 if __name__=='__main__':
     result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(TerminalTests))

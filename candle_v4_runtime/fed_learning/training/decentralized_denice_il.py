@@ -2354,6 +2354,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     print("DECENTRALIZED DeNICE-IL")
     print("=" * 80)
 
+    if config.get('candle_v4_original_train'):
+        from fed_learning.training.candle_v4_original_train import validate_original_config
+        validate_original_config(config)
     if config.get('denice_clean_roles_dir'):
         from fed_learning.data.denice_clean_roles import CleanRoleIncrementalDataLoader, validate_clean_training_config
         validate_clean_training_config(config)
@@ -2371,6 +2374,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         print(f"Clean roles: backbone=BASE; evaluation={data_loader.evaluation_role.upper()}.",flush=True)
     else:
         data_loader = IncrementalDataLoader(data_dir=config["data_dir"])
+    if config.get('candle_v4_original_train'):
+        if config.get('denice_clean_roles_dir'):
+            raise ValueError('Original TRAIN V4 cannot use clean data roles')
+        # Known preprocessing contract; prevent the loader fallback from opening TEST.
+        data_loader._input_shape = (39, 1)
     config["input_shape"] = data_loader.input_shape
     config["num_classes"] = config["total_classes"]
     imbalance_controls = normalize_denice_imbalance_config(config)
@@ -2683,8 +2691,13 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
     v4_shadow = None
     if config.get('candle_v4_full_service'):
-        from fed_learning.training.candle_v4_service import FullCoverageService
-        v4_shadow = FullCoverageService(config['candle_v4_full_service'],
+        if config['candle_v4_full_service'].get('version') == 'candle_v4_original_train_v1':
+            from fed_learning.training.candle_v4_original_train import OriginalTrainService
+            service_type = OriginalTrainService
+        else:
+            from fed_learning.training.candle_v4_service import FullCoverageService
+            service_type = FullCoverageService
+        v4_shadow = service_type(config['candle_v4_full_service'],
             (resume_state or {}).get('candle_v4_shadow_state'))
     elif config.get('candle_v4_expert_bank'):
         from fed_learning.training.candle_v4_bank import ExpertBank

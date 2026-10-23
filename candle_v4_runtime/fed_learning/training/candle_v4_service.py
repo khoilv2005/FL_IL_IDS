@@ -24,29 +24,32 @@ ARMS = ('coverage', 'no_aux', 'donor_only')
 
 class FullCoverageService:
     def __init__(self, spec, saved=None, authority=None):
-        if spec['version'] != VERSION or spec['seed'] != 42:
+        if spec['version'] not in (VERSION, 'candle_v4_original_train_v1') or spec['seed'] != 42:
             raise ValueError('Unregistered full development protocol')
         self.spec = deepcopy(spec)
+        self.arms = tuple(spec.get('arms', ARMS))
+        if not set(self.arms)<=set(ARMS):raise ValueError('Unknown expert arm')
+        self.metadata_roles = ('base','fit','calibration')
         if authority is None:
             from fed_learning.data.denice_clean_roles import CleanRoleData
             authority = CleanRoleData(spec['roles_dir'], source_data_dir=spec['data_dir'])
         self.authority = authority
-        if not authority.manifest.get('content_disjoint'):
+        if spec['version'] == VERSION and not authority.manifest.get('content_disjoint'):
             raise ValueError('Globally content-disjoint locked roles required')
-        self.entries = {}; self.engines = {a: {} for a in ARMS}
-        self.status = {a: {} for a in ARMS}; self.thresholds = {a: {} for a in ARMS}
-        self.certificates = {a: {} for a in ARMS}
+        self.entries = {}; self.engines = {a: {} for a in self.arms}
+        self.status = {a: {} for a in self.arms}; self.thresholds = {a: {} for a in self.arms}
+        self.certificates = {a: {} for a in self.arms}
         self.task = None; self.boundary = None; self.gated = []
         self.history = []; self.acceptances = []; self.evaluations = []
         self.bytes = Counter(); self.runtime = 0.; self.cache = {}; self.base_cache = {}
         if saved:
-            if saved['version'] != VERSION or saved['spec'] != spec:
+            if saved['version'] != spec['version'] or saved['spec'] != spec:
                 raise ValueError('V4 source/config/roles contract changed on resume')
             for key in ('entries', 'status', 'thresholds', 'certificates', 'task', 'boundary',
                         'gated', 'history', 'acceptances', 'evaluations', 'runtime'):
                 setattr(self, key, deepcopy(saved[key]))
             self.bytes = Counter(saved['bytes'])
-            for arm in ARMS:
+            for arm in self.arms:
                 for key, value in saved['engines'][arm].items():
                     e = self._engine(self.entries[key], arm, value)
                     self.engines[arm][key] = e
@@ -63,7 +66,7 @@ class FullCoverageService:
         return engine
 
     def state_dict(self):
-        result = dict(version=VERSION, spec=self.spec, engines={a:{k:e.state_dict() for k,e in es.items()}
+        result = dict(version=self.spec['version'], spec=self.spec, engines={a:{k:e.state_dict() for k,e in es.items()}
                       for a,es in self.engines.items()}, bytes=dict(self.bytes))
         for key in ('entries','status','thresholds','certificates','task','boundary','gated',
                     'history','acceptances','evaluations','runtime'):
@@ -74,7 +77,7 @@ class FullCoverageService:
         if self.task is not None and task < self.task:raise ValueError('Historical task access')
         if task != self.task:
             self.cache.clear(); self.base_cache.clear()
-            for arm in ARMS:
+            for arm in self.arms:
                 for key, state in self.status[arm].items():
                     self.engines[arm][key].pending = 0
                     if state == 'ACTIVE':self.status[arm][key] = 'PENDING_NEW_TASK'
@@ -112,7 +115,7 @@ class FullCoverageService:
                 if not donors:continue
                 self.entries[key]=dict(receiver=receiver,target=c,donor=min(donors),task=task,
                                        discovered_round=self.boundary[1])
-                for arm in ARMS:
+                for arm in self.arms:
                     self.engines[arm][key]=self._engine(self.entries[key],arm)
                     self.status[arm][key]='DRAFT'
 
@@ -134,8 +137,8 @@ class FullCoverageService:
             for peer in positive_neighbors(graph,receiver):
                 if peer not in active_ids:continue
                 metadata=dict(owner=peer,task=task,round=round_id,counts={r:self.counts(peer,r)
-                              for r in ('base','fit','calibration')},input_sha256=self.spec['input_sha256'])
-                for arm in ARMS:
+                              for r in self.metadata_roles},input_sha256=self.spec['input_sha256'])
+                for arm in self.arms:
                     if self.bytes[arm]+len(pickle.dumps(metadata,protocol=5))<=self.spec['per_arm_bytes']:
                         self._wire(arm,'discovery',metadata)
         receipt=[]
@@ -148,23 +151,24 @@ class FullCoverageService:
             data={o:self._data(o,clients,engine) for o in sorted({receiver,*peers})}
             eligible=donor in peers and bool((data[donor][1]==c).any())
             if eligible:
+                required_pools=({donor},{receiver,donor}) if 'donor_only' in self.arms else ({receiver,donor},)
                 eligible=all(sum(int((data[o][1]!=c).sum()) for o in owners)>0
-                             for owners in ({donor},{receiver,donor}))
-            for arm in ARMS:
+                             for owners in required_pools)
+            for arm in self.arms:
                 e=self.engines[arm][key];e.graph=graph;e.pending+=44
-            n=min(88,*(self.engines[a][key].pending for a in ARMS)) if eligible else 0
+            n=min(88,*(self.engines[a][key].pending for a in self.arms)) if eligible else 0
             updated=0
             for _ in range(n):
                 # All arms stop together: matched optimizer/sample budgets.
                 limit=48_000*(len(peers)+1)
                 if any(self.engines[a][key].bytes+limit>self.spec['per_expert_bytes'] or
-                       self.bytes[a]+limit>.9*self.spec['per_arm_bytes'] for a in ARMS):break
-                for arm in ARMS:
+                       self.bytes[a]+limit>.9*self.spec['per_arm_bytes'] for a in self.arms):break
+                for arm in self.arms:
                     e=self.engines[arm][key];used=e.bytes
                     e.train_step('joint_class_balanced',data,e.steps,task,round_id)
                     self.bytes[arm]+=e.bytes-used;e.steps+=1;e.pending-=1
                 updated+=1
-            for arm in ARMS:
+            for arm in self.arms:
                 e=self.engines[arm][key]
                 receipt.append(dict(receiver=receiver,target=c,arm=arm,eligible=eligible,
                                     updates=updated,steps=e.steps,pending=e.pending))
@@ -286,7 +290,7 @@ class FullCoverageService:
         if task in self.gated:raise ValueError('Repeated task acceptance')
         before=native_fingerprint(models,detectors)
         for receiver in sorted({k[0] for k in self.entries}):
-            for arm in ARMS:
+            for arm in self.arms:
                 directory=Path(self.spec['output_dir'])/'v4_gate_journal';directory.mkdir(parents=True,exist_ok=True)
                 path=directory/f't{task}_r{receiver}_{arm}.pt'
                 keys=[k for k in self.entries if k[0]==receiver]
@@ -311,15 +315,22 @@ class FullCoverageService:
         self._evaluate(task,models,detectors)
         self.cache.clear();self.base_cache.clear()
         self.write_report()
-        return dict(task=task,status_counts={a:dict(Counter(self.status[a].values())) for a in ARMS},bytes=dict(self.bytes))
+        return dict(task=task,status_counts={a:dict(Counter(self.status[a].values())) for a in self.arms},bytes=dict(self.bytes))
+
+    def evaluation_data(self,receiver,task):
+        return self.authority.client_role(receiver,'validation')
+
+    def evaluation_metric_labels(self,task):
+        return list(range(min(6*(task+1),34)))
 
     def _evaluate(self,task,models,detectors):
         """Report-only cumulative validation; each local predictor on its own shard."""
         from sklearn.metrics import accuracy_score,f1_score,recall_score
-        names=('V1',*ARMS); truth=[];predictions={a:[] for a in names};per_client={}
+        names=('V1',*self.arms); truth=[];predictions={a:[] for a in names};per_client={}
         times=Counter();labels=list(range(min(6*(task+1),34)))
+        metric_labels=self.evaluation_metric_labels(task)
         for receiver in sorted(models):
-            x,y,_=self.authority.client_role(receiver,'validation')
+            x,y,_=self.evaluation_data(receiver,task)
             selected=np.flatnonzero(y<min(6*(task+1),34));y=y[selected]
             x=torch.from_numpy(np.asarray(x[selected],np.float32).reshape(-1,39))
             if not len(y):continue
@@ -327,18 +338,24 @@ class FullCoverageService:
             if torch.cuda.is_available():torch.cuda.synchronize()
             times['V1']+=time.perf_counter()-start
             local={'V1':native}
-            for arm in ARMS:
+            for arm in self.arms:
                 start=time.perf_counter();local[arm]=self.infer(receiver,arm,native,x)[0]
                 times[arm]+=time.perf_counter()-start
             truth.extend(y.tolist());per_client[receiver]={}
             for name in names:
                 predictions[name].extend(local[name].tolist())
                 per_client[receiver][name]=dict(n=len(y),accuracy=float(accuracy_score(y,local[name])))
+        if not truth:
+            self.evaluations.append(dict(task=task,role='validation',rows=0,per_client=per_client,
+                metrics={name:dict(accuracy=None,macro_f1=None,per_task_accuracy={},average_forgetting=None,
+                                  evidence_status='NO_ELIGIBLE_NATIVE_VALIDATION') for name in names},
+                native_inference_seconds=times['V1']))
+            return
         y=np.asarray(truth);result={}
         for name in names:
             p=np.asarray(predictions[name]);correct=p==y;base=np.asarray(predictions['V1'])==y
-            result[name]=dict(accuracy=float(accuracy_score(y,p)),macro_f1=float(f1_score(y,p,labels=labels,average='macro',zero_division=0)),
-                per_class_recall=dict(zip(labels,recall_score(y,p,labels=labels,average=None,zero_division=0).tolist())),
+            result[name]=dict(accuracy=float(accuracy_score(y,p)),macro_f1=float(f1_score(y,p,labels=metric_labels,average='macro',zero_division=0)),
+                per_class_recall=dict(zip(metric_labels,recall_score(y,p,labels=metric_labels,average=None,zero_division=0).tolist())),
                 rescue=int((~base&correct).sum()),break_count=int((base&~correct).sum()),
                 extra_inference_seconds=times[name] if name!='V1' else 0.,
                 per_task_accuracy={t:float(accuracy_score(y[y//6==t],p[y//6==t])) for t in range(task+1) if (y//6==t).any()})
@@ -350,22 +367,22 @@ class FullCoverageService:
                 previous=[v for v in previous if v is not None]
                 if previous and t in result[name]['per_task_accuracy']:old.append(max(previous)-result[name]['per_task_accuracy'][t])
             result[name]['average_forgetting']=float(np.mean(old)) if old else None
-        self.evaluations.append(dict(task=task,role='validation',rows=len(y),metrics=result,per_client=per_client,
+        self.evaluations.append(dict(task=task,role='validation',rows=len(y),metric_labels=metric_labels,metrics=result,per_client=per_client,
                                      native_inference_seconds=times['V1']))
 
     def write_report(self):
         path=Path(self.spec['output_dir']);path.mkdir(parents=True,exist_ok=True)
-        report=dict(version=VERSION,development_only=True,TEST_opened=False,bytes=dict(self.bytes),
+        report=dict(version=self.spec['version'],development_only=True,TEST_opened=False,bytes=dict(self.bytes),
                     expert_runtime_seconds=self.runtime,entries=[v for v in self.entries.values()],
-                    status_counts={a:dict(Counter(self.status[a].values())) for a in ARMS},
+                    status_counts={a:dict(Counter(self.status[a].values())) for a in self.arms},
                     acceptances=self.acceptances,evaluations=self.evaluations,
                     communication_note='Serialized application-wire simulation; excludes native transport, reported separately by native runner')
         report['training_history']=self.history
         report['expert_summary']=[dict(**self.entries[key],arm=a,status=self.status[a][key],steps=e.steps,
             training_bytes=e.bytes,model_bytes=sum(p.numel()*p.element_size() for p in e.branches['joint_class_balanced'][0].parameters()),
-            sha256=digest(e.branches['joint_class_balanced'][0].state_dict())) for a in ARMS for key,e in self.engines[a].items()]
+            sha256=digest(e.branches['joint_class_balanced'][0].state_dict())) for a in self.arms for key,e in self.engines[a].items()]
         report['native_dense_payload_upper_bound_bytes']=sum(r.get('native_dense_payload_upper_bound') or 0 for r in self.history)
         report['native_communication_missing_rounds']=sum(r.get('native_dense_payload_upper_bound') is None for r in self.history)
         report['total_payload_estimate_by_arm']={a:(report['native_dense_payload_upper_bound_bytes']+self.bytes[a]
-            if not report['native_communication_missing_rounds'] else None) for a in ARMS}
+            if not report['native_communication_missing_rounds'] else None) for a in self.arms}
         (path/'candle_v4_development_report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
