@@ -9,6 +9,7 @@ SCHEMA = 'candle_v3_peer_teaching_v1'
 class TeachingConfig:
     enabled: bool = False
     transfer_mode: str = 'receiver_head_learning'
+    discovery_policy: str = 'availability_only_v1'
     head_rounds: int = 8
     learning_rate: float = .01
     max_donors: int = 2
@@ -32,6 +33,8 @@ class TeachingConfig:
             raise ValueError('enabled must be a boolean')
         if self.transfer_mode not in ('receiver_head_learning', 'direct_fc2'):
             raise ValueError('Unknown transfer mode; no automatic fallback between variants')
+        if self.discovery_policy not in ('availability_only_v1','control_fit_preflight_v1'):
+            raise ValueError('Unknown discovery policy')
         for name in ('head_rounds', 'max_donors', 'max_targets', 'batch_size',
                      'base_per_class', 'fit_per_class', 'cal_per_class',
                      'sketch_per_class', 'min_fit_positive', 'min_cal_positive',

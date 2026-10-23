@@ -1,0 +1,372 @@
+{
+  "completed": true,
+  "protocol": {
+    "task": 2,
+    "participants": [
+      9,
+      30
+    ],
+    "cases": [
+      {
+        "receiver": 9,
+        "donor": 30,
+        "target": 12,
+        "positive_fit": 516,
+        "positive_cal": 122
+      },
+      {
+        "receiver": 30,
+        "donor": 9,
+        "target": 13,
+        "positive_fit": 1535,
+        "positive_cal": 381
+      }
+    ],
+    "settings": {
+      "enabled": true,
+      "transfer_mode": "receiver_head_learning",
+      "discovery_policy": "control_fit_preflight_v1",
+      "head_rounds": 8,
+      "learning_rate": 0.01,
+      "max_donors": 2,
+      "max_targets": 3,
+      "batch_size": 512,
+      "base_per_class": 4096,
+      "fit_per_class": 256,
+      "cal_per_class": 512,
+      "sketch_per_class": 50,
+      "min_fit_positive": 32,
+      "min_cal_positive": 32,
+      "min_cal_negative": 32,
+      "recall_gate": 0.95,
+      "far_gate": 0.001,
+      "min_gain": 0.001,
+      "communication_budget_mib": 128.0,
+      "graph": "announced_current_peers"
+    },
+    "source_sha256": "b0e0fa56083591c42074f0f19d957e4a25a38046a57bfc3fdb449252eab1fcaa",
+    "selection": "fixed two cached clients, smallest current class with metadata evidence per direction; no score selection",
+    "role_manifest_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+    "test_forbidden": true,
+    "optimizer": "unchanged original eight rounds",
+    "production_installation": false
+  },
+  "results": [
+    {
+      "case": {
+        "receiver": 9,
+        "donor": 30,
+        "target": 12,
+        "positive_fit": 516,
+        "positive_cal": 122
+      },
+      "receipt": {
+        "receiver": 9,
+        "task": 2,
+        "session_id": "7db51194ee4f087ceba1ea29cc5f2e5e67d06996f504468cd1a9e782a40eb393",
+        "targets": [
+          12
+        ],
+        "donors": [
+          30
+        ],
+        "snapshot": {
+          "receiver": 9,
+          "task": 2,
+          "reference_sha256": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+          "preprocessing_sha256": "8c6009181e3113a010f5477c2c5fb18e6c71ee289827eb2f1e90e3e1c27a974e",
+          "feature_contract": "denice_masked_eval_penultimate_v1",
+          "schema": "candle_v3_peer_teaching_v1"
+        },
+        "scope": "observed current CAL only",
+        "transfer_mode": "receiver_head_learning",
+        "evidence_preflight": {
+          "possible": true,
+          "reason": "Raw counts are possible; unique acceptance still required",
+          "bounds": {
+            "9": {
+              "fit": {
+                "12": 0,
+                "13": 256,
+                "14": 90,
+                "15": 208,
+                "16": 0,
+                "17": 59
+              },
+              "calibration": {
+                "12": 0,
+                "13": 381,
+                "14": 23,
+                "15": 47,
+                "16": 0,
+                "17": 15
+              }
+            },
+            "30": {
+              "fit": {
+                "12": 256,
+                "13": 0,
+                "14": 256,
+                "15": 72,
+                "16": 3,
+                "17": 2
+              },
+              "calibration": {
+                "12": 122,
+                "13": 0,
+                "14": 512,
+                "15": 14,
+                "16": 0,
+                "17": 1
+              }
+            }
+          },
+          "missing_evidence": [],
+          "authority": "locked current-task role counts only; no CAL scores or raw examples"
+        },
+        "availability_fit": {
+          "12": {
+            "n": 256,
+            "correct": 235
+          }
+        },
+        "pretraining_controls_fit": {
+          "router_only": {
+            "12": {
+              "n": 256,
+              "correct": 253,
+              "routable": 253
+            }
+          },
+          "mask_only": {
+            "12": {
+              "n": 256,
+              "correct": 253,
+              "routable": 253
+            }
+          }
+        },
+        "status": "REGISTRATION_GAP",
+        "gap_kind": "router_or_mask_registration",
+        "reason": "A BASE-built router/mask control already meets target FIT recall; no head training or automatic registration",
+        "head_training": [],
+        "optimizer_steps": 0
+      },
+      "head_diagnostics": [],
+      "fit_diagnostics": {},
+      "wire": {
+        "teaching_bytes": 6682679,
+        "by_kind": {
+          "verification_receipt": 402,
+          "receiver_reference": 6581401,
+          "router_sketches": 100876
+        },
+        "events": [
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 156
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "receiver_reference",
+            "bytes": 6581401
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 66
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "router_sketches",
+            "bytes": 100876
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 91
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 89
+          }
+        ],
+        "native_bytes": null,
+        "total_system_bytes": null,
+        "native_accounting": "not measured by this ledger; do not claim total-system saving"
+      },
+      "live_checkpoint_untouched": true,
+      "rejected_shadow_predictor_unchanged": true
+    },
+    {
+      "case": {
+        "receiver": 30,
+        "donor": 9,
+        "target": 13,
+        "positive_fit": 1535,
+        "positive_cal": 381
+      },
+      "receipt": {
+        "receiver": 30,
+        "task": 2,
+        "session_id": "4c5d05c2ee071c9ceca8401f7ae98b81190a1f0cba42ae5eb3f4ecf465b6efa1",
+        "targets": [
+          13
+        ],
+        "donors": [
+          9
+        ],
+        "snapshot": {
+          "receiver": 30,
+          "task": 2,
+          "reference_sha256": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+          "preprocessing_sha256": "8c6009181e3113a010f5477c2c5fb18e6c71ee289827eb2f1e90e3e1c27a974e",
+          "feature_contract": "denice_masked_eval_penultimate_v1",
+          "schema": "candle_v3_peer_teaching_v1"
+        },
+        "scope": "observed current CAL only",
+        "transfer_mode": "receiver_head_learning",
+        "evidence_preflight": {
+          "possible": true,
+          "reason": "Raw counts are possible; unique acceptance still required",
+          "bounds": {
+            "30": {
+              "fit": {
+                "12": 256,
+                "13": 0,
+                "14": 256,
+                "15": 72,
+                "16": 3,
+                "17": 2
+              },
+              "calibration": {
+                "12": 122,
+                "13": 0,
+                "14": 512,
+                "15": 14,
+                "16": 0,
+                "17": 1
+              }
+            },
+            "9": {
+              "fit": {
+                "12": 0,
+                "13": 256,
+                "14": 90,
+                "15": 208,
+                "16": 0,
+                "17": 59
+              },
+              "calibration": {
+                "12": 0,
+                "13": 381,
+                "14": 23,
+                "15": 47,
+                "16": 0,
+                "17": 15
+              }
+            }
+          },
+          "missing_evidence": [],
+          "authority": "locked current-task role counts only; no CAL scores or raw examples"
+        },
+        "availability_fit": {
+          "13": {
+            "n": 256,
+            "correct": 0
+          }
+        },
+        "pretraining_controls_fit": {
+          "router_only": {
+            "13": {
+              "n": 256,
+              "correct": 0,
+              "routable": 11
+            }
+          },
+          "mask_only": {
+            "13": {
+              "n": 256,
+              "correct": 0,
+              "routable": 11
+            }
+          }
+        },
+        "status": "DEFERRED",
+        "stage": "routing_preflight",
+        "reason": "Frozen head changes cannot exceed observed FIT routing ceiling; router capability must be resolved first",
+        "head_training": [],
+        "optimizer_steps": 0,
+        "route_ceiling_scope": "FIT empirical eligibility only; not a CAL certificate or a population bound"
+      },
+      "head_diagnostics": [],
+      "fit_diagnostics": {},
+      "wire": {
+        "teaching_bytes": 6844435,
+        "by_kind": {
+          "verification_receipt": 401,
+          "receiver_reference": 6733294,
+          "router_sketches": 110740
+        },
+        "events": [
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 155
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "receiver_reference",
+            "bytes": 6733294
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 66
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "router_sketches",
+            "bytes": 110740
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 91
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 89
+          }
+        ],
+        "native_bytes": null,
+        "total_system_bytes": null,
+        "native_accounting": "not measured by this ledger; do not claim total-system saving"
+      },
+      "live_checkpoint_untouched": true,
+      "rejected_shadow_predictor_unchanged": true
+    }
+  ],
+  "elapsed_seconds": 6.11750370000118,
+  "checkpoint_terminal_sha256": "f9f8796c972bf4135d623b2d26c62071ae764a42ad62c31fee880159b3ff2e54",
+  "backbone_training": false,
+  "full_training": false,
+  "test_read": false,
+  "historical_task_data_read": false,
+  "limitation": "Offline current T2 experiment on an existing V1 encoder, not a fresh V3 survival run."
+}

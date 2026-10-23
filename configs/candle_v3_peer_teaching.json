@@ -225,6 +225,7 @@
   "denice_expected_method": "candle_v3_peer_teaching",
   "candle_v3_teaching": {
     "enabled": true,
+    "discovery_policy": "control_fit_preflight_v1",
     "head_rounds": 8,
     "learning_rate": 0.01,
     "max_donors": 2,

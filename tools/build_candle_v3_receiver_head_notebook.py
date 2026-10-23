@@ -46,6 +46,10 @@ This notebook explicitly passes `--peer-teaching`; it does not copy donor FC2 ro
   within each teaching session. Current BASE/FIT/CAL budgets are unchanged.
 - Acceptance: recall >=95%, observed FAR <=0.1%, negative break=0, gain over controls,
   at least 32 positive/negative CAL samples. Missing evidence never becomes PASS.
+- Discovery policy `control_fit_preflight_v1`: reject impossible role-count budgets before
+  model transmission; test BASE-built router/mask controls on FIT before training head;
+  defer when the observed FIT routing ceiling is below 95%. These probes do not install a router.
+  This is a versioned policy change: continuation from the earlier policy is rejected.
 - Communication budget: 128 MiB/task including snapshots, updates, sketches and verification.
 - No intermediate TEST. After T5/R19 and terminal consolidation: original full 34-class TEST
   on disjoint receiver shards; pooled BinarySelf primary, MulticlassSelf secondary.
@@ -54,10 +58,12 @@ This notebook explicitly passes `--peer-teaching`; it does not copy donor FC2 ro
 
 ## Smoke evidence and comparison limits
 
-25/25 structural tests and 83/83 native checks passed. Controlled synthetic install=1;
-natural installs=0 in the two-client smoke. Native head learning executed all 8 rounds,
-but its shadow candidate had insufficient positive CAL and failed quality gates; it was not installed.
+28/28 structural tests and 84/84 native checks passed. Controlled synthetic install=1;
+natural installs=0 in the two-client smoke. The insufficient-CAL native trial now stops at
+metadata before model transmission or head training; the controlled fixture exercises 8 head rounds.
 Exact task-boundary resume matched. No TEST was read. Full-run effectiveness remains unproven.
+Two mature T2 checkpoint trials identified a router/mask registration gap and a routing ceiling
+of only 11/256 on target FIT examples. They do not authorize a successful deployment.
 
 This is the original Variant C profile, not a single-component ablation of Direct FC2:
 C allows 2 donors/3 targets and announced-current-peer teaching edges, while the published

@@ -53,6 +53,16 @@ class CurrentTaskRoles:
                     break
         return x[selected], y[selected]
 
+    def count_upper_bounds(self, owner, role, *, task, per_class):
+        """Current-only metadata; sufficient raw counts do not prove unique evidence."""
+        if self.closed or int(task) != self.task or role not in ('fit','calibration'):
+            raise ValueError('Current FIT/CAL metadata only')
+        if int(owner) not in self.roles.verified:
+            raise ValueError('Source must be verified by the current BASE loader')
+        counts = self.roles.manifest['clients'][str(owner)]['role_class_counts'][role]
+        # Runtime sampling deduplicates contents, so these are only upper bounds.
+        return {c:min(int(per_class),int(counts.get(str(c),0))) for c in self.classes}
+
     def close(self):
         self.closed = True
         self.base = {}

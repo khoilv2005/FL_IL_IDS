@@ -1,5 +1,8 @@
 # CANDLE V3 receiver-encoder — HOLD full training
 
+Tiếp theo: [đã sửa preflight, kiểm tra trên checkpoint trưởng thành](CANDLE_V3_RECEIVER_HEAD_PREFLIGHT_FIX_20261023_VI.md).
+Phần dưới giữ kết quả chẩn đoán gốc; không sửa lại số liệu sau khi thay discovery policy.
+
 ## Quyết định
 
 Theo yêu cầu người dùng, chưa chạy full biến thể encoder. Notebook được giữ để dùng

@@ -721,13 +721,13 @@
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/contracts.py",
-      "bytes": 4222,
-      "sha256": "209ec002dd565995363beec56422bd05022edd0062a9df5079adf5380ff2d940"
+      "bytes": 4423,
+      "sha256": "11a946a47dc3bc0222d6d37a8ad387fc4e8d24819ed3d9a50b25f87ffa8ce4ca"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/data.py",
-      "bytes": 2768,
-      "sha256": "fd246e55a049ba566a04764d6f93d0eda9382de61591e8b81f8171ecc65cf199"
+      "bytes": 3463,
+      "sha256": "7161d6199305d1f579cde58c073c5090646361e0a4d38b296f981e12040c2ba5"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/direct_fc2.py",
@@ -738,6 +738,11 @@
       "path": "fed_learning/strategies/decentralized/candle_v3/discovery.py",
       "bytes": 2423,
       "sha256": "21ad2606da6d0785c5f1508875690d5eb0581176a20daa3f205e6876fd53a246"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/candle_v3/evidence.py",
+      "bytes": 1763,
+      "sha256": "97894d17aee98d8136309bec80310cc5c6fe8be6abaef7795f9941d934f2a300"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/head_aggregation.py",
@@ -761,8 +766,8 @@
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/service.py",
-      "bytes": 18752,
-      "sha256": "3b4c0c7054f9f9b1d3a3a4faa6490fdd3da3755189de6beaf67a40ff18e28c71"
+      "bytes": 21823,
+      "sha256": "9836745212e0e2c1630294c08545c6f501da5fe67a2a5ed7962f8f1ada0cc6f2"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/snapshot.py",
@@ -1945,6 +1950,10 @@
       "change": "added"
     },
     {
+      "path": "fed_learning/strategies/decentralized/candle_v3/evidence.py",
+      "change": "added"
+    },
+    {
       "path": "fed_learning/strategies/decentralized/candle_v3/head_aggregation.py",
       "change": "added"
     },
@@ -1999,14 +2008,14 @@
   "unvalidated_variants": [],
   "smoke_receipts": {
     "structural": {
-      "path": "artifacts/candle_v3_direct_fc2_structural_after_encoder_20261023.json",
-      "sha256": "80eceb5f604a31e271afb41975570fe7d844b571e468835d48c3a188bab0c72b",
-      "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de"
+      "path": "artifacts/candle_v3_direct_fc2_structural_preflight_20261023.json",
+      "sha256": "9430e5d97cc7237e2d4b40f55fd987a60849c8aab45af4bca4d73f16e70a8dcf",
+      "source_sha256": "b0e0fa56083591c42074f0f19d957e4a25a38046a57bfc3fdb449252eab1fcaa"
     },
     "native": {
-      "path": "artifacts/candle_v3_direct_fc2_native_after_encoder_20261023.json",
-      "sha256": "86b6ad6e93bde604fe16dc54caf2a05dda764584c819c7aef744b020fa5b133d",
-      "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de"
+      "path": "artifacts/candle_v3_direct_fc2_native_preflight_20261023.json",
+      "sha256": "cfd13fa448b3003e06094f5318c80b69b53512462ef85cb55760d013b92d6f4c",
+      "source_sha256": "b0e0fa56083591c42074f0f19d957e4a25a38046a57bfc3fdb449252eab1fcaa"
     }
   },
   "validated_variants": [
@@ -2015,14 +2024,16 @@
   ],
   "receiver_head_smoke_receipts": {
     "structural": {
-      "path": "artifacts/candle_v3_receiver_head_structural_smoke_20261023.json",
-      "sha256": "8efa5d248155f5c2bf544689da2bf6a324e6f57df8bf6f41334f13b7f2793092",
-      "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de"
+      "path": "artifacts/candle_v3_receiver_head_structural_preflight_20261023.json",
+      "sha256": "1346444de7dc6fd92bc009983b61b174f45aec78e88970c74f6cc65bdc01bb21",
+      "source_sha256": "b0e0fa56083591c42074f0f19d957e4a25a38046a57bfc3fdb449252eab1fcaa"
     },
     "native": {
-      "path": "artifacts/candle_v3_receiver_head_native_smoke_20261023.json",
-      "sha256": "fed4836ad2e0384eba4e679da21a99169fd232e393478220513a12ebe80d4ffb",
-      "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de"
+      "path": "artifacts/candle_v3_receiver_head_native_preflight_20261023.json",
+      "sha256": "ef9c278ea81add0462f648e7a746f8f029da2f2dc7b03a65c754d1efbbedd32f",
+      "source_sha256": "b0e0fa56083591c42074f0f19d957e4a25a38046a57bfc3fdb449252eab1fcaa"
     }
-  }
+  },
+  "receiver_head_full_training_recommendation": "HOLD",
+  "receiver_head_quality": "No natural install confirmed; engineering validation only"
 }

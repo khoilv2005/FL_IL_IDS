@@ -25,6 +25,8 @@ from fed_learning.strategies.decentralized.candle_v3.snapshot import digest, ref
 from fed_learning.strategies.decentralized.candle_v3.communication import WireLedger
 from fed_learning.strategies.decentralized.candle_v3.service import run_task_teaching
 from fed_learning.strategies.decentralized.candle_v3.knowledge import record_local_update
+from fed_learning.strategies.decentralized.candle_v3.discovery import TeacherSelection
+from fed_learning.strategies.decentralized.candle_v3.service import _session
 
 
 class ReceiverHeadSmoke(shared.DirectSmoke):
@@ -36,7 +38,7 @@ class ReceiverHeadSmoke(shared.DirectSmoke):
             self.model.fc2.weight[8].zero_()
             self.model.fc2.bias[8] = -.001
         self.reference = freeze_receiver(self.model, self.detector, 0, 1, shared.PREPROCESS, 'cpu')
-        self.config = TeachingConfig(enabled=True)
+        self.config = TeachingConfig(enabled=True,discovery_policy='control_fit_preflight_v1')
         self.panels = []
         # Deliberately separable feature fixture for gradient algebra only.
         for owner, label, coordinate, count in ((0,6,1,48),(1,8,0,64)):
@@ -117,6 +119,37 @@ class ReceiverHeadSmoke(shared.DirectSmoke):
         self.assertEqual(panel['identity'],asdict(self.reference.identity))
         self.assertEqual(before,digest(reference_payload(self.model,self.detector)))
 
+    def test_c_missing_cal_stops_before_snapshot_or_training(self):
+        class Data:
+            def count_upper_bounds(self,owner,role,*,task,per_class):
+                return {6:64,8:0 if owner==0 else (3 if role=='calibration' else 64)}
+            def get(self,*a,**kw): raise AssertionError('Preflight must not read examples')
+        ledger = WireLedger(128*1024**2)
+        from unittest.mock import patch
+        with patch('fed_learning.strategies.decentralized.candle_v3.service.freeze_receiver',side_effect=AssertionError('No snapshot')):
+            row = _session(0,TeacherSelection(0,(1,),(8,),((8,(1,)),)),{}, {},Data(),1,list(range(12)),
+                           shared.PREPROCESS,self.config,ledger,'cpu',{})
+        self.assertEqual(row['status'],'UNKNOWN'); self.assertEqual(row['stage'],'evidence_preflight')
+        self.assertEqual(row['optimizer_steps'],0)
+        self.assertNotIn('receiver_reference',ledger.summary()['by_kind'])
+
+    def test_c_metadata_count_guard_and_upper_bound(self):
+        class Roles:
+            verified = {0}
+            manifest = {'clients':{'0':{'role_class_counts':{'calibration':{'0':999,'6':90,'8':3}}}}}
+        view = shared.CurrentTaskRoles(Roles(),1,[6,7,8],{},42)
+        self.assertEqual(view.count_upper_bounds(0,'calibration',task=1,per_class=64),{6:64,7:0,8:3})
+        with self.assertRaises(ValueError): view.count_upper_bounds(0,'calibration',task=0,per_class=64)
+        with self.assertRaises(ValueError): view.count_upper_bounds(1,'calibration',task=1,per_class=64)
+        view.close()
+        with self.assertRaises(ValueError): view.count_upper_bounds(0,'calibration',task=1,per_class=64)
+
+    def test_c_discovery_policy_is_versioned_for_resume(self):
+        old = TeachingConfig.from_config({'candle_v3_teaching':{'enabled':True}})
+        self.assertEqual(old.discovery_policy,'availability_only_v1')
+        self.assertNotEqual(old,self.config)
+        with self.assertRaises(ValueError): replace(self.config,discovery_policy='unversioned')
+
     def test_c_controlled_real_forward_service(self):
         rng = np.random.default_rng(42)
         samples = {}
@@ -144,6 +177,9 @@ class ReceiverHeadSmoke(shared.DirectSmoke):
             def __init__(self):
                 self.base = {owner:samples[owner,'base'] for owner in (0,1)}
                 self.access = []
+            def count_upper_bounds(self,owner,role,*,task,per_class):
+                if task!=1 or role not in ('fit','calibration'): raise AssertionError('Metadata scope')
+                return {int(c):min(per_class,int((samples[owner,role][1]==c).sum())) for c in (6,7,8)}
             def get(self,owner,role,*,task,per_class):
                 if task!=1 or role not in ('base','fit','calibration'):
                     raise AssertionError('Historical/evaluation access')

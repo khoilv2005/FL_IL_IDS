@@ -71,7 +71,9 @@ def main():
                 receiver_receipts[name] = dict(path=path.as_posix(),
                     sha256=hashlib.sha256(path.read_bytes()).hexdigest(),source_sha256=source.hexdigest())
             manifest.update(validated_variants=['direct_fc2','receiver_head_learning'],
-                            unvalidated_variants=[],receiver_head_smoke_receipts=receiver_receipts)
+                            unvalidated_variants=[],receiver_head_smoke_receipts=receiver_receipts,
+                            receiver_head_full_training_recommendation='HOLD',
+                            receiver_head_quality='No natural install confirmed; engineering validation only')
     (root/'runtime_manifest.json').write_bytes((json.dumps(manifest,indent=2)+'\n').encode('utf-8'))
     print(json.dumps(dict(files=len(files), changes=len(changes), stage=manifest['stage'])))
 

@@ -129,11 +129,14 @@ def main():
     statuses = Counter(row['status'] for report in sessions for row in report['receipts'])
     trained = [row for report in sessions for row in report['receipts'] if row.get('head_training')]
     if args.variant == 'receiver_head_learning':
-        checks['receiver_head_learning_executed'] = bool(trained)
-        checks['locked_eight_head_rounds'] = all(len(row['head_training']) == 8 for row in trained)
-        checks['donor_and_receiver_contribute'] = bool(trained) and all(
+        stopped = [row for report in sessions for row in report['receipts'] if row.get('stage')=='evidence_preflight']
+        checks['head_attempt_or_explicit_evidence_preflight'] = bool(trained or stopped)
+        checks['executed_head_rounds_match_profile'] = all(len(row['head_training']) == 8 for row in trained)
+        checks['executed_head_participants_match_profile'] = all(
             set(p['owner'] for p in round_row['participants']) == set([row['receiver']]+row['donors'])
             for row in trained for round_row in row['head_training'])
+        checks['evidence_stops_have_no_head_updates'] = all(row['optimizer_steps']==0 and
+            row['status']=='UNKNOWN' and not row['evidence_preflight']['possible'] for row in stopped)
     report = dict(schema='candle_v3_native_smoke_v2',variant=args.variant,completed=all(checks.values()),
         checks=checks,checks_passed=sum(checks.values()),checks_total=len(checks),max_parameter_difference=max_difference,
         dataset='existing locked real BASE; explicit two-client induced subgraph',

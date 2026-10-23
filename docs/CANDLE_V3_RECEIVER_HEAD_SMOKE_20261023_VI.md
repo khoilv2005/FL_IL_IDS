@@ -1,5 +1,8 @@
 # CANDLE V3 — smoke học head trên encoder receiver
 
+Cập nhật sau debug: [preflight fix và audit encoder trưởng thành](CANDLE_V3_RECEIVER_HEAD_PREFLIGHT_FIX_20261023_VI.md).
+Các receipt 25/83 dưới đây là kết quả lịch sử trước preflight; regression mới là 28/84.
+
 **Full training HOLD:** xem [audit sâu](CANDLE_V3_RECEIVER_HEAD_DEBUG_20261023_VI.md).
 Người dùng yêu cầu ổn định chất lượng trước khi chạy full; smoke kỹ thuật dưới đây
 không còn được dùng như điều kiện đủ để đề nghị full training.

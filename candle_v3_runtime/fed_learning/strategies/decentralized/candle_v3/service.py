@@ -15,6 +15,7 @@ from .router_teaching import receiver_sketches, stage_router
 from .snapshot import digest, encode_panel, freeze_receiver
 from .transaction import stage_head, commit
 from .verification import predict, accounting, acceptance
+from .evidence import current_evidence_preflight
 
 
 def _append(path, row):
@@ -108,6 +109,14 @@ def run_task_teaching(*, config, task, models, detectors, active_ids, data, seen
 
 def _session(receiver, selection, models, detectors, data, task, seen_classes,
              preprocessing_sha256, settings, ledger, device, announcements):
+    preflight = None
+    if settings.transfer_mode == 'receiver_head_learning' and settings.discovery_policy == 'control_fit_preflight_v1':
+        preflight = current_evidence_preflight(data,receiver,selection.donors,selection.targets,task,settings,ledger)
+        if not preflight['possible']:
+            return dict(receiver=receiver,task=task,targets=list(selection.targets),donors=list(selection.donors),
+                        status='UNKNOWN',stage='evidence_preflight',reason=preflight['reason'],
+                        evidence_preflight=preflight,transfer_mode=settings.transfer_mode,
+                        scope='current evidence metadata only',head_training=[],optimizer_steps=0)
     reference = freeze_receiver(models[receiver], detectors[receiver], receiver, task, preprocessing_sha256, device)
     targets, donors = list(selection.targets), list(selection.donors)
     participants = [receiver]+donors
@@ -116,6 +125,8 @@ def _session(receiver, selection, models, detectors, data, task, seen_classes,
     base = dict(receiver=receiver, task=task, session_id=session_id, targets=targets, donors=donors,
                 snapshot=asdict(reference.identity), scope='observed current CAL only',
                 transfer_mode=settings.transfer_mode)
+    if preflight is not None:
+        base['evidence_preflight'] = preflight
     if not reference.detector.binarize_thresholds:
         return dict(base, status='UNKNOWN', reason='Receiver router thresholds are not initialized')
     if not np.any(reference.model.unit_ranks['fc1'] >= 2):
@@ -161,6 +172,34 @@ def _session(receiver, selection, models, detectors, data, task, seen_classes,
     permissions = head_permissions(reference, targets)
     mask_only_model = stage_head(reference, dict(targets=targets, permissions=permissions,
                                                 head=initial_head(reference, targets, permissions)))
+    if settings.discovery_policy == 'control_fit_preflight_v1':
+        # Probe actual controls using BASE sketches and FIT; no CAL scores enter discovery.
+        control_fit = {}
+        for name,model in (('router_only',reference.model),('mask_only',mask_only_model)):
+            counts = {c:dict(n=0,correct=0,routable=0) for c in targets}
+            for owner in donors:
+                x,y = data.get(owner,'fit',task=task,per_class=settings.fit_per_class)
+                prediction,episodes = predict(model,staged_router,x,seen_classes=seen_classes,batch_size=settings.batch_size)
+                labels = y.numpy()
+                row = {c:dict(n=int((labels==c).sum()),correct=int(((labels==c)&(prediction==c)).sum()),
+                    routable=int(((labels==c)&np.isin(episodes,[e for e,cs in staged_router.episode_classes.items() if c in cs])).sum()))
+                    for c in targets}
+                row = ledger.transmit(owner,receiver,'verification_receipt',dict(role='FIT_'+name,counts=row))['counts']
+                for c,v in row.items():
+                    for key in counts[c]: counts[c][key] += v[key]
+            control_fit[name] = counts
+        base['pretraining_controls_fit'] = control_fit
+        if any(v['n']>=settings.min_fit_positive and v['correct']/v['n']>=settings.recall_gate
+               for rows in control_fit.values() for v in rows.values()):
+            return dict(base,status='REGISTRATION_GAP',gap_kind='router_or_mask_registration',
+                        reason='A BASE-built router/mask control already meets target FIT recall; no head training or automatic registration',
+                        head_training=[],optimizer_steps=0)
+        if any(v['n']>=settings.min_fit_positive and v['routable']/v['n']<settings.recall_gate
+               for v in control_fit['router_only'].values()):
+            return dict(base,status='DEFERRED',stage='routing_preflight',
+                        reason='Frozen head changes cannot exceed observed FIT routing ceiling; router capability must be resolved first',
+                        head_training=[],optimizer_steps=0,
+                        route_ceiling_scope='FIT empirical eligibility only; not a CAL certificate or a population bound')
     full = learn_head(reference, panels, targets, config=settings, ledger=ledger, include_receiver=True)
     donor_only = learn_head(reference, panels, targets, config=settings, ledger=ledger, include_receiver=False)
     full_model = stage_head(reference, full)
