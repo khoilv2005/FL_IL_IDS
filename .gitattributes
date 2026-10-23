@@ -14,3 +14,5 @@ fed_learning/training/denice_eval.py -text
 /artifacts/candle_v3_direct_fc2_native_smoke_20261023.json -text
 /artifacts/candle_v3_direct_fc2_structural_smoke_20261023.json -text
 /artifacts/candle_v3_direct_fc2_smoke_20261023.json -text
+/artifacts/candle_v3_receiver_head_*_20261023.json -text
+/artifacts/candle_v3_direct_fc2_*_after_encoder_20261023.json -text

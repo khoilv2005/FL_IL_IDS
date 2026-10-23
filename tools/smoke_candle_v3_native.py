@@ -37,11 +37,13 @@ def main():
     parser.add_argument('--roles',type=Path,required=True)
     parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--clients',type=int,nargs=2,default=[9,30])
+    parser.add_argument('--variant',choices=['direct_fc2','receiver_head_learning'],default='direct_fc2')
     args = parser.parse_args()
     args.out.mkdir(parents=True,exist_ok=False)
     torch.set_num_threads(2)
     started = time.monotonic()
-    template = json.loads((REPO/'configs/candle_v3_direct_fc2.json').read_text(encoding='utf-8'))
+    profile = 'candle_v3_direct_fc2.json' if args.variant == 'direct_fc2' else 'candle_v3_peer_teaching.json'
+    template = json.loads((REPO/'configs'/profile).read_text(encoding='utf-8'))
     template.update(data_dir=str(args.data_dir.resolve()),denice_clean_roles_dir=str(args.roles.resolve()),
         candle_v3_integration_smoke=True,task_start=0,task_end=1,rounds_per_task=1,
         denice_max_clients=2,denice_max_train_samples_per_client=64,
@@ -125,13 +127,22 @@ def main():
     sessions = results['uninterrupted']['history'].get('candle_v3_teaching',[])
     checks['native_task_end_service_executed_twice'] = len(sessions) == 2
     statuses = Counter(row['status'] for report in sessions for row in report['receipts'])
-    report = dict(schema='candle_v3_direct_native_smoke_v1',completed=all(checks.values()),
+    trained = [row for report in sessions for row in report['receipts'] if row.get('head_training')]
+    if args.variant == 'receiver_head_learning':
+        checks['receiver_head_learning_executed'] = bool(trained)
+        checks['locked_eight_head_rounds'] = all(len(row['head_training']) == 8 for row in trained)
+        checks['donor_and_receiver_contribute'] = bool(trained) and all(
+            set(p['owner'] for p in round_row['participants']) == set([row['receiver']]+row['donors'])
+            for row in trained for round_row in row['head_training'])
+    report = dict(schema='candle_v3_native_smoke_v2',variant=args.variant,completed=all(checks.values()),
         checks=checks,checks_passed=sum(checks.values()),checks_total=len(checks),max_parameter_difference=max_difference,
         dataset='existing locked real BASE; explicit two-client induced subgraph',
         data_dir=str(args.data_dir.resolve()),roles=str(args.roles.resolve()),
         role_manifest_sha256=file_sha256(args.roles/'role_manifest.json'),participants=args.clients,
         tasks=[0,1],rounds_per_task=1,max_train_samples_per_client_task=64,
         real_optimizer_steps=sum(r['optimizer_steps'] for r in optimizer),session_statuses=dict(statuses),
+        head_sessions=len(trained),head_aggregation_rounds=sum(len(row['head_training']) for row in trained),
+        teaching_sessions=sessions,
         source_sha256=left['config']['source_sha256'],
         current_access=access,base_access=step_events,elapsed_seconds=time.monotonic()-started,
         torch=str(torch.__version__),gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,

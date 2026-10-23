@@ -1,5 +1,10 @@
 # CANDLE V3 — triển khai peer teaching lần đầu
 
+**Cập nhật:** Variant C đã chạy [smoke riêng](CANDLE_V3_RECEIVER_HEAD_SMOKE_20261023_VI.md):
+25/25 structural tests, 83/83 native checks PASS; chưa chứng minh hiệu quả transfer.
+Notebook riêng: `train_candle_v3_receiver_head_kaggle.ipynb`.
+Phần mô tả trạng thái ban đầu bên dưới được giữ làm lịch sử implementation.
+
 Cập nhật: có thêm [variant A Direct FC2](CANDLE_V3_DIRECT_FC2_VARIANT_20261023_VI.md)
 để ưu tiên thử trước. Nội dung head-learning dưới đây mô tả variant C riêng biệt.
 Variant A đã có [engineering smoke receipt](CANDLE_V3_DIRECT_FC2_SMOKE_20261023_VI.md);

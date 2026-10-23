@@ -142,7 +142,8 @@ def validate_clean_training_config(config):
     candle_smoke = bool(config.get('candle_v3_integration_smoke', False))
     if candle_smoke:
         teaching = config.get('candle_v3_teaching', {})
-        if (integration_smoke or not teaching.get('enabled') or teaching.get('transfer_mode') != 'direct_fc2'
+        if (integration_smoke or not teaching.get('enabled')
+                or teaching.get('transfer_mode', 'receiver_head_learning') not in ('direct_fc2', 'receiver_head_learning')
                 or protocol != 'legacy_multiclass' or config.get('appliance_enabled')
                 or config.get('denice_appliance_enabled')
                 or config.get('denice_evaluation_data_role') != 'validation'

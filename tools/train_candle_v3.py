@@ -36,17 +36,20 @@ def main():
     parser.add_argument('--_runtime-worker', action='store_true', help=argparse.SUPPRESS)
     variant = parser.add_mutually_exclusive_group()
     variant.add_argument('--peer-teaching', action='store_true',
-                        help='Use the experimental V3 teaching implementation (not yet smoke validated)')
+                        help='Train head on frozen receiver encoder (engineering smoke only)')
     variant.add_argument('--direct-fc2', action='store_true',
-                        help='Direct trained FC2 row transfer (no head optimizer; unvalidated variant A)')
+                        help='Direct trained FC2 row transfer (no head optimizer; engineering smoke only)')
     args = parser.parse_args()
     repository = Path(__file__).resolve().parents[1]
     root = repository / 'candle_v3_runtime'
     manifest = json.loads((root / 'runtime_manifest.json').read_text(encoding='utf-8'))
     if manifest['stage'] != 'peer_teaching_implementation':
         raise ValueError('Unsupported CANDLE V3 runtime stage')
+    selected_variant = ('direct_fc2' if args.direct_fc2 else
+                        'receiver_head_learning' if args.peer_teaching else 'baseline')
+    validated_variants = manifest.get('validated_variants', [manifest.get('validated_variant')])
     validation_status = (manifest['native_quality_status']
-        if args.direct_fc2 and manifest.get('validated_variant') == 'direct_fc2'
+        if selected_variant in validated_variants
         else 'UNVALIDATED_FOR_THIS_PROFILE')
     for entry in manifest['files']:
         if hashlib.sha256((root / entry['path']).read_bytes()).hexdigest() != entry['sha256']:

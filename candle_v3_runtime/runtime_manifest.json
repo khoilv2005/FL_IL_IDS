@@ -481,8 +481,8 @@
     },
     {
       "path": "fed_learning/data/denice_clean_roles.py",
-      "bytes": 11772,
-      "sha256": "51b10359647ead785771ca2dd3e3b9fa26b86e9773088c0c823c939d5a15d798"
+      "bytes": 11846,
+      "sha256": "eba5bd6091ce1795537c2c3772ac4792067c8a5397db3aa081e2ed01476b8ce2"
     },
     {
       "path": "fed_learning/data/incremental_loader.py",
@@ -1996,19 +1996,33 @@
   "full_training_executed": false,
   "training_scope": "bounded native smoke",
   "validated_variant": "direct_fc2",
-  "unvalidated_variants": [
-    "receiver_head_learning"
-  ],
+  "unvalidated_variants": [],
   "smoke_receipts": {
     "structural": {
-      "path": "artifacts/candle_v3_direct_fc2_structural_smoke_20261023.json",
-      "sha256": "99b40ce0ac04c41689a9ef2dad920a82f5f3f4147d94e8a0f63024ab089cd362",
-      "source_sha256": "283d8e9a5725435bc27eee28d893c1a6d0a951cc4bc599f36a5070652554b870"
+      "path": "artifacts/candle_v3_direct_fc2_structural_after_encoder_20261023.json",
+      "sha256": "80eceb5f604a31e271afb41975570fe7d844b571e468835d48c3a188bab0c72b",
+      "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de"
     },
     "native": {
-      "path": "artifacts/candle_v3_direct_fc2_native_smoke_20261023.json",
-      "sha256": "990df369df0f05cae6a692e99deeac4e2ff554b01c21b01725682b69b62e420f",
-      "source_sha256": "283d8e9a5725435bc27eee28d893c1a6d0a951cc4bc599f36a5070652554b870"
+      "path": "artifacts/candle_v3_direct_fc2_native_after_encoder_20261023.json",
+      "sha256": "86b6ad6e93bde604fe16dc54caf2a05dda764584c819c7aef744b020fa5b133d",
+      "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de"
+    }
+  },
+  "validated_variants": [
+    "direct_fc2",
+    "receiver_head_learning"
+  ],
+  "receiver_head_smoke_receipts": {
+    "structural": {
+      "path": "artifacts/candle_v3_receiver_head_structural_smoke_20261023.json",
+      "sha256": "8efa5d248155f5c2bf544689da2bf6a324e6f57df8bf6f41334f13b7f2793092",
+      "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de"
+    },
+    "native": {
+      "path": "artifacts/candle_v3_receiver_head_native_smoke_20261023.json",
+      "sha256": "fed4836ad2e0384eba4e679da21a99169fd232e393478220513a12ebe80d4ffb",
+      "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de"
     }
   }
 }

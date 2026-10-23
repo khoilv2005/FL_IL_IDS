@@ -1,0 +1,1010 @@
+{
+  "schema": "candle_v3_receiver_head_structural_smoke_v1",
+  "variant": "receiver_head_learning",
+  "completed": true,
+  "tests": 25,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 5.926163399999496,
+  "synthetic": true,
+  "accuracy_benchmark": false,
+  "test_dataset_accessed": false,
+  "source_sha256": "15523c83f66cbfed24e24898d5a4d28820407c4f0174c09737f459792dd2e7de",
+  "controlled_service": {
+    "receipt": {
+      "receiver": 0,
+      "task": 1,
+      "session_id": "d24c50e47f92d0e1b528824162a679cf49a92c3c99c57844f9c405f0ace6ff82",
+      "targets": [
+        8
+      ],
+      "donors": [
+        1
+      ],
+      "snapshot": {
+        "receiver": 0,
+        "task": 1,
+        "reference_sha256": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+        "preprocessing_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "feature_contract": "denice_masked_eval_penultimate_v1",
+        "schema": "candle_v3_peer_teaching_v1"
+      },
+      "scope": "observed current CAL only",
+      "transfer_mode": "receiver_head_learning",
+      "availability_fit": {
+        "8": {
+          "n": 64,
+          "correct": 0
+        }
+      },
+      "status": "PASS",
+      "reasons": [],
+      "missing_evidence": [],
+      "totals": {
+        "n": 128,
+        "positive": 64,
+        "negative": 64,
+        "correct": 128,
+        "baseline_correct": 64,
+        "rescue": 64,
+        "break_count": 0,
+        "negative_break": 0,
+        "target_correct": 64,
+        "false_activation": 0
+      },
+      "historical_safety": "unverified",
+      "statistical_far_certificate": false,
+      "controls": {
+        "availability_only": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 64,
+            "positive": 64,
+            "negative": 0,
+            "correct": 0,
+            "baseline_correct": 0,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "8": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        },
+        "router_only": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 64,
+            "positive": 64,
+            "negative": 0,
+            "correct": 0,
+            "baseline_correct": 0,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "8": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        },
+        "mask_only": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 64,
+            "positive": 64,
+            "negative": 0,
+            "correct": 0,
+            "baseline_correct": 0,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "8": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        },
+        "donor_only": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 0,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 64,
+            "negative_break": 64,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 0,
+            "false_activation": 64,
+            "target_predictions": 64,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 64,
+                "break_count": 64
+              }
+            }
+          },
+          "1": {
+            "n": 64,
+            "positive": 64,
+            "negative": 0,
+            "correct": 64,
+            "baseline_correct": 0,
+            "rescue": 64,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 64,
+            "false_activation": 0,
+            "target_predictions": 64,
+            "route_correct": 64,
+            "by_class": {
+              "8": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        },
+        "full": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 64,
+            "positive": 64,
+            "negative": 0,
+            "correct": 64,
+            "baseline_correct": 0,
+            "rescue": 64,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 64,
+            "false_activation": 0,
+            "target_predictions": 64,
+            "route_correct": 64,
+            "by_class": {
+              "8": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        }
+      },
+      "head_training": [
+        {
+          "round": 0,
+          "participants": [
+            {
+              "owner": 0,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "0995deaaa5eb9c5445c74b2c0b1837207856990310bcd91ddc3d568f9056940d",
+              "round": 0,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.692647397518158
+            },
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "0995deaaa5eb9c5445c74b2c0b1837207856990310bcd91ddc3d568f9056940d",
+              "round": 0,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6936473250389099
+            }
+          ]
+        },
+        {
+          "round": 1,
+          "participants": [
+            {
+              "owner": 0,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "5f1c44939a02e8385e5f14fac2156435aad0af1f9ba6c0490d6e45b49017823d",
+              "round": 1,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6728683114051819
+            },
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "5f1c44939a02e8385e5f14fac2156435aad0af1f9ba6c0490d6e45b49017823d",
+              "round": 1,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.673826277256012
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "participants": [
+            {
+              "owner": 0,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "0732511935aa10d39f5e5ca17cf75219dbd104d88dfce161805e93bb45312bce",
+              "round": 2,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6538722515106201
+            },
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "0732511935aa10d39f5e5ca17cf75219dbd104d88dfce161805e93bb45312bce",
+              "round": 2,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.654789924621582
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "participants": [
+            {
+              "owner": 0,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "080447b347318ada1378701a625440d9967368efdb572731e683952abd4b224c",
+              "round": 3,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6356274485588074
+            },
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "080447b347318ada1378701a625440d9967368efdb572731e683952abd4b224c",
+              "round": 3,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6365066766738892
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "participants": [
+            {
+              "owner": 0,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "91b9df4be210d4142217d4f908a90112f48386dc6c1f088fcc099faaa9980035",
+              "round": 4,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6181029081344604
+            },
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "91b9df4be210d4142217d4f908a90112f48386dc6c1f088fcc099faaa9980035",
+              "round": 4,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.618945300579071
+            }
+          ]
+        },
+        {
+          "round": 5,
+          "participants": [
+            {
+              "owner": 0,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "9c2b33a54a5a151a1ac222d7b6857a49904ac9fb97c27188a954ac062ba078f7",
+              "round": 5,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6012685298919678
+            },
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "9c2b33a54a5a151a1ac222d7b6857a49904ac9fb97c27188a954ac062ba078f7",
+              "round": 5,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6020758152008057
+            }
+          ]
+        },
+        {
+          "round": 6,
+          "participants": [
+            {
+              "owner": 0,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "3bf5e763909b6d6cf55f3a4a14c2d4a2b5140ea444a86e6ff661919ae98dbc4f",
+              "round": 6,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.585095226764679
+            },
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "3bf5e763909b6d6cf55f3a4a14c2d4a2b5140ea444a86e6ff661919ae98dbc4f",
+              "round": 6,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.5858688354492188
+            }
+          ]
+        },
+        {
+          "round": 7,
+          "participants": [
+            {
+              "owner": 0,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "12c8b125beb293a1e2bc47a8cd6d23c8ccdbdebfd8476e93dba079612cdbe9ea",
+              "round": 7,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.5695547461509705
+            },
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "12c8b125beb293a1e2bc47a8cd6d23c8ccdbdebfd8476e93dba079612cdbe9ea",
+              "round": 7,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.5702962279319763
+            }
+          ]
+        }
+      ],
+      "donor_only_training": [
+        {
+          "round": 0,
+          "participants": [
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "0995deaaa5eb9c5445c74b2c0b1837207856990310bcd91ddc3d568f9056940d",
+              "round": 0,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6936473250389099
+            }
+          ]
+        },
+        {
+          "round": 1,
+          "participants": [
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "fd28b817b6fd712bcdad0e52337b28584fb0b8883290b8d8b11c9327f9e8924a",
+              "round": 1,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.652008593082428
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "participants": [
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "f8fe8cc87f91848beeee7481144c314b7ba51026649fe953101ceab7686467f2",
+              "round": 2,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.6138295531272888
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "participants": [
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "638c3e01f31d225c5a6d644fd27b45a2403d755caa7aff03b02ac1fdd27439b3",
+              "round": 3,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.5788097381591797
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "participants": [
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "26d408db462f9902cad702fddbddfe1f8fa0f4ed5472abf426a3920a7360efe2",
+              "round": 4,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.5466673374176025
+            }
+          ]
+        },
+        {
+          "round": 5,
+          "participants": [
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "1bdb28e02c7461ef014e90788a1bd5c1d0455fdba1a3b0ae8010bd096b67ed1f",
+              "round": 5,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.5171408653259277
+            }
+          ]
+        },
+        {
+          "round": 6,
+          "participants": [
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "3f1e705485b84c6adf594126d8235f8fd9ede1f96e368d59145fe07c70299d8f",
+              "round": 6,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.48998934030532837
+            }
+          ]
+        },
+        {
+          "round": 7,
+          "participants": [
+            {
+              "owner": 1,
+              "snapshot": "453dda9cb4b2171f8cb8b3ce4f9d93c61eb4a3cbc205c715e98898b7a5bfadc1",
+              "head_reference": "35b80138166eb0ebf35484a1d428f9e68dd2e641ef5f417863d8a65f1668ebb3",
+              "round": 7,
+              "targets": [
+                8
+              ],
+              "mass": 1.0,
+              "used_samples": 64,
+              "excluded_samples": 0,
+              "loss": 0.4649921953678131
+            }
+          ]
+        }
+      ],
+      "fit_role": "FIT discovery only",
+      "training_role": "current BASE only",
+      "acceptance_role": "current CAL only"
+    },
+    "wire": {
+      "teaching_bytes": 4106393,
+      "by_kind": {
+        "announcement": 789,
+        "receiver_reference": 3765029,
+        "verification_receipt": 5291,
+        "router_sketches": 27966,
+        "head_reference": 38128,
+        "head_delta": 27344,
+        "verification_request": 241846
+      },
+      "events": [
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "announcement",
+          "bytes": 393
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "receiver_reference",
+          "bytes": 3765029
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 65
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "router_sketches",
+          "bytes": 27966
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 53
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2389
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2389
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2389
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2389
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2389
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2389
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2389
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2389
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 53
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2377
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2377
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2377
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2377
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2377
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2377
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2377
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "head_reference",
+          "bytes": 2377
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "head_delta",
+          "bytes": 1709
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 4427
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "verification_request",
+          "bytes": 241846
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 693
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "announcement",
+          "bytes": 396
+        }
+      ],
+      "native_bytes": null,
+      "total_system_bytes": null,
+      "native_accounting": "not measured by this ledger; do not claim total-system saving"
+    },
+    "access": [
+      {
+        "owner": 1,
+        "role": "fit",
+        "task": 1
+      },
+      {
+        "owner": 0,
+        "role": "base",
+        "task": 1
+      },
+      {
+        "owner": 1,
+        "role": "base",
+        "task": 1
+      },
+      {
+        "owner": 0,
+        "role": "calibration",
+        "task": 1
+      },
+      {
+        "owner": 1,
+        "role": "calibration",
+        "task": 1
+      }
+    ],
+    "fixture": "BASE-engineered synthetic encoder; actual CNN-GRU forward and eight head rounds; no inference/acceptance mocks",
+    "scientific_transfer_evidence": false
+  },
+  "failures_detail": []
+}
