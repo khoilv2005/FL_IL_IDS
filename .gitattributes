@@ -6,3 +6,6 @@ fed_learning/clients/nice_client.py -text
 fed_learning/training/checkpoint_state.py -text
 fed_learning/training/decentralized_denice_il.py -text
 fed_learning/training/denice_eval.py -text
+
+# Keep the V3 fork byte-identical to its pinned V1 source snapshot.
+/candle_v3_runtime/** -text
