@@ -70,10 +70,14 @@ class OriginalTrainTests(unittest.TestCase):
 
     def test_real_updates_activate_unverified_without_quality_data(self):
         s=self.new();before=native_fingerprint(self.models,self.detectors);rng=torch.random.get_rng_state().clone()
-        self.run_round(s)
+        with patch('fed_learning.training.candle_v4_service.FullCoverageService._gate',side_effect=AssertionError('No acceptance gate')):
+            self.run_round(s)
+        self.assertEqual(s.status['coverage'][0,0],'ACTIVE')
+        self.assertNotIn('_gate',original.OriginalTrainService.__dict__)
+        self.assertNotIn('prepare_validation',original.OriginalTrainService.__dict__)
         self.assertEqual(tuple(s.engines),('coverage',));self.assertEqual(s.engines['coverage'][0,0].steps,44)
         self.assertTrue(torch.equal(rng,torch.random.get_rng_state()))
-        with patch('fed_learning.training.candle_v4_service.base_predictions',side_effect=AssertionError('No quality prediction')):
+        with patch('fed_learning.training.candle_v4_service.base_predictions',side_effect=AssertionError('No quality prediction')),patch('fed_learning.training.candle_v4_service.FullCoverageService._gate',side_effect=AssertionError('No acceptance gate')):
             self.finish(s)
         self.assertEqual(before,native_fingerprint(self.models,self.detectors))
         self.assertEqual(s.status['coverage'][0,0],'ACTIVE')
@@ -102,7 +106,7 @@ class OriginalTrainTests(unittest.TestCase):
         for k in s.entries:self.assertEqual(digest(s.engines['coverage'][k].state_dict()),digest(restored.engines['coverage'][k].state_dict()))
         self.assertEqual(s.bytes,restored.bytes);self.finish(s);restored=self.new(s.state_dict())
         self.assertEqual(s.status,restored.status);self.assertEqual(s.certificates,restored.certificates)
-        for version in ('candle_v4_original_train_v1','candle_v4_original_train_empirical_gate_v2'):
+        for version in ('candle_v4_original_train_v1','candle_v4_original_train_empirical_gate_v2','candle_v4_full_train_provisional_v3'):
             saved=s.state_dict();saved['version']=version
             with self.assertRaises(ValueError):self.new(saved)
 
@@ -116,11 +120,20 @@ class OriginalTrainTests(unittest.TestCase):
             self.assertEqual(s.status['coverage'][k],'ACTIVE');self.assertEqual(s.engines['coverage'][k].steps,44)
 
     def test_provisional_inference_and_native_fallback(self):
-        s=self.new();self.run_round(s);self.finish(s)
+        s=self.new();self.run_round(s)  # Inference works before task-end callbacks.
         with patch('fed_learning.training.candle_v4_service.score_matrix',return_value=np.array([[.9,.1],[.1,.1],[.1,.9]])):
             self.assertEqual(s.infer(0,'coverage',np.array([2,2,2]),torch.zeros(3,39))[0].tolist(),[0,2,1])
         s.certificates['coverage'][0,0]['quality_status']='VERIFIED'
         with self.assertRaises(ValueError):s.infer(0,'coverage',np.array([2]),torch.zeros(1,39))
+
+    def test_receipt_refreshes_as_active_expert_keeps_learning(self):
+        s=self.new();self.run_round(s);old=s.certificates['coverage'][0,0]['sha256']
+        self.run_round(s,1)
+        cert=s.certificates['coverage'][0,0]
+        self.assertNotEqual(old,cert['sha256']);self.assertEqual(cert['activation_round'],1)
+        self.assertEqual(cert['training_proof']['updates'],88)
+        self.assertEqual(cert['sha256'],digest(s.engines['coverage'][0,0].branches['joint_class_balanced'][0].state_dict()))
+        s.infer(0,'coverage',np.array([2]),torch.zeros(1,39))
 
     def test_causal_graph_and_native_only_baseline(self):
         s=self.new();self.run_round(s)
@@ -153,5 +166,5 @@ if __name__=='__main__':
     receipt=dict(protocol_version=original.VERSION,tests=result.testsRun,passed=result.wasSuccessful(),
         errors=len(result.errors),failures=len(result.failures),fixture='synthetic full current-task TRAIN NPZ only',
         validation_read=False,roles_created=False,real_TEST_opened=False,full_training_started=False)
-    (ROOT/'artifacts/candle_v4_full_train_provisional_regression_20261024.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+    (ROOT/'artifacts/candle_v4_direct_fusion_regression_20261024.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
     sys.exit(not result.wasSuccessful())

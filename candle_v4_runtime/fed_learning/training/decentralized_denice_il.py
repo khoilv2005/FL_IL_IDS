@@ -2691,7 +2691,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
     v4_shadow = None
     if config.get('candle_v4_full_service'):
-        if config['candle_v4_full_service'].get('version') == 'candle_v4_full_train_provisional_v3':
+        if config['candle_v4_full_service'].get('version') == 'candle_v4_direct_prediction_fusion_v4':
             from fed_learning.training.candle_v4_original_train import OriginalTrainService
             service_type = OriginalTrainService
         else:
@@ -3953,7 +3953,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 history.setdefault('router_replay', []).append({'task': task_id, 'client_id': cid, **audit})
 
         if v4_shadow and hasattr(v4_shadow, 'finish_task'):
-            cluster_summary['candle_v4_gate'] = v4_shadow.finish_task(
+            completion_key = ('candle_v4_task_completion' if config.get('candle_v4_full_service', {}).get('version') ==
+                              'candle_v4_direct_prediction_fusion_v4' else 'candle_v4_gate')
+            cluster_summary[completion_key] = v4_shadow.finish_task(
                 task_id, models, context_detectors, clients, active_ids, cluster_summary)
         if appliance_probe:
             appliance_probe.observe('task_finalized',models,context_detectors,task_id,rounds_per_task-1,active_ids)

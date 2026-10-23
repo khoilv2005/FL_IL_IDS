@@ -7,9 +7,9 @@ import torch
 
 from .candle_v4_service import FullCoverageService
 from .candle_v4_preflight import positive_neighbors
-from .candle_v4_shadow import digest
+from .candle_v4_shadow import digest,native_fingerprint
 
-VERSION='candle_v4_full_train_provisional_v3'
+VERSION='candle_v4_direct_prediction_fusion_v4'
 
 
 def validate_original_config(config):
@@ -92,7 +92,13 @@ class OriginalTrainService(FullCoverageService):
 
     def after_round(self,task,round_id,models,detectors,clients,active_ids,graph):
         self.bind_clients(task,clients,active_ids)
-        return super().after_round(task,round_id,models,detectors,clients,active_ids,graph)
+        result=super().after_round(task,round_id,models,detectors,clients,active_ids,graph)
+        events=[]
+        for receiver in sorted({key[0] for key,entry in self.entries.items() if entry['task']==task}):
+            for arm in self.arms:events.append(self._activate_trained(receiver,arm,task))
+        self.acceptances.extend(events)  # Legacy checkpoint field; these are activation events, not acceptance tests.
+        result['direct_activation']=events
+        return result
 
     def _training_proof(self,key,arm):
         entry=self.entries[key];engine=self.engines[arm][key];updates=0;boundaries=[]
@@ -110,7 +116,7 @@ class OriginalTrainService(FullCoverageService):
                     provenance_sha256=digest(dict(entry=entry,boundaries=boundaries,updates=updates)),
                     reason=None if valid else 'NO_UPDATES_OR_INCONSISTENT_PROVENANCE')
 
-    def _gate(self,receiver,arm,task,models,detectors,active_ids,graph):
+    def _activate_trained(self,receiver,arm,task):
         entries={};activated=[];deferred=[]
         for key,entry in sorted(self.entries.items()):
             if key[0]!=receiver:continue
@@ -123,7 +129,6 @@ class OriginalTrainService(FullCoverageService):
                         raise RuntimeError('Frozen historical expert or receipt changed')
                 entries[key[1]]=dict(status=self.status[arm][key],frozen=True,quality_status='UNVERIFIED')
                 continue
-            if self.status[arm][key]!='DRAFT':raise ValueError('Repeated task activation')
             proof=self._training_proof(key,arm)
             finite=all(bool(torch.isfinite(p).all()) for p in model.parameters())
             if not proof['valid'] or not finite:
@@ -133,6 +138,7 @@ class OriginalTrainService(FullCoverageService):
             self.thresholds[arm][key]=.5;self.status[arm][key]='ACTIVE';activated.append(key[1])
             self.certificates[arm][key]=dict(version=VERSION,sha256=sha,threshold=.5,
                 input_sha256=self.spec['input_sha256'],birth_task=entry['task'],activation_task=task,
+                activation_round=self.boundary[1],
                 donor=entry['donor'],training_proof=proof,quality_status='UNVERIFIED',
                 acceptance_type='training_only_unverified',statistical_safety_certificate=False,
                 quality_metrics_status='NOT_MEASURED',recall=None,far=None,break_count=None,net_rescue=None,
@@ -163,8 +169,16 @@ class OriginalTrainService(FullCoverageService):
                               evidence_status='NOT_MEASURED') for name in ('V1',*self.arms)},per_client={}))
 
     def finish_task(self,task,models,detectors,clients,active_ids,graph):
+        if task in self.gated:raise ValueError('Repeated task completion')
         self.bind_clients(task,clients,active_ids)
-        result=super().finish_task(task,models,detectors,clients,active_ids,graph)
+        before=native_fingerprint(models,detectors)
+        for receiver in sorted({key[0] for key in self.entries}):
+            for arm in self.arms:self.acceptances.append(self._activate_trained(receiver,arm,task))
+        self.gated.append(task)  # Completion marker required by terminal evaluator, not a quality gate.
+        self._evaluate(task,models,detectors)
+        if before!=native_fingerprint(models,detectors):raise RuntimeError('Activation mutated native state')
+        self.cache.clear();self.base_cache.clear();self.write_report()
+        result=dict(task=task,validation_status='NOT_MEASURED',acceptance_gate=False)
         self.current_clients={};self.sampling_cache.clear();self.count_cache.clear()
         return result
 
@@ -173,6 +187,7 @@ class OriginalTrainService(FullCoverageService):
         path=Path(self.spec['output_dir'])/'candle_v4_development_report.json'
         report=json.loads(path.read_text(encoding='utf-8'))
         report.update(data_protocol=VERSION,train_fraction=1.0,local_validation_fraction=0.0,
+                      prediction_fusion='direct_after_round',acceptance_gate=False,
                       validation_metrics_status='NOT_MEASURED',activation_policy='training_only_unverified',
                       quality_status='UNVERIFIED',statistical_safety_certificate=False,
                       external_roles_created=False,shadow_native_models=0,expert_arms=list(self.arms),
@@ -180,4 +195,5 @@ class OriginalTrainService(FullCoverageService):
                           for arm in self.arms for k,cert in self.certificates[arm].items()],
                       baseline='Native V1 counterfactual on the same full current-task TRAIN',
                       forgetting_status='NOT_MEASURED; no intermediate TEST or historical validation')
+        report['activation_events']=report.pop('acceptances')
         path.write_text(json.dumps(report,indent=2),encoding='utf-8')
