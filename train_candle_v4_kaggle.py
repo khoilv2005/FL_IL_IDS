@@ -6,12 +6,12 @@ import subprocess
 import sys
 import zipfile
 
-CODE_REF = "158e52cf19035ec1a9b101d6ff3f4a202a3964cc"
+CODE_REF = "668f98fb9678f936f6ec1c16fbc03c675f407a6c"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
-OUTPUT_DIR = "/kaggle/working/results_candle_v4_empirical_seed42"
+OUTPUT_DIR = "/kaggle/working/results_candle_v4_full_train_seed42"
 VARIANT = "coverage"  # "native-only" reruns V1 with the SAME original-TRAIN protocol.
 # Optional mounted round continuation .pt or task archive .zip; empty=fresh T0.
-# Resume also needs the original run lock/threshold locks in that folder/archive.
+# Resume needs the same v3 run lock and activation journals in that folder/archive.
 RESUME_STATE = ""
 
 if not Path('/kaggle/working').is_dir():
@@ -20,7 +20,7 @@ env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1"}
 for name in ('DENICE_CONFIG_FILE','DENICE_CONFIG_OVERRIDES','DENICE_RESUME_STATE_PATH',
              'DENICE_CONFIG_ONLY','DENICE_TASK_END'):
     env.pop(name,None)
-code = Path('/kaggle/working/candle_v4_empirical_source')
+code = Path('/kaggle/working/candle_v4_full_train_source')
 if not code.exists():
     subprocess.check_call(['git','clone','--filter=blob:none','--no-checkout',
         'https://github.com/khoilv2005/FL_IL_IDS.git',str(code)],env=env)
@@ -54,4 +54,4 @@ if RESUME_STATE:
 print('Pinned source:',actual,flush=True)
 print('Full TEST runs only after Task5/Round19 consolidation; retain output with Kaggle Save Version.',flush=True)
 subprocess.check_call(args,cwd=runtime,env=env)
-print(Path(OUTPUT_DIR,'candle_v4_completion.json').read_text())
+print(Path(OUTPUT_DIR,'candle_v1_completion.json' if VARIANT=='native-only' else 'candle_v4_completion.json').read_text())
