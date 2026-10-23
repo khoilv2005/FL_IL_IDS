@@ -1,0 +1,36 @@
+{
+  "input_root": "C:\\Users\\NAMANH\\Downloads\\results (2)\\results_denice_cluster_server_seed_42",
+  "original_commit": "78a07ded72bcf5fdeec65c82f8a641bd30326631",
+  "torch": "2.10.0+cu128",
+  "completed_tasks": [
+    0,
+    1
+  ],
+  "checkpoint_task": 2,
+  "checkpoint_round": 0,
+  "next_task": 2,
+  "next_round": 1,
+  "completed_training_rounds": 41,
+  "total_training_rounds": 120,
+  "partial_round_1_cluster_receipts": 16,
+  "source_files_verified": 160,
+  "checkpoint_zip_crc": "all_three_pass",
+  "task2_blobs_sha256_verified": 7408,
+  "task2_missing_blob_references": 0,
+  "active_clusters": {
+    "0": 23,
+    "1": 17,
+    "2": 26
+  },
+  "completed_checkpoint_evaluations": [],
+  "cluster_round_receipts": 842,
+  "broadcast_performed_true_count": 0,
+  "test_read_true_count": 0,
+  "communication_gib_by_task": {
+    "0": 15.53576938714832,
+    "1": 26.313442086800933,
+    "2_round0_and_partition": 1.715909835882485
+  },
+  "communication_scope": "modeled_application_payload_not_measured_network",
+  "full_train_or_eval_executed_in_this_audit": false
+}

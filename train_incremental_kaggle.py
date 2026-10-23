@@ -9,6 +9,90 @@ import sys
 import zipfile
 import tempfile
 import shutil
+from pathlib import Path
+
+# Dán link ZIP output cluster_server lên Drive vào đây; để trống để train mới.
+# Có thể đặt biến môi trường DENICE_RESUME_DRIVE_URL thay cho sửa dòng này.
+CLUSTER_RESUME_DRIVE_URL = ""
+
+
+def download_resume_zip(url):
+    """Shared Google Drive downloader for cluster archives and legacy resumes."""
+    folder = Path(tempfile.mkdtemp(prefix='denice-resume-'))
+    archive = folder/'continue.zip'
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'gdown'], check=True)
+    subprocess.run([sys.executable, '-m', 'gdown', '--fuzzy', url, '-O', str(archive)], check=True)
+    if not zipfile.is_zipfile(archive):
+        raise ValueError('Drive download is not a ZIP. Check the file link and download access.')
+    return archive
+
+
+def extract_cluster_resume(archive):
+    """Accept an output ZIP with any enclosing folder; omit regenerable data caches."""
+    root = Path(tempfile.mkdtemp(prefix='denice-cluster-checkpoint-')).resolve()
+    with zipfile.ZipFile(archive) as source:
+        for entry in source.infolist():
+            relative = Path(entry.filename.replace('\\', '/'))
+            destination = (root/relative).resolve()
+            if not destination.is_relative_to(root):
+                raise ValueError('Unsafe checkpoint archive path')
+            if 'current_data_cache' in relative.parts or 'test_cache' in relative.parts:
+                continue
+            if entry.is_dir():
+                destination.mkdir(parents=True, exist_ok=True)
+            else:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                with source.open(entry) as src, destination.open('wb') as dst:
+                    shutil.copyfileobj(src, dst)
+    candidates = [p.parent for p in root.rglob('execution_provenance.json')
+                  if (p.parent/'protocol_lock.json').is_file()
+                  and list(p.parent.glob('checkpoint_task_*.zip'))]
+    if len(candidates) != 1:
+        raise ValueError(f'ZIP must contain exactly one cluster-server output; found {len(candidates)}')
+    return candidates[0]
+
+
+def configure_cluster_resume(root):
+    """Select latest saved round (not partial receipt files), preserving explicit overrides."""
+    import re
+    root = Path(root)
+    provenance = json.loads((root/'execution_provenance.json').read_text(encoding='utf-8'))
+    config = json.loads((root/'protocol_lock.json').read_text(encoding='utf-8'))['config']
+    if not config.get('server_only_storage') or not config.get('defer_evaluation'):
+        raise ValueError('Expected train-only cluster-server output, not legacy row_overlay checkpoints')
+    available = {}
+    for path in root.glob('checkpoint_task_*.zip'):
+        match = re.fullmatch(r'checkpoint_task_(\d+)_(?:all_rounds|round_\d+)\.zip', path.name)
+        if not match:
+            continue
+        task = int(match.group(1))
+        with zipfile.ZipFile(path) as archive:
+            for name in archive.namelist():
+                if re.fullmatch(r'rounds/\d+\.json', name):
+                    manifest = json.loads(archive.read(name))
+                    if manifest.get('task') != task or manifest.get('schema') != 1:
+                        raise ValueError(f'Invalid checkpoint manifest in {path.name}')
+                    available.setdefault(task, set()).add(int(manifest['round']))
+    if not available:
+        raise ValueError('No completed round checkpoint in output')
+    task = int(os.environ.get('DENICE_CLUSTER_RESUME_TASK', max(available)))
+    if task not in available:
+        raise ValueError(f'No checkpoint for requested task {task}')
+    round_id = int(os.environ.get('DENICE_CLUSTER_RESUME_ROUND', max(available[task])))
+    if round_id not in available[task]:
+        raise ValueError(f'No checkpoint for requested T{task} R{round_id}')
+    os.environ['DENICE_CLUSTER_RESUME_ROOT'] = str(root)
+    os.environ['DENICE_CLUSTER_RESUME_TASK'] = str(task)
+    os.environ['DENICE_CLUSTER_RESUME_ROUND'] = str(round_id)
+    for env, key in [('DENICE_BATCH_SIZE', 'batch_size'), ('DENICE_DEVICE', 'device'),
+                     ('DENICE_OUTPUT_BUDGET_GIB', 'output_budget_gib'), ('DENICE_SEED', 'seed')]:
+        os.environ.setdefault(env, str(config[key]))
+    os.environ.setdefault('DENICE_WORKER_DEVICES', ','.join(config['worker_devices']))
+    if provenance.get('commit'):
+        os.environ.setdefault('DENICE_CODE_REF', provenance['commit'])
+    print(f'Cluster resume: {root}; saved T{task} R{round_id}.', flush=True)
+    print(f"Required torch={provenance.get('torch')}; source={provenance.get('commit')}", flush=True)
+    return provenance
 
 # Environment overrides make P6 multi-seed runs reproducible without editing
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
@@ -30,29 +114,47 @@ TRAIN_OUTPUT_DIR = os.environ.get(
     "DENICE_OUTPUT_DIR", f"/kaggle/working/results_denice_{_output_label}_seed_{TRAIN_SEED}"
 )
 # Verified supporting code includes the overlay, balanced router and run audit.
-DEFAULT_CODE_REF = 'd074f0e8cf4870e26150975b9e9df988cbe425f9'
+DEFAULT_CODE_REF = '78a07ded72bcf5fdeec65c82f8a641bd30326631'
 print('DENICE launch profile:', TRAIN_PROFILE, flush=True)
 
 if TRAIN_PROFILE == 'cluster_server' and __name__ == '__main__':
-    from pathlib import Path
+    drive_url = os.environ.get('DENICE_RESUME_DRIVE_URL', CLUSTER_RESUME_DRIVE_URL).strip()
+    resume_root = os.environ.get('DENICE_CLUSTER_RESUME_ROOT')
+    if drive_url and resume_root:
+        raise ValueError('Choose either a Drive ZIP link or DENICE_CLUSTER_RESUME_ROOT, not both')
+    if drive_url:
+        print('Downloading cluster-server output ZIP from Google Drive...', flush=True)
+        resume_root = extract_cluster_resume(download_resume_zip(drive_url))
+    if resume_root:
+        configure_cluster_resume(resume_root)
     local = os.environ.get('DENICE_CODE_DIR')
-    here = Path(__file__).resolve().parent
-    if not local and (here/'fed_learning').is_dir():
+    here = Path(__file__).resolve().parent if '__file__' in dir() else Path.cwd()
+    if not local and not resume_root and (here/'fed_learning').is_dir():
         local = str(here)
     if not local:
         bundle = Path(os.environ.get('DENICE_SOURCE_ZIP', str(here/'denice_cluster_server_source.zip')))
-        if not bundle.is_file():
-            raise FileNotFoundError('Place denice_cluster_server_source.zip beside this launcher, '
-                'or set DENICE_SOURCE_ZIP / DENICE_CODE_DIR to the supplied source. '
-                'The old downloaded revision does not implement cluster-server training.')
-        local = tempfile.mkdtemp(prefix='denice-cluster-source-')
-        with zipfile.ZipFile(bundle) as source:
-            root = Path(local).resolve()
-            for entry in source.infolist():
-                destination = (root/entry.filename).resolve()
-                if not destination.is_relative_to(root):
-                    raise ValueError('Unsafe source archive path')
-            source.extractall(root)
+        if bundle.is_file():
+            local = tempfile.mkdtemp(prefix='denice-cluster-source-')
+            with zipfile.ZipFile(bundle) as source:
+                root = Path(local).resolve()
+                for entry in source.infolist():
+                    destination = (root/entry.filename).resolve()
+                    if not destination.is_relative_to(root):
+                        raise ValueError('Unsafe source archive path')
+                source.extractall(root)
+        else:
+            # No zip found – clone from GitHub using the pinned revision.
+            revision = os.environ.get('DENICE_CODE_REF', DEFAULT_CODE_REF)
+            local = tempfile.mkdtemp(prefix='denice-cluster-source-')
+            clone_env = dict(os.environ, GIT_LFS_SKIP_SMUDGE='1')
+            subprocess.run(
+                ['git', 'clone', 'https://github.com/khoilv2005/FL_IL_IDS.git', local],
+                check=True, env=clone_env,
+            )
+            subprocess.run(
+                ['git', '-C', local, 'checkout', '--detach', revision],
+                check=True, env=clone_env,
+            )
     sys.path.insert(0, local)
     from tools.train_cluster_server import main
     main()
@@ -123,21 +225,8 @@ else:
     if not resume_drive_url.strip():
         raise ValueError('Fill in resume_drive_url or set DENICE_RESUME_STATE_PATH.')
     print('Downloading continuation from configured Google Drive URL:', resume_drive_url, flush=True)
-    download_dir = tempfile.mkdtemp(prefix="denice-resume-")
-    archive_path = os.path.join(download_dir, "continue.zip")
-    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "gdown"], check=True)
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "gdown",
-            "--fuzzy",
-            resume_drive_url,
-            "-O",
-            archive_path,
-        ],
-        check=True,
-    )
+    archive_path = download_resume_zip(resume_drive_url)
+    download_dir = str(archive_path.parent)
 
     # Extract only the requested continuation; never reuse stale files from another run.
     with zipfile.ZipFile(archive_path, "r") as zf:

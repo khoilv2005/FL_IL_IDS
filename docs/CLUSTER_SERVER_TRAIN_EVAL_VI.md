@@ -41,6 +41,16 @@ Các state dormant được giữ để client quay lại, không được tính
 
 Resume bằng `DENICE_CLUSTER_RESUME_ROOT` (output đã mount), `DENICE_CLUSTER_RESUME_TASK` (task có archive), tùy chọn `DENICE_CLUSTER_RESUME_ROUND`; bỏ ROUND để lấy task-boundary mới nhất. Source, dữ liệu và cấu hình phải giống lần train trước. Giữ output cũ để có đủ lịch sử archive.
 
+## Resume từ ZIP Google Drive bằng launcher
+
+Trong `train_incremental_kaggle.py`, điền `CLUSTER_RESUME_DRIVE_URL = "https://drive.google.com/file/d/.../view"` ở đầu file; hoặc đặt `DENICE_RESUME_DRIVE_URL`. Đây phải là link **file ZIP output cluster_server**, không phải link thư mục hay checkpoint `.pt` cũ. Để trống link khi train mới.
+
+ZIP giữ nguyên các checkpoint ZIP bên trong, `execution_provenance.json` và `protocol_lock.json`; có thể chứa một thư mục bao ngoài. Không cần upload source ZIP riêng nếu Internet bật: launcher lấy commit source từ provenance và clone GitHub. Source/cấu hình/PyTorch vẫn được runner kiểm tra như trước. `current_data_cache` được bỏ qua khi giải nén vì có thể dựng lại từ dataset TRAIN.
+
+Trên notebook Kaggle mới: thêm dataset 100-clients, bật Internet, chọn T4 x2 cho run V59, dùng PyTorch 2.10.0+cu128, rồi chạy toàn bộ launcher mới. Không đặt đồng thời link Drive và `DENICE_CLUSTER_RESUME_ROOT`. Bỏ các biến resume task/round từ phiên cũ để tự chọn checkpoint mới nhất; có thể đặt chúng khi chủ ý khôi phục một mốc cụ thể. V59 tự chọn T2 R0, runner tiếp tục T2 R1. Log round làm dở không được dùng làm checkpoint.
+
+Giữ output các phiên trước để bảo toàn lịch sử. Nếu cần resume lần nữa, dùng ZIP output mới nhất. Không thay đổi source lõi để bỏ qua lỗi hash/runtime/protocol.
+
 ## Eval sau khi train xong
 
 Dùng `eval_selective.ipynb`: đặt `CHECKPOINT_ROOT` tới output có `completion.json` và ZIP Task 5, `DATA_DIR` chứa `global_test_data.npz`, `EVAL_SELECTIVE_SCRIPT` tới `eval_selective.py` đã cung cấp. Đặt cùng `DENICE_SOURCE_ZIP` như train. `EVAL_TASKS=5`, `EVAL_ROUNDS=None`, `EVAL_CLIENT_FRACTION=1.0`.
