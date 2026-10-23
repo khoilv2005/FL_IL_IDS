@@ -13,7 +13,7 @@ import zipfile
 
 CODE_REF = "__REF__"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
-OUTPUT_DIR = "/kaggle/working/results_candle_v4_original_seed42"
+OUTPUT_DIR = "/kaggle/working/results_candle_v4_empirical_seed42"
 VARIANT = "coverage"  # "native-only" reruns V1 with the SAME original-TRAIN protocol.
 # Optional mounted round continuation .pt or task archive .zip; empty=fresh T0.
 # Resume also needs the original run lock/threshold locks in that folder/archive.
@@ -25,7 +25,7 @@ env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1"}
 for name in ('DENICE_CONFIG_FILE','DENICE_CONFIG_OVERRIDES','DENICE_RESUME_STATE_PATH',
              'DENICE_CONFIG_ONLY','DENICE_TASK_END'):
     env.pop(name,None)
-code = Path('/kaggle/working/candle_v4_original_source')
+code = Path('/kaggle/working/candle_v4_empirical_source')
 if not code.exists():
     subprocess.check_call(['git','clone','--filter=blob:none','--no-checkout',
         'https://github.com/khoilv2005/FL_IL_IDS.git',str(code)],env=env)
@@ -77,10 +77,14 @@ ACTIVE only after unchanged risk gates; rejection does not prevent completing tr
 Uses original client TRAIN, filtered by current task; retains only native V1 local
 validation. NO BASE/FIT/CAL role preparation, no role manifest or global re-partition.
 Fixed threshold .5; observed native-validation gate, not independent CAL confirmation.
+No minimum32 validation cutoff: donor positives and pooled expert negatives must
+be nonempty; quality gates remain recall95%, observed FAR.1%, break0, net rescue>0.
+Unobserved owner/classes remain UNKNOWN, not statistically certified safe.
 **Full 34-class TEST runs once after Task5/Round19 and consolidation**.
 V1 native counterfactual and V4 use identical disjoint shards covering the entire TEST.
 Set VARIANT="native-only" and a separate OUTPUT_DIR for a standalone matched V1 rerun.
-Old role-based checkpoints cannot resume this NEW data protocol. Start fresh.
+Old role-based or original-TRAIN v1 checkpoints cannot resume empirical gate v2.
+Start fresh; never change gate/source or resume under a new protocol mid-run.
 No historical raw-data replay. Round continuation and task ZIPs contain expert state.
 Enable **GPU and Internet**. Source is cloned at a fixed Git SHA; no embedded runtime.
 Keep the output with Kaggle Save Version. A stopped interactive session is not an

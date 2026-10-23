@@ -32,6 +32,7 @@ def main():
     spec=dict(version=VERSION,seed=42,input_sha256=metadata_sha256,
               data_dir=str(data),output_dir=str(output),arms=['coverage'] if args.variant=='coverage' else [],
               data_protocol='original TRAIN; existing native local validation only',fixed_threshold=.5,
+              validation_gate='empirical_nonempty_v2',
               per_expert_bytes=128*1024**2,per_arm_bytes=64*1024**3)
     config.update(data_dir=str(data),output_dir=str(output),resume_output_dir=str(output),
                   denice_clean_roles_dir=None,candle_v4_full_service=spec,candle_v4_original_train=True,
@@ -45,7 +46,7 @@ def main():
               protocol='Original TRAIN per task; native local validation only; no new roles or shadow native model',
               evaluation='Current native local validation for gate/report; full 34-class TEST only after T5/R19 consolidation',
               controls=['native V1 counterfactual from same backbone; historical 80/2/8/10 V1 is not a matched baseline'],
-              risk='Fixed threshold .5; recall>=.95, observed per-owner/class FAR<=.001, break=0; native validation is not independent CAL',
+              risk='Fixed threshold .5; nonempty validation, no 32-sample validation cutoff; recall>=.95, observed per-owner/class FAR<=.001, break=0; empirical acceptance only',
               runtime=dict(python=sys.version,torch=str(torch.__version__),cuda=torch.version.cuda,gpu=torch.cuda.get_device_name(0)))
     lock['resource_preflight']=dict(max_expert_count=100*34*len(spec['arms']),
         max_expert_parameter_bytes=100*34*len(spec['arms'])*2625*4,

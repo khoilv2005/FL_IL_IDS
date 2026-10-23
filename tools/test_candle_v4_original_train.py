@@ -89,10 +89,10 @@ class OriginalTrainTests(unittest.TestCase):
         self.assertTrue(all(not r.get('CAL_opened',False) for r in s.acceptances))
         self.assertFalse(any('roles' in str(p) for p in self.path.rglob('*')))
 
-    def test_insufficient_evidence_defers_and_task_transition_never_replays(self):
+    def test_absent_evidence_defers_and_task_transition_never_replays(self):
         s=self.new();self.run_round(s)
         for client in self.clients.values():
-            client.X_validation=client.X_validation[:2];client.y_validation=client.y_validation[:2]
+            client.X_validation=client.X_validation[:0];client.y_validation=client.y_validation[:0]
         with patch('fed_learning.training.candle_v4_service.base_predictions',side_effect=lambda m,d,x,seen:np.full(len(x),2,dtype=np.int64)):
             s.finish_task(0,self.models,self.detectors,self.clients,list(self.clients),self.graph)
         self.assertNotIn('ACTIVE',s.status['coverage'].values())
@@ -143,10 +143,87 @@ class OriginalTrainTests(unittest.TestCase):
         self.assertEqual(s.evaluations[-1]['metric_labels'],list(range(6,12)))
         self.assertEqual(s.evaluations[-1]['metrics']['coverage']['accuracy'],0.)
 
+    def small_validation(self,s):
+        for client in self.clients.values():
+            indices=torch.cat([torch.nonzero(client.y_validation==c).flatten()[:10] for c in torch.unique(client.y_validation)])
+            client.X_validation=client.X_validation[indices];client.y_validation=client.y_validation[indices]
+        s.prepare_validation()
+
+    def controlled_gate(self,s,mode='correct'):
+        def scores(engines,classes,x):
+            values=np.column_stack([np.where(x[:,0].numpy()==c,.99,.01) for c in classes])
+            if mode=='miss' and 0 in classes:
+                rows=np.flatnonzero(x[:,0].numpy()==0)
+                if len(rows):values[rows[0],classes.index(0)]=.01
+            if mode=='fp' and 0 in classes:
+                rows=np.flatnonzero(x[:,0].numpy()==2)
+                if len(rows):values[rows[0],classes.index(0)]=.99
+            return values
+        with patch.object(original,'score_matrix',scores),patch.object(original,'base_predictions',side_effect=lambda m,d,x,seen:np.full(len(x),2,dtype=np.int64)):
+            return s._gate(0,'coverage',0,self.models,self.detectors,list(self.clients),self.graph)
+
+    def test_ten_positives_pass_and_empty_owner_is_unknown_not_zero_far(self):
+        s=self.new();self.run_round(s);self.small_validation(s)
+        s.eligible_validation[3]=(torch.empty(0,39),np.empty(0,dtype=np.int64))
+        receipt=self.controlled_gate(s)
+        self.assertEqual(receipt['outcome'],'PASS');self.assertEqual(s.status['coverage'][0,0],'ACTIVE')
+        self.assertEqual(receipt['owners'][1]['targets'][0]['positive'],10)
+        self.assertEqual(receipt['owners'][1]['targets'][0]['hits'],10)
+        self.assertIsNone(receipt['owners'][3]['targets'][0]['observed_far'])
+        self.assertEqual(receipt['owners'][3]['targets'][0]['negative_evidence_status'],'UNKNOWN_NO_SAMPLES')
+        self.assertFalse(s.certificates['coverage'][0,0]['statistical_safety_certificate'])
+        self.assertIn(5,s.certificates['coverage'][0,0]['unobserved_negative_classes'])
+
+    def test_small_panel_recall_and_false_activation_still_reject(self):
+        s=self.new();self.run_round(s);self.small_validation(s)
+        receipt=self.controlled_gate(s,'miss')
+        self.assertEqual(receipt['outcome'],'REJECT')
+        self.assertEqual(receipt['owners'][1]['targets'][0]['hits'],9)
+        self.assertIn('CLASS_0_RECALL',receipt['failures'])
+        # A separate fixed fixture, not a retry on evidence after a decision.
+        self.spec['output_dir']=str(self.path/'fp_fixture')
+        s=self.new();self.run_round(s);s.prepare_validation()
+        receipt=self.controlled_gate(s,'fp')
+        self.assertEqual(receipt['outcome'],'REJECT')
+        self.assertTrue(any(reason.endswith('_FAR') for reason in receipt['failures']))
+        self.assertGreater(receipt['break_count'],0)
+
+    def test_zero_positive_or_negative_defers_and_v1_resume_is_rejected(self):
+        s=self.new();self.run_round(s);self.small_validation(s)
+        x,y=s.eligible_validation[1];keep=y!=0;s.eligible_validation[1]=(x[keep],y[keep])
+        self.assertEqual(self.controlled_gate(s)['outcome'],'DEFERRED')
+        self.spec['output_dir']=str(self.path/'zero_negative_fixture')
+        s=self.new();self.run_round(s)
+        source=self.clients[1];keep=source.y_validation==0
+        x=source.X_validation[keep];y=source.y_validation[keep].numpy()
+        s.eligible_validation={o:(x,y) for o in self.clients}
+        receipt=self.controlled_gate(s)
+        self.assertIn('CLASS_0_NO_NEGATIVE_VALIDATION',receipt['failures'])
+        self.assertEqual(receipt['outcome'],'DEFERRED')
+        old=s.state_dict();old['version']='candle_v4_original_train_v1'
+        with self.assertRaises(ValueError):self.new(old)
+
+    def test_donor_train_minimum_still_32(self):
+        x=self.clients[1].X_train;y=self.clients[1].y_train
+        def set_positive(n):
+            keep=torch.cat((torch.nonzero(y==0).flatten()[:n],torch.nonzero(y!=0).flatten()))
+            self.clients[1].X_train=x[keep];self.clients[1].y_train=y[keep]
+        set_positive(31);s=self.new();s.bind_clients(0,self.clients,list(self.clients));s.boundary=[0,0]
+        s._discover(0,self.clients,list(self.clients),self.graph)
+        self.assertNotIn((0,0),s.entries)
+        set_positive(32);s.count_cache.clear();s._discover(0,self.clients,list(self.clients),self.graph)
+        self.assertEqual(s.entries[0,0]['donor'],1)
+
+    def test_inactive_receiver_is_deferred_without_missing_pool_error(self):
+        s=self.new();self.run_round(s);self.small_validation(s)
+        receipt=s._gate(0,'coverage',0,self.models,self.detectors,[1,2,3],self.graph)
+        self.assertEqual(receipt['outcome'],'DEFERRED')
+        self.assertIn('INACTIVE_RECEIVER',receipt['failures'])
+
 
 if __name__=='__main__':
     result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(OriginalTrainTests))
-    receipt=dict(tests=result.testsRun,passed=result.wasSuccessful(),errors=len(result.errors),failures=len(result.failures),
+    receipt=dict(protocol_version=original.VERSION,tests=result.testsRun,passed=result.wasSuccessful(),errors=len(result.errors),failures=len(result.failures),
                  fixture='synthetic original TRAIN NPZ only',roles_created=False,real_TEST_opened=False,real_CAL_opened=False,full_training_started=False)
     (ROOT/'artifacts/candle_v4_original_train_regression_20261023.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
     sys.exit(not result.wasSuccessful())

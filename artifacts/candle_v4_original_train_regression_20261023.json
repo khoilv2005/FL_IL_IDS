@@ -1,5 +1,6 @@
 {
-  "tests": 8,
+  "protocol_version": "candle_v4_original_train_empirical_gate_v2",
+  "tests": 13,
   "passed": true,
   "errors": 0,
   "failures": 0,
@@ -8,18 +9,11 @@
   "real_TEST_opened": false,
   "real_CAL_opened": false,
   "full_training_started": false,
-  "related_regressions": {
-    "terminal_test": 3,
-    "existing_service_checkpoint": 11,
-    "all_passed": true,
-    "total_tests": 22
-  },
+  "terminal_regression_tests": 3,
   "source_sha256": {
-    "candle_v4_runtime/fed_learning/training/candle_v4_original_train.py": "7b5fb593a3a639aafb89c4f0edb97d5c3b3e174d82bb8ec038fe9e3cb53f771e",
-    "candle_v4_runtime/fed_learning/training/candle_v4_service.py": "413cc541e18e1f46b938b6f77b2bc98260166ba0fa9e0a06df6bb0f58a9b6527",
-    "candle_v4_runtime/fed_learning/training/candle_v4_coverage.py": "f8363a2edf8056d74de0e5c822e1da5c2296df3db6936bed6e1487e4c7c9c8b7",
-    "candle_v4_runtime/fed_learning/training/candle_v4_terminal_test.py": "16d996bc366a84223b1f438ee4958bbb4e4f75f8bb98a4058b4fd8528871d366",
-    "candle_v4_runtime/fed_learning/training/decentralized_denice_il.py": "2c5f280f34ba984ec4659515cd5844bb01fbfdb8f5336e13639f31960e96428e",
-    "candle_v4_runtime/tools/train_candle_v4.py": "ec75bf6b6317dc85f0f1cf6bc50f9d9a50dcbc881fe4a593ce67bb3d2679e6a0"
+    "candle_v4_runtime/fed_learning/training/candle_v4_original_train.py": "830bf2fdac9e38f0a520285ed7ce5494fa616ec30f3d2df1804f79cb2b7970ff",
+    "candle_v4_runtime/fed_learning/training/candle_v4_service.py": "8bcae2725480835c79c4f617f21b0163d8147a6a03540c61b7deb45b2dc33884",
+    "candle_v4_runtime/fed_learning/training/decentralized_denice_il.py": "2a2b4ba875c5877ee6f8a608ca3ddd688a2a6ec2710f412b768d45f0ccc1748c",
+    "candle_v4_runtime/tools/train_candle_v4.py": "5b0a809320c45a234bf02fdedd16455ac9bf2478f3a7ba6e1e9433bf385d9a1c"
   }
 }

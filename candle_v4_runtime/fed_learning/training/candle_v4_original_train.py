@@ -14,7 +14,7 @@ from .candle_v4_bank import base_predictions,score_matrix,fuse
 from .candle_v4_preflight import positive_neighbors
 from .candle_v4_shadow import digest
 
-VERSION='candle_v4_original_train_v1'
+VERSION='candle_v4_original_train_empirical_gate_v2'
 
 
 def validate_original_config(config):
@@ -119,22 +119,32 @@ class OriginalTrainService(FullCoverageService):
         current=[k for k in keys if self.entries[k]['task']==task]
         peers=set(positive_neighbors(graph,receiver))&set(active_ids);owners=sorted({receiver,*peers})
         failures=[];classes=[k[1] for k in keys]
+        if receiver not in active_ids:failures.append('INACTIVE_RECEIVER')
         for k in keys:
             if k not in current:
                 if digest(self.engines[arm][k].branches['joint_class_balanced'][0].state_dict())!=self.certificates[arm][k]['sha256']:
                     raise RuntimeError('Frozen historical expert mutated')
             elif self.entries[k]['donor'] not in peers or not self.engines[arm][k].steps:
                 failures.append('NO_CURRENT_AUTHORIZED_DONOR_OR_UPDATES')
-        for owner in owners:
-            _,y=self.eligible_validation.get(owner,(None,np.empty(0,dtype=int)))
-            if int((~np.isin(y,classes)).sum())<32:failures.append(f'OWNER_{owner}_NEGATIVE_COUNT')
+        evidence_counts={}
+        seen_classes=set(range(min(6*(task+1),34)))
+        for k in keys:
+            c=k[1];negative_counts={o:int((self.eligible_validation.get(o,(None,np.empty(0,dtype=int)))[1]!=c).sum()) for o in owners}
+            observed={int(label) for o in owners for label in self.eligible_validation.get(o,(None,np.empty(0,dtype=int)))[1] if label!=c}
+            evidence_counts[c]=dict(negative_by_owner=negative_counts,total_negative=sum(negative_counts.values()),
+                positive_by_owner={o:int((self.eligible_validation.get(o,(None,np.empty(0,dtype=int)))[1]==c).sum()) for o in owners},
+                observed_negative_classes=sorted(observed),unobserved_negative_classes=sorted(seen_classes-{c}-observed),
+                future_unseen_classes=list(range(min(6*(task+1),34),34)))
+            if not sum(negative_counts.values()):failures.append(f'CLASS_{c}_NO_NEGATIVE_VALIDATION')
         for k in current:
             _,y=self.eligible_validation.get(self.entries[k]['donor'],(None,np.empty(0,dtype=int)))
-            if int((y==k[1]).sum())<32:failures.append(f'CLASS_{k[1]}_POSITIVE_COUNT')
+            n=int((y==k[1]).sum());evidence_counts[k[1]]['required_donor_positive']=n
+            if not n:failures.append(f'CLASS_{k[1]}_NO_POSITIVE_VALIDATION')
         if failures:
             for k in keys:self.status[arm][k]='DEFERRED' if k in current else 'SUSPENDED'
             return dict(receiver=receiver,arm=arm,outcome='DEFERRED',failures=sorted(set(failures)),
-                        evidence='existing native local validation',CAL_opened=False)
+                        evidence='existing native local validation',evidence_counts=evidence_counts,
+                        independent_confirmation=False,CAL_opened=False)
         engines={k[1]:self.engines[arm][k] for k in keys}
         for k in current:self.thresholds[arm][k]=.5
         thresholds=[self.thresholds[arm][k] for k in keys]
@@ -160,7 +170,8 @@ class OriginalTrainService(FullCoverageService):
             self._wire(arm,'native_validation_reference',dict(reference=reference,lock=lock,
                 experts=states),owner==receiver)
             x,y=self.eligible_validation[owner]
-            native=base_predictions(models[receiver],detectors[receiver],x,list(range(min(6*(task+1),34))))
+            native=(base_predictions(models[receiver],detectors[receiver],x,list(range(min(6*(task+1),34))))
+                    if len(y) else np.empty(0,dtype=np.int64))
             pred,activation=fuse(native,score_matrix(engines,classes,x),thresholds,classes)
             old=native==y;new=pred==y;nb=int((old&~new).sum());nr=int((~old&new).sum())
             rescue+=nr;broken+=nb;collisions+=int((activation>1).sum());targets={}
@@ -171,7 +182,13 @@ class OriginalTrainService(FullCoverageService):
                            for label in sorted(set(y.tolist())) if label!=c}
                 if any(v['fp']/v['n']>.001 for v in per_class.values()):failures.append(f'OWNER_{owner}_CLASS_{c}_FAR')
                 if k in current and owner==self.entries[k]['donor'] and hits/max(1,n)<.95:failures.append(f'CLASS_{c}_RECALL')
-                targets[c]=dict(positive=n,hits=hits,per_negative_class=per_class)
+                negative=int((y!=c).sum());fp=int(((pred==c)&(y!=c)).sum())
+                targets[c]=dict(positive=n,hits=hits,recall=hits/n if n else None,
+                    negative=negative,false_activations=fp,observed_far=fp/negative if negative else None,
+                    negative_evidence_status='OBSERVED' if negative else 'UNKNOWN_NO_SAMPLES',
+                    per_negative_class=per_class,
+                    unobserved_negative_classes=sorted(seen_classes-{c}-set(per_class)),
+                    future_unseen_classes=list(range(min(6*(task+1),34),34)))
             rows[owner]=dict(rows=len(y),rescue=nr,break_count=nb,targets=targets)
             self._wire(arm,'native_validation_receipt',dict(owner=owner,result=rows[owner]),owner==receiver)
         if current and rescue<=broken:failures.append('NO_NET_GAIN')
@@ -180,10 +197,16 @@ class OriginalTrainService(FullCoverageService):
             self.status[arm][k]=('REJECTED' if k in current else 'SUSPENDED') if failures else 'ACTIVE'
             if not failures:self.certificates[arm][k]=dict(sha256=lock['hashes'][str(k[1])],
                 threshold=self.thresholds[arm][k],input_sha256=self.spec['input_sha256'],task=task,
-                scope='Observed existing native local validation; not independent CAL; historical unseen risk UNKNOWN')
+                acceptance_type='empirical_validation_acceptance',statistical_safety_certificate=False,
+                evidence_counts=evidence_counts[k[1]],
+                unobserved_negative_classes=sorted(seen_classes-{k[1]}-{int(label) for owner in rows.values() for label in owner['targets'][k[1]]['per_negative_class']}),
+                future_unseen_classes=list(range(min(6*(task+1),34),34)),
+                scope='Observed native validation only; zero-sample owner/classes UNKNOWN; not statistical safety certification')
         return dict(task=task,receiver=receiver,arm=arm,outcome=outcome,failures=sorted(set(failures)),
                     rescue=rescue,break_count=broken,collisions=collisions,owners=rows,lock=lock,
-                    evidence='existing native local validation',independent_confirmation=False,CAL_opened=False)
+                    evidence='existing native local validation',evidence_counts=evidence_counts,
+                    acceptance_type='empirical_validation_acceptance',statistical_safety_certificate=False,
+                    independent_confirmation=False,CAL_opened=False)
 
     def evaluation_data(self,receiver,task):
         if task!=self.task:raise ValueError('Historical validation access forbidden')
@@ -204,6 +227,8 @@ class OriginalTrainService(FullCoverageService):
         path=Path(self.spec['output_dir'])/'candle_v4_development_report.json'
         report=json.loads(path.read_text(encoding='utf-8'))
         report.update(data_protocol=VERSION,external_roles_created=False,shadow_native_models=0,
+                      acceptance_type='empirical_validation_acceptance',statistical_safety_certificate=False,
+                      validation_count_policy='No 32-sample cutoff; nonempty donor positives and pooled negatives per expert',
                       expert_arms=list(self.arms),validation_scope='current task native local validation only',
                       baseline='native V1 counterfactual from same original-TRAIN backbone; no second model',
                       forgetting_status='Not measured: no historical validation replay or intermediate TEST')

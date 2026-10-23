@@ -24,7 +24,7 @@ ARMS = ('coverage', 'no_aux', 'donor_only')
 
 class FullCoverageService:
     def __init__(self, spec, saved=None, authority=None):
-        if spec['version'] not in (VERSION, 'candle_v4_original_train_v1') or spec['seed'] != 42:
+        if spec['version'] not in (VERSION, 'candle_v4_original_train_empirical_gate_v2') or spec['seed'] != 42:
             raise ValueError('Unregistered full development protocol')
         self.spec = deepcopy(spec)
         self.arms = tuple(spec.get('arms', ARMS))
