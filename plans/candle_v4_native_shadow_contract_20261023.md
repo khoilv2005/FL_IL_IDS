@@ -1,6 +1,9 @@
 # CANDLE V4 — contract cho native shadow integration tiếp theo
 
-Trạng thái: specification, chưa implement native hook. Kết quả P1 nằm tại
+Trạng thái: bounded native hook đã triển khai và chạy 20 rounds; xem
+[receipt native shadow](../docs/CANDLE_V4_NATIVE_SHADOW_20261023_VI.md).
+On/off và resume exact; chưa kiểm tra native task transition hoặc ACTIVE.
+Phần dưới giữ contract thiết kế. Kết quả P1 nằm tại
 `docs/CANDLE_V4_POSITIVE_NEGATIVE_PILOT_20261023_VI.md`. Chưa mở CAL, ACTIVE hoặc full.
 
 ## Điểm gắn vào V1

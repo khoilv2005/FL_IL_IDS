@@ -1,5 +1,9 @@
 # CANDLE V4 — ý tưởng Round-wise Complementary Expert Learning
 
+**Trạng thái hiện tại:** [native DRAFT integration](../docs/CANDLE_V4_NATIVE_SHADOW_20261023_VI.md)
+đã hoàn thành bounded 20-round pilot, on/off và resume exact. Chưa mở CAL/TEST/ACTIVE/full.
+Phần dưới giữ diễn tiến thiết kế gốc; các câu “chưa implement” mô tả mốc trước extension.
+
 Tiến độ mới: [matched positive–negative pilot](../docs/CANDLE_V4_POSITIVE_NEGATIVE_PILOT_20261023_VI.md)
 đã chạy ở tools, native integration chưa triển khai. Contract bước kế tiếp:
 `plans/candle_v4_native_shadow_contract_20261023.md`.

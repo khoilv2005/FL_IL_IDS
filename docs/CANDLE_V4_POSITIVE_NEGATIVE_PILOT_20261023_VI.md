@@ -1,5 +1,9 @@
 # CANDLE V4 — matched positive/negative aggregation pilot
 
+Cập nhật native integration: [bounded 20-round DRAFT pilot](CANDLE_V4_NATIVE_SHADOW_20261023_VI.md)
+đã hoàn thành; on/off và resume exact. Kết quả hiện chỉ chứng minh giảm false activation,
+chưa vượt donor-only hoặc matched end-task về endpoint accuracy; chưa mở CAL/TEST/ACTIVE.
+
 ## Quyết định
 
 **Có tín hiệu đóng góp của receiver-negative gradients vượt donor-only threshold control

@@ -1244,6 +1244,7 @@ def _build_denice_continuation_state(
     replay_memories=None,
     appliance_service=None,
     row_overlay=None,
+    v4_shadow=None,
     round_state=None,
     clients=None,
 ) -> Dict[str, Any]:
@@ -1284,6 +1285,7 @@ def _build_denice_continuation_state(
         "rng_state": _snapshot_rng_state(),
         "local_replay_states": {int(cid): memory.state_dict()
                                 for cid, memory in (replay_memories or {}).items()},
+        "candle_v4_shadow_state": v4_shadow.state_dict() if v4_shadow else None,
         "appliance_service_state": appliance_service.state_dict() if appliance_service else None,
         "round_state": _resume_clone(round_state),
         "client_runtime_states": {int(cid): {'grad_scaler': client._nice_grad_scaler.state_dict()}
@@ -1337,7 +1339,7 @@ def _load_denice_continuation_state(path: str) -> Dict[str, Any]:
                 type(next_round) is not int or not 1 <= next_round <= int(state['config']['rounds_per_task']) or
                 not isinstance(active, list) or active != sorted(set(active)) or
                 not set(active).issubset(state['client_ids']) or
-                not state.get('appliance_service_state') or
+                not (state.get('appliance_service_state') or state.get('config', {}).get('candle_v4_native_fixture')) or
                 int(meta['resume_from_task']) != int(meta['completed_task']) + 1):
             raise ValueError('Incomplete or inconsistent round-boundary continuation')
         for field in ('canc_plans', 'ref_data', 'ref_labels', 'previous_valid_cluster',
@@ -2677,6 +2679,13 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             (resume_state or {}).get('appliance_service_state'))
     elif (resume_state or {}).get('appliance_service_state'):
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
+    v4_shadow = None
+    if config.get('candle_v4_shadow'):
+        from fed_learning.training.candle_v4_shadow import ShadowService
+        v4_shadow = ShadowService(config['candle_v4_shadow'],
+                                  (resume_state or {}).get('candle_v4_shadow_state'))
+    elif (resume_state or {}).get('candle_v4_shadow_state'):
+        raise ValueError('Cannot silently disable a resumed V4 draft bank')
     round_resume = (resume_state or {}).get('round_state')
     if round_resume:
         for key in ('rounds_per_task', 'batch_size', 'nice_phase_epochs', 'denice_max_train_samples_per_client',
@@ -2711,6 +2720,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             "client_data": {},
         }
         for cid in data_loader.get_all_client_ids():
+            if config.get('candle_v4_native_fixture') and cid not in config['candle_v4_native_fixture']['client_ids']:
+                continue
             X, y = data_loader.get_client_data(cid, task_id)
             if (
                 denice_max_train_samples_per_client is not None
@@ -3375,6 +3386,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     models, context_detectors, clients, active_ids, cluster_summary,
                     _seen_classes(data_loader, task_id))
 
+            if v4_shadow:
+                cluster_summary['candle_v4_shadow'] = v4_shadow.after_round(
+                    task_id, round_id, models, context_detectors, clients, active_ids, cluster_summary)
+
             round_record = {
                 "task": task_id,
                 "round": round_id,
@@ -3728,7 +3743,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                           f"global_cluster_K=N/A (internal sentinel=1), peers={cluster_summary.get('training_peer_count_stats')}",
                           flush=True)
 
-            if appliance_service:
+            if appliance_service or config.get('candle_v4_native_fixture'):
                 # Full resume state every round; retain a single atomic latest
                 # copy. Existing delta artifacts preserve earlier round models
                 # without multiplying full federation continuation disk usage.
@@ -3746,12 +3761,13 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     old_ref_loss_baselines=old_ref_loss_baselines, last_active_task=last_active_task,
                     history=history, cluster_history=cluster_history, adapter_history=adapter_history,
                     debug_history=debug_history, replay_memories=replay_memories,
-                    appliance_service=appliance_service, round_state=boundary, clients=clients)
+                    appliance_service=appliance_service, v4_shadow=v4_shadow, round_state=boundary, clients=clients)
                 temporary = os.path.join(output_dir, 'continuation_state_latest.pt.tmp')
                 torch.save(state, temporary)
                 os.replace(temporary, os.path.join(output_dir, 'continuation_state_latest.pt'))
                 del state
-                if config.get('appliance_smoke_stop_after_round') == [task_id, round_id]:
+                if (config.get('appliance_smoke_stop_after_round') == [task_id, round_id] or
+                        config.get('candle_v4_stop_after_round') == [task_id, round_id]):
                     return dict(output_dir=output_dir, smoke_stopped=True, task=task_id, round=round_id)
 
             if appliance_probe and appliance_probe.round_finished(task_id,round_id,rounds_per_task,models,
@@ -4138,6 +4154,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 replay_memories=replay_memories,
                 appliance_service=appliance_service,
                 row_overlay=appliance,
+                v4_shadow=v4_shadow,
                 clients=clients,
             )
             continuation_path = os.path.join(
