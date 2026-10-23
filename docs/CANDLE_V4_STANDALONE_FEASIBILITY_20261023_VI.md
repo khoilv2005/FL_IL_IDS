@@ -1,5 +1,8 @@
 # CANDLE V4 — standalone expert feasibility và ReachableCoverage
 
+Cập nhật: đã có [positive–negative aggregation pilot](CANDLE_V4_POSITIVE_NEGATIVE_PILOT_20261023_VI.md)
+và coverage qua đủ 20 graph snapshots; kết quả standalone dưới đây giữ nguyên.
+
 ## Kết luận
 
 **Có bằng chứng capacity cho MLP 39→64→1 trên ca được thử. Chưa có deployment PASS.**
