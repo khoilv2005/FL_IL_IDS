@@ -9,3 +9,8 @@ fed_learning/training/denice_eval.py -text
 
 # Keep the V3 fork byte-identical to its pinned V1 source snapshot.
 /candle_v3_runtime/** -text
+
+# Smoke receipts are byte-locked by the V3 runtime manifest.
+/artifacts/candle_v3_direct_fc2_native_smoke_20261023.json -text
+/artifacts/candle_v3_direct_fc2_structural_smoke_20261023.json -text
+/artifacts/candle_v3_direct_fc2_smoke_20261023.json -text

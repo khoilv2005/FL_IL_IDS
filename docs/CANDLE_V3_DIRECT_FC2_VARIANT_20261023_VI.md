@@ -1,6 +1,8 @@
 # CANDLE V3 — Variant A: Direct FC2 Transfer
 
-Trạng thái: đã viết code variant A, chưa chạy tests/smoke/training/evaluation.
+Trạng thái cập nhật: variant A đã PASS 27 structural tests và 80 native checks.
+Chưa có natural install hoặc benchmark Accuracy/Macro-F1. Xem
+[smoke receipt](CANDLE_V3_DIRECT_FC2_SMOKE_20261023_VI.md).
 V1 giữ nguyên. Variant C `receiver_head_learning` vẫn giữ riêng, không tự fallback
 từ A sang C sau khi nhìn CAL.
 
@@ -90,5 +92,5 @@ receiver evidence phù hợp, quyết định phải là UNKNOWN, không tự ch
 - Notebook hiện tại vẫn pin baseline clone; chưa cập nhật full-run notebook khi
   chưa có native smoke/restore receipt.
 
-Source manifest đã được cập nhật, nhưng chưa có execution receipt. Chưa kết luận
-copy head thành công, cải thiện accuracy hoặc tiết kiệm communication toàn hệ thống.
+Source manifest đã bind execution receipts. Engineering smoke PASS, chưa kết luận
+transfer thực tế thành công, cải thiện accuracy hoặc tiết kiệm communication toàn hệ thống.

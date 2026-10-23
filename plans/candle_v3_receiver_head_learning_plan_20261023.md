@@ -9,6 +9,8 @@ Các yêu cầu bên dưới vẫn là protocol mục tiêu; chưa phải mọi 
 Cập nhật ưu tiên theo đề xuất tiếp theo: thêm **variant A Direct FC2** và thử trước
 variant C học head. Hai cơ chế giữ config/method identity riêng, không fallback
 theo kết quả CAL. Xem [Direct FC2 contract](../docs/CANDLE_V3_DIRECT_FC2_VARIANT_20261023_VI.md).
+Smoke A đã PASS correctness, chưa có install tự nhiên: xem
+[smoke receipt](../docs/CANDLE_V3_DIRECT_FC2_SMOKE_20261023_VI.md).
 
 Nguồn yêu cầu: `C:\Users\khoak\Downloads\candle v3.txt`, đã đọc toàn bộ.
 Bản nền: runtime V1 riêng tại `candle_v3_runtime/`, source gốc

@@ -1,0 +1,55 @@
+{
+  "schema": "candle_v3_direct_fc2_smoke_summary_v1",
+  "engineering_status": "PASS",
+  "effectiveness_status": "NOT_ESTABLISHED",
+  "source_sha256": "283d8e9a5725435bc27eee28d893c1a6d0a951cc4bc599f36a5070652554b870",
+  "structural_tests": {
+    "passed": 27,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "native_checks": {
+    "passed": 80,
+    "total": 80,
+    "tasks": [
+      0,
+      1
+    ],
+    "rounds_per_task": 1,
+    "real_optimizer_steps": 6,
+    "max_resume_parameter_difference": 0.0
+  },
+  "controlled_install_count": 1,
+  "natural_install_count": 0,
+  "native_session_statuses": {
+    "SKIP": 2,
+    "INCOMPATIBLE": 1
+  },
+  "real_candidate": {
+    "receiver": 30,
+    "donor": 9,
+    "target_class": 3,
+    "task": 0,
+    "status": "INCOMPATIBLE",
+    "donor_active_fc1_coordinates": 40,
+    "receiver_unprotected_active_coordinates": 8
+  },
+  "communication": {
+    "raw_fp32_row_bytes": 1028,
+    "serialized_row_message_bytes": 1689,
+    "native_receiver_reference_bytes": 6314442,
+    "native_total_wire_not_measured": true
+  },
+  "test_dataset_accessed": false,
+  "full_training_executed": false,
+  "variant_C_validated": false,
+  "elapsed_seconds": {
+    "structural": 5.598423100000218,
+    "native": 17.975082800000564
+  },
+  "receipts": {
+    "structural": "artifacts/candle_v3_direct_fc2_structural_smoke_20261023.json",
+    "native": "artifacts/candle_v3_direct_fc2_native_smoke_20261023.json"
+  }
+}

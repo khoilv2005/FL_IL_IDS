@@ -45,6 +45,9 @@ def main():
     manifest = json.loads((root / 'runtime_manifest.json').read_text(encoding='utf-8'))
     if manifest['stage'] != 'peer_teaching_implementation':
         raise ValueError('Unsupported CANDLE V3 runtime stage')
+    validation_status = (manifest['native_quality_status']
+        if args.direct_fc2 and manifest.get('validated_variant') == 'direct_fc2'
+        else 'UNVALIDATED_FOR_THIS_PROFILE')
     for entry in manifest['files']:
         if hashlib.sha256((root / entry['path']).read_bytes()).hexdigest() != entry['sha256']:
             raise ValueError('Locked V3 source changed: ' + entry['path'])
@@ -116,7 +119,7 @@ def main():
     write_json(output / 'candle_v3_protocol.json', dict(
         experiment='CANDLE V3', stage='transfer_implementation' if args.peer_teaching or args.direct_fc2 else 'v1_baseline',
         peer_teaching_enabled=args.peer_teaching, direct_fc2_enabled=args.direct_fc2,
-        validation_status=manifest['native_quality_status'],
+        validation_status=validation_status,
         supporting_source_commit=code_ref, historical_reference=origin,
         baseline_source_commit=manifest['baseline_source_commit'],
         runtime_manifest_sha256=file_sha256(root / 'runtime_manifest.json'),
@@ -134,7 +137,7 @@ def main():
                       DENICE_TRAIN_PHASE='5', DENICE_CODE_DIR=str(root), DENICE_SEED='42',
                       DENICE_OUTPUT_DIR=str(output), DENICE_CONFIG_OVERRIDES=json.dumps(config))
     print(f'CANDLE V3: native V1 aggregation; peer_teaching={args.peer_teaching}; '
-          f'direct_fc2={args.direct_fc2}; implementation has not been smoke validated.', flush=True)
+          f'direct_fc2={args.direct_fc2}; validation_status={validation_status}.', flush=True)
     print('Fresh T0..T5; 20 rounds/task; seed42; batch2048; xi=.8; binary_cosine; AMP.', flush=True)
     print('Historical BASE split; no replay, APPLIANCE, CGoFed or CME.', flush=True)
     print('One GPU; checkpoint each round; seal one ZIP/task; output budget 12 GiB.', flush=True)

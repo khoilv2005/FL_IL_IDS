@@ -139,6 +139,20 @@ def validate_clean_training_config(config):
               'denice_cl_method':method,'denice_require_label_overlap':True,
               'denice_collab_use_context_edges':True}
     integration_smoke = bool(config.get('appliance_integration_smoke', False))
+    candle_smoke = bool(config.get('candle_v3_integration_smoke', False))
+    if candle_smoke:
+        teaching = config.get('candle_v3_teaching', {})
+        if (integration_smoke or not teaching.get('enabled') or teaching.get('transfer_mode') != 'direct_fc2'
+                or protocol != 'legacy_multiclass' or config.get('appliance_enabled')
+                or config.get('denice_appliance_enabled')
+                or config.get('denice_evaluation_data_role') != 'validation'
+                or config.get('denice_post_task_eval') or config.get('denice_eval_final_round')
+                or int(config.get('task_end', 5)) > 1
+                or not 1 <= int(config.get('rounds_per_task', 20)) <= 2
+                or not 1 <= int(config.get('denice_max_clients', 100)) <= 2
+                or not 1 <= int(config.get('denice_max_train_samples_per_client', 0)) <= 256):
+            raise ValueError('CANDLE V3 smoke is limited to two clients/tasks/rounds, current roles and unopened TEST')
+        required['denice_amp_enabled'] = False  # explicit bounded FP32 correctness run
     if integration_smoke:
         if (not config.get('appliance_enabled') or protocol != 'legacy_multiclass' or
                 config.get('denice_evaluation_data_role') != 'validation' or
@@ -154,9 +168,9 @@ def validate_clean_training_config(config):
             raise ValueError('Legacy protocol disables experimental plasticity and residual heads')
     if not config.get('denice_clean_roles_dir'):raise ValueError('Clean data-role manifest required')
     start=int(config.get('task_start',0))
-    if (not integration_smoke and int(config.get('task_end',5))!=5) or not 0<=start<=5 or (start!=0 and not config.get('resume_state_path')):
+    if (not (integration_smoke or candle_smoke) and int(config.get('task_end',5))!=5) or not 0<=start<=5 or (start!=0 and not config.get('resume_state_path')):
         raise ValueError('Clean run must start fresh at task 0 or resume a matching clean task-boundary state')
-    if not integration_smoke and (config.get('denice_max_train_samples_per_client') or config.get('denice_max_clients') not in (None,100)):
+    if not (integration_smoke or candle_smoke) and (config.get('denice_max_train_samples_per_client') or config.get('denice_max_clients') not in (None,100)):
         raise ValueError('Bounded smoke configuration is not the clean main run')
     roles=CleanRoleData(config['denice_clean_roles_dir'],source_data_dir=config.get('data_dir'))
     config['denice_data_roles_sha256']=file_sha256(roles.root/'role_manifest.json')

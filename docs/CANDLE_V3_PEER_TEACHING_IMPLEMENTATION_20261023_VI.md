@@ -2,6 +2,8 @@
 
 Cập nhật: có thêm [variant A Direct FC2](CANDLE_V3_DIRECT_FC2_VARIANT_20261023_VI.md)
 để ưu tiên thử trước. Nội dung head-learning dưới đây mô tả variant C riêng biệt.
+Variant A đã có [engineering smoke receipt](CANDLE_V3_DIRECT_FC2_SMOKE_20261023_VI.md);
+variant C vẫn chưa được smoke.
 
 ## Trạng thái
 
