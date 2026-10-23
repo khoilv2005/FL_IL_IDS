@@ -1,5 +1,9 @@
 # CANDLE V3 — smoke học head trên encoder receiver
 
+**Full training HOLD:** xem [audit sâu](CANDLE_V3_RECEIVER_HEAD_DEBUG_20261023_VI.md).
+Người dùng yêu cầu ổn định chất lượng trước khi chạy full; smoke kỹ thuật dưới đây
+không còn được dùng như điều kiện đủ để đề nghị full training.
+
 ## Kết luận
 
 Engineering smoke PASS; hiệu quả transfer chưa được chứng minh. Không chạy full training local.

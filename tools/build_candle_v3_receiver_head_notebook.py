@@ -23,6 +23,9 @@ def main():
         '"--peer-teaching", "--data-dir", DATA_DIR, "--output", OUTPUT_DIR, "--roles", ROLES_DIR]')
     markdown = '''# CANDLE V3 — learn head on the receiver encoder
 
+**FULL TRAINING: HOLD pending deeper real-data debugging.** Engineering smoke passed;
+the only natural trial did not qualify. This notebook is retained for a later locked run.
+
 Variant C: frozen receiver encoder, head-only updates from current donor and receiver BASE.
 Donor data stays at its owner. The receiver aggregates compatible head deltas, builds
 receiver-space router sketches and commits only after current CAL acceptance.
@@ -36,6 +39,8 @@ This notebook explicitly passes `--peer-teaching`; it does not copy donor FC2 ro
 - Same native V1 paper neighborhoods (xi=0.8), binary_cosine router and backbone as Direct FC2.
 - Same original V1 roles: BASE 80%, FIT 8%, CAL 2%, validation 10% of original TRAIN.
   Each task uses only current data; no historical raw-data replay.
+  The inherited native learner also holds out 10% within current BASE for local validation;
+  teaching BASE comes from the resulting client training subset.
 - After task finalization: at most 2 donors / 3 targets per receiver, 8 head aggregation
   rounds at lr 0.01; a separate donor-only control also runs 8 rounds. Backbone stays frozen
   within each teaching session. Current BASE/FIT/CAL budgets are unchanged.
