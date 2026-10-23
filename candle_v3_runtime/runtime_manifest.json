@@ -716,18 +716,23 @@
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/communication.py",
-      "bytes": 2172,
-      "sha256": "84b04b248f7dc2b980d1cd7af850780eb385204db38478e35b3d64759f875a27"
+      "bytes": 2183,
+      "sha256": "90f23f6d4b0828351437a5f3863448c110b1bb180ca6065e06639f9a08518c70"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/contracts.py",
-      "bytes": 3999,
-      "sha256": "66a31691e9c1d840e1fc0dad12b1507754076b9f18803b83e7a0a5b11d036512"
+      "bytes": 4222,
+      "sha256": "209ec002dd565995363beec56422bd05022edd0062a9df5079adf5380ff2d940"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/data.py",
       "bytes": 2768,
       "sha256": "fd246e55a049ba566a04764d6f93d0eda9382de61591e8b81f8171ecc65cf199"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/candle_v3/direct_fc2.py",
+      "bytes": 7792,
+      "sha256": "2361629614d6152f7eb3f966a3fb5d59eacedef95d4e46d6814e12951c4a6353"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/discovery.py",
@@ -756,8 +761,8 @@
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/service.py",
-      "bytes": 12123,
-      "sha256": "6b97e4eb6dad2f4ab90690d9c6589f70ae27f3c9178d95b84c25b94650a6db2a"
+      "bytes": 18752,
+      "sha256": "3b4c0c7054f9f9b1d3a3a4faa6490fdd3da3755189de6beaf67a40ff18e28c71"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/snapshot.py",
@@ -766,8 +771,8 @@
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/transaction.py",
-      "bytes": 4511,
-      "sha256": "8836a6251a344d596d4b9cbc40ebc4f0efe5b9b1c15f2443fb094042e086915d"
+      "bytes": 4652,
+      "sha256": "2c5d5568fde0159cd79a9f5e2f0352d86861d45f21d24bc584f1fc11a3bba667"
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/verification.py",
@@ -1106,8 +1111,8 @@
     },
     {
       "path": "fed_learning/training/decentralized_denice_il.py",
-      "bytes": 216086,
-      "sha256": "24b113cb4706812e96005e822c086104a422ebbe68c55bac19a92f0afc980fc5"
+      "bytes": 216159,
+      "sha256": "06a138815e7c6c7b4b8517590f70a1df655af503f7d06c1200dac2597a1cd8f1"
     },
     {
       "path": "fed_learning/training/decentralized_plexus_il.py",
@@ -1151,8 +1156,8 @@
     },
     {
       "path": "fed_learning/training/denice_run_audit.py",
-      "bytes": 2217,
-      "sha256": "042d3fb58740921ac008561a963a6ee4faf98182b2bc7392536287255374d657"
+      "bytes": 2456,
+      "sha256": "22e8a7a5caab8147dbd06c00c93cd884eb988870e2e8173f0901449b48bdd721"
     },
     {
       "path": "fed_learning/training/denice_usage.py",
@@ -1925,6 +1930,10 @@
     },
     {
       "path": "fed_learning/strategies/decentralized/candle_v3/data.py",
+      "change": "added"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/candle_v3/direct_fc2.py",
       "change": "added"
     },
     {

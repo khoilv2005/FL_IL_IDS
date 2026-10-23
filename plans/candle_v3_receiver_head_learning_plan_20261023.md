@@ -6,6 +6,10 @@ Cập nhật triển khai: đã viết modules P0/P1/P2 và task-end hook, chưa
 Xem [implementation receipt](../docs/CANDLE_V3_PEER_TEACHING_IMPLEMENTATION_20261023_VI.md).
 Các yêu cầu bên dưới vẫn là protocol mục tiêu; chưa phải mọi gate đã được kiểm chứng.
 
+Cập nhật ưu tiên theo đề xuất tiếp theo: thêm **variant A Direct FC2** và thử trước
+variant C học head. Hai cơ chế giữ config/method identity riêng, không fallback
+theo kết quả CAL. Xem [Direct FC2 contract](../docs/CANDLE_V3_DIRECT_FC2_VARIANT_20261023_VI.md).
+
 Nguồn yêu cầu: `C:\Users\khoak\Downloads\candle v3.txt`, đã đọc toàn bộ.
 Bản nền: runtime V1 riêng tại `candle_v3_runtime/`, source gốc
 `a9714ac96b3ecec3910985d6fda8224b1584b570`.

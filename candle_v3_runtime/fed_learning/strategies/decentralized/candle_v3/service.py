@@ -30,7 +30,7 @@ def _available_detector(reference, targets):
 
 
 def run_task_teaching(*, config, task, models, detectors, active_ids, data, seen_classes,
-                      preprocessing_sha256, output_dir, device, allowed_edges):
+                      preprocessing_sha256, output_dir, device, allowed_edges, native_neighbors=None):
     settings = TeachingConfig.from_config(config)
     if not settings.enabled:
         return dict(enabled=False)
@@ -39,6 +39,8 @@ def run_task_teaching(*, config, task, models, detectors, active_ids, data, seen
         raise ValueError('Teaching graph must explicitly declare every active receiver')
     if any(set(peers)-set(ids) for peers in allowed_edges.values()):
         raise ValueError('Teaching graph includes undeclared peers')
+    if settings.transfer_mode == 'direct_fc2' and native_neighbors is None:
+        raise ValueError('Direct FC2 requires the actual native neighborhood, not sentinel cluster labels')
     # Task-boundary checkpoints persist completed sessions. A partial task is
     # replayed from its previous boundary; in-session resume is not claimed.
     saved_wire = [event for owner in ids for event in state(models[owner], owner)['wire_events']
@@ -61,11 +63,14 @@ def run_task_teaching(*, config, task, models, detectors, active_ids, data, seen
         try:
             local = announcements[receiver]
             peers = {}
-            for donor in sorted(set(allowed_edges[receiver]) - {receiver}):
+            eligible_peers = set(allowed_edges[receiver]) - {receiver}
+            if settings.transfer_mode == 'direct_fc2':
+                eligible_peers &= set(native_neighbors.get(receiver, native_neighbors.get(str(receiver), [])))
+            for donor in sorted(eligible_peers):
                 peers[donor] = ledger.transmit(donor, receiver, 'announcement', announcements[donor])
             eligible = sorted(c for peer in peers.values() for c in peer.current_classes
                               if c not in local.current_classes and models[receiver].unit_ranks['fc2'][c] == 0)
-            selection = select_teachers(receiver, {receiver:local, **peers}, allowed_edges[receiver],
+            selection = select_teachers(receiver, {receiver:local, **peers}, eligible_peers,
                                         eligible, max_donors=settings.max_donors,
                                         max_targets=settings.max_targets)
             if not selection.targets:
@@ -73,7 +78,7 @@ def run_task_teaching(*, config, task, models, detectors, active_ids, data, seen
                 record['completed_tasks'].append(int(task))
                 continue
             receipt = _session(receiver, selection, models, detectors, data, task, seen_classes,
-                               preprocessing_sha256, settings, ledger, device)
+                               preprocessing_sha256, settings, ledger, device, announcements)
             receipts.append(receipt)
             record = state(models[receiver], receiver)
             record['completed_tasks'].append(int(task))
@@ -102,13 +107,15 @@ def run_task_teaching(*, config, task, models, detectors, active_ids, data, seen
 
 
 def _session(receiver, selection, models, detectors, data, task, seen_classes,
-             preprocessing_sha256, settings, ledger, device):
+             preprocessing_sha256, settings, ledger, device, announcements):
     reference = freeze_receiver(models[receiver], detectors[receiver], receiver, task, preprocessing_sha256, device)
     targets, donors = list(selection.targets), list(selection.donors)
     participants = [receiver]+donors
-    session_id = digest(dict(reference=asdict(reference.identity), targets=targets, donors=donors))
+    session_id = digest(dict(reference=asdict(reference.identity), targets=targets, donors=donors,
+                             settings=asdict(settings)))
     base = dict(receiver=receiver, task=task, session_id=session_id, targets=targets, donors=donors,
-                snapshot=asdict(reference.identity), scope='observed current CAL only')
+                snapshot=asdict(reference.identity), scope='observed current CAL only',
+                transfer_mode=settings.transfer_mode)
     if not reference.detector.binarize_thresholds:
         return dict(base, status='UNKNOWN', reason='Receiver router thresholds are not initialized')
     if not np.any(reference.model.unit_ranks['fc1'] >= 2):
@@ -134,6 +141,9 @@ def _session(receiver, selection, models, detectors, data, task, seen_classes,
         # Do not train already-functional classes or select a fallback using CAL.
         return dict(base, status='REGISTRATION_GAP',
                     reason='Availability-only already meets recall for at least one target; no weight trial')
+    if settings.transfer_mode == 'direct_fc2':
+        return _direct_session(base, reference, selection, models, detectors, data, seen_classes,
+                               settings, ledger, announcements)
     panels, sketches = [], []
     for owner in participants:
         x,y = data.get(owner, 'base', task=task, per_class=settings.base_per_class)
@@ -159,6 +169,90 @@ def _session(receiver, selection, models, detectors, data, task, seen_classes,
                       router_only=(reference.model, staged_router),
                       mask_only=(mask_only_model, staged_router),
                       donor_only=(donor_model, staged_router), full=(full_model, staged_router))
+    return _verify_and_commit(base, reference, conditions, staged_router, participants, data,
+        seen_classes, settings, ledger, models, detectors,
+        training_details=dict(head_training=full['history'], donor_only_training=donor_only['history']))
+
+
+def _direct_session(base, reference, selection, models, detectors, data, seen_classes,
+                    settings, ledger, announcements):
+    from .direct_fc2 import export_row, aggregate_rows, RowCompatibilityError
+    receiver, task = base['receiver'], base['task']
+    targets, donors = base['targets'], base['donors']
+    packets, quality, quality_evidence = [], {}, {}
+    event_start = len(ledger.events)
+    for donor in donors:
+        donor_targets = [c for c in targets if c in announcements[donor].current_classes]
+        local_seen = getattr(models[donor], 'candle_v3_state', {}).get('local_seen', {}).get(str(task), {})
+        if any(local_seen.get(str(c), {}).get('positive_optimizer_rounds', 0) <= 0
+               or models[donor].unit_ranks['fc2'][c] < 2 for c in donor_targets):
+            return dict(base, status='UNKNOWN', reason='Selected donor lacks current trained/mature row evidence')
+        x,y = data.get(donor, 'fit', task=task, per_class=settings.fit_per_class)
+        prediction,_ = predict(models[donor], detectors[donor], x, seen_classes=seen_classes,
+                                batch_size=settings.batch_size)
+        labels = y.numpy()
+        evidence = {c:dict(n=int((labels==c).sum()), correct=int(((labels==c)&(prediction==c)).sum()))
+                    for c in donor_targets}
+        evidence = ledger.transmit(donor, receiver, 'verification_receipt',
+                                    dict(role='donor_native_FIT_quality', counts=evidence))['counts']
+        quality_evidence[donor] = evidence
+        for c in donor_targets:
+            if evidence[c]['n'] < settings.min_fit_positive:
+                return dict(base, status='UNKNOWN', reason='Insufficient donor quality FIT',
+                            donor_quality=quality_evidence)
+            # Native ranking is not a final transfer eligibility gate. For one
+            # donor no averaging weight is needed; for multiple use measured quality.
+            quality[(donor,c)] = evidence[c]['correct']/max(evidence[c]['n'],1)
+            packet = export_row(models[donor], donor=donor, task=task, class_id=c,
+                                announcement=announcements[donor])
+            packets.append(ledger.transmit(donor, receiver, 'fc2_row', packet))
+    if len(donors) == 1:
+        quality = {(donors[0],c):1. for c in targets}
+    elif any(q <= 0 for q in quality.values()):
+        return dict(base, status='UNKNOWN', reason='No positive quality weight for multi-donor aggregation',
+                    donor_quality=quality_evidence)
+    try:
+        imported = aggregate_rows(reference, targets, packets, quality=quality)
+    except RowCompatibilityError as exc:
+        return dict(base, status='INCOMPATIBLE', reason=str(exc), donor_quality=quality_evidence)
+    sketches = []
+    participants = [receiver]+donors
+    for owner in participants:
+        x,y = data.get(owner, 'base', task=task, per_class=settings.base_per_class)
+        if not len(y):
+            continue
+        packet = receiver_sketches(reference, x, y, owner, batch_size=settings.batch_size,
+                                   per_class=settings.sketch_per_class)
+        if owner != receiver:
+            packet = ledger.transmit(owner, receiver, 'router_sketches', packet)
+        sketches.append(packet)
+    staged_router = stage_router(reference, targets, sketches)
+    full_model = stage_head(reference, imported)
+    row_index = torch.as_tensor(targets, device=reference.model.fc2.weight.device)
+    initial = torch.cat([reference.model.fc2.weight.detach().index_select(0,row_index).cpu(),
+                         reference.model.fc2.bias.detach().index_select(0,row_index).cpu().unsqueeze(1)],dim=1)
+    mask_only = stage_head(reference, dict(imported, head=initial))
+    available = _available_detector(reference, targets)
+    conditions = dict(availability_only=(reference.model, available),
+                      router_only=(reference.model, staged_router),
+                      mask_only=(mask_only, staged_router),
+                      direct_native_router=(full_model, available),
+                      full=(full_model, staged_router))
+    details = dict(optimizer_steps=0, head_training=[], donor_only_training=[],
+        receiver_row_weight=0., native_neighborhood_only=True, row_provenance=imported['provenance'],
+        donor_quality=quality_evidence,
+        raw_row_parameter_bytes=sum(len(p['row_fp32']) for p in packets),
+        packed_row_mask_bytes=sum(len(p['weight_mask'])+1 for p in packets),
+        serialized_row_message_bytes=sum(e['bytes'] for e in ledger.events[event_start:] if e['kind']=='fc2_row'),
+        communication_note='Reference for FIT/CAL and receiver-space sketches remains counted; row payload is not total traffic')
+    return _verify_and_commit(base, reference, conditions, staged_router, participants, data,
+        seen_classes, settings, ledger, models, detectors, training_details=details)
+
+
+def _verify_and_commit(base, reference, conditions, staged_router, participants, data,
+                       seen_classes, settings, ledger, models, detectors, *, training_details):
+    receiver, task = base['receiver'], base['task']
+    targets, session_id = base['targets'], base['session_id']
     metrics = {name:{} for name in conditions}
     # Deduplicate CAL content across participants before counting pooled evidence.
     used = set()
@@ -178,10 +272,14 @@ def _session(receiver, selection, models, detectors, data, task, seen_classes,
         if owner != receiver:
             # Receiver reference is already cached at this peer; send only the candidate changes.
             ledger.transmit(receiver, owner, 'verification_request', dict(session_id=session_id,
-                snapshot=asdict(reference.identity), full_head=full['head'], donor_head=donor_only['head'],
-                targets=targets, permissions=full['permissions'], router=staged_router,
+                snapshot=asdict(reference.identity), candidate_rows={name:dict(weight=model.fc2.weight[targets].detach().cpu(),
+                    bias=model.fc2.bias[targets].detach().cpu(),
+                    masks=model.weight_masks['fc2'][targets].detach().cpu(),
+                    bias_masks=model.bias_masks['fc2'][targets].detach().cpu())
+                    for name,(model,_route) in conditions.items()},
+                targets=targets, router=staged_router,
                 unique_cal_rows=keep,
-                protocol='five locked conditions including mask-only; current CAL only'))
+                protocol='locked conditions including mask-only; current CAL only'))
         local_receipt = {}
         for name,(model,route) in conditions.items():
             prediction,episodes = predict(model, route, x, seen_classes=seen_classes, batch_size=settings.batch_size)
@@ -191,9 +289,10 @@ def _session(receiver, selection, models, detectors, data, task, seen_classes,
         for name,row in local_receipt.items():
             metrics[name][owner] = row
     decision = acceptance(metrics['full'], metrics, config=settings, receiver=receiver, targets=targets)
-    receipt = dict(base, **decision, controls=metrics,
-                   head_training=full['history'], donor_only_training=donor_only['history'],
-                   fit_role='FIT discovery only', training_role='current BASE only', acceptance_role='current CAL only')
+    receipt = dict(base, **decision, controls=metrics, **training_details,
+                   fit_role='FIT discovery only',
+                   training_role=('none; current BASE used for router sketches only' if base['transfer_mode']=='direct_fc2'
+                                  else 'current BASE only'), acceptance_role='current CAL only')
     if receipt['status'] == 'PASS':
-        commit(models[receiver], detectors[receiver], reference, full_model, staged_router, owner=receiver, receipt=receipt)
+        commit(models[receiver], detectors[receiver], reference, conditions['full'][0], staged_router, owner=receiver, receipt=receipt)
     return receipt

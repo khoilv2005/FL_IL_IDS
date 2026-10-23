@@ -5,11 +5,12 @@ def method_manifest(config):
     overlay = bool(config.get('denice_appliance_enabled', False))
     service = bool(config.get('appliance_enabled', False))
     teaching = bool(config.get('candle_v3_teaching', {}).get('enabled', False))
+    transfer_mode = config.get('candle_v3_teaching', {}).get('transfer_mode', 'receiver_head_learning')
     if teaching and (overlay or service):
         raise ValueError('CANDLE V3 teaching cannot be combined with APPLIANCE implementations')
     if overlay and service:
         raise ValueError('Choose only one APPLIANCE implementation')
-    method = ('candle_v3_peer_teaching' if teaching else
+    method = (('candle_v3_direct_fc2' if transfer_mode == 'direct_fc2' else 'candle_v3_peer_teaching') if teaching else
               'row_overlay' if overlay else 'appliance_service' if service else 'denice_base')
     expected = config.get('denice_expected_method')
     if expected is not None and expected != method:
@@ -17,6 +18,7 @@ def method_manifest(config):
     return {
         'effective_method': method,
         'candle_v3_teaching_enabled': teaching,
+        'candle_v3_transfer_mode': transfer_mode if teaching else None,
         'denice_appliance_enabled': overlay,
         'appliance_enabled': service,
         'denice_router_mode': config.get('denice_router_mode', 'binary_cosine'),

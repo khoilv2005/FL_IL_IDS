@@ -3919,7 +3919,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     preprocessing_sha256=digest(dict(metadata=data_loader.roles.manifest['metadata_sha256'],
                         input_shape=config['input_shape'], feature_contract='original_preprocessed_input_v1')),
                     output_dir=output_dir, device=device,
-                    allowed_edges={cid:sorted(set(active_ids)-{cid}) for cid in active_ids})
+                    allowed_edges={cid:sorted(set(active_ids)-{cid}) for cid in active_ids},
+                    native_neighbors=cluster_summary.get('groups', {}))
             finally:
                 role_view.close()
             history.setdefault('candle_v3_teaching', []).append(teaching_report)

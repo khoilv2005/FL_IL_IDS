@@ -18,8 +18,9 @@ def stage_head(reference, fitted):
                 raise ValueError('Target row is already allocated/protected')
             model.fc2.weight[c].copy_(phi[index,:-1].to(model.fc2.weight))
             model.fc2.bias[c].copy_(phi[index,-1].to(model.fc2.bias))
-            model.weight_masks['fc2'][c].copy_(permission.to(model.weight_masks['fc2']))
-            model.bias_masks['fc2'][c] = 1
+            coordinate_mask = permission[index] if permission.ndim == 2 else permission
+            model.weight_masks['fc2'][c].copy_(coordinate_mask.to(model.weight_masks['fc2']))
+            model.bias_masks['fc2'][c] = fitted.get('bias_masks', [1]*len(targets))[index]
             model.unit_ranks['fc2'][c] = 2
     update_freeze_masks(model)
     return model

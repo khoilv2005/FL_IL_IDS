@@ -34,8 +34,11 @@ def main():
     parser.add_argument('--roles', required=True,
                         help='Existing locked V1 roles, or an empty directory to prepare them')
     parser.add_argument('--_runtime-worker', action='store_true', help=argparse.SUPPRESS)
-    parser.add_argument('--peer-teaching', action='store_true',
+    variant = parser.add_mutually_exclusive_group()
+    variant.add_argument('--peer-teaching', action='store_true',
                         help='Use the experimental V3 teaching implementation (not yet smoke validated)')
+    variant.add_argument('--direct-fc2', action='store_true',
+                        help='Direct trained FC2 row transfer (no head optimizer; unvalidated variant A)')
     args = parser.parse_args()
     repository = Path(__file__).resolve().parents[1]
     root = repository / 'candle_v3_runtime'
@@ -46,15 +49,17 @@ def main():
         if hashlib.sha256((root / entry['path']).read_bytes()).hexdigest() != entry['sha256']:
             raise ValueError('Locked V3 source changed: ' + entry['path'])
     baseline = json.loads((root / 'configs/candle_v1.json').read_text(encoding='utf-8'))
-    profile = 'candle_v3_peer_teaching.json' if args.peer_teaching else 'candle_v3.json'
+    profile = ('candle_v3_direct_fc2.json' if args.direct_fc2 else
+               'candle_v3_peer_teaching.json' if args.peer_teaching else 'candle_v3.json')
     requested = json.loads((repository / 'configs' / profile).read_text(encoding='utf-8'))
     path_keys = {'output_dir', 'resume_output_dir', 'denice_clean_roles_dir'}
-    if args.peer_teaching:
+    if args.peer_teaching or args.direct_fc2:
         path_keys |= {'candle_v3_teaching', 'denice_expected_method'}
     if ({k:v for k,v in baseline.items() if k not in path_keys} !=
             {k:v for k,v in requested.items() if k not in path_keys}):
         raise ValueError('V3 must retain the V1 baseline protocol outside declared teaching changes')
-    expected_method = 'candle_v3_peer_teaching' if args.peer_teaching else 'denice_base'
+    expected_method = ('candle_v3_direct_fc2' if args.direct_fc2 else
+                       'candle_v3_peer_teaching' if args.peer_teaching else 'denice_base')
     if requested.get('denice_expected_method') != expected_method:
         raise ValueError('Profile has an incorrect method identity')
     if not args._runtime_worker:
@@ -64,6 +69,8 @@ def main():
             '--output', str(Path(args.output).resolve()), '--roles', str(Path(args.roles).resolve())]
         if args.peer_teaching:
             command.append('--peer-teaching')
+        if args.direct_fc2:
+            command.append('--direct-fc2')
         subprocess.check_call(command, cwd=root, env=env)
         return
     # All original absolute imports resolve to this private fork in a fresh process.
@@ -107,8 +114,9 @@ def main():
     code_ref = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
     output.mkdir(parents=True, exist_ok=True)
     write_json(output / 'candle_v3_protocol.json', dict(
-        experiment='CANDLE V3', stage='peer_teaching_implementation' if args.peer_teaching else 'v1_baseline',
-        peer_teaching_enabled=args.peer_teaching, validation_status=manifest['native_quality_status'],
+        experiment='CANDLE V3', stage='transfer_implementation' if args.peer_teaching or args.direct_fc2 else 'v1_baseline',
+        peer_teaching_enabled=args.peer_teaching, direct_fc2_enabled=args.direct_fc2,
+        validation_status=manifest['native_quality_status'],
         supporting_source_commit=code_ref, historical_reference=origin,
         baseline_source_commit=manifest['baseline_source_commit'],
         runtime_manifest_sha256=file_sha256(root / 'runtime_manifest.json'),
@@ -126,7 +134,7 @@ def main():
                       DENICE_TRAIN_PHASE='5', DENICE_CODE_DIR=str(root), DENICE_SEED='42',
                       DENICE_OUTPUT_DIR=str(output), DENICE_CONFIG_OVERRIDES=json.dumps(config))
     print(f'CANDLE V3: native V1 aggregation; peer_teaching={args.peer_teaching}; '
-          'V3 implementation has not been smoke validated.', flush=True)
+          f'direct_fc2={args.direct_fc2}; implementation has not been smoke validated.', flush=True)
     print('Fresh T0..T5; 20 rounds/task; seed42; batch2048; xi=.8; binary_cosine; AMP.', flush=True)
     print('Historical BASE split; no replay, APPLIANCE, CGoFed or CME.', flush=True)
     print('One GPU; checkpoint each round; seal one ZIP/task; output budget 12 GiB.', flush=True)

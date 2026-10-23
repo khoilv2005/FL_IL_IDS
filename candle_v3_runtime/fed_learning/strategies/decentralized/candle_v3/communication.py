@@ -15,7 +15,7 @@ class WireLedger:
     bytes_sent: int = 0
 
     def transmit(self, sender, receiver, kind, message):
-        if kind not in {'announcement', 'receiver_reference', 'head_reference', 'head_delta',
+        if kind not in {'announcement', 'receiver_reference', 'head_reference', 'head_delta', 'fc2_row',
                         'router_sketches', 'verification_request', 'verification_receipt'}:
             raise ValueError('Unknown application message kind')
         if int(sender) == int(receiver):

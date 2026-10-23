@@ -1,5 +1,8 @@
 # CANDLE V3 — triển khai peer teaching lần đầu
 
+Cập nhật: có thêm [variant A Direct FC2](CANDLE_V3_DIRECT_FC2_VARIANT_20261023_VI.md)
+để ưu tiên thử trước. Nội dung head-learning dưới đây mô tả variant C riêng biệt.
+
 ## Trạng thái
 
 Đã viết các module P0/P1/P2 và hook vào cuối task của private runner V3.
