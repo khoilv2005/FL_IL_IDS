@@ -2691,7 +2691,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
     v4_shadow = None
     if config.get('candle_v4_full_service'):
-        if config['candle_v4_full_service'].get('version') == 'candle_v4_original_train_empirical_gate_v2':
+        if config['candle_v4_full_service'].get('version') == 'candle_v4_full_train_provisional_v3':
             from fed_learning.training.candle_v4_original_train import OriginalTrainService
             service_type = OriginalTrainService
         else:

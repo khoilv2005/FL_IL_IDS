@@ -24,7 +24,7 @@ ARMS = ('coverage', 'no_aux', 'donor_only')
 
 class FullCoverageService:
     def __init__(self, spec, saved=None, authority=None):
-        if spec['version'] not in (VERSION, 'candle_v4_original_train_empirical_gate_v2') or spec['seed'] != 42:
+        if spec['version'] not in (VERSION, 'candle_v4_full_train_provisional_v3') or spec['seed'] != 42:
             raise ValueError('Unregistered full development protocol')
         self.spec = deepcopy(spec)
         self.arms = tuple(spec.get('arms', ARMS))
@@ -171,10 +171,11 @@ class FullCoverageService:
             for arm in self.arms:
                 e=self.engines[arm][key]
                 receipt.append(dict(receiver=receiver,target=c,arm=arm,eligible=eligible,
-                                    updates=updated,steps=e.steps,pending=e.pending))
+                                    donor=donor,updates=updated,steps=e.steps,pending=e.pending))
         if before!=native_fingerprint(models,detectors):raise RuntimeError('V4 mutated native state')
         self.runtime+=time.perf_counter()-start
         row=dict(task=task,round=round_id,experts=receipt,bytes=dict(self.bytes),native_sha256=before,
+                 graph_sha256=digest(graph.get('alpha_debug',{})),
                  native_dense_payload_upper_bound=graph.get('dense_model_transfer_upper_bound_bytes'))
         self.history.append(row)
         print(f'CANDLE V4 T{task} R{round_id}: experts={len(self.entries)} updates={sum(r["updates"] for r in receipt)} bytes={dict(self.bytes)}',flush=True)

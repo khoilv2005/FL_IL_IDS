@@ -57,7 +57,7 @@ class TerminalTests(unittest.TestCase):
     def test_original_train_single_bank_and_native_only_terminal(self):
         from fed_learning.training.candle_v4_original_train import OriginalTrainService,VERSION
         for index,arms in enumerate((['coverage'],[])):
-            spec=dict(self.service.spec,version=VERSION,arms=arms,fixed_threshold=.5,
+            spec=dict(self.service.spec,version=VERSION,arms=arms,fixed_threshold=.5,activation_policy='training_only_unverified',
                       output_dir=str(Path(self.directory.name)/str(index)))
             Path(spec['output_dir']).mkdir()
             self.service=OriginalTrainService(spec);self.prepare_terminal()

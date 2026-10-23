@@ -67,6 +67,7 @@ def evaluate_terminal(service,models,detectors,task,round_id):
     if before!=native_fingerprint(models,detectors) or expert_before!=digest(service.state_dict()):
         raise RuntimeError('TEST evaluation mutated frozen native/expert state')
     result=dict(completed=True,task=5,round=19,after_consolidation=True,policy=POLICY,TEST_opened=True,
+        activation_policy=service.spec.get('activation_policy'),
         test_rows=expected,evaluated_rows=evaluated,classes=list(range(34)),receivers=ids,
         partition=partition,metrics={a:statistics(cm) for a,cm in cms.items()},per_client=per_client,
         rescue=rescue,break_count=broken,native_sha256=before,expert_state_sha256=expert_before,

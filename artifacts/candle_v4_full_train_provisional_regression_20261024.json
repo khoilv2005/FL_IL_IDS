@@ -1,0 +1,25 @@
+{
+  "protocol_version": "candle_v4_full_train_provisional_v3",
+  "tests": 8,
+  "passed": true,
+  "errors": 0,
+  "failures": 0,
+  "fixture": "synthetic full current-task TRAIN NPZ only",
+  "validation_read": false,
+  "roles_created": false,
+  "real_TEST_opened": false,
+  "full_training_started": false,
+  "related_regressions": {
+    "terminal_test": 3,
+    "legacy_service_checkpoint": 11,
+    "total_tests": 22,
+    "all_passed": true
+  },
+  "source_sha256": {
+    "candle_v4_runtime/configs/candle_v1.json": "9e06057eca9647932079687ca6242d46e1fe55f913c129a906c9b90ea2471622",
+    "candle_v4_runtime/fed_learning/training/candle_v4_original_train.py": "6d3016e2c50bd88cee791dd65e9f1ee2fadb63969c99f29eb570b4433d05966d",
+    "candle_v4_runtime/fed_learning/training/candle_v4_service.py": "a886a8dc9f7e22538496ce8975b9f0f64fb5b99ecb00feece5bbd574668937cf",
+    "candle_v4_runtime/tools/train_candle_v1.py": "397f3a38160c1ad206260bf5b9a2c6aca942ce9dafc24f19d1feaadffa7415ed",
+    "candle_v4_runtime/tools/train_candle_v4.py": "84f3959eb210cefd3bab3c4ce29a9abbc3fc9a271493de1de20e2285e503b3ea"
+  }
+}

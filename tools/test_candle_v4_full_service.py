@@ -160,7 +160,7 @@ class FullServiceTests(unittest.TestCase):
         self.assertIn('if appliance_service or v4_shadow or',code)
         self.assertIn("state.get('candle_v4_shadow_state')",code)
         launcher=(ROOT/'candle_v4_runtime/tools/train_candle_v4.py').read_text(encoding='utf-8')
-        self.assertIn("denice_evaluation_data_role='validation'",launcher)
+        self.assertIn('denice_validation_fraction=0.0',launcher)
         self.assertNotIn('run_legacy_self(',launcher)
 
     def test_task_archive_contains_expert_continuation_and_locks(self):
