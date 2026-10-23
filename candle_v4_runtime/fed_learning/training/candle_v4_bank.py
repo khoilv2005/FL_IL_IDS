@@ -182,8 +182,37 @@ class ExpertBank:
 
     def finish_task(self,task,models,detectors,clients,active_ids,graph):
         if task in self.gated_tasks: raise ValueError('Repeated CAL gate')
-        before=native_fingerprint(models,detectors); classes=sorted(self.engines)
+        classes=sorted(self.engines)
         birth=all(e['birth_task']==task for e in self.spec['experts'])
+        receiver=self.spec['receiver']
+        row=graph.get('alpha_debug',{}).get(receiver,graph.get('alpha_debug',{}).get(str(receiver),{}))
+        if len(row.get('group_ids',[]))!=len(row.get('alphas',[])):
+            raise ValueError('Malformed current gate graph')
+        peers={int(j) for j,a in zip(row.get('group_ids',[]),row.get('alphas',[]))
+               if int(j)!=receiver and np.isfinite(a) and a>0}
+        untrained=[c for c in classes if self.engines[c].steps<=0]
+        required={o for o in self.spec['owners'] if o!=receiver}
+        missing=sorted(required-peers)
+        terminal=None; reasons=[]
+        if birth and untrained:
+            terminal='DEFERRED_NO_AUTHORIZED_TRAINING'; reasons=[f'UNTRAINED_CLASS_{c}' for c in untrained]
+        elif not birth and not any(s in ('ACTIVE','PENDING_NEW_TASK') for s in self.status.values()):
+            terminal='SKIPPED_NO_ACTIVE_BANK'; reasons=['NO_PREVIOUSLY_ACCEPTED_BANK']
+        elif missing or not required.issubset(set(active_ids)):
+            terminal='DEFERRED_GATE_GRAPH_SCOPE'; reasons=[f'UNREACHABLE_CAL_OWNER_{o}' for o in missing]
+            if not reasons:reasons=['INACTIVE_REQUIRED_CAL_OWNER']
+        if terminal:
+            for c in classes:
+                if birth:self.status[c]='DEFERRED'
+                elif self.status[c] in ('ACTIVE','PENDING_NEW_TASK'):self.status[c]='SUSPENDED'
+            receipt=dict(task=task,outcome=terminal,birth_acceptance=birth,failures=reasons,
+                status=deepcopy(self.status),steps={c:self.engines[c].steps for c in classes},
+                current_peers=sorted(peers),FIT_opened=False,CAL_opened=False,bytes=self.bytes,
+                policy='Preflight only; no candidate/threshold search and no evidence retry')
+            self.gated_tasks.append(task); self.acceptances.append(receipt)
+            print(f'CANDLE V4 ACTIVE GATE T{task}: {terminal} {reasons}',flush=True)
+            return receipt
+        before=native_fingerprint(models,detectors)
         hashes={c:digest(self.engines[c].branches['joint_class_balanced'][0].state_dict()) for c in classes}
         if birth:
             for entry in self.spec['experts']:

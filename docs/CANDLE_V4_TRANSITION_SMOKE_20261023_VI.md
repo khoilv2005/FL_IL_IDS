@@ -8,6 +8,13 @@ chạy thêm fixture để tìm một kết quả PASS.
 
 Receipt: [artifacts/candle_v4_transition_20261023.json](../artifacts/candle_v4_transition_20261023.json).
 
+**Đã sửa sau audit:** gate trả `DEFERRED_NO_AUTHORIZED_TRAINING` khi draft chưa học;
+`DEFERRED_GATE_GRAPH_SCOPE` nếu required CAL owner ngoài current graph; sang task
+mới mà chưa có bank được chấp nhận thì `SKIPPED_NO_ACTIVE_BANK`. Các trường hợp
+này không mở FIT/CAL hoặc gửi packet. Sáu guard checks PASS trong
+[receipt preflight](../artifacts/candle_v4_gate_preflight_fix_20261023.json).
+Đây chỉ là kiểm tra guard, không phải chạy thêm native smoke hoặc chứng nhận ACTIVE.
+
 ## Thiết lập đã khóa
 
 - Client IDs `{8,16,18,30}`; receiver 18, declared donor 16, target classes 13 và 17.
@@ -106,12 +113,16 @@ không đổi optimizer, candidate, threshold hay CAL outcome. Source hashes tr�
 output fix được giữ trong receipt.
 
 ```powershell
+git checkout c313aa6f5a114a61f2cec9a345988a3f2a4a86e7
 python tools/run_candle_v4_transition.py --out audit_denice/new_v4_transition --mode prepare
 python tools/run_candle_v4_transition.py --out audit_denice/new_v4_transition --mode bank
 python tools/run_candle_v4_transition.py --out audit_denice/new_v4_transition --mode baseline
 python tools/run_candle_v4_transition.py --out audit_denice/new_v4_transition --mode summarize
 python tools/summarize_candle_v4_transition.py --out audit_denice/new_v4_transition
 ```
+
+Commit trên giữ code của smoke đã ghi. Main sau preflight fix sẽ defer fixture
+không đủ điều kiện trước CAL; không được gán kết quả CAL cũ cho code đã sửa.
 
 Không chạy thêm full smoke trong phiên này. Việc cần sửa trước một lần kiểm chứng
 ACTIVE tiếp theo là **preflight theo actual graph trước khi mở FIT/CAL**, và chọn
