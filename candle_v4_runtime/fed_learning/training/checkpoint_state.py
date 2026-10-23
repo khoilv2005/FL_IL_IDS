@@ -1,0 +1,321 @@
+"""Checkpoint state helpers for standalone evaluation."""
+
+from __future__ import annotations
+
+from collections import OrderedDict
+from typing import Any, Dict, Optional
+
+import numpy as np
+import torch
+
+
+CHECKPOINT_SCHEMA_VERSION = 2
+
+
+def _clone_value(value: Any) -> Any:
+    if isinstance(value, torch.Tensor):
+        return value.detach().cpu().clone()
+    if isinstance(value, np.ndarray):
+        return value.copy()
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, OrderedDict):
+        return OrderedDict((k, _clone_value(v)) for k, v in value.items())
+    if isinstance(value, dict):
+        return {k: _clone_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_clone_value(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_clone_value(v) for v in value)
+    if isinstance(value, set):
+        return {_clone_value(v) for v in value}
+    return value
+
+
+def snapshot_context_detector(context_detector: Any) -> Optional[Dict[str, Any]]:
+    if context_detector is None:
+        return None
+    return {
+        "memo_per_class": getattr(context_detector, "memo_per_class", 50),
+        "router_reference_per_class": getattr(
+            context_detector,
+            "router_reference_per_class",
+            getattr(context_detector, "memo_per_class", 50),
+        ),
+        "router_mode": getattr(context_detector, "router_mode", "chained"),
+        "retain_reference_inputs": bool(getattr(context_detector, 'retain_reference_inputs', True)),
+        "stable_feature_mask": _clone_value(getattr(context_detector, 'stable_feature_mask', None)),
+        "routing_feature_mask": _clone_value(getattr(context_detector, 'routing_feature_mask', None)),
+        "calibration_provenance": getattr(
+            context_detector, "calibration_provenance", None
+        ),
+        "activation_memory": _clone_value(
+            getattr(context_detector, "activation_memory", {})
+        ),
+        "reference_input_memory": _clone_value(
+            getattr(context_detector, "reference_input_memory", {})
+        ),
+        "context_masks": _clone_value(getattr(context_detector, "context_masks", {})),
+        "binarize_thresholds": _clone_value(
+            getattr(context_detector, "binarize_thresholds", None)
+        ),
+        "context_learners": list(getattr(context_detector, "context_learners", [])),
+        "multiclass_router": getattr(context_detector, "multiclass_router", None),
+        "multiclass_episodes": _clone_value(
+            getattr(context_detector, "multiclass_episodes", [])
+        ),
+        "episode_classes": _clone_value(
+            getattr(context_detector, "episode_classes", {})
+        ),
+        "router_state_fresh": bool(
+            getattr(context_detector, "router_state_fresh", False)
+        ),
+        "router_last_refresh_task": getattr(
+            context_detector, "router_last_refresh_task", None
+        ),
+        "router_last_refresh_round": getattr(
+            context_detector, "router_last_refresh_round", None
+        ),
+        "router_stale_reason": getattr(
+            context_detector, "router_stale_reason", None
+        ),
+    }
+
+
+def restore_context_detector(context_detector: Any, state: Optional[Dict[str, Any]]) -> None:
+    if context_detector is None or not state:
+        return
+    context_detector.memo_per_class = int(state.get("memo_per_class", 50))
+    context_detector.router_reference_per_class = int(
+        state.get("router_reference_per_class", context_detector.memo_per_class)
+    )
+    context_detector.router_mode = str(state.get("router_mode", "chained")).lower()
+    context_detector.retain_reference_inputs = bool(state.get('retain_reference_inputs', True))
+    context_detector.stable_feature_mask = _clone_value(state.get('stable_feature_mask'))
+    context_detector.routing_feature_mask = _clone_value(state.get('routing_feature_mask'))
+    context_detector.calibration_provenance = state.get("calibration_provenance")
+    context_detector.activation_memory = _clone_value(
+        state.get("activation_memory", {})
+    )
+    context_detector.reference_input_memory = _clone_value(
+        state.get("reference_input_memory", {})
+    )
+    context_detector.context_masks = _clone_value(state.get("context_masks", {}))
+    context_detector.binarize_thresholds = _clone_value(
+        state.get("binarize_thresholds")
+    )
+    context_detector.context_learners = list(state.get("context_learners", []))
+    context_detector.multiclass_router = state.get("multiclass_router")
+    context_detector.multiclass_episodes = [
+        int(ep) for ep in state.get("multiclass_episodes", [])
+    ]
+    context_detector.episode_classes = _clone_value(state.get("episode_classes", {}))
+    context_detector.router_state_fresh = bool(state.get("router_state_fresh", False))
+    context_detector.router_last_refresh_task = state.get("router_last_refresh_task")
+    context_detector.router_last_refresh_round = state.get("router_last_refresh_round")
+    context_detector.router_stale_reason = state.get(
+        "router_stale_reason",
+        None if context_detector.router_state_fresh else "checkpoint_missing_freshness_metadata",
+    )
+
+
+def snapshot_nice_state(model: Any, context_detector: Any = None) -> Dict[str, Any]:
+    state: Dict[str, Any] = {}
+    if model is not None and hasattr(model, "get_neuron_ages_state"):
+        state["neuron_ages"] = _clone_value(model.get_neuron_ages_state())
+    if model is not None and hasattr(model, "freeze_masks"):
+        state["freeze_masks"] = _clone_value(getattr(model, "freeze_masks", {}))
+    state["context_detector"] = snapshot_context_detector(context_detector)
+    return state
+
+
+def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str, Any]:
+    """Snapshot NICE state plus the DeNICE adapter registry metadata."""
+    state = snapshot_nice_state(model, context_detector)
+    if model is not None and hasattr(model, "get_masks_state"):
+        state["connection_masks"] = _clone_value(model.get_masks_state())
+    if model is not None:
+        imported=getattr(model,'appliance_guarded_head_entries',None)
+        if imported:
+            state['appliance_guarded_head_entries']=_clone_value(imported)
+        mature_profiles=getattr(model,'appliance_mature_profile_state',None)
+        if mature_profiles is not None:
+            state['appliance_mature_profile_state']=_clone_value(mature_profiles)
+        base_support=getattr(model,'appliance_base_support_moment_state',None)
+        if base_support is not None:
+            state['appliance_base_support_moment_state']=_clone_value(base_support)
+        shield=getattr(model,'appliance_base_sketch_shield_state',None)
+        if shield is not None:
+            state['appliance_base_sketch_shield_state']=_clone_value(shield)
+        scope=getattr(model,'appliance_runtime_scope',None)
+        if scope is not None:
+            state['appliance_runtime_scope']=_clone_value(scope)
+        imported_profiles=getattr(model,'appliance_imported_profile_state',None)
+        if imported_profiles is not None:
+            state['appliance_imported_profile_state']=_clone_value(imported_profiles)
+        state['local_classifier'] = _clone_value(getattr(model, 'local_classifier', None))
+        state['continual_width'] = int(getattr(model, 'continual_width', 0))
+        state['structural_protection'] = bool(getattr(model, 'structural_protection', False))
+        state['fixed_task_allocation'] = bool(getattr(model, 'fixed_task_allocation', False))
+        state['allocation_policy'] = getattr(model, 'allocation_policy', 'legacy_sequential')
+        state['capacity_per_class'] = _clone_value(getattr(model, 'capacity_per_class', {}))
+        state['adapter_mode'] = getattr(model, 'adapter_mode', 'legacy_output')
+        state['candle_state'] = _clone_value(getattr(model, 'candle_state', {}))
+        state['elastic_state'] = _clone_value(getattr(model, 'elastic_state', {}))
+        state['ewc_state'] = _clone_value(getattr(model, 'ewc_state', {}))
+        state['cgofed_projection_state'] = _clone_value(
+            getattr(model, 'cgofed_projection_state', None)
+        )
+        state['task_freeze_layers'] = list(getattr(model, 'task_freeze_layers', []))
+        state['pending_canc_plan'] = _clone_value(getattr(model, 'pending_canc_plan', None))
+        state["active_adapters"] = _clone_value(getattr(model, "active_adapters", {}))
+        state["bn_frozen_state"] = {
+            name: _clone_value(getattr(model, name, {}))
+            for name in (
+                "_bn_frozen_units", "_bn_running_mean_frozen", "_bn_running_var_frozen"
+            )
+        }
+    if model is not None and hasattr(model, "get_adapter_registry_state"):
+        state["adapter_registry"] = _clone_value(model.get_adapter_registry_state())
+        state["architecture_version"] = int(getattr(model, "architecture_version", 1))
+    if model is not None and hasattr(model, "get_recycling_state"):
+        state["recycling_registry"] = _clone_value(model.get_recycling_state())
+    return state
+
+
+def restore_denice_state(
+    model: Any, context_detector: Any, state: Optional[Dict[str, Any]]
+) -> None:
+    """Restore non-``state_dict`` DeNICE state after adapter reconstruction.
+
+    Callers must create adapters from ``adapter_registry`` before loading model
+    tensor weights.  NICE ranks/masks are Python/NumPy state rather than model
+    buffers, so restoring a tensor checkpoint alone is insufficient.
+    """
+    if model is None or not state:
+        return
+    imported=state.get('appliance_guarded_head_entries')
+    if imported:
+        model.appliance_guarded_head_entries=_clone_value(imported)
+    elif hasattr(model,'appliance_guarded_head_entries'):
+        delattr(model,'appliance_guarded_head_entries')
+        if hasattr(model,'imported_registry'):delattr(model,'imported_registry')
+    profiles=state.get('appliance_mature_profile_state')
+    if profiles is not None:
+        model.appliance_mature_profile_state=_clone_value(profiles)
+    elif hasattr(model,'appliance_mature_profile_state'):
+        delattr(model,'appliance_mature_profile_state')
+    base_support=state.get('appliance_base_support_moment_state')
+    if base_support is not None:
+        model.appliance_base_support_moment_state=_clone_value(base_support)
+    elif hasattr(model,'appliance_base_support_moment_state'):
+        delattr(model,'appliance_base_support_moment_state')
+    shield=state.get('appliance_base_sketch_shield_state')
+    if shield is not None:
+        model.appliance_base_sketch_shield_state=_clone_value(shield)
+    elif hasattr(model,'appliance_base_sketch_shield_state'):
+        delattr(model,'appliance_base_sketch_shield_state')
+    scope=state.get('appliance_runtime_scope')
+    if scope is not None:
+        model.appliance_runtime_scope=_clone_value(scope)
+    elif hasattr(model,'appliance_runtime_scope'):
+        delattr(model,'appliance_runtime_scope')
+    imported_profiles=state.get('appliance_imported_profile_state')
+    if imported_profiles is not None:
+        model.appliance_imported_profile_state=_clone_value(imported_profiles)
+    elif hasattr(model,'appliance_imported_profile_state'):
+        delattr(model,'appliance_imported_profile_state')
+    model.structural_protection = bool(state.get('structural_protection', False))
+    model.configure_continual_head(state.get('continual_width', 0))
+    model.fixed_task_allocation = bool(state.get('fixed_task_allocation', False))
+    model.allocation_policy = state.get('allocation_policy', 'legacy_sequential')
+    model.capacity_per_class = _clone_value(state.get('capacity_per_class', {}))
+    model.configure_adapter_mode(state.get('adapter_mode', 'legacy_output'))
+    model.architecture_version = int(state.get('architecture_version', model.architecture_version))
+    model.candle_state = _clone_value(state.get('candle_state', {}))
+    model.elastic_state = _clone_value(state.get('elastic_state', {}))
+    model.ewc_state = _clone_value(state.get('ewc_state', {}))
+    projection_state = state.get('cgofed_projection_state')
+    if projection_state is not None:
+        model.cgofed_projection_state = _clone_value(projection_state)
+    elif hasattr(model, 'cgofed_projection_state'):
+        delattr(model, 'cgofed_projection_state')
+    model.task_freeze_layers = list(state.get('task_freeze_layers', []))
+    model.pending_canc_plan = _clone_value(state.get('pending_canc_plan'))
+    adapter_registry = state.get("adapter_registry") or {}
+    for meta in adapter_registry.values():
+        if not hasattr(model, "add_adapter"):
+            break
+        layer_name = meta.get("layer_name")
+        context_id = meta.get("context_id")
+        if layer_name is not None and context_id is not None:
+            model.add_adapter(
+                int(context_id), str(layer_name), rank=meta.get("rank"), set_active=False,
+                mode=meta.get('mode', 'legacy_output'), architecture_version=meta.get('architecture_version', 1)
+            )
+    neuron_ages = state.get("neuron_ages")
+    if neuron_ages and hasattr(model, "set_neuron_ages_state"):
+        model.set_neuron_ages_state(_clone_value(neuron_ages))
+    if "freeze_masks" in state and hasattr(model, "freeze_masks"):
+        model.freeze_masks = _clone_value(state.get("freeze_masks") or {})
+    # Legacy checkpoints have no connection masks: do not invent a topology
+    # from ages or assume every stored zero was structurally pruned.
+    if "connection_masks" in state and hasattr(model, "set_masks_state"):
+        model.set_masks_state(_clone_value(state["connection_masks"]))
+    if "active_adapters" in state:
+        model.active_adapters = _clone_value(state["active_adapters"])
+    for name, value in (state.get("bn_frozen_state") or {}).items():
+        if name in {"_bn_frozen_units", "_bn_running_mean_frozen", "_bn_running_var_frozen"}:
+            setattr(model, name, _clone_value(value))
+    recycling = state.get("recycling_registry")
+    if recycling and hasattr(model, "set_recycling_state"):
+        model.set_recycling_state(_clone_value(recycling))
+    if model is not None:
+        model.local_classifier = _clone_value(state.get('local_classifier'))
+    restore_context_detector(context_detector, state.get("context_detector"))
+
+
+def snapshot_der_state(
+    model: Any,
+    task_classes_history: Optional[Dict[int, list]] = None,
+    config: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    current_task = getattr(model, "current_task", -1)
+    if current_task is None:
+        current_task = -1
+    return {
+        "task_classes_history": _clone_value(task_classes_history or {}),
+        "num_extractors": int(getattr(model, "num_extractors", 0) or 0),
+        "current_task": int(current_task),
+        "s_max": float(getattr(model, "_s_max", (config or {}).get("s_max", 15.0))),
+    }
+
+
+def build_algorithm_state(
+    algorithm: str,
+    *,
+    model: Any = None,
+    server: Any = None,
+    context_detector: Any = None,
+    task_classes_history: Optional[Dict[int, list]] = None,
+    config: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    algo = (algorithm or "").lower()
+    source_model = model if model is not None else getattr(server, "global_model", None)
+    if context_detector is None and server is not None:
+        context_detector = getattr(server, "context_detector", None)
+
+    state: Dict[str, Any] = {}
+    if algo == "nice":
+        state["nice"] = snapshot_nice_state(source_model, context_detector)
+    elif algo == "denice":
+        state["denice"] = snapshot_denice_state(source_model, context_detector)
+    elif algo in ("der", "rne", "rne_compress"):
+        if task_classes_history is None and server is not None:
+            task_classes_history = getattr(server, "_task_classes_history", {})
+        state[algo] = snapshot_der_state(
+            source_model,
+            task_classes_history=task_classes_history,
+            config=config,
+        )
+    return state
