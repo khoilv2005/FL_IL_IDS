@@ -2,6 +2,10 @@
 
 Ngày: 2026-10-23. Trạng thái: đề xuất triển khai, chưa thay thuật toán hoặc chạy thí nghiệm.
 
+Cập nhật triển khai: đã viết modules P0/P1/P2 và task-end hook, chưa chạy tests/smoke.
+Xem [implementation receipt](../docs/CANDLE_V3_PEER_TEACHING_IMPLEMENTATION_20261023_VI.md).
+Các yêu cầu bên dưới vẫn là protocol mục tiêu; chưa phải mọi gate đã được kiểm chứng.
+
 Nguồn yêu cầu: `C:\Users\khoak\Downloads\candle v3.txt`, đã đọc toàn bộ.
 Bản nền: runtime V1 riêng tại `candle_v3_runtime/`, source gốc
 `a9714ac96b3ecec3910985d6fda8224b1584b570`.

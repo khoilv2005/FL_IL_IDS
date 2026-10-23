@@ -1,5 +1,9 @@
 # CANDLE V3 — bản nền sao chép từ V1
 
+> Bản nền được giữ làm origin. Tiến độ triển khai tiếp theo nằm tại
+> [Peer Teaching Implementation](CANDLE_V3_PEER_TEACHING_IMPLEMENTATION_20261023_VI.md).
+> Runtime hiện đã có delta V3 và manifest riêng; notebook baseline vẫn pin bản clone.
+
 ## Phạm vi hoàn thành
 
 Tạo nhánh runtime riêng cho CANDLE V3 từ đúng source commit mà notebook V1 đang pin:

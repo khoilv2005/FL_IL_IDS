@@ -2310,6 +2310,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     """Run DeNICE with decentralized capsule clustering and age-aware aggregation."""
     from fed_learning.strategies.decentralized.denice_appliance import ApplianceProtocol
     appliance = ApplianceProtocol(config) if config.get("denice_appliance_enabled", False) else None
+    from fed_learning.strategies.decentralized.candle_v3.contracts import TeachingConfig
+    teaching_controls = TeachingConfig.from_config(config)
     set_seed(config.get("random_seed", config.get("seed", 42)))
     output_dir = _resolve_output_dir(config, "decentralized", "denice")
     os.makedirs(output_dir, exist_ok=True)
@@ -2382,6 +2384,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             if float(previous_config.get('denice_similarity_threshold',0.5))!=config['denice_similarity_threshold']:
                 raise ValueError('Fresh training required to change denice_similarity_threshold; resume must retain the original xi')
         saved_config = resume_state.get("config") or {}
+        if TeachingConfig.from_config(saved_config) != teaching_controls:
+            raise ValueError('Cannot change CANDLE V3 teaching protocol while resuming')
         saved_allocation = saved_config.get('denice_allocation_policy', 'legacy_sequential')
         if config.get('denice_allocation_policy', saved_allocation) != saved_allocation:
             raise ValueError('Fresh training required to change denice_allocation_policy.')
@@ -3065,6 +3069,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 client.setup_for_gpu(model, str(device))
                 model.local_classifier = None
                 client_train_start = time.time()
+                teaching_successful_classes = set()
+                def teaching_after_step(_inputs, labels, _outputs):
+                    teaching_successful_classes.update(int(c) for c in labels.detach().cpu().unique().tolist())
                 result = client.train(
                     trainer=trainer,
                     epochs=max(1, int(config.get("nice_phase_epochs", 1))),
@@ -3081,6 +3088,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                     local_replay=(replay_memories.setdefault(cid, make_replay())
                                   if replay_config.capacity else None),
                     **imbalance_controls,
+                    **({'after_optimizer_step': teaching_after_step} if teaching_controls.enabled else {}),
                     **(appliance_service.training_hooks(cid, model) if appliance_service else
                        appliance_probe.training_hooks(cid,model) if appliance_probe else {}),
                 )
@@ -3093,6 +3101,10 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         'client_id': int(cid), **result['cgofed_projection'],
                     })
                 health = optimizer_health(result)
+                if teaching_controls.enabled:
+                    from fed_learning.strategies.decentralized.candle_v3.knowledge import record_local_update
+                    record_local_update(model, cid, task_id, client.y_train,
+                        result.get('optimizer_steps', 0), successful_classes=teaching_successful_classes)
                 _append_jsonl(os.path.join(output_dir, 'optimizer_health.jsonl'),
                               {'task': task_id, 'round': round_id, 'client_id': int(cid), **health})
                 optimizer_health(result, fail_on_zero=bool(config.get('denice_fail_on_zero_update', False)))
@@ -3890,6 +3902,28 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                                               clients[cid].X_train, clients[cid].y_train, task_id,
                                               router_replay_controls, seed=int(config.get('seed', 42)) + cid)
                 history.setdefault('router_replay', []).append({'task': task_id, 'client_id': cid, **audit})
+
+        if teaching_controls.enabled:
+            if not hasattr(data_loader, 'roles'):
+                raise ValueError('CANDLE V3 teaching requires locked current-task roles')
+            from fed_learning.strategies.decentralized.candle_v3.data import CurrentTaskRoles
+            from fed_learning.strategies.decentralized.candle_v3.service import run_task_teaching
+            from fed_learning.strategies.decentralized.candle_v3.snapshot import digest
+            role_view = CurrentTaskRoles(data_loader.roles, task_id, data_loader.get_task_classes(task_id),
+                {cid:(clients[cid].X_train, clients[cid].y_train) for cid in active_ids},
+                int(config.get('random_seed', 42)))
+            try:
+                teaching_report = run_task_teaching(config=config, task=task_id, models=models,
+                    detectors=context_detectors, active_ids=active_ids, data=role_view,
+                    seen_classes=_seen_classes(data_loader, task_id),
+                    preprocessing_sha256=digest(dict(metadata=data_loader.roles.manifest['metadata_sha256'],
+                        input_shape=config['input_shape'], feature_contract='original_preprocessed_input_v1')),
+                    output_dir=output_dir, device=device,
+                    allowed_edges={cid:sorted(set(active_ids)-{cid}) for cid in active_ids})
+            finally:
+                role_view.close()
+            history.setdefault('candle_v3_teaching', []).append(teaching_report)
+            task_final_round_eval_metrics = None
 
         if appliance_probe:
             appliance_probe.observe('task_finalized',models,context_detectors,task_id,rounds_per_task-1,active_ids)

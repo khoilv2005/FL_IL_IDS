@@ -135,6 +135,8 @@ def snapshot_denice_state(model: Any, context_detector: Any = None) -> Dict[str,
     if model is not None and hasattr(model, "get_masks_state"):
         state["connection_masks"] = _clone_value(model.get_masks_state())
     if model is not None:
+        if getattr(model, 'candle_v3_state', None) is not None:
+            state['candle_v3_state'] = _clone_value(model.candle_v3_state)
         imported=getattr(model,'appliance_guarded_head_entries',None)
         if imported:
             state['appliance_guarded_head_entries']=_clone_value(imported)
@@ -194,6 +196,10 @@ def restore_denice_state(
     """
     if model is None or not state:
         return
+    if 'candle_v3_state' in state:
+        model.candle_v3_state = _clone_value(state['candle_v3_state'])
+    elif hasattr(model, 'candle_v3_state'):
+        delattr(model, 'candle_v3_state')
     imported=state.get('appliance_guarded_head_entries')
     if imported:
         model.appliance_guarded_head_entries=_clone_value(imported)

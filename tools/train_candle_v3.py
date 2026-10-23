@@ -1,4 +1,4 @@
-"""CANDLE V3 baseline clone: isolated V1 runtime; no new peer-selection algorithm yet."""
+"""Isolated CANDLE V3 launcher; peer teaching is an explicit experimental opt-in."""
 import argparse
 import gc
 import hashlib
@@ -34,27 +34,37 @@ def main():
     parser.add_argument('--roles', required=True,
                         help='Existing locked V1 roles, or an empty directory to prepare them')
     parser.add_argument('--_runtime-worker', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--peer-teaching', action='store_true',
+                        help='Use the experimental V3 teaching implementation (not yet smoke validated)')
     args = parser.parse_args()
     repository = Path(__file__).resolve().parents[1]
     root = repository / 'candle_v3_runtime'
-    manifest = json.loads((root / 'v1_clone_manifest.json').read_text(encoding='utf-8'))
-    if manifest['stage'] != 'v1_clone' or manifest['source_changes'] != 0:
-        raise ValueError('This launcher is the unchanged V1 clone stage')
+    manifest = json.loads((root / 'runtime_manifest.json').read_text(encoding='utf-8'))
+    if manifest['stage'] != 'peer_teaching_implementation':
+        raise ValueError('Unsupported CANDLE V3 runtime stage')
     for entry in manifest['files']:
         if hashlib.sha256((root / entry['path']).read_bytes()).hexdigest() != entry['sha256']:
-            raise ValueError('V1 clone source changed: ' + entry['path'])
+            raise ValueError('Locked V3 source changed: ' + entry['path'])
     baseline = json.loads((root / 'configs/candle_v1.json').read_text(encoding='utf-8'))
-    requested = json.loads((repository / 'configs/candle_v3.json').read_text(encoding='utf-8'))
+    profile = 'candle_v3_peer_teaching.json' if args.peer_teaching else 'candle_v3.json'
+    requested = json.loads((repository / 'configs' / profile).read_text(encoding='utf-8'))
     path_keys = {'output_dir', 'resume_output_dir', 'denice_clean_roles_dir'}
+    if args.peer_teaching:
+        path_keys |= {'candle_v3_teaching', 'denice_expected_method'}
     if ({k:v for k,v in baseline.items() if k not in path_keys} !=
             {k:v for k,v in requested.items() if k not in path_keys}):
-        raise ValueError('Clone stage must retain V1 method and data protocol')
+        raise ValueError('V3 must retain the V1 baseline protocol outside declared teaching changes')
+    expected_method = 'candle_v3_peer_teaching' if args.peer_teaching else 'denice_base'
+    if requested.get('denice_expected_method') != expected_method:
+        raise ValueError('Profile has an incorrect method identity')
     if not args._runtime_worker:
         env = {**os.environ, 'PYTHONPATH': str(root)}
-        subprocess.check_call([sys.executable, '-u', str(Path(__file__).resolve()),
+        command = [sys.executable, '-u', str(Path(__file__).resolve()),
             '--_runtime-worker', '--data-dir', str(Path(args.data_dir).resolve()),
-            '--output', str(Path(args.output).resolve()), '--roles', str(Path(args.roles).resolve())],
-            cwd=root, env=env)
+            '--output', str(Path(args.output).resolve()), '--roles', str(Path(args.roles).resolve())]
+        if args.peer_teaching:
+            command.append('--peer-teaching')
+        subprocess.check_call(command, cwd=root, env=env)
         return
     # All original absolute imports resolve to this private fork in a fresh process.
     excluded = {repository.resolve(), (repository / 'tools').resolve()}
@@ -79,7 +89,7 @@ def main():
                           if os.environ.get(name)]
     if inherited_controls or os.environ.get('DENICE_CONFIG_ONLY') == '1':
         raise ValueError('Use a fresh session without inherited config/resume controls for frozen V1')
-    config_path = repository / 'configs/candle_v3.json'
+    config_path = repository / 'configs' / profile
     config = json.loads(config_path.read_text(encoding='utf-8'))
     origin = json.loads((repository / 'configs/candle_v3_provenance.json').read_text(encoding='utf-8'))
     if (roles_path / 'role_lock.json').is_file():
@@ -97,9 +107,11 @@ def main():
     code_ref = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
     output.mkdir(parents=True, exist_ok=True)
     write_json(output / 'candle_v3_protocol.json', dict(
-        experiment='CANDLE V3', stage='v1_clone', supporting_source_commit=code_ref, historical_reference=origin,
+        experiment='CANDLE V3', stage='peer_teaching_implementation' if args.peer_teaching else 'v1_baseline',
+        peer_teaching_enabled=args.peer_teaching, validation_status=manifest['native_quality_status'],
+        supporting_source_commit=code_ref, historical_reference=origin,
         baseline_source_commit=manifest['baseline_source_commit'],
-        runtime_manifest_sha256=file_sha256(root / 'v1_clone_manifest.json'),
+        runtime_manifest_sha256=file_sha256(root / 'runtime_manifest.json'),
         frozen_config_sha256=file_sha256(config_path),
         role_manifest_sha256=file_sha256(roles.root / 'role_manifest.json'),
         runtime=dict(python=sys.version, torch=str(torch.__version__),
@@ -113,7 +125,8 @@ def main():
     os.environ.update(DENICE_RUN_PROFILE='legacy', DENICE_VARIANT='legacy',
                       DENICE_TRAIN_PHASE='5', DENICE_CODE_DIR=str(root), DENICE_SEED='42',
                       DENICE_OUTPUT_DIR=str(output), DENICE_CONFIG_OVERRIDES=json.dumps(config))
-    print('CANDLE V3 stage=v1_clone: isolated V1 engine; peer selection unchanged.', flush=True)
+    print(f'CANDLE V3: native V1 aggregation; peer_teaching={args.peer_teaching}; '
+          'V3 implementation has not been smoke validated.', flush=True)
     print('Fresh T0..T5; 20 rounds/task; seed42; batch2048; xi=.8; binary_cosine; AMP.', flush=True)
     print('Historical BASE split; no replay, APPLIANCE, CGoFed or CME.', flush=True)
     print('One GPU; checkpoint each round; seal one ZIP/task; output budget 12 GiB.', flush=True)
