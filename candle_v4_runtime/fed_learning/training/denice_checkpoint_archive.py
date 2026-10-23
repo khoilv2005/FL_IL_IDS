@@ -56,6 +56,9 @@ def seal_task_archive(root,task_id,level=6,budget_gib=None):
     parts=sorted(p for p in root.glob(f'{prefix}*.zip') if p.name!=f'checkpoint_task_{task_id}_all_rounds.zip')
     extra=[root/f'checkpoint_task_{task_id}.pt',root/f'continuation_state_task_{task_id}.pt']
     extra=[p for p in extra if p.exists()]
+    if (root/'candle_v4_run_lock.json').exists():
+        extra += [root/'candle_v4_run_lock.json', *sorted((root/'v4_threshold_locks').glob('*.json')),
+                  *sorted((root/'v4_gate_journal').glob('*.pt'))]
     if not parts:raise ValueError('No archived round checkpoints to seal')
     target=root/f'checkpoint_task_{task_id}_all_rounds.zip';temporary=target.with_suffix('.zip.partial')
     if target.exists():raise FileExistsError(f'Refuse to overwrite sealed task {target}')
@@ -75,8 +78,8 @@ def seal_task_archive(root,task_id,level=6,budget_gib=None):
                     if '_round_' in name and not name.endswith('_base.pt'):
                         rounds.append(int(name.rsplit('_round_',1)[1].split('.')[0]))
         for path in extra:
-            with path.open('rb') as stream:checksums[path.name]=_digest(stream)
-            combined.write(path,path.name)
+            with path.open('rb') as stream:checksums[path.relative_to(root).as_posix()]=_digest(stream)
+            combined.write(path,path.relative_to(root).as_posix())
         if not rounds:raise ValueError('Task archive has no rounds')
         combined.writestr('checkpoint_archive_manifest.json',json.dumps(dict(task_id=task_id,checksums=checksums,
             completed_rounds=sorted(rounds),checkpoint=f'checkpoint_task_{task_id}_round_{max(rounds)}.pt',
@@ -90,7 +93,8 @@ def seal_task_archive(root,task_id,level=6,budget_gib=None):
             if int(record.get('task_id',-1))==int(task_id):
                 record.update(archive=target.name,member=record['path'])
         index_file.write_text(json.dumps(index,indent=2)+'\n',encoding='utf-8')
-    for path in parts+extra:path.unlink()
+    for path in parts+extra:
+        if path.suffix!='.json' and path.parent==root:path.unlink()
     storage_guard(root,budget_gib)
     print(f'Task {task_id} sealed: {target.name}; rounds={len(rounds)}, size={target.stat().st_size/2**30:.2f} GiB',flush=True)
     return target

@@ -1,0 +1,21 @@
+{
+  "tests": 11,
+  "failures": 0,
+  "errors": 0,
+  "real_CAL_opened": false,
+  "full_training_started": false,
+  "fixture": "synthetic-only",
+  "passed": true,
+  "full_native_profile_validated": true,
+  "role_manifest_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+  "real_data_access": "locked role manifest and dataset metadata only; no role samples",
+  "source_sha256": {
+    "candle_v4_runtime/fed_learning/training/candle_v4_service.py": "4156540731e058491702bd71428a321aa4648e1293199b9eb651f8720bab91a8",
+    "candle_v4_runtime/fed_learning/training/candle_v4_coverage.py": "6c32f17e89915ce0cadeda5c28e0883f02e695de46ab8567afe7ec52c8784eae",
+    "candle_v4_runtime/fed_learning/training/candle_v4_shadow.py": "14ac9fbedd0cb3e2114ad3a67ccf0f88edda432da7794121b60ed4eb87f4bee4",
+    "candle_v4_runtime/fed_learning/training/decentralized_denice_il.py": "91f0e5e27a5768d9a88f36ea4a510edd632ec2bdc0f9dcc81a9c002935a78662",
+    "candle_v4_runtime/fed_learning/training/denice_checkpoint_archive.py": "ad3d6bb7cf484e6f1bb2f40deede5aa403635f5465ba87dd52ff0647606593f9",
+    "candle_v4_runtime/tools/train_candle_v4.py": "4ad18aa1e2cc43065c217f81cf228da63f5b368b154a48d108a88eb31c84f72e",
+    "tools/test_candle_v4_full_service.py": "0be2f3b9b9699e0d4ab5d8bdca3ec147bbeb87de22dab410bca57947ad90ab87"
+  }
+}

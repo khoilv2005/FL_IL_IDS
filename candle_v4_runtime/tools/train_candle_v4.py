@@ -1,0 +1,84 @@
+"""Kaggle full CANDLE V4 development seed42; never auto-opens TEST."""
+import argparse
+import json
+import os
+from pathlib import Path
+import runpy
+import subprocess
+import sys
+import time
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--data-dir',required=True)
+    parser.add_argument('--roles',required=True)
+    parser.add_argument('--output',required=True)
+    parser.add_argument('--resume',help='Extracted continuation_state_latest.pt, same output/role authority')
+    args=parser.parse_args()
+    if not Path('/kaggle/working').is_dir():raise RuntimeError('Full training is Kaggle-only')
+    root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root))
+    import torch
+    from fed_learning.data.denice_clean_roles import CleanRoleData,file_sha256
+    from tools.prepare_denice_clean_roles import prepare
+    from tools.train_candle_v1 import resolve_data
+    from fed_learning.training.candle_v4_service import VERSION
+    if not torch.cuda.is_available():raise RuntimeError('Enable Kaggle GPU')
+    data=resolve_data(args.data_dir);roles=Path(args.roles).resolve();output=Path(args.output).resolve()
+    if roles==output or roles in output.parents or output in roles.parents:raise ValueError('Separate roles/output')
+    if not (roles/'role_lock.json').is_file():prepare(str(data),str(roles),20261006)
+    authority=CleanRoleData(roles,source_data_dir=data)
+    if authority.manifest['split_seed']!=20261006 or authority.manifest['requested_fractions']!={'base':.8,'fit':.08,'calibration':.02,'validation':.1}:
+        raise ValueError('V1 role split required for matched controls')
+    if not args.resume and output.exists() and any(output.iterdir()):raise ValueError('Fresh output required')
+    config=json.loads((root/'configs/candle_v1.json').read_text())
+    spec=dict(version=VERSION,seed=42,input_sha256=file_sha256(roles/'role_manifest.json'),
+              roles_dir=str(roles),data_dir=str(data),output_dir=str(output),
+              per_expert_bytes=128*1024**2,per_arm_bytes=64*1024**3)
+    config.update(data_dir=str(data),output_dir=str(output),resume_output_dir=str(output),
+                  denice_clean_roles_dir=str(roles),candle_v4_full_service=spec,
+                  denice_post_task_eval_tasks=[],denice_eval_final_round=False,
+                  denice_evaluation_data_role='validation',
+                  resume_state_path=str(Path(args.resume).resolve()) if args.resume else None)
+    source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
+    output.mkdir(parents=True,exist_ok=True)
+    lock=dict(version=VERSION,source_commit=source,seed=42,config=config,
+              protocol='Full development; quality rejection continues native run; no two-ACTIVE prerequisite',
+              evaluation='Cumulative VALIDATION after each task, disjoint receiver shards, pooled; TEST untouched',
+              controls=['isolated V1','V4 no auxiliary negatives','class-balanced donor-only'],
+              risk='Recall>=.95, observed per-owner/class FAR<=.001, break=0; historical unobserved risk UNKNOWN',
+              runtime=dict(python=sys.version,torch=str(torch.__version__),cuda=torch.version.cuda,gpu=torch.cuda.get_device_name(0)))
+    lock['resource_preflight']=dict(max_expert_count=100*34*3,
+        max_expert_parameter_bytes=100*34*3*2625*4,
+        max_adam_moment_bytes=100*34*3*2625*8,
+        serialized_wire_cap_per_arm=spec['per_arm_bytes'],
+        total_expert_wire_cap_all_controls=3*spec['per_arm_bytes'],
+        native_output_guard_gib=config['denice_checkpoint_storage_budget_gib'],
+        policy='Caps are enforced, not a prediction of measured traffic; native traffic additional')
+    lock_path=output/'candle_v4_run_lock.json'
+    if args.resume:
+        if not lock_path.exists():raise ValueError('Restore run lock and threshold locks together with continuation')
+        previous=json.loads(lock_path.read_text())
+        if previous['source_commit']!=source or previous['config']['candle_v4_full_service']!=spec:
+            raise ValueError('Resume source/config changed')
+    else:
+        lock_path.write_text(json.dumps(lock,indent=2),encoding='utf-8')
+        (output/'environment.txt').write_text(subprocess.check_output([sys.executable,'-m','pip','freeze'],text=True),encoding='utf-8')
+    os.environ.update(DENICE_RUN_PROFILE='legacy',DENICE_VARIANT='legacy',DENICE_TRAIN_PHASE='5',
+                      DENICE_CODE_DIR=str(root),DENICE_SEED='42',DENICE_OUTPUT_DIR=str(output),
+                      DENICE_CONFIG_OVERRIDES=json.dumps(config))
+    print('CANDLE V4: fresh/resume seed42, T0..T5 x20 rounds; native V1 unchanged; coverage-aware + matched controls.',flush=True)
+    print('One GPU, native batch2048 AMP; experts CPU; per-round continuation; task ZIP. Development VALIDATION only.',flush=True)
+    started=time.perf_counter()
+    runpy.run_path(str(root/'train_incremental_kaggle.py'),run_name='__main__')
+    report=output/'candle_v4_development_report.json'
+    if not report.exists():raise RuntimeError('Missing V4 final development report')
+    result=json.loads(report.read_text())
+    if len(result['evaluations'])!=6:raise RuntimeError('Incomplete task evaluations')
+    (output/'candle_v4_completion.json').write_text(json.dumps(dict(completed=True,source_commit=source,
+        seed=42,development_only=True,TEST_opened=False,report=str(report),
+        invocation_wall_seconds=time.perf_counter()-started,final=result['evaluations'][-1]),indent=2),encoding='utf-8')
+    print('Completed CANDLE V4 development:',output/'candle_v4_completion.json',flush=True)
+
+
+if __name__=='__main__':main()

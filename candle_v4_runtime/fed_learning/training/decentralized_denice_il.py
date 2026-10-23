@@ -1341,7 +1341,7 @@ def _load_denice_continuation_state(path: str) -> Dict[str, Any]:
                 type(next_round) is not int or not first_round <= next_round <= int(state['config']['rounds_per_task']) or
                 not isinstance(active, list) or active != sorted(set(active)) or
                 not set(active).issubset(state['client_ids']) or
-                not (state.get('appliance_service_state') or state.get('config', {}).get('candle_v4_native_fixture')) or
+                not (state.get('appliance_service_state') or state.get('candle_v4_shadow_state') or state.get('config', {}).get('candle_v4_native_fixture')) or
                 int(meta['resume_from_task']) != int(meta['completed_task']) + 1):
             raise ValueError('Incomplete or inconsistent round-boundary continuation')
         for field in ('canc_plans', 'ref_data', 'ref_labels', 'previous_valid_cluster',
@@ -2682,7 +2682,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     elif (resume_state or {}).get('appliance_service_state'):
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
     v4_shadow = None
-    if config.get('candle_v4_expert_bank'):
+    if config.get('candle_v4_full_service'):
+        from fed_learning.training.candle_v4_service import FullCoverageService
+        v4_shadow = FullCoverageService(config['candle_v4_full_service'],
+            (resume_state or {}).get('candle_v4_shadow_state'))
+    elif config.get('candle_v4_expert_bank'):
         from fed_learning.training.candle_v4_bank import ExpertBank
         v4_shadow = ExpertBank(config['candle_v4_expert_bank'],
                               (resume_state or {}).get('candle_v4_shadow_state'))
@@ -3771,7 +3775,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                           f"global_cluster_K=N/A (internal sentinel=1), peers={cluster_summary.get('training_peer_count_stats')}",
                           flush=True)
 
-            if appliance_service or config.get('candle_v4_native_fixture'):
+            if appliance_service or v4_shadow or config.get('candle_v4_native_fixture'):
                 # Full resume state every round; retain a single atomic latest
                 # copy. Existing delta artifacts preserve earlier round models
                 # without multiplying full federation continuation disk usage.

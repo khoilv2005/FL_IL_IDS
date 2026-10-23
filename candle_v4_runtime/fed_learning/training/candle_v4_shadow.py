@@ -54,7 +54,7 @@ class ShadowService:
         if spec['target'] not in spec['current_classes'] or spec['receiver'] == spec['donor']:
             raise ValueError('Invalid current target or peer')
         self.branches = {}
-        for name in ('donor_only', 'joint_class_balanced', 'joint_unbalanced'):
+        for name in spec.get('branch_names', ('donor_only', 'joint_class_balanced', 'joint_unbalanced')):
             model = make_expert(42)
             self.branches[name] = (model, torch.optim.Adam(model.parameters(), lr=.001))
         self.steps = 0; self.pending = 0; self.last_round = -1

@@ -25,8 +25,8 @@ def negative_contributors(receiver,donor,target,counts,graph,minimum_count=32):
 
 
 class CoverageService(ShadowService):
-    def __init__(self,spec,enabled):
-        super().__init__(spec)
+    def __init__(self,spec,enabled,saved=None):
+        super().__init__(spec,saved)
         self.coverage_enabled=enabled
         self.graph=None
         self.trace=[]
@@ -36,10 +36,13 @@ class CoverageService(ShadowService):
         all_counts={o:Counter(y.tolist()) for o,(_,y) in data.items()}
         proposed=negative_contributors(receiver,donor,target,all_counts,self.graph)
         selected=proposed if self.coverage_enabled else {}
-        counts={o:all_counts[o].copy() for o in sorted({donor,receiver})}
+        parents={donor} if self.spec.get('donor_only_control') else {donor,receiver}
+        if self.spec.get('donor_only_control'):selected={}
+        counts={o:all_counts[o].copy() for o in sorted(parents)}
         for c,o in selected.items():counts.setdefault(o,Counter())[c]=all_counts[o][c]
         negative=[(o,c,n) for o in sorted(counts) for c,n in sorted(counts[o].items()) if c!=target]
         nneg=sum(n for _,_,n in negative); by_class=Counter()
+        if not nneg:raise ValueError('No authorized current negative samples')
         for _,c,n in negative:by_class[c]+=n
         generator=torch.Generator().manual_seed(42+step*100003+202)
         tags=torch.randint(nneg,(128,),generator=generator)
