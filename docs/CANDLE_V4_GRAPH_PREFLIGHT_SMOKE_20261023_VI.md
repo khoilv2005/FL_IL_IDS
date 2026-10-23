@@ -1,5 +1,8 @@
 # CANDLE V4 — graph-aware preflight và smoke hợp lệ T2 → T3
 
+Tiếp nối: [coverage-aware negative development](CANDLE_V4_COVERAGE_NEGATIVES_DEVELOPMENT_20261023_VI.md).
+Không thay lại CAL REJECT của smoke dưới đây; experiment mới chỉ đánh giá FIT.
+
 **Preflight và engineering PASS; acceptance bank REJECT; chưa chạy full seed 42.**
 Lần này hai expert thực sự học, mỗi expert 352 Adam updates. Nguyên nhân reject
 là 3 false activation của expert class12 trên class13 tại owner3, không còn là

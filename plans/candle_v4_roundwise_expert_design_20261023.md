@@ -1,5 +1,9 @@
 # CANDLE V4 — ý tưởng Round-wise Complementary Expert Learning
 
+**Development mới:** [coverage-aware negatives](../docs/CANDLE_V4_COVERAGE_NEGATIVES_DEVELOPMENT_20261023_VI.md)
+đã có controlled FIT evidence tích cực (+101 correct primary, class13→12 FP6→0).
+Chưa native-integrate variant mới, chưa mở CAL/ACTIVE/full; các kết quả cũ giữ nguyên.
+
 **Tiến độ graph-aware mới:** [preflight + smoke hợp lệ](../docs/CANDLE_V4_GRAPH_PREFLIGHT_SMOKE_20261023_VI.md).
 Hai expert học 352 steps/expert, retention/isolation PASS; bank REJECT vì 3 FP
 class13→12 tại owner3. Giữ NO-GO full, không đổi gate hoặc tìm candidate khác sau CAL.
