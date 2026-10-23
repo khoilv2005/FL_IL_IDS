@@ -1,0 +1,640 @@
+{
+  "completed": true,
+  "protocol": {
+    "schema": "candle_v4_standalone_v1",
+    "task": 2,
+    "round_graph": 19,
+    "receiver": 30,
+    "donor": 16,
+    "target": 13,
+    "case_reason": "Previously observed development head/router difficulty for receiver30/class13; smallest-ID eligible actual neighbor, no TEST selection",
+    "graph_sha256": "6b6c595caf31be6a8a33d1be307cc5b2c86504b7b4ae643d5a7e6fb1fd4eecc7",
+    "graph_alpha": 0.06684574216006815,
+    "role_manifest_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+    "metadata_sha256": "3130588004269bd1006fb239070132d5acf494a1a532e136473f602222c8c08a",
+    "architecture": [
+      39,
+      64,
+      1
+    ],
+    "parameter_count": 2625,
+    "optimizer": "Adam",
+    "learning_rate": 0.001,
+    "epochs": 20,
+    "batch_size": 256,
+    "seed": 42,
+    "gradient_clip_norm": 5.0,
+    "base_unique_cap_per_class": 4096,
+    "loss": "BCEWithLogits; equal total weight for donor positives and donor negatives",
+    "weight_decay": 0.0,
+    "extra_normalization": false,
+    "early_stopping": false,
+    "final_epoch_selection": 20,
+    "fit_observation_epochs": [
+      0,
+      1,
+      5,
+      10,
+      20
+    ],
+    "fixed_diagnostic_threshold": 0.5,
+    "far_at_recall95_threshold": "derived from donor FIT only, diagnostic, never a deployment gate",
+    "calibration_counts_only": true,
+    "CAL_opened": false,
+    "TEST_opened": false,
+    "expert_activation": false,
+    "preprocessing_authority": "Verified original dataset shards and matching metadata/role lock; no separate scaler-file fingerprint recovered",
+    "runtime_scope": "staged current T2 BASE/FIT only; original compressed shards opened only in explicit preparation"
+  },
+  "protocol_sha256": "a8b9c1a0d8def30677c68e3843b338ac738a8ca5102c835484ab4dd3a089e46d",
+  "train_unique_counts": {
+    "13": 4096,
+    "14": 4096,
+    "17": 2079,
+    "15": 460,
+    "16": 416
+  },
+  "donor_fit_unique_counts": {
+    "13": 5242,
+    "15": 45,
+    "16": 39,
+    "17": 198,
+    "14": 468
+  },
+  "receiver_fit_unique_counts": {
+    "14": 3644,
+    "12": 516,
+    "15": 72,
+    "17": 2,
+    "16": 3
+  },
+  "train_evaluation_disjoint": true,
+  "history": [
+    {
+      "epoch": 0,
+      "optimizer_steps": 0,
+      "training_loss": null,
+      "donor_fit": {
+        "n": 5992,
+        "positive": 5242,
+        "negative": 750,
+        "threshold": 0.5,
+        "true_positive": 1006,
+        "false_positive": 367,
+        "recall": 0.19191148416634873,
+        "false_activation_rate": 0.48933333333333334,
+        "positive_prevalence": 0.8748331108144193,
+        "average_precision_PR_AUC": 0.8193464328134059,
+        "roc_auc": 0.34608826147780747,
+        "by_class": {
+          "13": {
+            "n": 5242,
+            "activated": 1006
+          },
+          "14": {
+            "n": 468,
+            "activated": 292
+          },
+          "15": {
+            "n": 45,
+            "activated": 3
+          },
+          "16": {
+            "n": 39,
+            "activated": 22
+          },
+          "17": {
+            "n": 198,
+            "activated": 50
+          }
+        }
+      },
+      "receiver_negative_fit": {
+        "n": 4237,
+        "positive": 0,
+        "negative": 4237,
+        "threshold": 0.5,
+        "true_positive": 0,
+        "false_positive": 2337,
+        "recall": null,
+        "false_activation_rate": 0.5515695067264574,
+        "positive_prevalence": 0.0,
+        "average_precision_PR_AUC": null,
+        "roc_auc": null,
+        "by_class": {
+          "12": {
+            "n": 516,
+            "activated": 97
+          },
+          "14": {
+            "n": 3644,
+            "activated": 2235
+          },
+          "15": {
+            "n": 72,
+            "activated": 3
+          },
+          "16": {
+            "n": 3,
+            "activated": 2
+          },
+          "17": {
+            "n": 2,
+            "activated": 0
+          }
+        }
+      }
+    },
+    {
+      "epoch": 1,
+      "optimizer_steps": 44,
+      "training_loss": 0.5254190085265116,
+      "donor_fit": {
+        "n": 5992,
+        "positive": 5242,
+        "negative": 750,
+        "threshold": 0.5,
+        "true_positive": 5187,
+        "false_positive": 4,
+        "recall": 0.9895078214421976,
+        "false_activation_rate": 0.005333333333333333,
+        "positive_prevalence": 0.8748331108144193,
+        "average_precision_PR_AUC": 0.9991150709083105,
+        "roc_auc": 0.9949273814065879,
+        "by_class": {
+          "13": {
+            "n": 5242,
+            "activated": 5187
+          },
+          "14": {
+            "n": 468,
+            "activated": 0
+          },
+          "15": {
+            "n": 45,
+            "activated": 0
+          },
+          "16": {
+            "n": 39,
+            "activated": 0
+          },
+          "17": {
+            "n": 198,
+            "activated": 4
+          }
+        }
+      },
+      "receiver_negative_fit": {
+        "n": 4237,
+        "positive": 0,
+        "negative": 4237,
+        "threshold": 0.5,
+        "true_positive": 0,
+        "false_positive": 497,
+        "recall": null,
+        "false_activation_rate": 0.1172999763983951,
+        "positive_prevalence": 0.0,
+        "average_precision_PR_AUC": null,
+        "roc_auc": null,
+        "by_class": {
+          "12": {
+            "n": 516,
+            "activated": 497
+          },
+          "14": {
+            "n": 3644,
+            "activated": 0
+          },
+          "15": {
+            "n": 72,
+            "activated": 0
+          },
+          "16": {
+            "n": 3,
+            "activated": 0
+          },
+          "17": {
+            "n": 2,
+            "activated": 0
+          }
+        }
+      }
+    },
+    {
+      "epoch": 5,
+      "optimizer_steps": 220,
+      "training_loss": 0.01662548568600698,
+      "donor_fit": {
+        "n": 5992,
+        "positive": 5242,
+        "negative": 750,
+        "threshold": 0.5,
+        "true_positive": 5223,
+        "false_positive": 0,
+        "recall": 0.9963754292254865,
+        "false_activation_rate": 0.0,
+        "positive_prevalence": 0.8748331108144193,
+        "average_precision_PR_AUC": 0.9999798357769374,
+        "roc_auc": 0.9998466234261731,
+        "by_class": {
+          "13": {
+            "n": 5242,
+            "activated": 5223
+          },
+          "14": {
+            "n": 468,
+            "activated": 0
+          },
+          "15": {
+            "n": 45,
+            "activated": 0
+          },
+          "16": {
+            "n": 39,
+            "activated": 0
+          },
+          "17": {
+            "n": 198,
+            "activated": 0
+          }
+        }
+      },
+      "receiver_negative_fit": {
+        "n": 4237,
+        "positive": 0,
+        "negative": 4237,
+        "threshold": 0.5,
+        "true_positive": 0,
+        "false_positive": 507,
+        "recall": null,
+        "false_activation_rate": 0.11966013688930847,
+        "positive_prevalence": 0.0,
+        "average_precision_PR_AUC": null,
+        "roc_auc": null,
+        "by_class": {
+          "12": {
+            "n": 516,
+            "activated": 507
+          },
+          "14": {
+            "n": 3644,
+            "activated": 0
+          },
+          "15": {
+            "n": 72,
+            "activated": 0
+          },
+          "16": {
+            "n": 3,
+            "activated": 0
+          },
+          "17": {
+            "n": 2,
+            "activated": 0
+          }
+        }
+      }
+    },
+    {
+      "epoch": 10,
+      "optimizer_steps": 440,
+      "training_loss": 0.004814429029924613,
+      "donor_fit": {
+        "n": 5992,
+        "positive": 5242,
+        "negative": 750,
+        "threshold": 0.5,
+        "true_positive": 5227,
+        "false_positive": 1,
+        "recall": 0.997138496756963,
+        "false_activation_rate": 0.0013333333333333333,
+        "positive_prevalence": 0.8748331108144193,
+        "average_precision_PR_AUC": 0.9999993805081473,
+        "roc_auc": 0.999995675950655,
+        "by_class": {
+          "13": {
+            "n": 5242,
+            "activated": 5227
+          },
+          "14": {
+            "n": 468,
+            "activated": 0
+          },
+          "15": {
+            "n": 45,
+            "activated": 1
+          },
+          "16": {
+            "n": 39,
+            "activated": 0
+          },
+          "17": {
+            "n": 198,
+            "activated": 0
+          }
+        }
+      },
+      "receiver_negative_fit": {
+        "n": 4237,
+        "positive": 0,
+        "negative": 4237,
+        "threshold": 0.5,
+        "true_positive": 0,
+        "false_positive": 508,
+        "recall": null,
+        "false_activation_rate": 0.11989615293839981,
+        "positive_prevalence": 0.0,
+        "average_precision_PR_AUC": null,
+        "roc_auc": null,
+        "by_class": {
+          "12": {
+            "n": 516,
+            "activated": 507
+          },
+          "14": {
+            "n": 3644,
+            "activated": 1
+          },
+          "15": {
+            "n": 72,
+            "activated": 0
+          },
+          "16": {
+            "n": 3,
+            "activated": 0
+          },
+          "17": {
+            "n": 2,
+            "activated": 0
+          }
+        }
+      }
+    },
+    {
+      "epoch": 20,
+      "optimizer_steps": 880,
+      "training_loss": 0.0025268853497924138,
+      "donor_fit": {
+        "n": 5992,
+        "positive": 5242,
+        "negative": 750,
+        "threshold": 0.5,
+        "true_positive": 5230,
+        "false_positive": 1,
+        "recall": 0.9977107974055703,
+        "false_activation_rate": 0.0013333333333333333,
+        "positive_prevalence": 0.8748331108144193,
+        "average_precision_PR_AUC": 0.9999995629205558,
+        "roc_auc": 0.9999969477298741,
+        "by_class": {
+          "13": {
+            "n": 5242,
+            "activated": 5230
+          },
+          "14": {
+            "n": 468,
+            "activated": 0
+          },
+          "15": {
+            "n": 45,
+            "activated": 1
+          },
+          "16": {
+            "n": 39,
+            "activated": 0
+          },
+          "17": {
+            "n": 198,
+            "activated": 0
+          }
+        }
+      },
+      "receiver_negative_fit": {
+        "n": 4237,
+        "positive": 0,
+        "negative": 4237,
+        "threshold": 0.5,
+        "true_positive": 0,
+        "false_positive": 506,
+        "recall": null,
+        "false_activation_rate": 0.11942412084021714,
+        "positive_prevalence": 0.0,
+        "average_precision_PR_AUC": null,
+        "roc_auc": null,
+        "by_class": {
+          "12": {
+            "n": 516,
+            "activated": 505
+          },
+          "14": {
+            "n": 3644,
+            "activated": 1
+          },
+          "15": {
+            "n": 72,
+            "activated": 0
+          },
+          "16": {
+            "n": 3,
+            "activated": 0
+          },
+          "17": {
+            "n": 2,
+            "activated": 0
+          }
+        }
+      }
+    }
+  ],
+  "final_fixed_threshold": {
+    "epoch": 20,
+    "optimizer_steps": 880,
+    "training_loss": 0.0025268853497924138,
+    "donor_fit": {
+      "n": 5992,
+      "positive": 5242,
+      "negative": 750,
+      "threshold": 0.5,
+      "true_positive": 5230,
+      "false_positive": 1,
+      "recall": 0.9977107974055703,
+      "false_activation_rate": 0.0013333333333333333,
+      "positive_prevalence": 0.8748331108144193,
+      "average_precision_PR_AUC": 0.9999995629205558,
+      "roc_auc": 0.9999969477298741,
+      "by_class": {
+        "13": {
+          "n": 5242,
+          "activated": 5230
+        },
+        "14": {
+          "n": 468,
+          "activated": 0
+        },
+        "15": {
+          "n": 45,
+          "activated": 1
+        },
+        "16": {
+          "n": 39,
+          "activated": 0
+        },
+        "17": {
+          "n": 198,
+          "activated": 0
+        }
+      }
+    },
+    "receiver_negative_fit": {
+      "n": 4237,
+      "positive": 0,
+      "negative": 4237,
+      "threshold": 0.5,
+      "true_positive": 0,
+      "false_positive": 506,
+      "recall": null,
+      "false_activation_rate": 0.11942412084021714,
+      "positive_prevalence": 0.0,
+      "average_precision_PR_AUC": null,
+      "roc_auc": null,
+      "by_class": {
+        "12": {
+          "n": 516,
+          "activated": 505
+        },
+        "14": {
+          "n": 3644,
+          "activated": 1
+        },
+        "15": {
+          "n": 72,
+          "activated": 0
+        },
+        "16": {
+          "n": 3,
+          "activated": 0
+        },
+        "17": {
+          "n": 2,
+          "activated": 0
+        }
+      }
+    }
+  },
+  "donor_fit_at_recall95_DIAGNOSTIC_ONLY": {
+    "n": 5992,
+    "positive": 5242,
+    "negative": 750,
+    "threshold": 0.9987466335296631,
+    "true_positive": 4981,
+    "false_positive": 0,
+    "recall": 0.950209843571156,
+    "false_activation_rate": 0.0,
+    "positive_prevalence": 0.8748331108144193,
+    "average_precision_PR_AUC": 0.9999995629205558,
+    "roc_auc": 0.9999969477298741,
+    "by_class": {
+      "13": {
+        "n": 5242,
+        "activated": 4981
+      },
+      "14": {
+        "n": 468,
+        "activated": 0
+      },
+      "15": {
+        "n": 45,
+        "activated": 0
+      },
+      "16": {
+        "n": 39,
+        "activated": 0
+      },
+      "17": {
+        "n": 198,
+        "activated": 0
+      }
+    }
+  },
+  "receiver_fit_at_same_threshold_DIAGNOSTIC_ONLY": {
+    "n": 4237,
+    "positive": 0,
+    "negative": 4237,
+    "threshold": 0.9987466335296631,
+    "true_positive": 0,
+    "false_positive": 2,
+    "recall": null,
+    "false_activation_rate": 0.0004720320981826764,
+    "positive_prevalence": 0.0,
+    "average_precision_PR_AUC": null,
+    "roc_auc": null,
+    "by_class": {
+      "12": {
+        "n": 516,
+        "activated": 2
+      },
+      "14": {
+        "n": 3644,
+        "activated": 0
+      },
+      "15": {
+        "n": 72,
+        "activated": 0
+      },
+      "16": {
+        "n": 3,
+        "activated": 0
+      },
+      "17": {
+        "n": 2,
+        "activated": 0
+      }
+    }
+  },
+  "runtime_original_shards_opened": false,
+  "CAL_opened": false,
+  "TEST_opened": false,
+  "expert_activated": false,
+  "federated_training": false,
+  "roundwise_training": false,
+  "old_task_breaks_measured": false,
+  "runtime_device": "cuda",
+  "torch": "2.10.0+cu128",
+  "optimizer_steps": 880,
+  "model_parameter_bytes": 10500,
+  "peer_communication_bytes": 0,
+  "communication_scope": "Standalone local donor training only",
+  "reachable_coverage_summary": {
+    "active_receivers": 70,
+    "current_classes": [
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "metadata_gaps": 126,
+    "reachable_gaps": 121,
+    "reachable_coverage": 0.9603174603174603,
+    "evidence_count_eligible_gaps": 85,
+    "evidence_count_eligible_coverage": 0.6746031746031746,
+    "zero_peer_receivers": 2,
+    "scope": "One native Task2/R19 graph snapshot; data-ownership gaps, not confirmed functional gaps or deployment coverage"
+  },
+  "elapsed_seconds": 11.02327940000032,
+  "limitation": "Development capacity test, not deployment acceptance; donor target recall does not establish target recall in receiver domain. Receiver negatives never used for training.",
+  "publication_provenance": {
+    "original_report_sha256": "49a2418ae82a5032104de41d03f6045e1424a0c1bc3d25720d97d09eb933f406",
+    "pilot_script_sha256_lf": "89acd8e3fd7d73b2b1b269b4cbbbe92a9c481ab7210ebe4d332af3af7cb2df9c",
+    "v4_core_manifest_sha256": "598557558dbdf2a39c8c1c26f7ddbeb37dea59c911715c994cc5f6d9026ff633",
+    "python": "3.14.7 (tags/v3.14.7:823f032, Aug  5 2026, 10:51:32) [MSC v.1944 64 bit (AMD64)]",
+    "numpy": "2.5.2",
+    "scikit_learn": "1.9.0"
+  },
+  "assessment": {
+    "capacity": "SUPPORTED_FOR_THIS_DEVELOPMENT_CASE",
+    "deployment": "NOT_TESTED_OR_ACCEPTED",
+    "federated_effectiveness": "UNMEASURED"
+  }
+}

@@ -1,5 +1,8 @@
 # CANDLE V4 — ý tưởng Round-wise Complementary Expert Learning
 
+**Cập nhật:** đã chạy [standalone expert feasibility](../docs/CANDLE_V4_STANDALONE_FEASIBILITY_20261023_VI.md)
+ngoài core. Phần dưới là bản thiết kế gốc; native V4 chưa được implement/training.
+
 ## 0. Trạng thái và nguồn
 
 Bản thiết kế nghiên cứu hình thành từ `C:/Users/khoak/Downloads/candle v4.txt`.
