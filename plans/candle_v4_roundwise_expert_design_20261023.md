@@ -1,5 +1,9 @@
 # CANDLE V4 — ý tưởng Round-wise Complementary Expert Learning
 
+**Mốc mới:** [transition smoke T2→T3](../docs/CANDLE_V4_TRANSITION_SMOKE_20261023_VI.md)
+chưa đủ điều kiện full: declared donor ngoài live graph, hai draft có 0 updates,
+không ACTIVE. Native transition/isolation PASS không thay thế learned-expert/ACTIVE proof.
+
 **Trạng thái hiện tại:** [native DRAFT integration](../docs/CANDLE_V4_NATIVE_SHADOW_20261023_VI.md)
 đã hoàn thành bounded 20-round pilot, on/off và resume exact. Chưa mở CAL/TEST/ACTIVE/full.
 Phần dưới giữ diễn tiến thiết kế gốc; các câu “chưa implement” mô tả mốc trước extension.

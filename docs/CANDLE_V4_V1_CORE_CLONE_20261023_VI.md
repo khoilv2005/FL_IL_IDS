@@ -1,7 +1,7 @@
 # CANDLE V4 — core gốc V1
 
 Cập nhật: đã thêm [native DRAFT extension](CANDLE_V4_NATIVE_SHADOW_20261023_VI.md).
-365/367 file gốc còn nguyên; hai file private thay đổi và một module mới.
+365/367 file gốc còn nguyên; hai file private thay đổi, thêm shadow và bank modules.
 Phần dưới mô tả **mốc clone ban đầu**, không phải trạng thái extension hiện tại.
 
 ## Phạm vi

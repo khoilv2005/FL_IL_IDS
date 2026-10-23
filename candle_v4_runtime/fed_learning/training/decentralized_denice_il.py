@@ -2680,7 +2680,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
     elif (resume_state or {}).get('appliance_service_state'):
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
     v4_shadow = None
-    if config.get('candle_v4_shadow'):
+    if config.get('candle_v4_expert_bank'):
+        from fed_learning.training.candle_v4_bank import ExpertBank
+        v4_shadow = ExpertBank(config['candle_v4_expert_bank'],
+                              (resume_state or {}).get('candle_v4_shadow_state'))
+    elif config.get('candle_v4_shadow'):
         from fed_learning.training.candle_v4_shadow import ShadowService
         v4_shadow = ShadowService(config['candle_v4_shadow'],
                                   (resume_state or {}).get('candle_v4_shadow_state'))
@@ -2896,6 +2900,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         resuming_round = round_resume is not None and task_id == task_start
         if appliance_service:
             appliance_service.begin_task(task_id, active_ids, models)
+        if v4_shadow and hasattr(v4_shadow, 'begin_task'):
+            v4_shadow.begin_task(task_id)
         if resuming_round:
             if active_ids != round_resume['active_ids']:
                 raise ValueError('Round resume active client membership changed')
@@ -3907,6 +3913,9 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                                               router_replay_controls, seed=int(config.get('seed', 42)) + cid)
                 history.setdefault('router_replay', []).append({'task': task_id, 'client_id': cid, **audit})
 
+        if v4_shadow and hasattr(v4_shadow, 'finish_task'):
+            cluster_summary['candle_v4_gate'] = v4_shadow.finish_task(
+                task_id, models, context_detectors, clients, active_ids, cluster_summary)
         if appliance_probe:
             appliance_probe.observe('task_finalized',models,context_detectors,task_id,rounds_per_task-1,active_ids)
         if appliance_service:
@@ -4162,7 +4171,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             )
             torch.save(continuation_state, continuation_path + ".tmp")
             os.replace(continuation_path + ".tmp", continuation_path)
-            if appliance_service:
+            if appliance_service or v4_shadow or config.get('candle_v4_native_fixture'):
                 temporary = os.path.join(output_dir, 'continuation_state_latest.pt.tmp')
                 torch.save(continuation_state, temporary)
                 os.replace(temporary, os.path.join(output_dir, 'continuation_state_latest.pt'))

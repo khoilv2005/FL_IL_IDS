@@ -139,7 +139,16 @@ def validate_clean_training_config(config):
               'denice_cl_method':method,'denice_require_label_overlap':True,
               'denice_collab_use_context_edges':True}
     v4_fixture = config.get('candle_v4_native_fixture')
-    if v4_fixture:
+    if v4_fixture and v4_fixture.get('version') == 'candle_v4_transition_smoke_v1':
+        if (protocol != 'legacy_multiclass' or config.get('appliance_enabled') or
+                config.get('denice_evaluation_data_role') != 'validation' or
+                config.get('denice_post_task_eval') or config.get('denice_eval_final_round') or
+                config.get('eval_every') != 999999 or not config.get('resume_state_path') or
+                not 4 <= len(set(v4_fixture['client_ids'])) <= 8 or
+                config.get('task_start') not in (2,3) or config.get('task_end') != 3 or
+                config.get('rounds_per_task') != 8):
+            raise ValueError('Transition smoke requires registered 4..8-client T2/T3 eight-round protocol')
+    elif v4_fixture:
         if (v4_fixture.get('version') != 'candle_v4_bounded_native_v1' or
                 protocol != 'legacy_multiclass' or config.get('appliance_enabled') or
                 config.get('denice_evaluation_data_role') != 'validation' or

@@ -1,5 +1,8 @@
 # CANDLE V4 — contract cho native shadow integration tiếp theo
 
+Kết quả tiếp theo: [transition smoke](../docs/CANDLE_V4_TRANSITION_SMOKE_20261023_VI.md)
+NO-GO full do candidate reachability/preflight; chưa có hai ACTIVE experts.
+
 Trạng thái: bounded native hook đã triển khai và chạy 20 rounds; xem
 [receipt native shadow](../docs/CANDLE_V4_NATIVE_SHADOW_20261023_VI.md).
 On/off và resume exact; chưa kiểm tra native task transition hoặc ACTIVE.
