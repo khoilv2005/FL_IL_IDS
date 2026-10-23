@@ -1,0 +1,20 @@
+{
+  "protocol_version": "candle_v4_direct_prediction_fusion_v4",
+  "tests": 9,
+  "passed": true,
+  "errors": 0,
+  "failures": 0,
+  "fixture": "synthetic full current-task TRAIN NPZ only",
+  "validation_read": false,
+  "roles_created": false,
+  "real_TEST_opened": false,
+  "full_training_started": false,
+  "terminal_tests": 3,
+  "total_tests": 12,
+  "source_sha256": {
+    "candle_v4_runtime/fed_learning/training/candle_v4_original_train.py": "43f5cecaa3b693dd969c1d1a3ad60d650276ea53ac406a68b3b4e7a238326a45",
+    "candle_v4_runtime/fed_learning/training/candle_v4_service.py": "37a1be4d3e33c3398db3c8c5980814a603635e6dfb711755fc001386621457ab",
+    "candle_v4_runtime/fed_learning/training/decentralized_denice_il.py": "ca1c84c2a6b1ed60853c824f6874716954b989ea3e8bc2a952e8a3dd857470c4",
+    "candle_v4_runtime/tools/train_candle_v4.py": "20b4a550dc8c1d400bdbadc3541ec9f6478d53a352ab65e7a0fd4bc0ce4f2f5a"
+  }
+}

@@ -1,0 +1,453 @@
+{
+  "schema": "candle_v3_direct_structural_smoke_v1",
+  "completed": true,
+  "tests": 27,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 5.598423100000218,
+  "synthetic": true,
+  "accuracy_benchmark": false,
+  "test_dataset_accessed": false,
+  "torch": "2.10.0+cu128",
+  "device": "cpu",
+  "runtime": "E:\\School\\UIT\\FL_IL_IDS\\candle_v3_runtime",
+  "source_sha256": "283d8e9a5725435bc27eee28d893c1a6d0a951cc4bc599f36a5070652554b870",
+  "failures_detail": [],
+  "controlled_service": {
+    "receipt": {
+      "receiver": 0,
+      "task": 1,
+      "session_id": "7523a4f5fa5f3119b1d7eb7585ceaec4512268b379c81c5c3470cd3266184191",
+      "targets": [
+        8
+      ],
+      "donors": [
+        1
+      ],
+      "snapshot": {
+        "receiver": 0,
+        "task": 1,
+        "reference_sha256": "3bf1587537ca00e277a0ff4919253b01d453f2a0b4a00f0bb982f3d13bb48893",
+        "preprocessing_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "feature_contract": "denice_masked_eval_penultimate_v1",
+        "schema": "candle_v3_peer_teaching_v1"
+      },
+      "scope": "observed current CAL only",
+      "transfer_mode": "direct_fc2",
+      "availability_fit": {
+        "8": {
+          "n": 64,
+          "correct": 0
+        }
+      },
+      "status": "PASS",
+      "reasons": [],
+      "missing_evidence": [],
+      "totals": {
+        "n": 192,
+        "positive": 64,
+        "negative": 128,
+        "correct": 128,
+        "baseline_correct": 64,
+        "rescue": 64,
+        "break_count": 0,
+        "negative_break": 0,
+        "target_correct": 64,
+        "false_activation": 0
+      },
+      "historical_safety": "unverified",
+      "statistical_far_certificate": false,
+      "controls": {
+        "availability_only": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 128,
+            "positive": 64,
+            "negative": 64,
+            "correct": 0,
+            "baseline_correct": 0,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 128,
+            "by_class": {
+              "7": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              },
+              "8": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        },
+        "router_only": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 128,
+            "positive": 64,
+            "negative": 64,
+            "correct": 0,
+            "baseline_correct": 0,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 128,
+            "by_class": {
+              "7": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              },
+              "8": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        },
+        "mask_only": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 128,
+            "positive": 64,
+            "negative": 64,
+            "correct": 0,
+            "baseline_correct": 0,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 128,
+            "by_class": {
+              "7": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              },
+              "8": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        },
+        "direct_native_router": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 128,
+            "positive": 64,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 0,
+            "rescue": 64,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 64,
+            "false_activation": 0,
+            "target_predictions": 64,
+            "route_correct": 128,
+            "by_class": {
+              "7": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              },
+              "8": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        },
+        "full": {
+          "0": {
+            "n": 64,
+            "positive": 0,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 64,
+            "rescue": 0,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 64,
+            "target_correct": 0,
+            "false_activation": 0,
+            "target_predictions": 0,
+            "route_correct": 64,
+            "by_class": {
+              "6": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          },
+          "1": {
+            "n": 128,
+            "positive": 64,
+            "negative": 64,
+            "correct": 64,
+            "baseline_correct": 0,
+            "rescue": 64,
+            "break_count": 0,
+            "negative_break": 0,
+            "changed_wrong": 0,
+            "harmless": 0,
+            "target_correct": 64,
+            "false_activation": 0,
+            "target_predictions": 64,
+            "route_correct": 128,
+            "by_class": {
+              "7": {
+                "n": 64,
+                "correct": 0,
+                "false_activation": 0,
+                "break_count": 0
+              },
+              "8": {
+                "n": 64,
+                "correct": 64,
+                "false_activation": 0,
+                "break_count": 0
+              }
+            }
+          }
+        }
+      },
+      "optimizer_steps": 0,
+      "head_training": [],
+      "donor_only_training": [],
+      "receiver_row_weight": 0.0,
+      "native_neighborhood_only": true,
+      "row_provenance": {
+        "8": [
+          {
+            "donor": 1,
+            "quality": 1.0,
+            "packet_sha256": "18d6c199c28455674f3a538428acc5e544a0b8c4122969b9fb832f13803284e0",
+            "feature_sha256": "2f9d531182582153e423a054c1dce90db2d1bcacb6957f99d8f0f966a8b3a846"
+          }
+        ]
+      },
+      "donor_quality": {
+        "1": {
+          "8": {
+            "n": 64,
+            "correct": 64
+          }
+        }
+      },
+      "raw_row_parameter_bytes": 1028,
+      "packed_row_mask_bytes": 33,
+      "serialized_row_message_bytes": 1689,
+      "communication_note": "Reference for FIT/CAL and receiver-space sketches remains counted; row payload is not total traffic",
+      "fit_role": "FIT discovery only",
+      "training_role": "none; current BASE used for router sketches only",
+      "acceptance_role": "current CAL only"
+    },
+    "wire": {
+      "teaching_bytes": 4184157,
+      "by_kind": {
+        "announcement": 800,
+        "receiver_reference": 3765029,
+        "verification_receipt": 9684,
+        "fc2_row": 1689,
+        "router_sketches": 55371,
+        "verification_request": 351584
+      },
+      "events": [
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "announcement",
+          "bytes": 404
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "receiver_reference",
+          "bytes": 3765029
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 65
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 86
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "fc2_row",
+          "bytes": 1689
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "router_sketches",
+          "bytes": 55371
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 8715
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "verification_request",
+          "bytes": 351584
+        },
+        {
+          "sender": 1,
+          "receiver": 0,
+          "kind": "verification_receipt",
+          "bytes": 818
+        },
+        {
+          "sender": 0,
+          "receiver": 1,
+          "kind": "announcement",
+          "bytes": 396
+        }
+      ],
+      "native_bytes": null,
+      "total_system_bytes": null,
+      "native_accounting": "not measured by this ledger; do not claim total-system saving"
+    },
+    "fixture": "engineered synthetic BASE head; actual CNN-GRU forward, no inference/acceptance mocks",
+    "scientific_transfer_evidence": false
+  }
+}

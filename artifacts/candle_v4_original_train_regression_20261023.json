@@ -1,0 +1,19 @@
+{
+  "protocol_version": "candle_v4_original_train_empirical_gate_v2",
+  "tests": 13,
+  "passed": true,
+  "errors": 0,
+  "failures": 0,
+  "fixture": "synthetic original TRAIN NPZ only",
+  "roles_created": false,
+  "real_TEST_opened": false,
+  "real_CAL_opened": false,
+  "full_training_started": false,
+  "terminal_regression_tests": 3,
+  "source_sha256": {
+    "candle_v4_runtime/fed_learning/training/candle_v4_original_train.py": "830bf2fdac9e38f0a520285ed7ce5494fa616ec30f3d2df1804f79cb2b7970ff",
+    "candle_v4_runtime/fed_learning/training/candle_v4_service.py": "8bcae2725480835c79c4f617f21b0163d8147a6a03540c61b7deb45b2dc33884",
+    "candle_v4_runtime/fed_learning/training/decentralized_denice_il.py": "2a2b4ba875c5877ee6f8a608ca3ddd688a2a6ec2710f412b768d45f0ccc1748c",
+    "candle_v4_runtime/tools/train_candle_v4.py": "5b0a809320c45a234bf02fdedd16455ac9bf2478f3a7ba6e1e9433bf385d9a1c"
+  }
+}

@@ -1,0 +1,378 @@
+{
+  "schema": "candle_v3_native_smoke_v2",
+  "variant": "receiver_head_learning",
+  "completed": true,
+  "checks": {
+    "both_clients_restored": true,
+    "weights/9/conv1.weight": true,
+    "weights/9/conv1.bias": true,
+    "weights/9/bn1.weight": true,
+    "weights/9/bn1.bias": true,
+    "weights/9/bn1.running_mean": true,
+    "weights/9/bn1.running_var": true,
+    "weights/9/bn1.num_batches_tracked": true,
+    "weights/9/conv2.weight": true,
+    "weights/9/conv2.bias": true,
+    "weights/9/bn2.weight": true,
+    "weights/9/bn2.bias": true,
+    "weights/9/bn2.running_mean": true,
+    "weights/9/bn2.running_var": true,
+    "weights/9/bn2.num_batches_tracked": true,
+    "weights/9/conv3.weight": true,
+    "weights/9/conv3.bias": true,
+    "weights/9/bn3.weight": true,
+    "weights/9/bn3.bias": true,
+    "weights/9/bn3.running_mean": true,
+    "weights/9/bn3.running_var": true,
+    "weights/9/bn3.num_batches_tracked": true,
+    "weights/9/gru.weight_ih_l0": true,
+    "weights/9/gru.weight_hh_l0": true,
+    "weights/9/gru.bias_ih_l0": true,
+    "weights/9/gru.bias_hh_l0": true,
+    "weights/9/gru.weight_ih_l1": true,
+    "weights/9/gru.weight_hh_l1": true,
+    "weights/9/gru.bias_ih_l1": true,
+    "weights/9/gru.bias_hh_l1": true,
+    "weights/9/fc1.weight": true,
+    "weights/9/fc1.bias": true,
+    "weights/9/fc2.weight": true,
+    "weights/9/fc2.bias": true,
+    "algorithm_state/9": true,
+    "knowledge_owner/9": true,
+    "no_double_task_receipt/9": true,
+    "predictions_restored/9": true,
+    "weights/30/conv1.weight": true,
+    "weights/30/conv1.bias": true,
+    "weights/30/bn1.weight": true,
+    "weights/30/bn1.bias": true,
+    "weights/30/bn1.running_mean": true,
+    "weights/30/bn1.running_var": true,
+    "weights/30/bn1.num_batches_tracked": true,
+    "weights/30/conv2.weight": true,
+    "weights/30/conv2.bias": true,
+    "weights/30/bn2.weight": true,
+    "weights/30/bn2.bias": true,
+    "weights/30/bn2.running_mean": true,
+    "weights/30/bn2.running_var": true,
+    "weights/30/bn2.num_batches_tracked": true,
+    "weights/30/conv3.weight": true,
+    "weights/30/conv3.bias": true,
+    "weights/30/bn3.weight": true,
+    "weights/30/bn3.bias": true,
+    "weights/30/bn3.running_mean": true,
+    "weights/30/bn3.running_var": true,
+    "weights/30/bn3.num_batches_tracked": true,
+    "weights/30/gru.weight_ih_l0": true,
+    "weights/30/gru.weight_hh_l0": true,
+    "weights/30/gru.bias_ih_l0": true,
+    "weights/30/gru.bias_hh_l0": true,
+    "weights/30/gru.weight_ih_l1": true,
+    "weights/30/gru.weight_hh_l1": true,
+    "weights/30/gru.bias_ih_l1": true,
+    "weights/30/gru.bias_hh_l1": true,
+    "weights/30/fc1.weight": true,
+    "weights/30/fc1.bias": true,
+    "weights/30/fc2.weight": true,
+    "weights/30/fc2.bias": true,
+    "algorithm_state/30": true,
+    "knowledge_owner/30": true,
+    "no_double_task_receipt/30": true,
+    "predictions_restored/30": true,
+    "real_optimizer_updates": true,
+    "two_task_history": true,
+    "current_role_access_only": true,
+    "finalized_archive_self_contained": true,
+    "native_task_end_service_executed_twice": true,
+    "head_attempt_or_explicit_evidence_preflight": true,
+    "executed_head_rounds_match_profile": true,
+    "executed_head_participants_match_profile": true,
+    "evidence_stops_have_no_head_updates": true
+  },
+  "checks_passed": 84,
+  "checks_total": 84,
+  "max_parameter_difference": 0.0,
+  "dataset": "existing locked real BASE; explicit two-client induced subgraph",
+  "data_dir": "E:\\School\\UIT\\FL_IL_IDS\\audit_denice\\denice_v2_native_p1\\dataset",
+  "roles": "E:\\School\\UIT\\FL_IL_IDS\\audit_denice\\denice_v2_native_p1\\roles",
+  "role_manifest_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+  "participants": [
+    9,
+    30
+  ],
+  "tasks": [
+    0,
+    1
+  ],
+  "rounds_per_task": 1,
+  "max_train_samples_per_client_task": 64,
+  "real_optimizer_steps": 6,
+  "session_statuses": {
+    "SKIP": 2,
+    "UNKNOWN": 1
+  },
+  "head_sessions": 0,
+  "head_aggregation_rounds": 0,
+  "teaching_sessions": [
+    {
+      "task": 0,
+      "receipts": [
+        {
+          "receiver": 9,
+          "status": "SKIP",
+          "reason": "no complementary candidate"
+        },
+        {
+          "receiver": 30,
+          "task": 0,
+          "targets": [
+            3
+          ],
+          "donors": [
+            9
+          ],
+          "status": "UNKNOWN",
+          "stage": "evidence_preflight",
+          "reason": "class=3: CAL upper bound 3 < 32",
+          "evidence_preflight": {
+            "possible": false,
+            "reason": "class=3: CAL upper bound 3 < 32",
+            "bounds": {
+              "30": {
+                "fit": {
+                  "0": 0,
+                  "1": 64,
+                  "2": 13,
+                  "3": 0,
+                  "4": 64,
+                  "5": 20
+                },
+                "calibration": {
+                  "0": 0,
+                  "1": 64,
+                  "2": 3,
+                  "3": 0,
+                  "4": 64,
+                  "5": 8
+                }
+              },
+              "9": {
+                "fit": {
+                  "0": 0,
+                  "1": 64,
+                  "2": 8,
+                  "3": 34,
+                  "4": 64,
+                  "5": 24
+                },
+                "calibration": {
+                  "0": 0,
+                  "1": 64,
+                  "2": 1,
+                  "3": 3,
+                  "4": 26,
+                  "5": 3
+                }
+              }
+            },
+            "missing_evidence": [
+              "class=3: CAL upper bound 3 < 32"
+            ],
+            "authority": "locked current-task role counts only; no CAL scores or raw examples"
+          },
+          "transfer_mode": "receiver_head_learning",
+          "scope": "current evidence metadata only",
+          "head_training": [],
+          "optimizer_steps": 0
+        }
+      ],
+      "elapsed_seconds": 0.0011708000001817709,
+      "wire": {
+        "teaching_bytes": 1007,
+        "by_kind": {
+          "announcement": 854,
+          "verification_receipt": 153
+        },
+        "events": [
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "announcement",
+            "bytes": 422
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "announcement",
+            "bytes": 432
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 153
+          }
+        ],
+        "native_bytes": null,
+        "total_system_bytes": null,
+        "native_accounting": "not measured by this ledger; do not claim total-system saving"
+      },
+      "settings": {
+        "enabled": true,
+        "transfer_mode": "receiver_head_learning",
+        "discovery_policy": "control_fit_preflight_v1",
+        "head_rounds": 8,
+        "learning_rate": 0.01,
+        "max_donors": 2,
+        "max_targets": 3,
+        "batch_size": 512,
+        "base_per_class": 64,
+        "fit_per_class": 64,
+        "cal_per_class": 64,
+        "sketch_per_class": 50,
+        "min_fit_positive": 32,
+        "min_cal_positive": 32,
+        "min_cal_negative": 32,
+        "recall_gate": 0.95,
+        "far_gate": 0.001,
+        "min_gain": 0.001,
+        "communication_budget_mib": 128.0,
+        "graph": "announced_current_peers"
+      },
+      "historical_risk": "unverified outside observed current CAL",
+      "checkpoint_boundary": "task: completed sessions are not replayed on task-boundary resume"
+    },
+    {
+      "task": 1,
+      "receipts": [
+        {
+          "receiver": 30,
+          "status": "SKIP",
+          "reason": "no complementary candidate"
+        }
+      ],
+      "elapsed_seconds": 2.5299999833805487e-05,
+      "wire": {
+        "teaching_bytes": 0,
+        "by_kind": {},
+        "events": [],
+        "native_bytes": null,
+        "total_system_bytes": null,
+        "native_accounting": "not measured by this ledger; do not claim total-system saving"
+      },
+      "settings": {
+        "enabled": true,
+        "transfer_mode": "receiver_head_learning",
+        "discovery_policy": "control_fit_preflight_v1",
+        "head_rounds": 8,
+        "learning_rate": 0.01,
+        "max_donors": 2,
+        "max_targets": 3,
+        "batch_size": 512,
+        "base_per_class": 64,
+        "fit_per_class": 64,
+        "cal_per_class": 64,
+        "sketch_per_class": 50,
+        "min_fit_positive": 32,
+        "min_cal_positive": 32,
+        "min_cal_negative": 32,
+        "recall_gate": 0.95,
+        "far_gate": 0.001,
+        "min_gain": 0.001,
+        "communication_budget_mib": 128.0,
+        "graph": "announced_current_peers"
+      },
+      "historical_risk": "unverified outside observed current CAL",
+      "checkpoint_boundary": "task: completed sessions are not replayed on task-boundary resume"
+    }
+  ],
+  "source_sha256": "b0e0fa56083591c42074f0f19d957e4a25a38046a57bfc3fdb449252eab1fcaa",
+  "current_access": [],
+  "base_access": [
+    {
+      "owner": 9,
+      "task": 0,
+      "n": 3514,
+      "classes": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "owner": 30,
+      "task": 0,
+      "n": 16879,
+      "classes": [
+        1,
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "owner": 9,
+      "task": 1,
+      "n": 0,
+      "classes": []
+    },
+    {
+      "owner": 30,
+      "task": 1,
+      "n": 96273,
+      "classes": [
+        6,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "owner": 9,
+      "task": 0,
+      "n": 3514,
+      "classes": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "owner": 30,
+      "task": 0,
+      "n": 16879,
+      "classes": [
+        1,
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "owner": 9,
+      "task": 1,
+      "n": 0,
+      "classes": []
+    },
+    {
+      "owner": 30,
+      "task": 1,
+      "n": 96273,
+      "classes": [
+        6,
+        7,
+        8,
+        10
+      ]
+    }
+  ],
+  "elapsed_seconds": 18.094461100001354,
+  "torch": "2.10.0+cu128",
+  "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "test_dataset_accessed": false,
+  "accuracy_benchmark": false,
+  "limitation": "Natural installs are counted, not forced. Controlled commit smoke is a separate receipt."
+}

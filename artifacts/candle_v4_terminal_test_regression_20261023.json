@@ -1,0 +1,10 @@
+{
+  "tests": 3,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "real_TEST_opened": false,
+  "real_CAL_opened": false,
+  "full_training_started": false,
+  "fixture": "synthetic TEST only"
+}

@@ -1,0 +1,1227 @@
+{
+  "experiment": "CANDLE V4 final transition smoke, fixed development fixture",
+  "decision": "NO_GO_FULL",
+  "full_training_started": false,
+  "registered_protocol": {
+    "version": "candle_v4_active_bank_v1",
+    "receiver": 18,
+    "donor": 16,
+    "targets": [
+      13,
+      17
+    ],
+    "owners": [
+      8,
+      16,
+      18,
+      30
+    ],
+    "tasks": [
+      2,
+      3
+    ],
+    "rounds_per_task": 8,
+    "expert_updates": "44 current-task quota/round, max88 catch-up; no forced edge",
+    "native_data": "current BASE deduped capped4096/class, original 10% native local-validation split",
+    "expert": "39->64->1, Adam .001, balanced joint, clip5; no architecture/optimizer change",
+    "threshold_rule": "Locked before CAL: donor FIT recall95 order statistic, no CAL threshold search",
+    "arbitration": "largest (sigmoid-threshold)/(1-threshold), class-ID tie break, native fallback",
+    "gate": {
+      "positive_unique_min": 32,
+      "negative_unique_min": 32,
+      "recall_min": 0.95,
+      "observed_FAR_max": 0.001,
+      "per_observed_negative_class_FAR_max": 0.001,
+      "negative_break_max": 0,
+      "atomic_bank_acceptance": true,
+      "net_gain_required": true
+    },
+    "risk_policy": "Empirical current CAL scope; old-positive receipts carry only with unchanged independent raw-input experts. New-task negatives can suspend; no strict historical safety claim.",
+    "CAL_independence": "NOT independent confirmation: same role lineage used by earlier APPLIANCE studies; V4 pilots themselves did not open CAL",
+    "historical_evidence": [
+      "docs/APPLIANCE_GOAL_STATUS_20261009_VI.md: Task2 CAL study",
+      "docs/APPLIANCE_DIRECT_HEAD_DEVELOPMENT_20261010_VI.md: CAL-H already development"
+    ],
+    "communication_budget": {
+      "bank_total": 134217728,
+      "per_receiver_class": 67108864,
+      "modeled_native_plus_bank": 2147483648,
+      "full_seed_incremental_projection_cap": 68719476736
+    },
+    "source_archive_sha256": "176a1e8ab120abb54e6539c0061d8b9fbdcd13f6e83f1d7addc9a7f3fad3cf99",
+    "roles_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+    "CAL_opens": "Once per current task, after finalized native task; never reopened in later tasks",
+    "CAL_content_exclusion": "Dedup within each owner; remove current BASE/FIT content across all four owners before acceptance; counts gates apply after exclusion",
+    "TEST_opened": false,
+    "full_training": "Conditional on actual two ACTIVE experts, transition/retention/risk/budget gates; otherwise NO-GO"
+  },
+  "mechanical_checks": {
+    "native_isolation_task_2": true,
+    "native_isolation_task_3": true,
+    "bank_checkpoint_restore_exact": true,
+    "expert_retention_weights_exact": true,
+    "no_old_expert_training_task3": true,
+    "two_experts_retained": true,
+    "current_only_training_reads": true,
+    "collision_resolution": true,
+    "inference_restore_exact": true,
+    "closed_CAL_task2_rejected": true,
+    "bank_budget": true,
+    "per_class_budget": true,
+    "total_modeled_budget": true,
+    "native_parameters_finite": true
+  },
+  "mechanical_checks_pass": true,
+  "qualifying_smoke_pass": false,
+  "two_trained_experts": false,
+  "two_ACTIVE": false,
+  "learned_expert_retention_proven": false,
+  "ACTIVE_inference_tested": false,
+  "controlled_collision_handler_only": true,
+  "candidate_graph_trace": [
+    {
+      "round": 0,
+      "receiver": 18,
+      "current_peers": [
+        8,
+        30
+      ],
+      "configured_donor_16_eligible": false,
+      "target_metadata": {
+        "13": {
+          "current_sources": [],
+          "count_eligible_sources": []
+        },
+        "17": {
+          "current_sources": [
+            8,
+            30
+          ],
+          "count_eligible_sources": [
+            8
+          ]
+        }
+      }
+    },
+    {
+      "round": 1,
+      "receiver": 18,
+      "current_peers": [
+        8,
+        30
+      ],
+      "configured_donor_16_eligible": false,
+      "target_metadata": {
+        "13": {
+          "current_sources": [],
+          "count_eligible_sources": []
+        },
+        "17": {
+          "current_sources": [
+            8,
+            30
+          ],
+          "count_eligible_sources": [
+            8
+          ]
+        }
+      }
+    },
+    {
+      "round": 2,
+      "receiver": 18,
+      "current_peers": [
+        8,
+        30
+      ],
+      "configured_donor_16_eligible": false,
+      "target_metadata": {
+        "13": {
+          "current_sources": [],
+          "count_eligible_sources": []
+        },
+        "17": {
+          "current_sources": [
+            8,
+            30
+          ],
+          "count_eligible_sources": [
+            8
+          ]
+        }
+      }
+    },
+    {
+      "round": 3,
+      "receiver": 18,
+      "current_peers": [
+        8,
+        30
+      ],
+      "configured_donor_16_eligible": false,
+      "target_metadata": {
+        "13": {
+          "current_sources": [],
+          "count_eligible_sources": []
+        },
+        "17": {
+          "current_sources": [
+            8,
+            30
+          ],
+          "count_eligible_sources": [
+            8
+          ]
+        }
+      }
+    },
+    {
+      "round": 4,
+      "receiver": 18,
+      "current_peers": [
+        8,
+        30
+      ],
+      "configured_donor_16_eligible": false,
+      "target_metadata": {
+        "13": {
+          "current_sources": [],
+          "count_eligible_sources": []
+        },
+        "17": {
+          "current_sources": [
+            8,
+            30
+          ],
+          "count_eligible_sources": [
+            8
+          ]
+        }
+      }
+    },
+    {
+      "round": 5,
+      "receiver": 18,
+      "current_peers": [
+        8,
+        30
+      ],
+      "configured_donor_16_eligible": false,
+      "target_metadata": {
+        "13": {
+          "current_sources": [],
+          "count_eligible_sources": []
+        },
+        "17": {
+          "current_sources": [
+            8,
+            30
+          ],
+          "count_eligible_sources": [
+            8
+          ]
+        }
+      }
+    },
+    {
+      "round": 6,
+      "receiver": 18,
+      "current_peers": [
+        8,
+        30
+      ],
+      "configured_donor_16_eligible": false,
+      "target_metadata": {
+        "13": {
+          "current_sources": [],
+          "count_eligible_sources": []
+        },
+        "17": {
+          "current_sources": [
+            8,
+            30
+          ],
+          "count_eligible_sources": [
+            8
+          ]
+        }
+      }
+    },
+    {
+      "round": 7,
+      "receiver": 18,
+      "current_peers": [
+        8,
+        30
+      ],
+      "configured_donor_16_eligible": false,
+      "target_metadata": {
+        "13": {
+          "current_sources": [],
+          "count_eligible_sources": []
+        },
+        "17": {
+          "current_sources": [
+            8,
+            30
+          ],
+          "count_eligible_sources": [
+            8
+          ]
+        }
+      }
+    }
+  ],
+  "configured_gate_owner_scope_valid": false,
+  "primary_blocker": "Fixed donor16 was outside receiver18 live neighborhood in all eight T2 rounds: both drafts had zero updates.",
+  "implementation_findings": [
+    "Fixture locked ownership/count metadata before checking live donor reachability",
+    "Acceptance should defer before FIT/CAL if an expert has no authorized training updates",
+    "Gate reference traffic must also enforce current graph; owner16 was outside the final gate neighborhood"
+  ],
+  "scientific_interpretation": "CAL results describe untrained drafts and an invalid gate-owner path; do not interpret as trained V4 quality, learned retention or proof of method failure.",
+  "smoke_receipt": {
+    "completed_execution": true,
+    "engineering_pass": true,
+    "checks": {
+      "native_isolation_task_2": true,
+      "native_isolation_task_3": true,
+      "bank_checkpoint_restore_exact": true,
+      "expert_retention_weights_exact": true,
+      "no_old_expert_training_task3": true,
+      "two_experts_retained": true,
+      "current_only_training_reads": true,
+      "collision_resolution": true,
+      "inference_restore_exact": true,
+      "closed_CAL_task2_rejected": true,
+      "bank_budget": true,
+      "per_class_budget": true,
+      "total_modeled_budget": true
+    },
+    "active_gate_pass": false,
+    "two_ACTIVE": false,
+    "decision": "NO_GO_FULL",
+    "status": {
+      "13": "REJECTED",
+      "17": "REJECTED"
+    },
+    "gates": [
+      {
+        "task": 2,
+        "outcome": "REJECT",
+        "birth_acceptance": true,
+        "failures": [
+          "CLASS_13_POSITIVE_RECALL_OR_COUNT",
+          "CLASS_17_POSITIVE_RECALL_OR_COUNT",
+          "OWNER_16_CLASS_17_FAR",
+          "OWNER_16_CLASS_17_PER_CLASS_FAR",
+          "OWNER_16_NEGATIVE_BREAK",
+          "OWNER_18_CLASS_17_FAR",
+          "OWNER_18_CLASS_17_PER_CLASS_FAR",
+          "OWNER_18_NEGATIVE_BREAK",
+          "OWNER_30_CLASS_17_FAR",
+          "OWNER_30_CLASS_17_PER_CLASS_FAR",
+          "OWNER_8_CLASS_17_FAR",
+          "OWNER_8_CLASS_17_PER_CLASS_FAR",
+          "OWNER_8_NEGATIVE_BREAK"
+        ],
+        "thresholds": {
+          "13": 0.4609704911708832,
+          "17": 0.4148212671279907
+        },
+        "expert_hashes": {
+          "13": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f",
+          "17": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+        },
+        "owners": {
+          "8": {
+            "rows": 249,
+            "rescue": 61,
+            "break_count": 1,
+            "correct": 61,
+            "native_correct": 1,
+            "collisions": 86,
+            "targets": {
+              "13": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 249,
+                "false_activations": 0,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "12": {
+                    "n": 173,
+                    "fp": 0
+                  },
+                  "14": {
+                    "n": 13,
+                    "fp": 0
+                  },
+                  "17": {
+                    "n": 63,
+                    "fp": 0
+                  }
+                }
+              },
+              "17": {
+                "positive": 63,
+                "hits": 61,
+                "negative": 186,
+                "false_activations": 186,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "12": {
+                    "n": 173,
+                    "fp": 173
+                  },
+                  "14": {
+                    "n": 13,
+                    "fp": 13
+                  }
+                }
+              }
+            },
+            "excluded_BASE_FIT_overlaps": 0
+          },
+          "16": {
+            "rows": 1454,
+            "rescue": 49,
+            "break_count": 1,
+            "correct": 49,
+            "native_correct": 1,
+            "collisions": 1365,
+            "targets": {
+              "13": {
+                "positive": 1266,
+                "hits": 0,
+                "negative": 188,
+                "false_activations": 0,
+                "required_positive_owner": true,
+                "per_negative_class": {
+                  "14": {
+                    "n": 114,
+                    "fp": 0
+                  },
+                  "15": {
+                    "n": 12,
+                    "fp": 0
+                  },
+                  "16": {
+                    "n": 10,
+                    "fp": 0
+                  },
+                  "17": {
+                    "n": 52,
+                    "fp": 0
+                  }
+                }
+              },
+              "17": {
+                "positive": 52,
+                "hits": 49,
+                "negative": 1402,
+                "false_activations": 1396,
+                "required_positive_owner": true,
+                "per_negative_class": {
+                  "13": {
+                    "n": 1266,
+                    "fp": 1265
+                  },
+                  "14": {
+                    "n": 114,
+                    "fp": 114
+                  },
+                  "15": {
+                    "n": 12,
+                    "fp": 7
+                  },
+                  "16": {
+                    "n": 10,
+                    "fp": 10
+                  }
+                }
+              }
+            },
+            "excluded_BASE_FIT_overlaps": 0
+          },
+          "18": {
+            "rows": 844,
+            "rescue": 0,
+            "break_count": 2,
+            "correct": 0,
+            "native_correct": 2,
+            "collisions": 420,
+            "targets": {
+              "13": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 844,
+                "false_activations": 0,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "12": {
+                    "n": 444,
+                    "fp": 0
+                  },
+                  "14": {
+                    "n": 290,
+                    "fp": 0
+                  },
+                  "15": {
+                    "n": 105,
+                    "fp": 0
+                  },
+                  "16": {
+                    "n": 5,
+                    "fp": 0
+                  }
+                }
+              },
+              "17": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 844,
+                "false_activations": 798,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "12": {
+                    "n": 444,
+                    "fp": 444
+                  },
+                  "14": {
+                    "n": 290,
+                    "fp": 290
+                  },
+                  "15": {
+                    "n": 105,
+                    "fp": 60
+                  },
+                  "16": {
+                    "n": 5,
+                    "fp": 4
+                  }
+                }
+              }
+            },
+            "excluded_BASE_FIT_overlaps": 0
+          },
+          "30": {
+            "rows": 1003,
+            "rescue": 1,
+            "break_count": 0,
+            "correct": 1,
+            "native_correct": 0,
+            "collisions": 892,
+            "targets": {
+              "13": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 1003,
+                "false_activations": 0,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "12": {
+                    "n": 122,
+                    "fp": 0
+                  },
+                  "14": {
+                    "n": 866,
+                    "fp": 0
+                  },
+                  "15": {
+                    "n": 14,
+                    "fp": 0
+                  },
+                  "17": {
+                    "n": 1,
+                    "fp": 0
+                  }
+                }
+              },
+              "17": {
+                "positive": 1,
+                "hits": 1,
+                "negative": 1002,
+                "false_activations": 997,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "12": {
+                    "n": 122,
+                    "fp": 122
+                  },
+                  "14": {
+                    "n": 866,
+                    "fp": 866
+                  },
+                  "15": {
+                    "n": 14,
+                    "fp": 9
+                  }
+                }
+              }
+            },
+            "excluded_BASE_FIT_overlaps": 0
+          }
+        },
+        "collisions": 2763,
+        "total_rescue": 111,
+        "total_break": 4,
+        "status": {
+          "13": "REJECTED",
+          "17": "REJECTED"
+        },
+        "bytes": 20334849,
+        "evidence_policy": "Current CAL, previously available development source; not independent confirmation"
+      },
+      {
+        "task": 3,
+        "outcome": "REJECT",
+        "birth_acceptance": false,
+        "failures": [
+          "OWNER_16_CLASS_17_FAR",
+          "OWNER_16_CLASS_17_PER_CLASS_FAR",
+          "OWNER_16_NEGATIVE_BREAK",
+          "OWNER_18_CLASS_17_FAR",
+          "OWNER_18_CLASS_17_PER_CLASS_FAR",
+          "OWNER_18_NEGATIVE_BREAK",
+          "OWNER_30_CLASS_17_FAR",
+          "OWNER_30_CLASS_17_PER_CLASS_FAR",
+          "OWNER_30_NEGATIVE_BREAK",
+          "OWNER_8_CLASS_17_FAR",
+          "OWNER_8_CLASS_17_PER_CLASS_FAR",
+          "OWNER_8_NEGATIVE_BREAK"
+        ],
+        "thresholds": {
+          "13": 0.4609704911708832,
+          "17": 0.4148212671279907
+        },
+        "expert_hashes": {
+          "13": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f",
+          "17": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+        },
+        "owners": {
+          "8": {
+            "rows": 796,
+            "rescue": 0,
+            "break_count": 172,
+            "correct": 0,
+            "native_correct": 172,
+            "collisions": 654,
+            "targets": {
+              "13": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 796,
+                "false_activations": 0,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "19": {
+                    "n": 172,
+                    "fp": 0
+                  },
+                  "22": {
+                    "n": 624,
+                    "fp": 0
+                  }
+                }
+              },
+              "17": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 796,
+                "false_activations": 795,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "19": {
+                    "n": 172,
+                    "fp": 172
+                  },
+                  "22": {
+                    "n": 624,
+                    "fp": 623
+                  }
+                }
+              }
+            },
+            "excluded_BASE_FIT_overlaps": 0
+          },
+          "16": {
+            "rows": 660,
+            "rescue": 0,
+            "break_count": 539,
+            "correct": 0,
+            "native_correct": 539,
+            "collisions": 595,
+            "targets": {
+              "13": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 660,
+                "false_activations": 0,
+                "required_positive_owner": true,
+                "per_negative_class": {
+                  "18": {
+                    "n": 114,
+                    "fp": 0
+                  },
+                  "20": {
+                    "n": 503,
+                    "fp": 0
+                  },
+                  "21": {
+                    "n": 3,
+                    "fp": 0
+                  },
+                  "23": {
+                    "n": 40,
+                    "fp": 0
+                  }
+                }
+              },
+              "17": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 660,
+                "false_activations": 648,
+                "required_positive_owner": true,
+                "per_negative_class": {
+                  "18": {
+                    "n": 114,
+                    "fp": 102
+                  },
+                  "20": {
+                    "n": 503,
+                    "fp": 503
+                  },
+                  "21": {
+                    "n": 3,
+                    "fp": 3
+                  },
+                  "23": {
+                    "n": 40,
+                    "fp": 40
+                  }
+                }
+              }
+            },
+            "excluded_BASE_FIT_overlaps": 0
+          },
+          "18": {
+            "rows": 935,
+            "rescue": 0,
+            "break_count": 917,
+            "correct": 1,
+            "native_correct": 918,
+            "collisions": 535,
+            "targets": {
+              "13": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 935,
+                "false_activations": 0,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "19": {
+                    "n": 507,
+                    "fp": 0
+                  },
+                  "20": {
+                    "n": 214,
+                    "fp": 0
+                  },
+                  "21": {
+                    "n": 4,
+                    "fp": 0
+                  },
+                  "23": {
+                    "n": 210,
+                    "fp": 0
+                  }
+                }
+              },
+              "17": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 935,
+                "false_activations": 931,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "19": {
+                    "n": 507,
+                    "fp": 507
+                  },
+                  "20": {
+                    "n": 214,
+                    "fp": 213
+                  },
+                  "21": {
+                    "n": 4,
+                    "fp": 4
+                  },
+                  "23": {
+                    "n": 210,
+                    "fp": 207
+                  }
+                }
+              }
+            },
+            "excluded_BASE_FIT_overlaps": 0
+          },
+          "30": {
+            "rows": 1115,
+            "rescue": 0,
+            "break_count": 869,
+            "correct": 1,
+            "native_correct": 870,
+            "collisions": 933,
+            "targets": {
+              "13": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 1115,
+                "false_activations": 0,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "18": {
+                    "n": 83,
+                    "fp": 0
+                  },
+                  "19": {
+                    "n": 140,
+                    "fp": 0
+                  },
+                  "20": {
+                    "n": 261,
+                    "fp": 0
+                  },
+                  "21": {
+                    "n": 247,
+                    "fp": 0
+                  },
+                  "22": {
+                    "n": 130,
+                    "fp": 0
+                  },
+                  "23": {
+                    "n": 254,
+                    "fp": 0
+                  }
+                }
+              },
+              "17": {
+                "positive": 0,
+                "hits": 0,
+                "negative": 1115,
+                "false_activations": 1103,
+                "required_positive_owner": false,
+                "per_negative_class": {
+                  "18": {
+                    "n": 83,
+                    "fp": 73
+                  },
+                  "19": {
+                    "n": 140,
+                    "fp": 140
+                  },
+                  "20": {
+                    "n": 261,
+                    "fp": 261
+                  },
+                  "21": {
+                    "n": 247,
+                    "fp": 247
+                  },
+                  "22": {
+                    "n": 130,
+                    "fp": 129
+                  },
+                  "23": {
+                    "n": 254,
+                    "fp": 253
+                  }
+                }
+              }
+            },
+            "excluded_BASE_FIT_overlaps": 0
+          }
+        },
+        "collisions": 2717,
+        "total_rescue": 0,
+        "total_break": 2497,
+        "status": {
+          "13": "REJECTED",
+          "17": "REJECTED"
+        },
+        "bytes": 41197801,
+        "evidence_policy": "Current CAL, previously available development source; not independent confirmation"
+      }
+    ],
+    "rounds": [
+      {
+        "task": 2,
+        "round": 0,
+        "experts": {
+          "13": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 44,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 44,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 0,
+        "native_sha256": "09e81404aff234301dbb9539724a570eb01e3843b2748d406dd5601d59eac4c0"
+      },
+      {
+        "task": 2,
+        "round": 1,
+        "experts": {
+          "13": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 88,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 88,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 0,
+        "native_sha256": "e22fea3ac33b85d7940d66c2826a6b5a58e7be60cbcd74748a3c29ff7b0325d2"
+      },
+      {
+        "task": 2,
+        "round": 2,
+        "experts": {
+          "13": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 132,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 132,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 0,
+        "native_sha256": "7b5b419a71777ea498286acbd0a82ecae39b96314f2905522e89e0f1373f48fe"
+      },
+      {
+        "task": 2,
+        "round": 3,
+        "experts": {
+          "13": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 176,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 176,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 0,
+        "native_sha256": "7c83dd0035e9688eaa5f82e831dd0253a8169c68a22cbe32a0a3214d2fa8d9e7"
+      },
+      {
+        "task": 2,
+        "round": 4,
+        "experts": {
+          "13": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 220,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 220,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 0,
+        "native_sha256": "7236be6e7d71c89cc867314831e5eafc918019c8025960ea045333eea235e705"
+      },
+      {
+        "task": 2,
+        "round": 5,
+        "experts": {
+          "13": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 264,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 264,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 0,
+        "native_sha256": "bf0be2de220822943cff560f1a9e1769b72ff0e9cdf348dd743377f486069493"
+      },
+      {
+        "task": 2,
+        "round": 6,
+        "experts": {
+          "13": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 308,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 308,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 0,
+        "native_sha256": "91c4e503ca72dc29d4ebcafe63156e56109ab01c12b5bd1300bced7d81d530ff"
+      },
+      {
+        "task": 2,
+        "round": 7,
+        "experts": {
+          "13": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 352,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "eligible": false,
+            "updates": 0,
+            "steps": 0,
+            "pending": 352,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 0,
+        "native_sha256": "7b86a21e1b992726cb6777b13afb418693dd56a948538f794157f27ea379880d"
+      },
+      {
+        "task": 3,
+        "round": 0,
+        "experts": {
+          "13": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 20334849,
+        "native_sha256": "9d28b9173599255c045b1bbe48b06fc70f47c7f49a10b4878ba30ce55033c375"
+      },
+      {
+        "task": 3,
+        "round": 1,
+        "experts": {
+          "13": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 20334849,
+        "native_sha256": "91deca5878a5675c75f5e95c1ded24fae2f16eb622cc653fd424af42fc363ecc"
+      },
+      {
+        "task": 3,
+        "round": 2,
+        "experts": {
+          "13": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 20334849,
+        "native_sha256": "c4ce6bf104094555c9d0551f10fa9d7a5527000fa22c37e59474aeaa30eab15c"
+      },
+      {
+        "task": 3,
+        "round": 3,
+        "experts": {
+          "13": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 20334849,
+        "native_sha256": "39e00a6feb903e5f1bdc5f925befcf37057c97e4abf224185c56ece31ca0ed40"
+      },
+      {
+        "task": 3,
+        "round": 4,
+        "experts": {
+          "13": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 20334849,
+        "native_sha256": "384a2898e10537e0341a85d6f7509f2abc8de4ffc039fd9398e7ccc23e48f828"
+      },
+      {
+        "task": 3,
+        "round": 5,
+        "experts": {
+          "13": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 20334849,
+        "native_sha256": "abbb8ed8e925df3699864132590d3d5c0bdfecc17552dcaa46bc0d67c2dfd2e7"
+      },
+      {
+        "task": 3,
+        "round": 6,
+        "experts": {
+          "13": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 20334849,
+        "native_sha256": "304ebde88cf95f1b69cb9357e56542cc8ca724c33e08ccce395fb434f91bbc53"
+      },
+      {
+        "task": 3,
+        "round": 7,
+        "experts": {
+          "13": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          },
+          "17": {
+            "status": "REJECTED",
+            "frozen": true,
+            "expert_sha256": "fe15fb1bd4ff14154558aa76aa8d78d28480d78bc7ab2b876c12be03eb1f786f"
+          }
+        },
+        "bytes": 20334849,
+        "native_sha256": "924aab55e3e81fb5f90e970e201237bd8faa6d506ae04957fdd453272659432d"
+      }
+    ],
+    "expert_steps": {
+      "13": 0,
+      "17": 0
+    },
+    "bank_bytes": 41197801,
+    "per_receiver_class_bytes": {
+      "13": 20598904,
+      "17": 20598897
+    },
+    "by_kind": {
+      "gate_base_reference": 41051211,
+      "gate_expert_reference": 142092,
+      "CAL_provenance": 1751,
+      "gate_CAL_receipt": 2747
+    },
+    "native_modeled_bytes": 1056777688,
+    "combined_modeled_bytes": 1097975489,
+    "CAL_confirmation_independent": false,
+    "TEST_opened": false,
+    "scope": "One registered 4-client transition development smoke; no strict old-class or full-system quality guarantee"
+  },
+  "execution_source_lock": {
+    "tools/run_candle_v4_transition.py": "fb08c01f5dfeb4d29bbf963919bd89db246827a1f112aacce6a5746b8a5a65e5",
+    "candle_v4_runtime/fed_learning/training/candle_v4_bank.py": "a84fa0e3db691950e7739ff7d0e9933618e7e1d0d8b58f6fab0deb1d2d3ac081",
+    "candle_v4_runtime/fed_learning/training/candle_v4_shadow.py": "198d0ea9c9e742a319da26c3428ecf32340bae59cbfbaa4a11e0a1b2d521f069",
+    "candle_v4_runtime/fed_learning/training/decentralized_denice_il.py": "9d10038ebe60d129cf1a10bdb5ef46dd1fc752e35f13994ae3b0d29d2978af75",
+    "candle_v4_runtime/fed_learning/data/denice_clean_roles.py": "c688296c069bfafbfc1486348ed7d09212e9f33bdc23adb739ad45abc27eae31"
+  },
+  "output_only_correction": {
+    "old_runner_sha256": "fb08c01f5dfeb4d29bbf963919bd89db246827a1f112aacce6a5746b8a5a65e5",
+    "new_runner_sha256": "1c0bef3eaefe61765ad323d5e6ecd79c74c2d34076243134df93e4d196227055",
+    "change": "Only JSON-safe conversion of return value after both tasks and all checkpoints completed. Native/expert code and protocol unchanged; no bank rerun."
+  },
+  "raw_receipt_sha256": {
+    "report.json": "cda2514eceb5db3979087946de49d491d11b2d4d830b431ff03d06732b6f419c",
+    "protocol_lock.json": "1e6832f507065afaa45dc893756bc86ca25fc80696f840f3ebef8fab68378d6f",
+    "execution_source_lock_before_output_fix.json": "a2a99e2d88f40c9b1fc89c22e3a046eaf2808e6b7a25d59b02f1e42de60fddc7"
+  },
+  "CAL_confirmation_independent": false,
+  "TEST_opened": false,
+  "inference_latency": null,
+  "full_training_communication_projection": null,
+  "projection_reason": "No learned/ACTIVE bank: not a valid basis to project full V4 training cost or inference latency",
+  "no_post_CAL_candidate_switch": true,
+  "no_gate_lowering": true,
+  "no_additional_full_smoke": true
+}

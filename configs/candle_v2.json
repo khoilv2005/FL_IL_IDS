@@ -220,6 +220,7 @@
   "appliance_enabled": false,
   "denice_expected_method": "candle_v2",
   "candle_v2_enabled": true,
+  "candle_v2_inference_policy": "binary_cosine_registered_v1",
   "candle_v2_align_weight": 0.1,
   "candle_v2_virtual_weight": 1.0,
   "candle_v2_preservation_weight": 0.5,

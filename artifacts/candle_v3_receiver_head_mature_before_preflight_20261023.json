@@ -1,0 +1,3372 @@
+{
+  "completed": true,
+  "protocol": {
+    "task": 2,
+    "participants": [
+      9,
+      30
+    ],
+    "cases": [
+      {
+        "receiver": 9,
+        "donor": 30,
+        "target": 12,
+        "positive_fit": 516,
+        "positive_cal": 122
+      },
+      {
+        "receiver": 30,
+        "donor": 9,
+        "target": 13,
+        "positive_fit": 1535,
+        "positive_cal": 381
+      }
+    ],
+    "settings": {
+      "enabled": true,
+      "transfer_mode": "receiver_head_learning",
+      "discovery_policy": "availability_only_v1",
+      "head_rounds": 8,
+      "learning_rate": 0.01,
+      "max_donors": 2,
+      "max_targets": 3,
+      "batch_size": 512,
+      "base_per_class": 4096,
+      "fit_per_class": 256,
+      "cal_per_class": 512,
+      "sketch_per_class": 50,
+      "min_fit_positive": 32,
+      "min_cal_positive": 32,
+      "min_cal_negative": 32,
+      "recall_gate": 0.95,
+      "far_gate": 0.001,
+      "min_gain": 0.001,
+      "communication_budget_mib": 128.0,
+      "graph": "announced_current_peers"
+    },
+    "source_sha256": "b0e0fa56083591c42074f0f19d957e4a25a38046a57bfc3fdb449252eab1fcaa",
+    "selection": "fixed two cached clients, smallest current class with metadata evidence per direction; no score selection",
+    "role_manifest_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+    "test_forbidden": true,
+    "optimizer": "unchanged original eight rounds",
+    "production_installation": false
+  },
+  "results": [
+    {
+      "case": {
+        "receiver": 9,
+        "donor": 30,
+        "target": 12,
+        "positive_fit": 516,
+        "positive_cal": 122
+      },
+      "receipt": {
+        "receiver": 9,
+        "task": 2,
+        "session_id": "5307a97a835a248028767d7a6854e01b199c9f101bb18a7792740bc92abe24d4",
+        "targets": [
+          12
+        ],
+        "donors": [
+          30
+        ],
+        "snapshot": {
+          "receiver": 9,
+          "task": 2,
+          "reference_sha256": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+          "preprocessing_sha256": "8c6009181e3113a010f5477c2c5fb18e6c71ee289827eb2f1e90e3e1c27a974e",
+          "feature_contract": "denice_masked_eval_penultimate_v1",
+          "schema": "candle_v3_peer_teaching_v1"
+        },
+        "scope": "observed current CAL only",
+        "transfer_mode": "receiver_head_learning",
+        "availability_fit": {
+          "12": {
+            "n": 256,
+            "correct": 235
+          }
+        },
+        "status": "FAIL",
+        "reasons": [
+          "No locked minimum gain over router_only",
+          "No locked minimum gain over mask_only"
+        ],
+        "missing_evidence": [],
+        "totals": {
+          "n": 1110,
+          "positive": 122,
+          "negative": 988,
+          "correct": 1059,
+          "baseline_correct": 933,
+          "rescue": 126,
+          "break_count": 0,
+          "negative_break": 0,
+          "target_correct": 122,
+          "false_activation": 0
+        },
+        "historical_safety": "unverified",
+        "statistical_far_certificate": false,
+        "controls": {
+          "availability_only": {
+            "9": {
+              "n": 463,
+              "positive": 0,
+              "negative": 463,
+              "correct": 421,
+              "baseline_correct": 421,
+              "rescue": 0,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 0,
+              "harmless": 421,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 443,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 374,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 23,
+                  "correct": 23,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 24,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "30": {
+              "n": 647,
+              "positive": 122,
+              "negative": 525,
+              "correct": 624,
+              "baseline_correct": 512,
+              "rescue": 112,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 0,
+              "harmless": 512,
+              "target_correct": 112,
+              "false_activation": 0,
+              "target_predictions": 112,
+              "route_correct": 632,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 112,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 510,
+                  "correct": 507,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 5,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          },
+          "router_only": {
+            "9": {
+              "n": 463,
+              "positive": 0,
+              "negative": 463,
+              "correct": 423,
+              "baseline_correct": 421,
+              "rescue": 2,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 7,
+              "harmless": 421,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 440,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 376,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 23,
+                  "correct": 23,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 24,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "30": {
+              "n": 647,
+              "positive": 122,
+              "negative": 525,
+              "correct": 636,
+              "baseline_correct": 512,
+              "rescue": 124,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 3,
+              "harmless": 512,
+              "target_correct": 122,
+              "false_activation": 0,
+              "target_predictions": 122,
+              "route_correct": 641,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 122,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 510,
+                  "correct": 509,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 5,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          },
+          "mask_only": {
+            "9": {
+              "n": 463,
+              "positive": 0,
+              "negative": 463,
+              "correct": 422,
+              "baseline_correct": 421,
+              "rescue": 2,
+              "break_count": 1,
+              "negative_break": 1,
+              "changed_wrong": 7,
+              "harmless": 420,
+              "target_correct": 0,
+              "false_activation": 1,
+              "target_predictions": 1,
+              "route_correct": 440,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 375,
+                  "false_activation": 1,
+                  "break_count": 1
+                },
+                "14": {
+                  "n": 23,
+                  "correct": 23,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 24,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "30": {
+              "n": 647,
+              "positive": 122,
+              "negative": 525,
+              "correct": 636,
+              "baseline_correct": 512,
+              "rescue": 124,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 3,
+              "harmless": 512,
+              "target_correct": 122,
+              "false_activation": 0,
+              "target_predictions": 122,
+              "route_correct": 641,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 122,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 510,
+                  "correct": 509,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 5,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          },
+          "donor_only": {
+            "9": {
+              "n": 463,
+              "positive": 0,
+              "negative": 463,
+              "correct": 423,
+              "baseline_correct": 421,
+              "rescue": 2,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 7,
+              "harmless": 421,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 440,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 376,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 23,
+                  "correct": 23,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 24,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "30": {
+              "n": 647,
+              "positive": 122,
+              "negative": 525,
+              "correct": 636,
+              "baseline_correct": 512,
+              "rescue": 124,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 3,
+              "harmless": 512,
+              "target_correct": 122,
+              "false_activation": 0,
+              "target_predictions": 122,
+              "route_correct": 641,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 122,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 510,
+                  "correct": 509,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 5,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          },
+          "full": {
+            "9": {
+              "n": 463,
+              "positive": 0,
+              "negative": 463,
+              "correct": 423,
+              "baseline_correct": 421,
+              "rescue": 2,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 7,
+              "harmless": 421,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 440,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 376,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 23,
+                  "correct": 23,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 24,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "30": {
+              "n": 647,
+              "positive": 122,
+              "negative": 525,
+              "correct": 636,
+              "baseline_correct": 512,
+              "rescue": 124,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 3,
+              "harmless": 512,
+              "target_correct": 122,
+              "false_activation": 0,
+              "target_predictions": 122,
+              "route_correct": 641,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 122,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 510,
+                  "correct": 509,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 5,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          }
+        },
+        "head_training": [
+          {
+            "round": 0,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "d52b73ac8a02fb9fa4fa780cdffc9d18c381815d57ae9a49927aa0db98492137",
+                "round": 0,
+                "targets": [
+                  12
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 0.7529833463909366
+              },
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "d52b73ac8a02fb9fa4fa780cdffc9d18c381815d57ae9a49927aa0db98492137",
+                "round": 0,
+                "targets": [
+                  12
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.4441690733421542
+              }
+            ]
+          },
+          {
+            "round": 1,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "362c65f218431ec7fa6d545bb85a375e2109831c17abe4c36e9cd68d91e582ea",
+                "round": 1,
+                "targets": [
+                  12
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 0.7524993180081022
+              },
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "362c65f218431ec7fa6d545bb85a375e2109831c17abe4c36e9cd68d91e582ea",
+                "round": 1,
+                "targets": [
+                  12
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.4441037705185027
+              }
+            ]
+          },
+          {
+            "round": 2,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "f5277dcdb1103954b9bd62739d94cefd3eeae8dc215bf872a35ab15220a5a34f",
+                "round": 2,
+                "targets": [
+                  12
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 0.7520488811119933
+              },
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "f5277dcdb1103954b9bd62739d94cefd3eeae8dc215bf872a35ab15220a5a34f",
+                "round": 2,
+                "targets": [
+                  12
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.4440457619240727
+              }
+            ]
+          },
+          {
+            "round": 3,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "a05567c06e05805dd63314c4433439860988c87eecd68f9b6ff106b54e913947",
+                "round": 3,
+                "targets": [
+                  12
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 0.7516288163558238
+              },
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "a05567c06e05805dd63314c4433439860988c87eecd68f9b6ff106b54e913947",
+                "round": 3,
+                "targets": [
+                  12
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.4439942632332749
+              }
+            ]
+          },
+          {
+            "round": 4,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "f29290ca132c6f290d58c49d6f8dc76663091cbcee09f3dcb86012e4f87adc61",
+                "round": 4,
+                "targets": [
+                  12
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 0.7512362180824735
+              },
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "f29290ca132c6f290d58c49d6f8dc76663091cbcee09f3dcb86012e4f87adc61",
+                "round": 4,
+                "targets": [
+                  12
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.4439484243948112
+              }
+            ]
+          },
+          {
+            "round": 5,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "b19233e7767865e8ffb684910e210b810b0e3146002f5ddf5363a0efbc725550",
+                "round": 5,
+                "targets": [
+                  12
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 0.7508686484159492
+              },
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "b19233e7767865e8ffb684910e210b810b0e3146002f5ddf5363a0efbc725550",
+                "round": 5,
+                "targets": [
+                  12
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.4439076305445728
+              }
+            ]
+          },
+          {
+            "round": 6,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "c24ff6a0e03b07ab2f78f1d4cf22f30eb2f62fdda4bee94a985d586eddbea31d",
+                "round": 6,
+                "targets": [
+                  12
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 0.7505237321500431
+              },
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "c24ff6a0e03b07ab2f78f1d4cf22f30eb2f62fdda4bee94a985d586eddbea31d",
+                "round": 6,
+                "targets": [
+                  12
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.443871276873808
+              }
+            ]
+          },
+          {
+            "round": 7,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "75421e3cf3a062903449f37316f51a689514349e95c0ad7c39b8c0c976a44583",
+                "round": 7,
+                "targets": [
+                  12
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 0.7501996297641114
+              },
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "75421e3cf3a062903449f37316f51a689514349e95c0ad7c39b8c0c976a44583",
+                "round": 7,
+                "targets": [
+                  12
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.4438388518969006
+              }
+            ]
+          }
+        ],
+        "donor_only_training": [
+          {
+            "round": 0,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "d52b73ac8a02fb9fa4fa780cdffc9d18c381815d57ae9a49927aa0db98492137",
+                "round": 0,
+                "targets": [
+                  12
+                ],
+                "mass": 5.000000476837158,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.6877814370245884
+              }
+            ]
+          },
+          {
+            "round": 1,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "c7098edb62329eb5e9197f34d1a90ba87e2bdda83fe33b7d6588d5918c83e92f",
+                "round": 1,
+                "targets": [
+                  12
+                ],
+                "mass": 5.000000476837158,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.6876594589783108
+              }
+            ]
+          },
+          {
+            "round": 2,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "75232eb2f34e96c56f2c09f81e0934baa021a9e68ed04cee987553bf559ffc27",
+                "round": 2,
+                "targets": [
+                  12
+                ],
+                "mass": 5.000000476837158,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.6875457536501227
+              }
+            ]
+          },
+          {
+            "round": 3,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "76f2b9382ddc07e908102f5b38db7bf721fdf4a9b3c63ea920b911a5e021173e",
+                "round": 3,
+                "targets": [
+                  12
+                ],
+                "mass": 5.000000476837158,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.687439608207248
+              }
+            ]
+          },
+          {
+            "round": 4,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "9367ca3e45a3e235c57cf1bfe4d813bb68d1d5704f8b9196bef1c8adb6f5848e",
+                "round": 4,
+                "targets": [
+                  12
+                ],
+                "mass": 5.000000476837158,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.6873402231400741
+              }
+            ]
+          },
+          {
+            "round": 5,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "a7cc8a2c9bf6efa5babaf1cb225c890cb394c0a71788e091ace3ffe92651eb73",
+                "round": 5,
+                "targets": [
+                  12
+                ],
+                "mass": 5.000000476837158,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.6872470949507448
+              }
+            ]
+          },
+          {
+            "round": 6,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "20221b393360f939263796315348ff4ab82abb9589ebaa05e844ce8c3e131f6a",
+                "round": 6,
+                "targets": [
+                  12
+                ],
+                "mass": 5.000000476837158,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.6871595609905788
+              }
+            ]
+          },
+          {
+            "round": 7,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                "head_reference": "d02ebb83f47a31713d2ee48fc64a34912f21d46e75734f62ee467f5da80e7238",
+                "round": 7,
+                "targets": [
+                  12
+                ],
+                "mass": 5.000000476837158,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 0.6870772909826084
+              }
+            ]
+          }
+        ],
+        "fit_role": "FIT discovery only",
+        "training_role": "current BASE only",
+        "acceptance_role": "current CAL only"
+      },
+      "head_diagnostics": [
+        {
+          "include_receiver": true,
+          "mature_fc1": 80,
+          "head_change_l2": 0.011674725450575352,
+          "history": [
+            {
+              "round": 0,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "d52b73ac8a02fb9fa4fa780cdffc9d18c381815d57ae9a49927aa0db98492137",
+                  "round": 0,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 0.7529833463909366
+                },
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "d52b73ac8a02fb9fa4fa780cdffc9d18c381815d57ae9a49927aa0db98492137",
+                  "round": 0,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.4441690733421542
+                }
+              ]
+            },
+            {
+              "round": 1,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "362c65f218431ec7fa6d545bb85a375e2109831c17abe4c36e9cd68d91e582ea",
+                  "round": 1,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 0.7524993180081022
+                },
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "362c65f218431ec7fa6d545bb85a375e2109831c17abe4c36e9cd68d91e582ea",
+                  "round": 1,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.4441037705185027
+                }
+              ]
+            },
+            {
+              "round": 2,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "f5277dcdb1103954b9bd62739d94cefd3eeae8dc215bf872a35ab15220a5a34f",
+                  "round": 2,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 0.7520488811119933
+                },
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "f5277dcdb1103954b9bd62739d94cefd3eeae8dc215bf872a35ab15220a5a34f",
+                  "round": 2,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.4440457619240727
+                }
+              ]
+            },
+            {
+              "round": 3,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "a05567c06e05805dd63314c4433439860988c87eecd68f9b6ff106b54e913947",
+                  "round": 3,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 0.7516288163558238
+                },
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "a05567c06e05805dd63314c4433439860988c87eecd68f9b6ff106b54e913947",
+                  "round": 3,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.4439942632332749
+                }
+              ]
+            },
+            {
+              "round": 4,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "f29290ca132c6f290d58c49d6f8dc76663091cbcee09f3dcb86012e4f87adc61",
+                  "round": 4,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 0.7512362180824735
+                },
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "f29290ca132c6f290d58c49d6f8dc76663091cbcee09f3dcb86012e4f87adc61",
+                  "round": 4,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.4439484243948112
+                }
+              ]
+            },
+            {
+              "round": 5,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "b19233e7767865e8ffb684910e210b810b0e3146002f5ddf5363a0efbc725550",
+                  "round": 5,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 0.7508686484159492
+                },
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "b19233e7767865e8ffb684910e210b810b0e3146002f5ddf5363a0efbc725550",
+                  "round": 5,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.4439076305445728
+                }
+              ]
+            },
+            {
+              "round": 6,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "c24ff6a0e03b07ab2f78f1d4cf22f30eb2f62fdda4bee94a985d586eddbea31d",
+                  "round": 6,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 0.7505237321500431
+                },
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "c24ff6a0e03b07ab2f78f1d4cf22f30eb2f62fdda4bee94a985d586eddbea31d",
+                  "round": 6,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.443871276873808
+                }
+              ]
+            },
+            {
+              "round": 7,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "75421e3cf3a062903449f37316f51a689514349e95c0ad7c39b8c0c976a44583",
+                  "round": 7,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 0.7501996297641114
+                },
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "75421e3cf3a062903449f37316f51a689514349e95c0ad7c39b8c0c976a44583",
+                  "round": 7,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.4438388518969006
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "include_receiver": false,
+          "mature_fc1": 80,
+          "head_change_l2": 0.007949687540531158,
+          "history": [
+            {
+              "round": 0,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "d52b73ac8a02fb9fa4fa780cdffc9d18c381815d57ae9a49927aa0db98492137",
+                  "round": 0,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 5.000000476837158,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.6877814370245884
+                }
+              ]
+            },
+            {
+              "round": 1,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "c7098edb62329eb5e9197f34d1a90ba87e2bdda83fe33b7d6588d5918c83e92f",
+                  "round": 1,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 5.000000476837158,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.6876594589783108
+                }
+              ]
+            },
+            {
+              "round": 2,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "75232eb2f34e96c56f2c09f81e0934baa021a9e68ed04cee987553bf559ffc27",
+                  "round": 2,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 5.000000476837158,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.6875457536501227
+                }
+              ]
+            },
+            {
+              "round": 3,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "76f2b9382ddc07e908102f5b38db7bf721fdf4a9b3c63ea920b911a5e021173e",
+                  "round": 3,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 5.000000476837158,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.687439608207248
+                }
+              ]
+            },
+            {
+              "round": 4,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "9367ca3e45a3e235c57cf1bfe4d813bb68d1d5704f8b9196bef1c8adb6f5848e",
+                  "round": 4,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 5.000000476837158,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.6873402231400741
+                }
+              ]
+            },
+            {
+              "round": 5,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "a7cc8a2c9bf6efa5babaf1cb225c890cb394c0a71788e091ace3ffe92651eb73",
+                  "round": 5,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 5.000000476837158,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.6872470949507448
+                }
+              ]
+            },
+            {
+              "round": 6,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "20221b393360f939263796315348ff4ab82abb9589ebaa05e844ce8c3e131f6a",
+                  "round": 6,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 5.000000476837158,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.6871595609905788
+                }
+              ]
+            },
+            {
+              "round": 7,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "c08da07f2c57311b82b0252c9d8726a30e983db12a01e03e406746d9c1733d70",
+                  "head_reference": "d02ebb83f47a31713d2ee48fc64a34912f21d46e75734f62ee467f5da80e7238",
+                  "round": 7,
+                  "targets": [
+                    12
+                  ],
+                  "mass": 5.000000476837158,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 0.6870772909826084
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "fit_diagnostics": {
+        "availability_only": [
+          {
+            "owner": 9,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 612,
+            "false_activation": 1
+          },
+          {
+            "owner": 30,
+            "positive": 256,
+            "target_correct": 235,
+            "target_routed_correctly": 235,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 255,
+            "negative": 333,
+            "false_activation": 0
+          }
+        ],
+        "router_only": [
+          {
+            "owner": 9,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 612,
+            "false_activation": 1
+          },
+          {
+            "owner": 30,
+            "positive": 256,
+            "target_correct": 253,
+            "target_routed_correctly": 253,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 255,
+            "negative": 333,
+            "false_activation": 0
+          }
+        ],
+        "mask_only": [
+          {
+            "owner": 9,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 612,
+            "false_activation": 1
+          },
+          {
+            "owner": 30,
+            "positive": 256,
+            "target_correct": 253,
+            "target_routed_correctly": 253,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 255,
+            "negative": 333,
+            "false_activation": 0
+          }
+        ],
+        "donor_only": [
+          {
+            "owner": 9,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 612,
+            "false_activation": 1
+          },
+          {
+            "owner": 30,
+            "positive": 256,
+            "target_correct": 253,
+            "target_routed_correctly": 253,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 255,
+            "negative": 333,
+            "false_activation": 0
+          }
+        ],
+        "full": [
+          {
+            "owner": 9,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 612,
+            "false_activation": 1
+          },
+          {
+            "owner": 30,
+            "positive": 256,
+            "target_correct": 253,
+            "target_routed_correctly": 253,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 255,
+            "negative": 333,
+            "false_activation": 0
+          }
+        ]
+      },
+      "wire": {
+        "teaching_bytes": 7875511,
+        "by_kind": {
+          "receiver_reference": 6581401,
+          "verification_receipt": 44902,
+          "router_sketches": 100876,
+          "head_reference": 38936,
+          "head_delta": 27360,
+          "verification_request": 1082036
+        },
+        "events": [
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "receiver_reference",
+            "bytes": 6581401
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 66
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "router_sketches",
+            "bytes": 100876
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 73
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 73
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 43622
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_request",
+            "bytes": 1082036
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_receipt",
+            "bytes": 1068
+          }
+        ],
+        "native_bytes": null,
+        "total_system_bytes": null,
+        "native_accounting": "not measured by this ledger; do not claim total-system saving"
+      },
+      "live_checkpoint_untouched": true,
+      "rejected_shadow_predictor_unchanged": true
+    },
+    {
+      "case": {
+        "receiver": 30,
+        "donor": 9,
+        "target": 13,
+        "positive_fit": 1535,
+        "positive_cal": 381
+      },
+      "receipt": {
+        "receiver": 30,
+        "task": 2,
+        "session_id": "09aaff2d156ec097a01c7dda527ed2161fbbc6b8a6cfac98c2ab4be1628b4489",
+        "targets": [
+          13
+        ],
+        "donors": [
+          9
+        ],
+        "snapshot": {
+          "receiver": 30,
+          "task": 2,
+          "reference_sha256": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+          "preprocessing_sha256": "8c6009181e3113a010f5477c2c5fb18e6c71ee289827eb2f1e90e3e1c27a974e",
+          "feature_contract": "denice_masked_eval_penultimate_v1",
+          "schema": "candle_v3_peer_teaching_v1"
+        },
+        "scope": "observed current CAL only",
+        "transfer_mode": "receiver_head_learning",
+        "availability_fit": {
+          "13": {
+            "n": 256,
+            "correct": 0
+          }
+        },
+        "status": "FAIL",
+        "reasons": [
+          "class=13: recall below gate"
+        ],
+        "missing_evidence": [],
+        "totals": {
+          "n": 1110,
+          "positive": 378,
+          "negative": 732,
+          "correct": 512,
+          "baseline_correct": 492,
+          "rescue": 20,
+          "break_count": 0,
+          "negative_break": 0,
+          "target_correct": 16,
+          "false_activation": 0
+        },
+        "historical_safety": "unverified",
+        "statistical_far_certificate": false,
+        "controls": {
+          "availability_only": {
+            "30": {
+              "n": 649,
+              "positive": 0,
+              "negative": 649,
+              "correct": 474,
+              "baseline_correct": 474,
+              "rescue": 0,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 0,
+              "harmless": 474,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 475,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 512,
+                  "correct": 474,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "9": {
+              "n": 461,
+              "positive": 378,
+              "negative": 83,
+              "correct": 18,
+              "baseline_correct": 18,
+              "rescue": 0,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 0,
+              "harmless": 18,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 21,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 21,
+                  "correct": 18,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          },
+          "router_only": {
+            "30": {
+              "n": 649,
+              "positive": 0,
+              "negative": 649,
+              "correct": 478,
+              "baseline_correct": 474,
+              "rescue": 4,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 3,
+              "harmless": 474,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 482,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 512,
+                  "correct": 478,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "9": {
+              "n": 461,
+              "positive": 378,
+              "negative": 83,
+              "correct": 18,
+              "baseline_correct": 18,
+              "rescue": 0,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 49,
+              "harmless": 18,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 68,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 21,
+                  "correct": 18,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          },
+          "mask_only": {
+            "30": {
+              "n": 649,
+              "positive": 0,
+              "negative": 649,
+              "correct": 478,
+              "baseline_correct": 474,
+              "rescue": 4,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 3,
+              "harmless": 474,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 482,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 512,
+                  "correct": 478,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "9": {
+              "n": 461,
+              "positive": 378,
+              "negative": 83,
+              "correct": 18,
+              "baseline_correct": 18,
+              "rescue": 0,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 49,
+              "harmless": 18,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 68,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 21,
+                  "correct": 18,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          },
+          "donor_only": {
+            "30": {
+              "n": 649,
+              "positive": 0,
+              "negative": 649,
+              "correct": 478,
+              "baseline_correct": 474,
+              "rescue": 4,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 3,
+              "harmless": 474,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 482,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 512,
+                  "correct": 478,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "9": {
+              "n": 461,
+              "positive": 378,
+              "negative": 83,
+              "correct": 36,
+              "baseline_correct": 18,
+              "rescue": 18,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 31,
+              "harmless": 18,
+              "target_correct": 18,
+              "false_activation": 0,
+              "target_predictions": 18,
+              "route_correct": 68,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 18,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 21,
+                  "correct": 18,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          },
+          "full": {
+            "30": {
+              "n": 649,
+              "positive": 0,
+              "negative": 649,
+              "correct": 478,
+              "baseline_correct": 474,
+              "rescue": 4,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 3,
+              "harmless": 474,
+              "target_correct": 0,
+              "false_activation": 0,
+              "target_predictions": 0,
+              "route_correct": 482,
+              "by_class": {
+                "12": {
+                  "n": 122,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 512,
+                  "correct": 478,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 14,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 1,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            },
+            "9": {
+              "n": 461,
+              "positive": 378,
+              "negative": 83,
+              "correct": 34,
+              "baseline_correct": 18,
+              "rescue": 16,
+              "break_count": 0,
+              "negative_break": 0,
+              "changed_wrong": 33,
+              "harmless": 18,
+              "target_correct": 16,
+              "false_activation": 0,
+              "target_predictions": 16,
+              "route_correct": 68,
+              "by_class": {
+                "13": {
+                  "n": 378,
+                  "correct": 16,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "14": {
+                  "n": 21,
+                  "correct": 18,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "15": {
+                  "n": 47,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                },
+                "17": {
+                  "n": 15,
+                  "correct": 0,
+                  "false_activation": 0,
+                  "break_count": 0
+                }
+              }
+            }
+          }
+        },
+        "head_training": [
+          {
+            "round": 0,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "a0b597fb76850cbd81500d925bcd08c681dc7e5282a227964cce3134ed0124c0",
+                "round": 0,
+                "targets": [
+                  13
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 7.98944150662569
+              },
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "a0b597fb76850cbd81500d925bcd08c681dc7e5282a227964cce3134ed0124c0",
+                "round": 0,
+                "targets": [
+                  13
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 12.19526409194117
+              }
+            ]
+          },
+          {
+            "round": 1,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "09b738003a6b2709d7f8df388db21b7e109ba05ea1cc629ef418f9b70e818dac",
+                "round": 1,
+                "targets": [
+                  13
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 7.989720543224658
+              },
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "09b738003a6b2709d7f8df388db21b7e109ba05ea1cc629ef418f9b70e818dac",
+                "round": 1,
+                "targets": [
+                  13
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 11.417354166163209
+              }
+            ]
+          },
+          {
+            "round": 2,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "efb7324eae23379d714fe8eb9c1678a7f95c91be28b1343d3bfc99b779f6a8c9",
+                "round": 2,
+                "targets": [
+                  13
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 7.991057562885105
+              },
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "efb7324eae23379d714fe8eb9c1678a7f95c91be28b1343d3bfc99b779f6a8c9",
+                "round": 2,
+                "targets": [
+                  13
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 10.675030005107503
+              }
+            ]
+          },
+          {
+            "round": 3,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "31c8602f2bfa5e4ad2544d914d280c93fac9c9ab2d0dbdb2e9426d523c944209",
+                "round": 3,
+                "targets": [
+                  13
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 7.996337181769192
+              },
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "31c8602f2bfa5e4ad2544d914d280c93fac9c9ab2d0dbdb2e9426d523c944209",
+                "round": 3,
+                "targets": [
+                  13
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 10.123318613485836
+              }
+            ]
+          },
+          {
+            "round": 4,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "4a9491932958c924963a41c3d4071f76a33675da217322d75bc0a504bc73ef46",
+                "round": 4,
+                "targets": [
+                  13
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 8.00594498825537
+              },
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "4a9491932958c924963a41c3d4071f76a33675da217322d75bc0a504bc73ef46",
+                "round": 4,
+                "targets": [
+                  13
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 9.901730127122383
+              }
+            ]
+          },
+          {
+            "round": 5,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "e93b577e92bf442cefb0b5d01b2423928fda0d4c417c76c198673c9051decdc6",
+                "round": 5,
+                "targets": [
+                  13
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 8.012995865773469
+              },
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "e93b577e92bf442cefb0b5d01b2423928fda0d4c417c76c198673c9051decdc6",
+                "round": 5,
+                "targets": [
+                  13
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 9.82963574121312
+              }
+            ]
+          },
+          {
+            "round": 6,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "4298c903924551fe4aaea0c83adf4ad617e2a2679d0a4d4a63b2667c9519ce27",
+                "round": 6,
+                "targets": [
+                  13
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 8.016097385719432
+              },
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "4298c903924551fe4aaea0c83adf4ad617e2a2679d0a4d4a63b2667c9519ce27",
+                "round": 6,
+                "targets": [
+                  13
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 9.79474210581895
+              }
+            ]
+          },
+          {
+            "round": 7,
+            "participants": [
+              {
+                "owner": 30,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "c1bf069ee0b75c4990f7b10995cfc35a80d00efa12f8b30caad1c84bf578d084",
+                "round": 7,
+                "targets": [
+                  13
+                ],
+                "mass": 3.0852537155151367,
+                "used_samples": 8985,
+                "excluded_samples": 0,
+                "loss": 8.016789169212043
+              },
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "c1bf069ee0b75c4990f7b10995cfc35a80d00efa12f8b30caad1c84bf578d084",
+                "round": 7,
+                "targets": [
+                  13
+                ],
+                "mass": 2.9147467613220215,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 9.77113763237247
+              }
+            ]
+          }
+        ],
+        "donor_only_training": [
+          {
+            "round": 0,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "a0b597fb76850cbd81500d925bcd08c681dc7e5282a227964cce3134ed0124c0",
+                "round": 0,
+                "targets": [
+                  13
+                ],
+                "mass": 5.000000953674316,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 21.515912066345297
+              }
+            ]
+          },
+          {
+            "round": 1,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "d2e4810c5b842e3fb80d444b6dd62b4428710c1b6ca709419abfa184d0cdfb88",
+                "round": 1,
+                "targets": [
+                  13
+                ],
+                "mass": 5.000000953674316,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 20.972864042927924
+              }
+            ]
+          },
+          {
+            "round": 2,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "d633744f73d33c40595b5ce75a4107507c005d4b96712e46009d73471acc73e4",
+                "round": 2,
+                "targets": [
+                  13
+                ],
+                "mass": 5.000000953674316,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 20.478042725005047
+              }
+            ]
+          },
+          {
+            "round": 3,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "94087c854989569a1e164dbb25e16fd8f3fdbbfd09df686dffd8a99e0655823a",
+                "round": 3,
+                "targets": [
+                  13
+                ],
+                "mass": 5.000000953674316,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 20.2118515050158
+              }
+            ]
+          },
+          {
+            "round": 4,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "5f1ad25ff3f4be22a41d1bb24b25ec95c3e58693456fba564f816faad3f4609d",
+                "round": 4,
+                "targets": [
+                  13
+                ],
+                "mass": 5.000000953674316,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 20.15220099857937
+              }
+            ]
+          },
+          {
+            "round": 5,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "67763ab23a6d6d3e716d553d587ae0049dee383c11f2ff448c0428819095ca85",
+                "round": 5,
+                "targets": [
+                  13
+                ],
+                "mass": 5.000000953674316,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 20.130466240905704
+              }
+            ]
+          },
+          {
+            "round": 6,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "e9c28bdab424d8cef14819a10ee4cde4346b503abfdc262aa6fb2bb2e0a14cc2",
+                "round": 6,
+                "targets": [
+                  13
+                ],
+                "mass": 5.000000953674316,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 20.115141201782116
+              }
+            ]
+          },
+          {
+            "round": 7,
+            "participants": [
+              {
+                "owner": 9,
+                "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                "head_reference": "015429ec6ce43a5365bf3bc9b25a19fa5725e33d90a5df11c81c153603807aa3",
+                "round": 7,
+                "targets": [
+                  13
+                ],
+                "mass": 5.000000953674316,
+                "used_samples": 7216,
+                "excluded_samples": 0,
+                "loss": 20.102197690000676
+              }
+            ]
+          }
+        ],
+        "fit_role": "FIT discovery only",
+        "training_role": "current BASE only",
+        "acceptance_role": "current CAL only"
+      },
+      "head_diagnostics": [
+        {
+          "include_receiver": true,
+          "mature_fc1": 104,
+          "head_change_l2": 0.25948217511177063,
+          "history": [
+            {
+              "round": 0,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "a0b597fb76850cbd81500d925bcd08c681dc7e5282a227964cce3134ed0124c0",
+                  "round": 0,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 7.98944150662569
+                },
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "a0b597fb76850cbd81500d925bcd08c681dc7e5282a227964cce3134ed0124c0",
+                  "round": 0,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 12.19526409194117
+                }
+              ]
+            },
+            {
+              "round": 1,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "09b738003a6b2709d7f8df388db21b7e109ba05ea1cc629ef418f9b70e818dac",
+                  "round": 1,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 7.989720543224658
+                },
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "09b738003a6b2709d7f8df388db21b7e109ba05ea1cc629ef418f9b70e818dac",
+                  "round": 1,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 11.417354166163209
+                }
+              ]
+            },
+            {
+              "round": 2,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "efb7324eae23379d714fe8eb9c1678a7f95c91be28b1343d3bfc99b779f6a8c9",
+                  "round": 2,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 7.991057562885105
+                },
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "efb7324eae23379d714fe8eb9c1678a7f95c91be28b1343d3bfc99b779f6a8c9",
+                  "round": 2,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 10.675030005107503
+                }
+              ]
+            },
+            {
+              "round": 3,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "31c8602f2bfa5e4ad2544d914d280c93fac9c9ab2d0dbdb2e9426d523c944209",
+                  "round": 3,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 7.996337181769192
+                },
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "31c8602f2bfa5e4ad2544d914d280c93fac9c9ab2d0dbdb2e9426d523c944209",
+                  "round": 3,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 10.123318613485836
+                }
+              ]
+            },
+            {
+              "round": 4,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "4a9491932958c924963a41c3d4071f76a33675da217322d75bc0a504bc73ef46",
+                  "round": 4,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 8.00594498825537
+                },
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "4a9491932958c924963a41c3d4071f76a33675da217322d75bc0a504bc73ef46",
+                  "round": 4,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 9.901730127122383
+                }
+              ]
+            },
+            {
+              "round": 5,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "e93b577e92bf442cefb0b5d01b2423928fda0d4c417c76c198673c9051decdc6",
+                  "round": 5,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 8.012995865773469
+                },
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "e93b577e92bf442cefb0b5d01b2423928fda0d4c417c76c198673c9051decdc6",
+                  "round": 5,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 9.82963574121312
+                }
+              ]
+            },
+            {
+              "round": 6,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "4298c903924551fe4aaea0c83adf4ad617e2a2679d0a4d4a63b2667c9519ce27",
+                  "round": 6,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 8.016097385719432
+                },
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "4298c903924551fe4aaea0c83adf4ad617e2a2679d0a4d4a63b2667c9519ce27",
+                  "round": 6,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 9.79474210581895
+                }
+              ]
+            },
+            {
+              "round": 7,
+              "participants": [
+                {
+                  "owner": 30,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "c1bf069ee0b75c4990f7b10995cfc35a80d00efa12f8b30caad1c84bf578d084",
+                  "round": 7,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 3.0852537155151367,
+                  "used_samples": 8985,
+                  "excluded_samples": 0,
+                  "loss": 8.016789169212043
+                },
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "c1bf069ee0b75c4990f7b10995cfc35a80d00efa12f8b30caad1c84bf578d084",
+                  "round": 7,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 2.9147467613220215,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 9.77113763237247
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "include_receiver": false,
+          "mature_fc1": 104,
+          "head_change_l2": 0.2695382833480835,
+          "history": [
+            {
+              "round": 0,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "a0b597fb76850cbd81500d925bcd08c681dc7e5282a227964cce3134ed0124c0",
+                  "round": 0,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 5.000000953674316,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 21.515912066345297
+                }
+              ]
+            },
+            {
+              "round": 1,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "d2e4810c5b842e3fb80d444b6dd62b4428710c1b6ca709419abfa184d0cdfb88",
+                  "round": 1,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 5.000000953674316,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 20.972864042927924
+                }
+              ]
+            },
+            {
+              "round": 2,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "d633744f73d33c40595b5ce75a4107507c005d4b96712e46009d73471acc73e4",
+                  "round": 2,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 5.000000953674316,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 20.478042725005047
+                }
+              ]
+            },
+            {
+              "round": 3,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "94087c854989569a1e164dbb25e16fd8f3fdbbfd09df686dffd8a99e0655823a",
+                  "round": 3,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 5.000000953674316,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 20.2118515050158
+                }
+              ]
+            },
+            {
+              "round": 4,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "5f1ad25ff3f4be22a41d1bb24b25ec95c3e58693456fba564f816faad3f4609d",
+                  "round": 4,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 5.000000953674316,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 20.15220099857937
+                }
+              ]
+            },
+            {
+              "round": 5,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "67763ab23a6d6d3e716d553d587ae0049dee383c11f2ff448c0428819095ca85",
+                  "round": 5,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 5.000000953674316,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 20.130466240905704
+                }
+              ]
+            },
+            {
+              "round": 6,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "e9c28bdab424d8cef14819a10ee4cde4346b503abfdc262aa6fb2bb2e0a14cc2",
+                  "round": 6,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 5.000000953674316,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 20.115141201782116
+                }
+              ]
+            },
+            {
+              "round": 7,
+              "participants": [
+                {
+                  "owner": 9,
+                  "snapshot": "58702989481ae272ed77148d26a3f42727f8e2b1011cb6e418e958c94838d63a",
+                  "head_reference": "015429ec6ce43a5365bf3bc9b25a19fa5725e33d90a5df11c81c153603807aa3",
+                  "round": 7,
+                  "targets": [
+                    13
+                  ],
+                  "mass": 5.000000953674316,
+                  "used_samples": 7216,
+                  "excluded_samples": 0,
+                  "loss": 20.102197690000676
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "fit_diagnostics": {
+        "availability_only": [
+          {
+            "owner": 9,
+            "positive": 256,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 356,
+            "false_activation": 0
+          },
+          {
+            "owner": 30,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 589,
+            "false_activation": 0
+          }
+        ],
+        "router_only": [
+          {
+            "owner": 9,
+            "positive": 256,
+            "target_correct": 0,
+            "target_routed_correctly": 11,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 356,
+            "false_activation": 0
+          },
+          {
+            "owner": 30,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 589,
+            "false_activation": 0
+          }
+        ],
+        "mask_only": [
+          {
+            "owner": 9,
+            "positive": 256,
+            "target_correct": 0,
+            "target_routed_correctly": 11,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 356,
+            "false_activation": 0
+          },
+          {
+            "owner": 30,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 589,
+            "false_activation": 0
+          }
+        ],
+        "donor_only": [
+          {
+            "owner": 9,
+            "positive": 256,
+            "target_correct": 3,
+            "target_routed_correctly": 11,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 193,
+            "negative": 356,
+            "false_activation": 0
+          },
+          {
+            "owner": 30,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 589,
+            "false_activation": 1
+          }
+        ],
+        "full": [
+          {
+            "owner": 9,
+            "positive": 256,
+            "target_correct": 3,
+            "target_routed_correctly": 11,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 189,
+            "negative": 356,
+            "false_activation": 0
+          },
+          {
+            "owner": 30,
+            "positive": 0,
+            "target_correct": 0,
+            "target_routed_correctly": 0,
+            "forced_target_correct_DIAGNOSTIC_ONLY": 0,
+            "negative": 589,
+            "false_activation": 1
+          }
+        ]
+      },
+      "wire": {
+        "teaching_bytes": 8156371,
+        "by_kind": {
+          "receiver_reference": 6733294,
+          "verification_receipt": 32417,
+          "router_sketches": 110740,
+          "head_reference": 38936,
+          "head_delta": 27360,
+          "verification_request": 1213624
+        },
+        "events": [
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "receiver_reference",
+            "bytes": 6733294
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 66
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "router_sketches",
+            "bytes": 110740
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 74
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2439
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 74
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "head_reference",
+            "bytes": 2428
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "head_delta",
+            "bytes": 1710
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 31160
+          },
+          {
+            "sender": 30,
+            "receiver": 9,
+            "kind": "verification_request",
+            "bytes": 1213624
+          },
+          {
+            "sender": 9,
+            "receiver": 30,
+            "kind": "verification_receipt",
+            "bytes": 1043
+          }
+        ],
+        "native_bytes": null,
+        "total_system_bytes": null,
+        "native_accounting": "not measured by this ledger; do not claim total-system saving"
+      },
+      "live_checkpoint_untouched": true,
+      "rejected_shadow_predictor_unchanged": true
+    }
+  ],
+  "elapsed_seconds": 13.944358500000817,
+  "checkpoint_terminal_sha256": "f9f8796c972bf4135d623b2d26c62071ae764a42ad62c31fee880159b3ff2e54",
+  "backbone_training": false,
+  "full_training": false,
+  "test_read": false,
+  "historical_task_data_read": false,
+  "limitation": "Offline current T2 experiment on an existing V1 encoder, not a fresh V3 survival run."
+}

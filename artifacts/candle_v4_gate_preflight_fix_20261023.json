@@ -1,0 +1,92 @@
+{
+  "completed": true,
+  "checks": {
+    "untrained": true,
+    "untrained_no_ACTIVE": true,
+    "unreachable_owner": true,
+    "unreachable_owner_no_ACTIVE": true,
+    "no_active": true,
+    "no_active_no_ACTIVE": true
+  },
+  "receipts": {
+    "untrained": {
+      "task": 2,
+      "outcome": "DEFERRED_NO_AUTHORIZED_TRAINING",
+      "birth_acceptance": true,
+      "failures": [
+        "UNTRAINED_CLASS_13",
+        "UNTRAINED_CLASS_17"
+      ],
+      "status": {
+        "13": "DEFERRED",
+        "17": "DEFERRED"
+      },
+      "steps": {
+        "13": 0,
+        "17": 0
+      },
+      "current_peers": [
+        8,
+        30
+      ],
+      "FIT_opened": false,
+      "CAL_opened": false,
+      "bytes": 0,
+      "policy": "Preflight only; no candidate/threshold search and no evidence retry"
+    },
+    "unreachable_owner": {
+      "task": 2,
+      "outcome": "DEFERRED_GATE_GRAPH_SCOPE",
+      "birth_acceptance": true,
+      "failures": [
+        "UNREACHABLE_CAL_OWNER_16"
+      ],
+      "status": {
+        "13": "DEFERRED",
+        "17": "DEFERRED"
+      },
+      "steps": {
+        "13": 1,
+        "17": 1
+      },
+      "current_peers": [
+        8,
+        30
+      ],
+      "FIT_opened": false,
+      "CAL_opened": false,
+      "bytes": 0,
+      "policy": "Preflight only; no candidate/threshold search and no evidence retry"
+    },
+    "no_active": {
+      "task": 3,
+      "outcome": "SKIPPED_NO_ACTIVE_BANK",
+      "birth_acceptance": false,
+      "failures": [
+        "NO_PREVIOUSLY_ACCEPTED_BANK"
+      ],
+      "status": {
+        "13": "REJECTED",
+        "17": "REJECTED"
+      },
+      "steps": {
+        "13": 0,
+        "17": 0
+      },
+      "current_peers": [
+        8,
+        30
+      ],
+      "FIT_opened": false,
+      "CAL_opened": false,
+      "bytes": 0,
+      "policy": "Preflight only; no candidate/threshold search and no evidence retry"
+    }
+  },
+  "scope": "Pure preflight guard checks after the single native smoke; zero native/expert optimizer steps, no real ACTIVE bank or CAL outcomes",
+  "synthetic_counter_for_guard_ordering": true,
+  "source_sha256": {
+    "candle_v4_runtime/fed_learning/training/candle_v4_bank.py": "197526df4553234815e801995398846af062db47f633307f796c7c5c114f803b",
+    "tools/check_candle_v4_gate_preflight.py": "d063228548aadfb0a8ae146f6541df0fe74a740b44d37a8b6a7443c66842361b"
+  }
+}

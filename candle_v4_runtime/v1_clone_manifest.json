@@ -1,0 +1,2230 @@
+{
+  "schema": 1,
+  "experiment": "CANDLE V4",
+  "stage": "v1_clone",
+  "baseline": "CANDLE V1",
+  "baseline_source_commit": "a9714ac96b3ecec3910985d6fda8224b1584b570",
+  "baseline_ref_source": "train_candle_v1_kaggle.py CODE_REF",
+  "selection": [
+    "fed_learning",
+    "appliance",
+    "tools",
+    "configs",
+    "train_incremental_kaggle.py",
+    "eval_checkpoint.py",
+    "requirements-candle-v1-kaggle.txt"
+  ],
+  "source_files": 367,
+  "source_bytes": 3804166,
+  "source_changes": 0,
+  "files": [
+    {
+      "path": "appliance/__init__.py",
+      "bytes": 78,
+      "sha256": "22e3ef0299663cb90a9c35999588787e571db275b865d8d96626972b1b12d4ff",
+      "git_blob": "4e5bc8e98bf8b572345d5b337544889fe1564745"
+    },
+    {
+      "path": "appliance/active_native_survival.py",
+      "bytes": 9176,
+      "sha256": "191264bf54623ad28e8794a6552f386bcfeb4b9d7040a0be6a39c78556af76b4",
+      "git_blob": "fc30abb93c31c19ae18ecf0e9132fefd76e915a1"
+    },
+    {
+      "path": "appliance/active_pair_calibration.py",
+      "bytes": 26448,
+      "sha256": "823e486152d2834214fd0d8f0703b724b43b31ab8e6495adc472f8e4cc8dc7a0",
+      "git_blob": "b40ca5c487ccf127b049944890c6b9f1d57e12c7"
+    },
+    {
+      "path": "appliance/amp_audit.py",
+      "bytes": 19813,
+      "sha256": "4f41e365f28fece665ad3269fed9b5a5d146167b2a48deb6221b41f11b309767",
+      "git_blob": "6cebe91d37fd07b5b91b1dc58a9c87a6fbc825ce"
+    },
+    {
+      "path": "appliance/base_sketch_shield.py",
+      "bytes": 9855,
+      "sha256": "4c3d7fc59dbd50e748065b2dfc3dd18563736cb88c82074a922ca1c5dba906b5",
+      "git_blob": "9700ce6891e4903002a7dc67c308f23fb8359725"
+    },
+    {
+      "path": "appliance/base_support_moments.py",
+      "bytes": 7995,
+      "sha256": "f8edb63a30ae97c01843f2498248cbfddf1b6e00a680b0066efe3a2b1a06b213",
+      "git_blob": "996e5e790af1e68c19aae6b5e70d8fba3b5d0126"
+    },
+    {
+      "path": "appliance/closure.py",
+      "bytes": 8985,
+      "sha256": "3e6b60d61679393ac7ab3cfe4348d596c48e67b4dab044496d908de7d8e3d4f6",
+      "git_blob": "328f8e12f7badc957173be563755930221df3f86"
+    },
+    {
+      "path": "appliance/codec.py",
+      "bytes": 2442,
+      "sha256": "e4f2c3b481473ff053c931b85458dcc9ff54d8f1bef349ed4db099df9cbabe42",
+      "git_blob": "3b523a16b13cf2f1d2a4ed5f5dc4e5e97a68466a"
+    },
+    {
+      "path": "appliance/config.py",
+      "bytes": 1987,
+      "sha256": "8619135ea93605a799df364c1d8ae3313207e84b9f587869606c8e028a3cfefc",
+      "git_blob": "9bbea721534373530fcf70adbeb2deb40e0f9278"
+    },
+    {
+      "path": "appliance/contrastive_protection.py",
+      "bytes": 8522,
+      "sha256": "8312e8038d07275988df0bd9478cc25964797184d5a51ac82d5fdc56eb125fb8",
+      "git_blob": "e3fa8da12d257e9cce83763ebdd20481ed4ae59d"
+    },
+    {
+      "path": "appliance/cumulative_certificate.py",
+      "bytes": 9649,
+      "sha256": "ccf12c15fb9966450e862656aa604b93594cab04f1876ab0ec217a592e671b41",
+      "git_blob": "a166300f1cfcb082251ec9ef17258845aee875a7"
+    },
+    {
+      "path": "appliance/current_base_data.py",
+      "bytes": 8381,
+      "sha256": "d488fabb3d5387a0ebdd0c6ce18c8fd83a512893a3230a714bf3c33bda7eecb7",
+      "git_blob": "e33ce5c05c6ec7995c6f56b84ae9bb11f664c58a"
+    },
+    {
+      "path": "appliance/current_calibration_data.py",
+      "bytes": 8156,
+      "sha256": "bf9d197b5e1ccfad80c23ee2716144aa558934817b4a754a16591c55f6117b2c",
+      "git_blob": "915c9f992fab4f5e5063aee49e6508b2b9ef454c"
+    },
+    {
+      "path": "appliance/current_discovery.py",
+      "bytes": 4164,
+      "sha256": "7b83b8bd1c9f7ff2352d843851b7e326772196e77a401232cdaf0ed05aa6f19c",
+      "git_blob": "7372df71a25f368e634d67105c5b5bbabebd51ef"
+    },
+    {
+      "path": "appliance/current_installation.py",
+      "bytes": 12971,
+      "sha256": "d032112bd6213bffc2c53d83349953958ffcabeaf8ac2d629a6659175efe7a94",
+      "git_blob": "d759338301a370905f72a424e0c98d1fd374331e"
+    },
+    {
+      "path": "appliance/current_native_lifecycle.py",
+      "bytes": 12435,
+      "sha256": "eed645e7f30daddf7b9d2dbcaabdbecf2da586b7acd3eb2500d1b518a3ce53b4",
+      "git_blob": "279a31d4c5efa28442482957168d9006c098f14e"
+    },
+    {
+      "path": "appliance/current_scope_evidence.py",
+      "bytes": 7957,
+      "sha256": "7cda0dea33fa31efcb395125673328375d7b88f78f62648dbdde46a064607213",
+      "git_blob": "b85225a23a9e1267953e75f4a69068943479f220"
+    },
+    {
+      "path": "appliance/dependency_boundary.py",
+      "bytes": 6577,
+      "sha256": "d617a03cfbfe719a7d453aec051e55baf1a0d8e11671267afe960e8a14a1d0af",
+      "git_blob": "0da0140886b27dc8a299e7ee116b105b439b94d0"
+    },
+    {
+      "path": "appliance/direct_head_aggregation.py",
+      "bytes": 1363,
+      "sha256": "9ba6d26beeaaee42cb6ee4dc0969a1f860d2255006b1fb5daa4539707cdf836b",
+      "git_blob": "19c8ef6e8766a7388898fda12313738d9d7ab3b3"
+    },
+    {
+      "path": "appliance/direct_head_codec.py",
+      "bytes": 2571,
+      "sha256": "f23365afc844e82bae7dd851014bf58c6e2cf49eceeb57833b945229f3b47f7b",
+      "git_blob": "0e69b207e55e529264aba0294b4182339728ed85"
+    },
+    {
+      "path": "appliance/direct_head_contract.py",
+      "bytes": 3833,
+      "sha256": "c005a186dbdef9af35e6355dfcf0aa9e5d2e620372f3826db09f22769adbac0a",
+      "git_blob": "55872fa88568ddfe07d8c898b2b722ab5215b5c7"
+    },
+    {
+      "path": "appliance/direct_head_transaction.py",
+      "bytes": 7071,
+      "sha256": "ae7df293ec88a95ea1b1b350bf263ec95e5b1b58b58c97d99d0260c5e994d704",
+      "git_blob": "89491e1d88b9e64e31e49ed1adddcc08a3595da0"
+    },
+    {
+      "path": "appliance/direct_head_verification.py",
+      "bytes": 5825,
+      "sha256": "6d309f05770f84d245103f92a821819c3c604825a6f63264233fae44bedc27d0",
+      "git_blob": "276947879e696012149e1f74e05b66202c063947"
+    },
+    {
+      "path": "appliance/discovery_preflight.py",
+      "bytes": 3750,
+      "sha256": "826ca3c503169bd6f7cd73222d9b4e71101dc9cb959f5e4db7534296e0ad433d",
+      "git_blob": "2443dcb200aadfd5edfc36801df9e7148bf3101d"
+    },
+    {
+      "path": "appliance/discriminative_guard.py",
+      "bytes": 9847,
+      "sha256": "e5c0fce3bda58d22664bbc3e28bf21c78593b30df8298df925ce71b255223988",
+      "git_blob": "2d5a74d78cba7dfdfed91ec25b653e295d214de9"
+    },
+    {
+      "path": "appliance/distributed_calibration.py",
+      "bytes": 12129,
+      "sha256": "0bf1e18cd74fca011d9f5540fc7b9edaffd24735e704706f62055e5bdd96b59d",
+      "git_blob": "8b10b1116bbbcd916767a4a43aca36253022f75a"
+    },
+    {
+      "path": "appliance/empirical_deployment.py",
+      "bytes": 3136,
+      "sha256": "6ae06059a437c69d92b9b97c139a5756b2588496a75572e6ba3563a687dc813d",
+      "git_blob": "b1bf563fbb8754d313a26a1964ac1bb532797bc0"
+    },
+    {
+      "path": "appliance/evaluate.py",
+      "bytes": 3515,
+      "sha256": "46640195a4c98928833ad88bb27997d1bb1b74ae34f46161f4a60c66582eb105",
+      "git_blob": "3de536c74f96d332ab4dd0744441bff261138341"
+    },
+    {
+      "path": "appliance/fit_contrastive_protection.py",
+      "bytes": 8886,
+      "sha256": "33f08b0001f815b698699e68602d37ddb4fbe86f8386bc14204a4fe0d70bdde5",
+      "git_blob": "5b9743439eeb0a3821f40f266929eeb3a1ce9a0e"
+    },
+    {
+      "path": "appliance/functional_gap_discovery.py",
+      "bytes": 14204,
+      "sha256": "76bbf8589044c5767d600663446edb9f036ed0d46055d882e212f67d0850f1cd",
+      "git_blob": "1e8aca2fb9e801374243ab02e09ec91647453405"
+    },
+    {
+      "path": "appliance/guarded_head.py",
+      "bytes": 13097,
+      "sha256": "ef9079c725b2ffa6f2354aec7b82c2c5d497ef2f3ef735b9bcca923194021079",
+      "git_blob": "f8931759596e1204f1dcc11ae170f0d59f5397bd"
+    },
+    {
+      "path": "appliance/guarded_head_experiment.py",
+      "bytes": 20703,
+      "sha256": "bfb659e7fe2b74ac4c5fb855ce1589142a395f988d624286d5d74e65fba85a7b",
+      "git_blob": "ecd8e78f1f8ae8b1aa6e744340f4984715c13c4b"
+    },
+    {
+      "path": "appliance/historical_calibration.py",
+      "bytes": 19861,
+      "sha256": "648d65acafc287710899490f751cbe68bc69665dd854f0d9493a2a91577b0b96",
+      "git_blob": "83db43570574c282a2aa2eed55f0897f33eda5d2"
+    },
+    {
+      "path": "appliance/historical_survival.py",
+      "bytes": 14733,
+      "sha256": "8403f430a71d732f417d5cdded52a4a1dc9387ad9b933b363fff97b6bb976382",
+      "git_blob": "7c95697a4536eea55fea2c1243096bb972cc5f0e"
+    },
+    {
+      "path": "appliance/imported_profiles.py",
+      "bytes": 14068,
+      "sha256": "6ab630df5c674819481dcaf236f97afd484ea0ad98c9becb3dc06453f4b2d61a",
+      "git_blob": "14643cab0c3fe959676d84bfd3779bdf56d7729f"
+    },
+    {
+      "path": "appliance/imported_route.py",
+      "bytes": 13813,
+      "sha256": "611867844f337b54490264b793d54bd5b58e141de15d011afe60c445d153759b",
+      "git_blob": "9d4ee85892912c727c3b474a6a9e3668b2a09e3e"
+    },
+    {
+      "path": "appliance/input_box_memory.py",
+      "bytes": 14031,
+      "sha256": "66e7972bfcd2a1ab48c02e576efc5a1cc55e776a7f2d558084cf1028a95ce7f4",
+      "git_blob": "4ea5c98dccc8142e6184be6266a7a3d8e07ac454"
+    },
+    {
+      "path": "appliance/input_density_memory.py",
+      "bytes": 5375,
+      "sha256": "6ec448e9f4fc345103a82889e88cf9b285c3553551d4998efe3312c115ab9796",
+      "git_blob": "770e6053f4ae03c5919601cafd1cd17292de0b30"
+    },
+    {
+      "path": "appliance/ledger.py",
+      "bytes": 2000,
+      "sha256": "5ceb780788d0b7aa23119bcb03b66dd33cb92809ebccdf19d860dcd81dfc7d2b",
+      "git_blob": "3156a75e92b72f7a9e525bbc5a06b8dba77ba03e"
+    },
+    {
+      "path": "appliance/live_discovery.py",
+      "bytes": 4502,
+      "sha256": "63298cbda7a9978b266435ec335c2bfee9293d05f33187f7ac694fe4f48d4bb7",
+      "git_blob": "bf79d751cae61f4ce82cad06a7c82837f944fdc7"
+    },
+    {
+      "path": "appliance/mature_profiles.py",
+      "bytes": 8875,
+      "sha256": "671ad0bbed61e396d1dc7b74f5a16f0226eeba99b85050170054c3410a980090",
+      "git_blob": "3f8a1a751960f8b8aba49d9d432a06285a907fdb"
+    },
+    {
+      "path": "appliance/mature_routing.py",
+      "bytes": 4830,
+      "sha256": "05ce6c45d282c6c2a87cc740a9a591c29a9108fd6a8c724dde1b0cafac589e18",
+      "git_blob": "a3c55dcd122ad63fcd2d9a6551ebc925028f868b"
+    },
+    {
+      "path": "appliance/native_lifecycle.py",
+      "bytes": 20226,
+      "sha256": "0beaf3fd7b91b9903f0268c06af3397a033cb564c69cef9d8d5cec1f5495de35",
+      "git_blob": "ea3077ab3a84fb331301b0ee2924e75fe82fd4cd"
+    },
+    {
+      "path": "appliance/native_lifecycle_experiment.py",
+      "bytes": 22452,
+      "sha256": "28440834121bbbfb6574b421badeda39f34ac8e8d54f7bc13a9827296b678aa1",
+      "git_blob": "9e79f1bef0758699bad5335e277d338a3b802c96"
+    },
+    {
+      "path": "appliance/parallel_route_experiment.py",
+      "bytes": 19548,
+      "sha256": "ad8f0f1a6666730f2bee5e648a584a66972d1314f01a1cac765cd74f5ebf2fa6",
+      "git_blob": "a410e29d55f82b7a086a273904c0cda9e76af5de"
+    },
+    {
+      "path": "appliance/patch_lifecycle.py",
+      "bytes": 7877,
+      "sha256": "b399b6b34128c4c5caab33dfb36d8432023d1da289c1e09603300d1ef8659f68",
+      "git_blob": "79994dac9d33d3ccb84bb17691eed2a30eee1443"
+    },
+    {
+      "path": "appliance/portable_route.py",
+      "bytes": 18235,
+      "sha256": "5436bfc175ff5f950bffa644e7d4c03215d9f91267f281b1df1aa8e55863186a",
+      "git_blob": "06ac915398c033ae686521371034ee8b68abb146"
+    },
+    {
+      "path": "appliance/portable_route_experiment.py",
+      "bytes": 22340,
+      "sha256": "1a1852192ba50613bd4051ba1cf0f6e090903ffba98f248a7eee6c89ff631528",
+      "git_blob": "a2bb806928757718b5abc82c519efe1377c7664c"
+    },
+    {
+      "path": "appliance/provenance_protection.py",
+      "bytes": 14191,
+      "sha256": "d96dff5d432436034842088d0c3c1ba1ec59dd1221370f219e1fb54ca88e342c",
+      "git_blob": "5db87e7e7da14b711b4b12e7e724a814a58cf585"
+    },
+    {
+      "path": "appliance/receiver_aware_discovery.py",
+      "bytes": 8947,
+      "sha256": "8845b19fcb4eea06c7739aaf094a9353c7e3f5263565a224e0242a8118e0713f",
+      "git_blob": "2c94e1ed2748f9dfe11d959adf2cc1f4581af548"
+    },
+    {
+      "path": "appliance/registry.py",
+      "bytes": 5242,
+      "sha256": "c3ab0a18a37bf0ed586a6a5ae366d02eb95f3a6f8022a50d730689a48c18a298",
+      "git_blob": "659cff7639b42f14cfcf5c4bcb7f22963fad9d71"
+    },
+    {
+      "path": "appliance/role_sketch_moments.py",
+      "bytes": 13049,
+      "sha256": "aeb9ef9853d10b64d1d05f54916f8a65b2f2fc4a93b7e25b51ee25f354521f3b",
+      "git_blob": "ef3d69895edf96411842681cde3a9ea804d704b0"
+    },
+    {
+      "path": "appliance/routing_audit.py",
+      "bytes": 26592,
+      "sha256": "bad858d3e1f960ade482b6c15ceb6a70b82dc8c521ed1321940fc4381d395108",
+      "git_blob": "de5e778343a8e3a40bac995f246d6b02faa0040a"
+    },
+    {
+      "path": "appliance/runner.py",
+      "bytes": 16921,
+      "sha256": "24c287d081724919b5cb35bdfc463d9fec74fc62b4913326a4fef3ae85df4c26",
+      "git_blob": "41dbef9466a46a243ae0fb01ed0992a713ba11f3"
+    },
+    {
+      "path": "appliance/scope_preflight.py",
+      "bytes": 6221,
+      "sha256": "5cd7f8ba4066a39069176499516465ae9cebc12e41e78df8f791246bacd14456",
+      "git_blob": "5cdcfabbcad9a7dd85d2c458194cc7e703ce6813"
+    },
+    {
+      "path": "appliance/selector.py",
+      "bytes": 7565,
+      "sha256": "b1b5d013771065f69365a630ee4b34a2517b6b92c76c11fc7a4ec695f6354b07",
+      "git_blob": "7eb218b6d84222385a0261f5529aea7b2f1c8f64"
+    },
+    {
+      "path": "appliance/sketch_ball_memory.py",
+      "bytes": 12280,
+      "sha256": "7b6464e48b905d17088b45b0ef000dcdbb5c92d6ef7a7c55dc427dce55595b2e",
+      "git_blob": "a9b5579900c52d7f4e60ca4f75dea562225a849b"
+    },
+    {
+      "path": "appliance/sketch_memory.py",
+      "bytes": 3713,
+      "sha256": "88c3efc0532afe7e8ed90dc18f825d67d2916a8fb22510317ebb7b889dbf13e9",
+      "git_blob": "2d83f9ca80f153e6ae73f323c833de20d61c6f99"
+    },
+    {
+      "path": "appliance/sketch_support_boxes.py",
+      "bytes": 11115,
+      "sha256": "d73359e696dca8c57c4bc5c89228e32e39eac58cbe32b4e52b5d10d5d5bbba5d",
+      "git_blob": "73a0e41a9bc7d75b29a178d8b1d7893536186478"
+    },
+    {
+      "path": "appliance/stable_head.py",
+      "bytes": 24092,
+      "sha256": "80b14fc8f7036d0f392d83ee275a2d2012ba7d208ded36e5d49c2e9c1fae601d",
+      "git_blob": "1672e2f3602dfa83d5f0a0f22bc7282e5fbcf33c"
+    },
+    {
+      "path": "appliance/state.py",
+      "bytes": 6663,
+      "sha256": "41561d96d730fd97e1da1ee8263ad3bd2032e6348b90ced619061487259dea49",
+      "git_blob": "d0cf32f47b277093de552745fbff6927c5c1712b"
+    },
+    {
+      "path": "appliance/survival.py",
+      "bytes": 7299,
+      "sha256": "1f035e4ce4b5b341b32a7f998c6215d32e8f8c8d35155c0ce04f96a3577f0c6d",
+      "git_blob": "dee01304842c19e481b5f5d226ec49c40bb0a886"
+    },
+    {
+      "path": "appliance/train_time_transfer.py",
+      "bytes": 7680,
+      "sha256": "dae3c332621db3122391c879a9377c4fa2d96e2bb05df901d1cd12a5dd4bbf96",
+      "git_blob": "6978bb9042d888e945a9d597f417fc7294322b05"
+    },
+    {
+      "path": "appliance/training_data.py",
+      "bytes": 1117,
+      "sha256": "0ef666d003521d1e8a7261b43d2a3d6bff74ded230a8f19929edc05e5a1f005d",
+      "git_blob": "c805f8a6b2020d98d5f2d8a76f3048338bc99452"
+    },
+    {
+      "path": "appliance/training_service.py",
+      "bytes": 20379,
+      "sha256": "4ef5c2f30d19c79522439ba987294a65273ea48d03adab2b71f03a08e14288ae",
+      "git_blob": "076bd8370c172f122ab8b74dbbd6ba223b416cea"
+    },
+    {
+      "path": "appliance/transaction.py",
+      "bytes": 6992,
+      "sha256": "ce5632904d203d242ed26d02ecb2b7fe8d253d8ff5d0526accf335e1ae733223",
+      "git_blob": "15122b86c4146302c54e0f2ea2151ea7737ff375"
+    },
+    {
+      "path": "appliance/transfer_audit.py",
+      "bytes": 30417,
+      "sha256": "00b0aa83f47ce8d7f159a1c9f78b071c3bb2b8ee047157bc8fcc7c9d8ec2a96c",
+      "git_blob": "0a0993b431a5f00e70e22e10ab27649bea8dd85f"
+    },
+    {
+      "path": "appliance/transport.py",
+      "bytes": 1494,
+      "sha256": "8b50e23c5d302fc046a8560b2f69f4ab8faf5618ff323d1c1b8519af5893d7f9",
+      "git_blob": "75a69b22cd9585af4d315847ed424126fa9ffc53"
+    },
+    {
+      "path": "configs/candle_v1.json",
+      "bytes": 7447,
+      "sha256": "58a8b6cce8e2825bf02916efdc35663e68d07fc29efc69948fde082c7628b128",
+      "git_blob": "debfa282187052b026351d6a1b0a81aa2d1eb5ee"
+    },
+    {
+      "path": "configs/candle_v1_provenance.json",
+      "bytes": 1002,
+      "sha256": "bae1f9c4eb7daab72f796a8d5f3fa884feda4790cde205bdfe3ef3656f6712c7",
+      "git_blob": "ebf1de4d982deb0f55596e69e38c65ae753aa3fe"
+    },
+    {
+      "path": "configs/denice_appliance.json",
+      "bytes": 1100,
+      "sha256": "4139eb0af2599a75a64883013e09f218991668c3df6564e6b218ceefa4aea72d",
+      "git_blob": "8696ab9d9855715104b05a3fe5101aa691588fb9"
+    },
+    {
+      "path": "configs/denice_cgofed.json",
+      "bytes": 1189,
+      "sha256": "522ef716e98dbd48fad16df020aa11dd4012b275f2ca2f99d17f5f9134dfc033",
+      "git_blob": "1dfdd7f0345fe8cbee667fcc0aad016d9f71a878"
+    },
+    {
+      "path": "configs/denice_der.json",
+      "bytes": 1041,
+      "sha256": "9d08ae1821ceb8f382aeb05bb7b7bbbe312c632be7808f8e2816627a466eea82",
+      "git_blob": "efe71f4046119c2f1fab327ddff79722cfec15ba"
+    },
+    {
+      "path": "configs/denice_derpp.json",
+      "bytes": 1043,
+      "sha256": "ee6f35ac731b17869faea3eb211918042ef281eb2b87a7aeea88b8c81ddd3807",
+      "git_blob": "c38b69ecbcac3b6b49c5d8c79faa63e949a3fc08"
+    },
+    {
+      "path": "configs/denice_ewc.json",
+      "bytes": 1034,
+      "sha256": "62071ab3066e7aeb668ddad9d65f573a36de488dbdc2522f01f68e481d31050a",
+      "git_blob": "8e8ec61eb10ace6f6f959eed1054ba596642a5a0"
+    },
+    {
+      "path": "configs/denice_multiclass_router_override.json",
+      "bytes": 50,
+      "sha256": "6fa0298aba1798d5ccc6afc7484b9a8b910afa807706f7ab4c9b030051c48532",
+      "git_blob": "da7e5cf42b302f442c444d823dbde022ae865823"
+    },
+    {
+      "path": "eval_checkpoint.py",
+      "bytes": 60804,
+      "sha256": "3cc4c0147b7668c02ad0cb0236eaca1905cd939e61eb2d4f421476ff94e3214c",
+      "git_blob": "03c42a7fbab16cb252a121bd23c6912e19b45d86"
+    },
+    {
+      "path": "fed_learning/README-kaggle.md",
+      "bytes": 140,
+      "sha256": "2a157b609ad43c20e9e3d01934e8f2e118d066e845826e15e9ab9a9cf017c505",
+      "git_blob": "3fd6d4a29665ebf7ee61461d63a066b166cfda83"
+    },
+    {
+      "path": "fed_learning/README.md",
+      "bytes": 13804,
+      "sha256": "957a2516edd50fe9148a55b72470de424485324cf3f08aa994c56ad7444a9341",
+      "git_blob": "a3d541cb0eabc91ccc66f1cca55243eebb8031dd"
+    },
+    {
+      "path": "fed_learning/__init__.py",
+      "bytes": 2365,
+      "sha256": "c8ae12d2914002545d47c34bb02be3c5561fd768ddd18a676c717dea8ee97d99",
+      "git_blob": "368e9430cf91f856f19c6a9df29b6d405a0fb944"
+    },
+    {
+      "path": "fed_learning/clients/__init__.py",
+      "bytes": 537,
+      "sha256": "600dc400ce4c288e19f8db45ba4acda4c0ff25ba010ec6a2d4464e3076972f0e",
+      "git_blob": "325de692794ac101e11e458f9a8771c26ce84499"
+    },
+    {
+      "path": "fed_learning/clients/cgofed_client.py",
+      "bytes": 7361,
+      "sha256": "1abd5cce7b7ddabb1249b0e3f3bd0991ea4a2642ecbfeafbe0c2ac3560e8d54b",
+      "git_blob": "dc3b372a19db5f74dfa9a695a5fe92ef596f5706"
+    },
+    {
+      "path": "fed_learning/clients/client.py",
+      "bytes": 5426,
+      "sha256": "3367e835b2c0c118b53c72ec4df2df76bbea1eb24f4e2153631002bb061802e7",
+      "git_blob": "b76f8ecc4d0614a2a2ed0f40c1e33f6205bf0da3"
+    },
+    {
+      "path": "fed_learning/clients/denice_client.py",
+      "bytes": 17966,
+      "sha256": "a9bb118cacdc2b9839c0e7a0446c3f286b76623070100031ab90880549e0f53c",
+      "git_blob": "5427c209a141fec56fc8417c6d7040bc31ce3f8e"
+    },
+    {
+      "path": "fed_learning/clients/der_client.py",
+      "bytes": 20768,
+      "sha256": "bf07107722dac06cad38dba5dd519a262bc1f8ca1aea96a9d25edfbb2ed482ef",
+      "git_blob": "a16a5aef637a48af1b4bd47c65118d209d5d3bfa"
+    },
+    {
+      "path": "fed_learning/clients/dfca_client.py",
+      "bytes": 17636,
+      "sha256": "032d592a330214415c5db5f42c931bec038ef3f04e893bf17ad3fc4d31d6f23b",
+      "git_blob": "2e7927c6caa2af7c12d1b911b62afc296ad4a230"
+    },
+    {
+      "path": "fed_learning/clients/fedcbdr_client.py",
+      "bytes": 24548,
+      "sha256": "22026620a9afcb4493bb5518c00fdef5746e1b295a0b36b08c4d60a2cf02ed21",
+      "git_blob": "19c1e082e631ce4ea4d4bbacb6396c2ab740c8a8"
+    },
+    {
+      "path": "fed_learning/clients/fedlwf_client.py",
+      "bytes": 8084,
+      "sha256": "38880441320ea8405b9d0efdbc8a3f2dda6e505ea9d12ae5c715ae3b5599e6c7",
+      "git_blob": "b23a99aeea8344b4e23636fd13b8884506d11856"
+    },
+    {
+      "path": "fed_learning/clients/glfc_client.py",
+      "bytes": 18727,
+      "sha256": "28025d1c5c7ca0977ca83d22dcff5ad7f7e5c6c87464f1f9205d27530e8c2437",
+      "git_blob": "d7c942f64d643d50006521d5d6eb7037016bba0b"
+    },
+    {
+      "path": "fed_learning/clients/lwf_local_client.py",
+      "bytes": 3973,
+      "sha256": "b5b76b97ad7432c283085890f946610d951e4a58a5722da243ea4886425641c1",
+      "git_blob": "ce415bf512c3e51bb7b0caefcc8d2301de67d4fd"
+    },
+    {
+      "path": "fed_learning/clients/nice_client.py",
+      "bytes": 15923,
+      "sha256": "3aa2f5c4561636714069ecc2fdf8bc15c66d2818dead440606cab1feb5b65a91",
+      "git_blob": "dcbc010abc99fe441167d1e57ac33371767bc0fc"
+    },
+    {
+      "path": "fed_learning/clients/refed_client.py",
+      "bytes": 15066,
+      "sha256": "5cdcd46930bc25982707320f92db9481898a42dea21d03c56ec52c4bf3d2a48d",
+      "git_blob": "708af21b0b9b99871cd08850644f91adb10de2b6"
+    },
+    {
+      "path": "fed_learning/clients/rne_client.py",
+      "bytes": 18135,
+      "sha256": "dd8aa7c25fe8cd2f161b28bfe56862a49b54da20a9b62ae9fc46afe1e16916e4",
+      "git_blob": "516f48fd61d6e0b72f6537951e3d2730c3cc9006"
+    },
+    {
+      "path": "fed_learning/core/__init__.py",
+      "bytes": 458,
+      "sha256": "7f66ecc6a01171f858f452d1928ab156d2afa0ee3cd7a2f1714514c503b17722",
+      "git_blob": "396c806716e6537e767df5aaa80efcfe9ee91b9f"
+    },
+    {
+      "path": "fed_learning/core/aggregator.py",
+      "bytes": 3254,
+      "sha256": "c47f87db2e00d9747ef25d04e5d20276eae6322bce54845b7885f0c0a93ea50f",
+      "git_blob": "196114de6ddb6a32a3a5cb4e0d5587eab1c847e2"
+    },
+    {
+      "path": "fed_learning/core/trainer.py",
+      "bytes": 5907,
+      "sha256": "a537069c117dfec46276a9c4058e26828723264e207cc32bdaceeca1add7315f",
+      "git_blob": "ced3a7c38ecbf862200368f4cea211c83cb7f21b"
+    },
+    {
+      "path": "fed_learning/data/__init__.py",
+      "bytes": 197,
+      "sha256": "939f4bfd5473577581ad02b258660b2d8d0ee1da74560a31cfc73d95e387ce15",
+      "git_blob": "6e0b3d0107f09b83f11ed1c9a33cb078d64b8179"
+    },
+    {
+      "path": "fed_learning/data/denice_clean_roles.py",
+      "bytes": 10653,
+      "sha256": "a9132b315b9c7162231ee72e04aa77ded19e0c67caaa1bd73abf879243e9cd6f",
+      "git_blob": "131aa9374fc4f1c08ad765089ae045e237cccfe2"
+    },
+    {
+      "path": "fed_learning/data/incremental_loader.py",
+      "bytes": 11117,
+      "sha256": "e5d093b78178edc1dbb9eb43245bd47247ce3d91a825fa5a6504c1f943041742",
+      "git_blob": "a9260c8e034d8c9ff0f23d0150da841cedea754a"
+    },
+    {
+      "path": "fed_learning/data/loader.py",
+      "bytes": 2789,
+      "sha256": "45d727c5881f136f9e01f0ef7e5123fda7eb92ae168d4600164e5598835324b3",
+      "git_blob": "8193807d2f732d42d5851dfd69bd9bb56b8deb9a"
+    },
+    {
+      "path": "fed_learning/dataset-metadata.json",
+      "bytes": 254,
+      "sha256": "c651e4aecfbfda0b0d007153c5c4b8ce1b48cf5404760781029f7ee16a2cd49f",
+      "git_blob": "4699b19c21fb37fc0c2eb2ce5f6d4e3592961a82"
+    },
+    {
+      "path": "fed_learning/dfca/__init__.py",
+      "bytes": 971,
+      "sha256": "782c14a5c7d81182e60112b2c2967c950036cbf7f763c0fe2b3ccb0b384a5c1a",
+      "git_blob": "eaaf7762540398a2952dbcf8eea90ed90d69a4b6"
+    },
+    {
+      "path": "fed_learning/dfca/aggregator.py",
+      "bytes": 1936,
+      "sha256": "e97525a89fd6e04770303ffd30bd29d977f42d67d3463f66a64973866e54e7e1",
+      "git_blob": "cfea8686ec87980c32551cef1b40748adc8a3a9f"
+    },
+    {
+      "path": "fed_learning/dfca/client.py",
+      "bytes": 17027,
+      "sha256": "04d24fae0c73af5f614c0e1598730d3e04168f267e7a46d83c36fa7095ecf1bd",
+      "git_blob": "1aecc18dcec371284a0e2fc1bb6e2c2f36b3ad10"
+    },
+    {
+      "path": "fed_learning/dfca/evaluation.py",
+      "bytes": 7952,
+      "sha256": "cb7d278ef482b853978d5eeb702acf7e43343bc59eb223e7af2bded3939de327",
+      "git_blob": "de7e5c4305776141c1de724d1a4edc6f2bd0d34d"
+    },
+    {
+      "path": "fed_learning/dfca/graph.py",
+      "bytes": 2201,
+      "sha256": "e07d0aa9b66797aa57541265d90dfa4618c535ea2aabb7d1b3b6c025eb258cda",
+      "git_blob": "57d27a658125cb3a3b2478eab4ce9934d92c07b5"
+    },
+    {
+      "path": "fed_learning/dfca/runner.py",
+      "bytes": 40423,
+      "sha256": "af03fece5a969c05c77cb47ec3b4e06add7744f0ba9674fb70219a0f1fc58890",
+      "git_blob": "95a60a4b4c54ac3f07c61459a31c8e0a6b623e65"
+    },
+    {
+      "path": "fed_learning/factories/__init__.py",
+      "bytes": 320,
+      "sha256": "8e76715db572dce542a1fa2a7538f0d40cec30d69395c4ec0c1406e1429dbdd1",
+      "git_blob": "784c0fd38790197060e9848866d8e098b506733c"
+    },
+    {
+      "path": "fed_learning/factories/client_factory.py",
+      "bytes": 7064,
+      "sha256": "8e6406959f480f7272f38cbdbedb8e62fe778ab5742db911536bc22618c786d7",
+      "git_blob": "1410dc4182e35126c3b0599767faf905208b59aa"
+    },
+    {
+      "path": "fed_learning/factories/server_factory.py",
+      "bytes": 1743,
+      "sha256": "269fb799928b29fda366f2485349ae6040880c61295be9a6f693b67a9ca6850b",
+      "git_blob": "cca4206695597f19e9594c9f2f64424dad1ce15e"
+    },
+    {
+      "path": "fed_learning/methods/lwf/__init__.py",
+      "bytes": 1667,
+      "sha256": "e381bac27df2827bc00e57c278180e65d933cda9edfd64b678ac384ac583b2f0",
+      "git_blob": "73f1f0e64b54f146a1f579380f91aaecc3e5e769"
+    },
+    {
+      "path": "fed_learning/methods/lwf/lwf_main.py",
+      "bytes": 23712,
+      "sha256": "8c9b8f8e119a147e8c40d709ff7d175a27999d24215fcecca7afae783e9b2e93",
+      "git_blob": "f7bcdb1d5042c942ad36ef04bb4cba3eddeba115"
+    },
+    {
+      "path": "fed_learning/methods/lwf/lwf_model.py",
+      "bytes": 13051,
+      "sha256": "c7dccfb03fdb8b82ab8eb15ecd67a908d6b6a0b15fb565ba266008da0e92984a",
+      "git_blob": "1efa5cc86791571611f3ba5c1eff4cfd21e455db"
+    },
+    {
+      "path": "fed_learning/methods/lwf/lwf_trainer.py",
+      "bytes": 24979,
+      "sha256": "115d220d962b1a8923bb653bd3468de3db50adb8f8abc10d41d794c14629ef5d",
+      "git_blob": "aae89a16fb891b0fc17b037539f360ee72ab5aa9"
+    },
+    {
+      "path": "fed_learning/methods/lwf/test_lwf.py",
+      "bytes": 8331,
+      "sha256": "9f067518aa41f4ebd78a0e155ebb4ac7d9f7027fe33128fb055b65f2d1db1f27",
+      "git_blob": "511a65f6aa3bb1d483647372bbeb10983d4df10b"
+    },
+    {
+      "path": "fed_learning/models/__init__.py",
+      "bytes": 323,
+      "sha256": "6e54fe9723034a3942f20475c14d70b13b0b19f8491146ea8ab37284d5898333",
+      "git_blob": "c3d4f66ad3a1811f31db3d3536e9afdf9b2667f3"
+    },
+    {
+      "path": "fed_learning/models/cnn_gru.py",
+      "bytes": 4277,
+      "sha256": "e9671ca6f4dcd395180b172d915b243252ccfd4485a0efcb06ef1bef3017aadf",
+      "git_blob": "b8939106a0a89b537662adae81e8b25fb3a79623"
+    },
+    {
+      "path": "fed_learning/models/denice_model.py",
+      "bytes": 29996,
+      "sha256": "c8ab09db785e6d38ce9a3fd29baa4dcadfe8019d49071d8e241c5883e8d48574",
+      "git_blob": "f47574862d756bc83ebfda80f05575b4bcbb6cb5"
+    },
+    {
+      "path": "fed_learning/models/der_model.py",
+      "bytes": 23398,
+      "sha256": "496b91b1b7b16bba0f9fe85ed10d4a12b0068c502d26616ab166467cbfa225c7",
+      "git_blob": "713f7fa4e8ecd7ab5820dcc1b9133f8bcbbc3900"
+    },
+    {
+      "path": "fed_learning/models/nice_model.py",
+      "bytes": 26972,
+      "sha256": "3dc03488dab996b4ab9cb877011be5ff70b03bac5a565a44b3d44d2cd7600de5",
+      "git_blob": "50d0013c34dc568ce3431cf35edb6a0e0fcce1f4"
+    },
+    {
+      "path": "fed_learning/models/rne_model.py",
+      "bytes": 22365,
+      "sha256": "361c49ba59a62c2d90b40002286d3e490dab1b37b2423a191940394107317056",
+      "git_blob": "e0f6be5a5102420f542312c3954d06b713b0bab3"
+    },
+    {
+      "path": "fed_learning/plexus/__init__.py",
+      "bytes": 1319,
+      "sha256": "9f0eb824bdfd3159c582e9ff4b1f331ccfd9504cba5ad71a9de550cc8690ac9a",
+      "git_blob": "7c0b6906e53b112e90c107d97dcbbd85fd967bf9"
+    },
+    {
+      "path": "fed_learning/plexus/aggregator.py",
+      "bytes": 3160,
+      "sha256": "f1069c49cd621943c5d0873502e8623c3a8e61999e6a667b0072689dcc1a4481",
+      "git_blob": "52253c582095705c3b45c6e4fedbcaa95c4ae31d"
+    },
+    {
+      "path": "fed_learning/plexus/node.py",
+      "bytes": 10412,
+      "sha256": "88ae528e07a64a3685b5221c4471bbf1c9327b0f629e826b84b6279d9be3fbae",
+      "git_blob": "a0b7c6497fb665f8d59e7afa3fe00f998fd6e702"
+    },
+    {
+      "path": "fed_learning/plexus/orchestrator.py",
+      "bytes": 14560,
+      "sha256": "1af16e9be6e1de2bbb0cddeb8cc24a85b3162ff10c5ac6cf1afb381fbbf4ba3d",
+      "git_blob": "e05dbb8d0c4ee5dcc8409c2e8ea2b3f9dc5dc807"
+    },
+    {
+      "path": "fed_learning/plexus/runner.py",
+      "bytes": 13704,
+      "sha256": "8929adf66e18293f034c6ac669ed6127dec7d15b957809bcec4c6415778ee020",
+      "git_blob": "ecf9c95a55be5705ffd46856ad4608f1f8233f73"
+    },
+    {
+      "path": "fed_learning/plexus/sampler.py",
+      "bytes": 4844,
+      "sha256": "d2f80f91f268f25d539a5709a7b57f4b1a2fa96cce5726a2c42efd6d1a572b19",
+      "git_blob": "772a8f3082f0ff184ff242222403cd8deef8e437"
+    },
+    {
+      "path": "fed_learning/servers/__init__.py",
+      "bytes": 675,
+      "sha256": "d424f700a46c555372753190168cd00ef332ea901947cc592f22e21d3346e2bd",
+      "git_blob": "5d8465ecb36836bbf03700fce18188f3bd0b6e23"
+    },
+    {
+      "path": "fed_learning/servers/cgofed_server.py",
+      "bytes": 21674,
+      "sha256": "1b4da445b223c9b85da2a435d059485874be41b5c9bbfc9d1e4f8dcc007200b4",
+      "git_blob": "28fb60664ac61ba1ebac42a9700566bae622c95d"
+    },
+    {
+      "path": "fed_learning/servers/der_server.py",
+      "bytes": 11382,
+      "sha256": "1a2f344cc13712f5d4a8bb2a568afaa1a13bcc6522598abd1cfc3e6528049efe",
+      "git_blob": "d700edab1286e5ee2184065fb769fd568e57dfef"
+    },
+    {
+      "path": "fed_learning/servers/dfca_server.py",
+      "bytes": 36123,
+      "sha256": "34017f785ff34b8c73736ed6b7f9405e4808722630fa7e3df4a2895dd6f5ce20",
+      "git_blob": "78344e14623d790c57b24208df3561169a707f4a"
+    },
+    {
+      "path": "fed_learning/servers/fedcbdr_server.py",
+      "bytes": 14094,
+      "sha256": "975fded8e1e66634bfd3868750a94b4a53dd025c1c7e78ce8b7598dfc9ec29bb",
+      "git_blob": "23d28e9bcbb76db6625aaa1f0979bd04c73a48a2"
+    },
+    {
+      "path": "fed_learning/servers/fedlwf_server.py",
+      "bytes": 9105,
+      "sha256": "5e69b2e9f876c7fc64dd8c260c6c619e45290bc23e444d731548b8c83875def9",
+      "git_blob": "0052f162c9950ce07176d27f7104ce359cd92b11"
+    },
+    {
+      "path": "fed_learning/servers/glfc_server.py",
+      "bytes": 16513,
+      "sha256": "7ef81b86967086cb559d769c3a9283e5518ad442ea3352e3d5b0a5f3f7a0d3f1",
+      "git_blob": "9352b28906015bdb899cf46306d7ba8e50ab644d"
+    },
+    {
+      "path": "fed_learning/servers/incremental_server.py",
+      "bytes": 7197,
+      "sha256": "cc503965821e2e993b446973f71559d96d7e1920ec44207cf8c78c97a718f566",
+      "git_blob": "84d174a671c82b41e21ed6b7f766204d2bd1e050"
+    },
+    {
+      "path": "fed_learning/servers/nice_server.py",
+      "bytes": 59789,
+      "sha256": "25872917e5f4ff70b6e40ac48a84920817b907775a7d78a5593881a20f4b557f",
+      "git_blob": "9518e4efed43a199cbdf97cc2c39eae4ff36c05c"
+    },
+    {
+      "path": "fed_learning/servers/refed_server.py",
+      "bytes": 10720,
+      "sha256": "48f0a0b4985e81286bb1e58e8f92d4cf2f9178c8d5bc2aa3f264f0f8992b7ff7",
+      "git_blob": "a16055ab47a164b8d19fa6eebf07afa757a61bd8"
+    },
+    {
+      "path": "fed_learning/servers/rne_server.py",
+      "bytes": 7147,
+      "sha256": "bdc0509c3d6d6d9f5de605aa65b85f94c6c3bc1892ad28ac40598ff419e0f88b",
+      "git_blob": "069cf2716ec518a2a642c858ef51c194bf0aedb6"
+    },
+    {
+      "path": "fed_learning/servers/server.py",
+      "bytes": 8267,
+      "sha256": "62a9162139ac16859bc8b25885e81dae61a70fbcaaa8664046f603b85326114b",
+      "git_blob": "f58c2c29e3108e0b2d288cf14807363986495c02"
+    },
+    {
+      "path": "fed_learning/strategies/__init__.py",
+      "bytes": 13274,
+      "sha256": "4817cec38445d69e915e5447a8ffb234418371fa8a1d8494a17084a9d221966e",
+      "git_blob": "6b874c8451904684e6c6bbe849cbeecfc77a421d"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/__init__.py",
+      "bytes": 1726,
+      "sha256": "4e94a445fbc2066b881f3f9a8aa2e242a7f52a9c15d9ed21fead51a7f705ffdc",
+      "git_blob": "077317b64f7a92bfc525cc7cd233fb02306af4fa"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_aggregation.py",
+      "bytes": 17174,
+      "sha256": "83a8dc67aeea26fa3ea165b0fb55accb39bf1ed69dd9641d186354633971805b",
+      "git_blob": "83662ca2c6d3b146393839bfdd5f5e8be93cad5a"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_appliance.py",
+      "bytes": 17530,
+      "sha256": "da5154a54041f1e2bc2441cebe4d640cbb12badc74e3a83ed70742a987c1dad0",
+      "git_blob": "a077fb8a6e3999c25051e07f65243c53362f4047"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_capsule.py",
+      "bytes": 15836,
+      "sha256": "92fa5ac0724584d146db20eac6a9c56b8d9fb4a1c33fcdb3ee00651358ffd049",
+      "git_blob": "3c080fea6861b1f5d3d6bea7debc6976a40f479f"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_clustering.py",
+      "bytes": 19304,
+      "sha256": "9e731a7df75422b5a51248d576d55aab2822ffb61d6c1f7b856d0f48911722bc",
+      "git_blob": "3814e63d8dbb952de15cf4415422529795259a3e"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_transfer.py",
+      "bytes": 4669,
+      "sha256": "1d8833dcc025dc9e65139684001edff43840a7eabcd9b3f00103f6ecbedc9503",
+      "git_blob": "cb65b9ea48c9d4aefe168f436d3ee73f14c635ae"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/__init__.py",
+      "bytes": 70,
+      "sha256": "d1b27f8fe555a5f265f90f57c6bfb29ca9ef90d60da3331474da0712ddc1b246",
+      "git_blob": "f0325f8e6063c9deab799e6f51e13ced078510b2"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/aggregation.py",
+      "bytes": 15216,
+      "sha256": "90005f1e90fcf4ac2d2944d518b807cfdcce505674bc9db28968d5596b724b63",
+      "git_blob": "a7cc7934e4763e0cb6ad7a38f6d5aae5ef93ed78"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/archive.py",
+      "bytes": 9541,
+      "sha256": "354bd10cf7227f2855299c73052e94dcc410dda97e0844b176817859131fb818",
+      "git_blob": "ea06d276f3419e9f45cf7e1e56a862f601b6e903"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/contracts.py",
+      "bytes": 15827,
+      "sha256": "243eaacbee4f423a9555b9b0b1959db8113fd3321c670b2ef73349fd0d61f024",
+      "git_blob": "3bc340fddc9ed490c17087f12d741254d3a10b7d"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/coordinate_router.py",
+      "bytes": 9311,
+      "sha256": "411b20bfb6e63b93b9dd27ede002c3ff70cdc9d00ec40b6b737bb75d62148401",
+      "git_blob": "e62adf231427eb497f17a084f105c1cb4a9824a8"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/data.py",
+      "bytes": 8590,
+      "sha256": "af16dc7aa0c59f36903d0f58c128ea070f4f843bb4aeb0e470a147b16452c077",
+      "git_blob": "f32e261fa9fb24a2ea71461cf84f13d82df860aa"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/election.py",
+      "bytes": 1170,
+      "sha256": "da3b553226c8596459ccc00bd2b2d4482036d638ccab010e2c6105a4f2b2786c",
+      "git_blob": "59a3747341302561d718c5b47887bcd9e008f2d2"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/evaluation.py",
+      "bytes": 7722,
+      "sha256": "cc904e2522a07a279a80c219d6b62c2038abe218f705306f4d68abae66692c62",
+      "git_blob": "a21ab7e6147558fec3b6be7c847066a4f8848d35"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/knowledge.py",
+      "bytes": 4279,
+      "sha256": "117e334c2206b7d1db8a189eab20e71b597ab5263d34f03f24731f0b711bee3e",
+      "git_blob": "6ffee280fa7c1bd8846a181ae4c35077ef03ee50"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/multi_gpu.py",
+      "bytes": 7814,
+      "sha256": "03fd536e093b84b136d379be6e9cc9536aaddc5e671c1a49a878d82769f0d1b0",
+      "git_blob": "a862ca065810ee53542ecad6cc124cc70a010417"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/native.py",
+      "bytes": 22213,
+      "sha256": "6fad9d06b7071dba208ea3a7a18979462330c3062d9bc80efe924ab4ad480499",
+      "git_blob": "1790f2fbfb79722dafb33c40c9bfe9c36bb57313"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/normalization.py",
+      "bytes": 5611,
+      "sha256": "c84a47af8f94a151078986a233a72dc63898b4e5648ee322dc1730e8193599cc",
+      "git_blob": "8c9a7c7bb09386ddd03b4c7a1286ec05b0545b85"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/partition.py",
+      "bytes": 6654,
+      "sha256": "707bc4e5a33798f02fb54d523c0b7314d73a737f73a4304d8f5f758b218e0959",
+      "git_blob": "09140b14f683da031c5ac8c5b27738c490086313"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/router.py",
+      "bytes": 23838,
+      "sha256": "7323dd46a5ce104dd273a4e2cf707a0b0b862f191ecd13252fd98b33b626fdb8",
+      "git_blob": "802801e3d84fd202d2b6f585d37021449a05c121"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/routerless.py",
+      "bytes": 5157,
+      "sha256": "ebb91f64a095b94f085b654767735d9488055a69546ea389e0a2b1e394d52e03",
+      "git_blob": "c005a26d8c37de81831b6afc3a52f449fd602296"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/runner.py",
+      "bytes": 22897,
+      "sha256": "801506af8c274ec8291076cbc34179b146707f3c82cb7dcb93cb5a67a41417bb",
+      "git_blob": "0e076ee240d3b6abfd9dca5b69a60989b7df3e19"
+    },
+    {
+      "path": "fed_learning/strategies/decentralized/denice_v2/state.py",
+      "bytes": 15161,
+      "sha256": "7eafad3458b3731367e5ad08fc6273473e4cf3a9628e1ffca8ee48b314daa838",
+      "git_blob": "f7ba56e3867ce6068254b236708e83a4d54a5f38"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/README.md",
+      "bytes": 15911,
+      "sha256": "4227e09cf0e4f65818e2b5e9c113b67ec0ed0eecc483a4ce5ed49adf2d8ea4cf",
+      "git_blob": "511713d1c31e23a2bf3811ec84db18991b45b351"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/__init__.py",
+      "bytes": 1132,
+      "sha256": "78b09a51e06eae003b67f330d9aae72c57dd93a750855f9dc2abd8b9e5e4f789",
+      "git_blob": "38a4efbf8dbdb47ca6ff349e4abfb3528bdde25f"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/cgofed.py",
+      "bytes": 80269,
+      "sha256": "61d19c753fa990701883f2e924224c57f0d941603f2f2c50f0ed7be3f2ca2018",
+      "git_blob": "d356d716d35c0deeccd46d7be06f563a9e3deda3"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/der.py",
+      "bytes": 2031,
+      "sha256": "5dec4203bafe062d356360fdc49893e72fd3e77b04a319741f8219f1c574b643",
+      "git_blob": "496ead53142cbe6d5e7b9df393f370e96d60caeb"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/ewc.py",
+      "bytes": 1451,
+      "sha256": "3fd2392d317dcf46fe32d28c4d0c5b3179393f0bc311441b5d01ceb9d8b03900",
+      "git_blob": "a70c6fd76d7e97ed4ad5e1dbd2aeab35e9bbef5a"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/fedcbdr.py",
+      "bytes": 20648,
+      "sha256": "457fb0d6f5e569dde7a6d145748f383d7c0008de75c23d8633f886394c0add76",
+      "git_blob": "b33949b197b92530b5fe64007d94dd8cc3ec9dad"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/fedlwf.py",
+      "bytes": 2410,
+      "sha256": "584dc727d95b264bfde999e65942028b943675a37ab7b5bea903e134db1aa375",
+      "git_blob": "800c5624c27556994fdb11869bf85d98b9c3c1bc"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/glfc.py",
+      "bytes": 16945,
+      "sha256": "7af5d37090c35e9550140001c2ca477e3010bb779b4882319104eccf5c5b76f1",
+      "git_blob": "63b86467a5e86782c7227db4a8d9355d6e8d5a4f"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/nice.py",
+      "bytes": 5891,
+      "sha256": "3ec6522d3612921f226ef4729a72bbba2fcd7113c66f5cd66407eed9db99378b",
+      "git_blob": "d85945c94af06419c8dc5be34d58449d5a0042de"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/refed.py",
+      "bytes": 4070,
+      "sha256": "c1cd95a4af998bee4cf3400f27b3419e26a2910c92df1ce29774814b3aada4e6",
+      "git_blob": "f0f296454313d3219da0dd7bff32c12119de80c6"
+    },
+    {
+      "path": "fed_learning/strategies/fed_incremental/rne.py",
+      "bytes": 252,
+      "sha256": "ea0c034c522ea07b418c522e908f4734262673892191a0faec7f33588511dfa8",
+      "git_blob": "d4c15d2011820e873eb190b76e437e09b81d8341"
+    },
+    {
+      "path": "fed_learning/strategies/federated/__init__.py",
+      "bytes": 688,
+      "sha256": "858be4f59688739fea26b0fc270507af324de2c02b4863f6302d64f1d3aa5fe2",
+      "git_blob": "b7bd542bc3fea5e2007427ad0d24a24b43914c9f"
+    },
+    {
+      "path": "fed_learning/strategies/federated/dfca.py",
+      "bytes": 5189,
+      "sha256": "0274c650ee553e7d0412c96f1390c8c15798639bd0bc6ec2ad4975e5bbd45a6e",
+      "git_blob": "e69ebbb5f1e64e11d8585f315e5d339cb8ae6ece"
+    },
+    {
+      "path": "fed_learning/strategies/federated/fedavg.py",
+      "bytes": 987,
+      "sha256": "8650e150119d779d7438c65b1ad9e7ad573ab15522870dc01d17bfdf3aa54d93",
+      "git_blob": "cfa73d5cd6dcd4a45205976e3765ae653bb745f2"
+    },
+    {
+      "path": "fed_learning/strategies/federated/fedavgm.py",
+      "bytes": 2075,
+      "sha256": "0eab5f623811130bc91df19b938d0aa63389b21abb42904d437fa955b2e0c078",
+      "git_blob": "992892fb9bac2220d2a0a83e2f7ecb9f187bed20"
+    },
+    {
+      "path": "fed_learning/strategies/federated/fedplus.py",
+      "bytes": 2488,
+      "sha256": "c63ba96473a5bed4bd50e34ac68959407e3e13cc5bcbfb52e45ad76bf52cf0fe",
+      "git_blob": "d3cf4e7ed7dde38c28a57925d14ce8b6a8706945"
+    },
+    {
+      "path": "fed_learning/strategies/federated/fedprox.py",
+      "bytes": 2125,
+      "sha256": "a68035f1774a117124d0e32976b4372d63b6de1eb5d6bca1817ad2c4beabc2f8",
+      "git_blob": "6cd54a22775588abc4b43460ec9e2bad79822020"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/README.md",
+      "bytes": 2151,
+      "sha256": "0ac3b795a40bf5692d9b1c80564980f17faa0a221df748fcebb6e7c2999e5bcf",
+      "git_blob": "593a1cc3aa3c9ddc0072c4fc6b3c5c93cfccacb4"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/__init__.py",
+      "bytes": 4000,
+      "sha256": "0f6018a505b3bee969e89d911a5017ad66da059c904d276d75b8441a894e1a90",
+      "git_blob": "74d6209fb579c7d2f7bce341a612f1da1d1a87d2"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice.py",
+      "bytes": 1564,
+      "sha256": "b44ccbea67ff389ce96671e41b66d12ba926f9567a1277015f89eab50b1cc38a",
+      "git_blob": "daa91ccad7e1082630b7ac0778a0e5597c2b5595"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_capacity.py",
+      "bytes": 18933,
+      "sha256": "b7093372e44774c1593fd4e22dfbd847bcff925c5201654279e1b18cc2dfe577",
+      "git_blob": "07ba54cf678501122aef9c0e75afe28cd463eac6"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_cgofed.py",
+      "bytes": 18303,
+      "sha256": "5c2ffbf5636e37fce2fccd0625a4abc9b2714440d8584c56761af2dba7638dc1",
+      "git_blob": "63e1ed9a09f3555da6c289e3529985dda22d0576"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_class_availability.py",
+      "bytes": 2919,
+      "sha256": "080780891fb2c4e5c4ed0cedbbc5910701d27d4ceffd84ef94fe0082bf95c4ea",
+      "git_blob": "bf1187a4d0197d844712228a185cf1a222a8e74c"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_classifier.py",
+      "bytes": 11989,
+      "sha256": "778f6aa06aa45f47aeeb8bb3c9602cd28c150f481c7c9c92bd46a9a52b0ccd04",
+      "git_blob": "ae4a8ed3527e977446ccdc471ac3710cefda43fd"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_der.py",
+      "bytes": 5190,
+      "sha256": "d0b57e448a8470e11b3e2283e2810395d9b2fad5ca116434a607374a6e88229e",
+      "git_blob": "319180441a33c09cca366c96ed9f0a45d3d43338"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_ewc.py",
+      "bytes": 3649,
+      "sha256": "68c645ece6be7c862c6584844b155662b2e7a06e8e92c4fbad33b6d4720619f7",
+      "git_blob": "8135e89110824bf57a613f8806b33be1bd365042"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_normalization.py",
+      "bytes": 3828,
+      "sha256": "427d561264d92109fd3c8a2b251cd57221c0d045a4348623386c5582be6963ae",
+      "git_blob": "aff27bb44a6dc9087185abd330ded7c69679e669"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_novelty.py",
+      "bytes": 7681,
+      "sha256": "aa6c7f56c1822490a41b3a1183c8a36db5397a5f1d6fd50dc552c68166bd170c",
+      "git_blob": "548f45b7babc69b6d9d1f7395177ecc1ff0acbcb"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_plasticity.py",
+      "bytes": 5815,
+      "sha256": "419731b8a4acdb6a7a88b030ef0002f3837e3e74bf06c946eed20f026710c642",
+      "git_blob": "89d410315648aa608abb16f8d1eed6b5c41a1550"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_recycling.py",
+      "bytes": 9651,
+      "sha256": "ac5c19e8ebc8f89e3b800b2325414443075d07ad72116c06ab0a1291aac3101e",
+      "git_blob": "baed750e33ea70c46a4c9a35f224f22bd2fa214e"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_replay.py",
+      "bytes": 10217,
+      "sha256": "2873c0ecd5ec0f6daed62c74b25e6e4d3695df28db212083a5cfc2b75209aad4",
+      "git_blob": "3b8b837a55fd1a28526c272861a436a45e2e0f18"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_router_baselines.py",
+      "bytes": 3004,
+      "sha256": "1ce16ae9f3e4295e55c6a2e6fefb0a30eec534c17b2d6bc4cd0d46f93965c648",
+      "git_blob": "c393945a4661d1281bcd29686e56dd0b3822d2b8"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_router_replay.py",
+      "bytes": 4874,
+      "sha256": "6fed33d3082e0091673226bf3916259a14efde1803ef0ce1aa834bc231060182",
+      "git_blob": "0925ed529de4d2df00e2613e95fecce99983b1a9"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_tip_router.py",
+      "bytes": 8145,
+      "sha256": "682046e139e1d435466a3cdd3d2b5f88166dbb353cea521df26b39bd263caac5",
+      "git_blob": "b621e9fb66bd0ff4a438633215365884c5cfa475"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/denice_variants.py",
+      "bytes": 6965,
+      "sha256": "a1fb1e7cece591c0e80a19a86323eb9815f38f5a7613f3ca47f9e9510db07156",
+      "git_blob": "7ff6a16a1c975b464e8903ad13d994a982a6d09f"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/der.py",
+      "bytes": 9155,
+      "sha256": "7e9ad929b10566c724bf8e7d62670f6af8e802488be84545186902453262ca09",
+      "git_blob": "5733ffc095b8cbcca05e542970567aeb6e496603"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/ewc.py",
+      "bytes": 23210,
+      "sha256": "dc0aa25700693c87753b73caaee7878331eb9a98b1213e1e8f8788a6826e2b97",
+      "git_blob": "c5d2e710e31cffee3a9476b1c32b12d9602a4261"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/lwf.py",
+      "bytes": 11288,
+      "sha256": "fe801f423185a7dfb1ddf998e6d5bae3f7d41ab86dfda5a14dc57bafdce7d9f5",
+      "git_blob": "75410d5535f2b31178282f4698429add823c0a3f"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/nice.py",
+      "bytes": 13296,
+      "sha256": "ababb8b7b496dda1d1ba0f52489576eb445c1a8271acb1729bca5c2288a70d03",
+      "git_blob": "ca92904dbd0a27968a3cab166ed6fc7180738585"
+    },
+    {
+      "path": "fed_learning/strategies/incremental/rne.py",
+      "bytes": 7001,
+      "sha256": "51e56b02e5b08c858ba27b76ba35c7cc5fe35bb6bdd9dd217ad4d25894cbe8e0",
+      "git_blob": "f4c3ae2237cb6504114c598428bd541ebd009e96"
+    },
+    {
+      "path": "fed_learning/training/__init__.py",
+      "bytes": 1708,
+      "sha256": "59203c6a53c6675b563697be95a8fe6790147db8c7b69370363c1f9fba3eda65",
+      "git_blob": "fef39a4c0ca51538f0148f9ce8159d43dee343ec"
+    },
+    {
+      "path": "fed_learning/training/base_worker.py",
+      "bytes": 6357,
+      "sha256": "56f9965fbfe29a3c1fe5cb5b9bf9566dd89581eb9fe119d4049c11fa07f91bd8",
+      "git_blob": "f66230669db876a145d7c029877415298ad5f01a"
+    },
+    {
+      "path": "fed_learning/training/cgofed_worker.py",
+      "bytes": 3483,
+      "sha256": "64031e257675e127856039e58ca4dac9bf68a18f14a34ea7ebfbf5288d655e83",
+      "git_blob": "e8cdf93d1aa0f3b04150b699c56665660381ba40"
+    },
+    {
+      "path": "fed_learning/training/checkpoint_state.py",
+      "bytes": 16289,
+      "sha256": "4fbc0000ef9492f0a33713b336d8f505f24ee2f5e1e1631a0f796cc751a7d262",
+      "git_blob": "c34fc45cebebc8db7bff3a9c5e332546318eb79b"
+    },
+    {
+      "path": "fed_learning/training/decentralized_denice_il.py",
+      "bytes": 213525,
+      "sha256": "0f6a5876955a907111c768d15b10af4bb93e9c3218c016ed5519700caea90f8e",
+      "git_blob": "62547bbc46e0efe9f442850540255e56286966a4"
+    },
+    {
+      "path": "fed_learning/training/decentralized_plexus_il.py",
+      "bytes": 15652,
+      "sha256": "f4a983a053be9a3473abdeb4244203d9558245a0c9b20301a6286247774146d4",
+      "git_blob": "78e17f0a2a319a78811d460a75b12e9b077884df"
+    },
+    {
+      "path": "fed_learning/training/denice_checkpoint_archive.py",
+      "bytes": 5708,
+      "sha256": "11e0d3b2f6e18d05399d5a98d54ab225c5a11331da095f807d7804265d060351",
+      "git_blob": "653d8351b37231f5e849cf5a4a6205f35df58d1f"
+    },
+    {
+      "path": "fed_learning/training/denice_delta_checkpoint.py",
+      "bytes": 10582,
+      "sha256": "25b8ba80af7c232f79c0db848fbe30889f9f939eda3928c8de5ab69fe50ee00b",
+      "git_blob": "5971698113aba8c405b38d992dcd98caa3286f41"
+    },
+    {
+      "path": "fed_learning/training/denice_eval.py",
+      "bytes": 31376,
+      "sha256": "8854922f33b535404918432fa165abdf775471ca57981c1ad20e67924d1ccf1b",
+      "git_blob": "dfc5009fdad890a7c614ae86f1d99607d2c41c65"
+    },
+    {
+      "path": "fed_learning/training/denice_overlay_resume.py",
+      "bytes": 4573,
+      "sha256": "a0dd1811944f84e6753fd6e703d2a37046f7329a3e09ed1ef329e12a96340f4a",
+      "git_blob": "ce3a4ec4b72eb11c7fca4894dc30811cf3d1dd9d"
+    },
+    {
+      "path": "fed_learning/training/denice_provenance.py",
+      "bytes": 824,
+      "sha256": "7b8bde5f833a7ab40fd3c637695186ebbe52cb0ad0d210d2466ff01f4dbb0588",
+      "git_blob": "da4a1fa3961307052c4e611af857f39897b502fd"
+    },
+    {
+      "path": "fed_learning/training/denice_retention.py",
+      "bytes": 1581,
+      "sha256": "fd24b700bf25934d559237813427fcb312be3aa094c5e41547be8a28e9b11f9f",
+      "git_blob": "d7458159ac4f132ecbb4c35ec60083caaa07bb8d"
+    },
+    {
+      "path": "fed_learning/training/denice_router_ablation.py",
+      "bytes": 3826,
+      "sha256": "c190c2500f41d2200d022afbefdae705b83eca433ec4bf13ea1c25fcf7e36fd8",
+      "git_blob": "27b8ab0ce10ebc4f8cf8fa2f00411ae16f67aed8"
+    },
+    {
+      "path": "fed_learning/training/denice_run_audit.py",
+      "bytes": 1891,
+      "sha256": "1b65345d90b62e50846edec433096f0661dee5174007732cc4dde59c130bbbf9",
+      "git_blob": "3bd75a9930b5b07fa715dc3baac07be8579f6f92"
+    },
+    {
+      "path": "fed_learning/training/denice_usage.py",
+      "bytes": 4022,
+      "sha256": "bd158a063f171b0fff12cc018271c7d72502e47b58ee55633a83d56664ace0eb",
+      "git_blob": "9d36a21d19fda3fec7bb319f7f1b3e63d19d8d8c"
+    },
+    {
+      "path": "fed_learning/training/der_worker.py",
+      "bytes": 6197,
+      "sha256": "58c8665ce302edeecaa8ef6625c9a6f88dd07e52df3f23dde88fbf1600687f06",
+      "git_blob": "a9f271fcd432593710d5d371404283b27bb9e320"
+    },
+    {
+      "path": "fed_learning/training/fedcbdr_worker.py",
+      "bytes": 1992,
+      "sha256": "a2e0a03147e8be653e2797b5b9c4825216f98c91f6de33abe338d86d5aaf89f6",
+      "git_blob": "e824b022472c9d30fa721a0c5cf9e23a4bc001b0"
+    },
+    {
+      "path": "fed_learning/training/fedlwf_worker.py",
+      "bytes": 1335,
+      "sha256": "f785636c297ee07e469667032e463caa18d422e16d292894e6b6f3c40b4ea244",
+      "git_blob": "241f65512b9015f6fa814cd5af79db9e6250692c"
+    },
+    {
+      "path": "fed_learning/training/glfc_worker.py",
+      "bytes": 1883,
+      "sha256": "61809a26fdcc58288fdfc8801276bd7551d4309c7fb72db22dc93824809dd7c4",
+      "git_blob": "09139d4cb99a896ee4e6b53bc21d05ddc954a08d"
+    },
+    {
+      "path": "fed_learning/training/local_task_loop.py",
+      "bytes": 59458,
+      "sha256": "e7b0bddb1bec4eec5dc0cedc0f185a990e3e806b79a69b89b3b06f92fbbd38ec",
+      "git_blob": "0c5f885f034f04b1b9a1ce6f44f015bccb2fe0df"
+    },
+    {
+      "path": "fed_learning/training/nice_neuron_usage.py",
+      "bytes": 3170,
+      "sha256": "89851043077c1bd38ca794ee93f1c8cef156e98b0ac031c0976cb29e973aaacb",
+      "git_blob": "e9934ec3d60ef6c51a30fd47e281ed127f01c081"
+    },
+    {
+      "path": "fed_learning/training/nice_worker.py",
+      "bytes": 4588,
+      "sha256": "7bf37c63c7f2a86b17673252145c97923a086607692fc0241193bd5dce1ac9e1",
+      "git_blob": "ec8de5ff9f7f4bd9f22b056181acefa825afad53"
+    },
+    {
+      "path": "fed_learning/training/post_task.py",
+      "bytes": 3863,
+      "sha256": "bf3081bde59806fd6ee13d05ecce72d3427dc4875a8502f9e9221f50b0f934c6",
+      "git_blob": "b0dcc7d7e7f3200d551e80882c1a1e70f6cb7a27"
+    },
+    {
+      "path": "fed_learning/training/refed_worker.py",
+      "bytes": 1495,
+      "sha256": "f18d642bcabf0bbe335d6d8883ceb5b1b543f3776b2d23445786990c495b4774",
+      "git_blob": "bec70c4efdd7e9e963c68dafd711d6601997cf99"
+    },
+    {
+      "path": "fed_learning/training/resume_state.py",
+      "bytes": 12683,
+      "sha256": "4df35d4e8f1d994f720477933a85c91cbfd8b3f794eb2aab192ef804210e51e1",
+      "git_blob": "8e5fa6a2136c206f87b064759469c52f3ddf443d"
+    },
+    {
+      "path": "fed_learning/training/rne_worker.py",
+      "bytes": 4719,
+      "sha256": "f95e458aa8210aa8aadff8f17128c790a4f7c754e5750f681219abc69bb25edd",
+      "git_blob": "f0d3292416c9fd8dc23c99d49d54338e9e542a5f"
+    },
+    {
+      "path": "fed_learning/training/runner.py",
+      "bytes": 2508,
+      "sha256": "8e73d350e3525ba56732aefec14a001bc90f7c1a48f90f7981b978271d83fb42",
+      "git_blob": "b0546b9b11c5967ba43d77ff0aa5bbb7b3ba76a8"
+    },
+    {
+      "path": "fed_learning/training/task_loop.py",
+      "bytes": 52070,
+      "sha256": "9f2dee9c03c75a2f635ed4e8c9852433e86d500ec44652d2c3c2bc2041b29fbc",
+      "git_blob": "1a96a65ff7d063838d5f5693830d0a751072b490"
+    },
+    {
+      "path": "fed_learning/training/worker.py",
+      "bytes": 2039,
+      "sha256": "7f22ed0836e12735fa93d46189396a448b9a81838f95d809657f2f324a398a19",
+      "git_blob": "11acee93c64f61a7212dd81aba2e9762ffcd87b3"
+    },
+    {
+      "path": "fed_learning/utils/__init__.py",
+      "bytes": 205,
+      "sha256": "c8f7034adf5d4ab01d1080b5c8e78c82cceefd9650bed7f394dbf2c1b6d6f78c",
+      "git_blob": "c43329760ae0166174df80046ce194798b634966"
+    },
+    {
+      "path": "fed_learning/utils/cleanup.py",
+      "bytes": 792,
+      "sha256": "cd0a4fe440faab1a19d3b17d32c54d904e338e4bffcea5f2bbda5fd63f2f9b75",
+      "git_blob": "5f77768653e10667fdd41bbfcf90cc891151b154"
+    },
+    {
+      "path": "fed_learning/utils/seed.py",
+      "bytes": 731,
+      "sha256": "d0cbd3a0efa7000f00efc038a792ba77ca7f1be4853449d101a27a64fb951ec3",
+      "git_blob": "5650966bb83f2a1dd97f59c8756c20f04f274ff7"
+    },
+    {
+      "path": "fed_learning/visualization/__init__.py",
+      "bytes": 2003,
+      "sha256": "00b58708cb0bd3fd9ca30a865723dc5d12a78948b147fe888f3d4f0b591c74e3",
+      "git_blob": "2ceea7408dd52882b14a227bb88d9f097932c8c4"
+    },
+    {
+      "path": "fed_learning/visualization/fcil_plots.py",
+      "bytes": 36883,
+      "sha256": "4af87f78113e96b768ee1e82dd2d6b0af0b2a8f835e686afa365533712a01630",
+      "git_blob": "fa8fc8bc1b9b191e3bf3438001a4a4ab74069b9c"
+    },
+    {
+      "path": "fed_learning/visualization/metrics.py",
+      "bytes": 10676,
+      "sha256": "59fccb1628a592ca66c29d665a9492be4c3d15d37999added8163b6774361b02",
+      "git_blob": "537070d52bf71db915b60f1ffeba8c4783036b72"
+    },
+    {
+      "path": "fed_learning/visualization/plots.py",
+      "bytes": 7798,
+      "sha256": "0b67e2287daa6aff84c4fa315a1eff4c0dd6224f28f5cbeab318bf81c494925c",
+      "git_blob": "f36765bfb4a51f533f7dfac6de211723e04e66d4"
+    },
+    {
+      "path": "fed_learning/visualization/style.py",
+      "bytes": 4049,
+      "sha256": "f2e6e0331e76defdf90d08cfae63a2e98885e0039b4abde6ee65d91028eeda3a",
+      "git_blob": "bf1ff673dab112e01efbf94f38c888b768befb3a"
+    },
+    {
+      "path": "requirements-candle-v1-kaggle.txt",
+      "bytes": 174,
+      "sha256": "0435a8efdb60d3257fc9b09ef26d8a2a27b72bf5c46aee866bef6e465ed9a418",
+      "git_blob": "179366beef0913508f6a2ac4c8c92007ec96fc8a"
+    },
+    {
+      "path": "tools/analyze_denice_d1.py",
+      "bytes": 6830,
+      "sha256": "7315e093b872e7ec074747a9fd501ad62ea44fb2a4023874b247daec12cafd7d",
+      "git_blob": "638ffe0255ca99998fcf00d904c8fd3d57c5ff0e"
+    },
+    {
+      "path": "tools/analyze_denice_d2.py",
+      "bytes": 5574,
+      "sha256": "2f521b4b12e7584a11384c763c079284408063f067882515e5dfafa212793480",
+      "git_blob": "0b9606c6d70ae86f5922d6030bd28256e5c881a8"
+    },
+    {
+      "path": "tools/analyze_denice_d3.py",
+      "bytes": 5571,
+      "sha256": "4ce357b7e39a9a64ce069aeb2dcc6cda8821b3562a94da3e5701664e148694dc",
+      "git_blob": "103fd0301a53fc4037a630b0fe41c64461b17df0"
+    },
+    {
+      "path": "tools/analyze_denice_d5.py",
+      "bytes": 4351,
+      "sha256": "7d835a21ee6eb8dde4affcdd0c6c0f2693509e590588d4649edf92a5f78080fc",
+      "git_blob": "da8bfdf0dcfbed50542de60647348be3ef57dda4"
+    },
+    {
+      "path": "tools/analyze_denice_d6.py",
+      "bytes": 3348,
+      "sha256": "c135d0a114a7353d19f3d5d79da21281cfe55a07c18b4dba66cece0f7fda9496",
+      "git_blob": "be2e039e7fc948be7eb3d629918761746017bf66"
+    },
+    {
+      "path": "tools/analyze_denice_group_probe.py",
+      "bytes": 5494,
+      "sha256": "bdb619ce197e6ad0a9f330af8c5568d437e47b5eb991e5f6f30c4b24e1df47b8",
+      "git_blob": "6ee200731da6014c8f6ab9bd91c52eadfae66f15"
+    },
+    {
+      "path": "tools/audit_appliance_actual_transfer.py",
+      "bytes": 23444,
+      "sha256": "72b8672cc6f5075fdc142a10bfee11eeeb60522c2003537a415d721a40adfce2",
+      "git_blob": "87a90e7ee5eedf35c696cdcf04e223871b5b1bbc"
+    },
+    {
+      "path": "tools/audit_appliance_contrastive_protection.py",
+      "bytes": 9470,
+      "sha256": "8d9032081f2cb7cb20dec9c08aa126a624dc0a30b1d5503104b73533ae5982d7",
+      "git_blob": "4325f600f5f106289da9157873afdddfc7910851"
+    },
+    {
+      "path": "tools/audit_appliance_counter_fit_signals.py",
+      "bytes": 4852,
+      "sha256": "72d6b8b392ef97442fd72b6d7129b7424988dbe295c8bd33b84d6b34c0f0ddae",
+      "git_blob": "7d64d014646e0d7340d97e3793c6f7e58e66857c"
+    },
+    {
+      "path": "tools/audit_appliance_direct_head_feasibility.py",
+      "bytes": 4076,
+      "sha256": "dcb1debc11dbf09b8c13011f80ccefeece2a314580034e6710707658265db2ce",
+      "git_blob": "76cc9060d47080c18320d8e81037c051fedc395e"
+    },
+    {
+      "path": "tools/audit_appliance_discovery_output.py",
+      "bytes": 15329,
+      "sha256": "6ceeb9d663199a6a694fc42cb54d7460ae49b1000d0a792966b939ed16add920",
+      "git_blob": "fc6cc3b69a7fb311691c103f97dd7bb7fc844d49"
+    },
+    {
+      "path": "tools/audit_appliance_discovery_primitives.py",
+      "bytes": 7049,
+      "sha256": "c905488f9fc1ef2b0b0db27f38c6dcb864552c4f6a2857ddb985d7de86a0d32c",
+      "git_blob": "251dc6cbebd1646d7e43f2d6728ce6377ef0d557"
+    },
+    {
+      "path": "tools/audit_appliance_discriminative_guard.py",
+      "bytes": 22182,
+      "sha256": "eee831c3f01782f9b7c312f064a719e3d099e83d71c29427edde2e602dde146f",
+      "git_blob": "59f47b380c1790aa2200ae2da17575d8c2731427"
+    },
+    {
+      "path": "tools/audit_appliance_donor_eligibility.py",
+      "bytes": 22660,
+      "sha256": "2f2f2bf0a8f0697ce39917e3a0ead1f64a4ce057d1e041622ad69b18be1afe55",
+      "git_blob": "0ac24748445ea90ac82e52991c5046bcf53c8e4f"
+    },
+    {
+      "path": "tools/audit_appliance_evidence_feasibility.py",
+      "bytes": 22940,
+      "sha256": "63b2bb2cca8a3e6539967e18cf065c05d7c4dbb3b04c1905050346f33ecedfbb",
+      "git_blob": "2a1bdc2e521a553db649c192f0e32354093c5f67"
+    },
+    {
+      "path": "tools/audit_appliance_feature_collisions.py",
+      "bytes": 4896,
+      "sha256": "a060cb8769e29941a055821af528272db1e4dd2ca59ab925fb44c3bef2eab842",
+      "git_blob": "a9e39d07c1b762bfae49ae9dc339e0e64a3c2b77"
+    },
+    {
+      "path": "tools/audit_appliance_feature_separability.py",
+      "bytes": 23382,
+      "sha256": "c3e1759fa3a383702a047ad3d9a815354290a15170e2719cc0c1d9a3de60ac11",
+      "git_blob": "1bac13af78ec1255c56b541f40c84bed75a98075"
+    },
+    {
+      "path": "tools/audit_appliance_positive_fit_envelope.py",
+      "bytes": 8310,
+      "sha256": "15a3822cf13c2903cd063d0504bfd57507dbad877444bd4fc5b7578a43265f4c",
+      "git_blob": "9eb2d4202bce31fa49475e23edb889ea1fd6cc1d"
+    },
+    {
+      "path": "tools/audit_appliance_provenance_acceptance.py",
+      "bytes": 15101,
+      "sha256": "38661f95e17f5b2465ae1adecd04144af0888d37fda0d250bd415e0b1a40c8b8",
+      "git_blob": "e28accb87d1e6bbbcb20c01fd776ed66e0e7e6aa"
+    },
+    {
+      "path": "tools/audit_appliance_provenance_protection.py",
+      "bytes": 16107,
+      "sha256": "ed097016c8694a1295c45105e3e022dd805ca7ddd78c9cad8087583bd447f998",
+      "git_blob": "bca318c85ff414a17fa8d709f046160c839fcb0c"
+    },
+    {
+      "path": "tools/audit_appliance_receiver_aware_discovery.py",
+      "bytes": 7843,
+      "sha256": "b0fa161eda77d1964cc1c71cf7f94da48cf4d30af48b69d391fad28ecad304cc",
+      "git_blob": "9565a0b3941d5880b965ee0618f3829cb354c23f"
+    },
+    {
+      "path": "tools/audit_appliance_train_time_2x2.py",
+      "bytes": 14721,
+      "sha256": "1c9c2a2ff723a399032644f484d3effdcf2f7aa97d2d1d87cf667fd19db617d6",
+      "git_blob": "4d10d058a405ae744ac1c90646f4dd953cb456c6"
+    },
+    {
+      "path": "tools/audit_denice_artifacts.py",
+      "bytes": 9005,
+      "sha256": "63330bab463cf4102a819cea8af84f09a4d6eb689cb12e439faf6ebd9399b51f",
+      "git_blob": "d3398ccb37d7b70f7983883e0f9cadce4dfa3ff5"
+    },
+    {
+      "path": "tools/audit_denice_bottleneck.py",
+      "bytes": 24156,
+      "sha256": "5911139ccdfb8cfa5d5873f1154bc93d81d5b695a69d3d3ea171f333c458e30a",
+      "git_blob": "8ebbd8241554fcfa45f61c97e9fcf7b156daf8a0"
+    },
+    {
+      "path": "tools/audit_denice_bug_vs_protocol.py",
+      "bytes": 6940,
+      "sha256": "3d243fb812da2436681f3812f0c2e3f850fe53e23615e8054a221a61da93ff68",
+      "git_blob": "bcb9275709cb86c7a1b3ae7694210a942cef1f01"
+    },
+    {
+      "path": "tools/audit_denice_class_mask_variant.py",
+      "bytes": 7274,
+      "sha256": "7a579cdcf23e3f94af23d283f5b7f647987007c444812255d68919d7e2a4cc14",
+      "git_blob": "84a4f5c86b3f0ca3b952861248b8b26a76874c70"
+    },
+    {
+      "path": "tools/audit_denice_completed_zip.py",
+      "bytes": 9920,
+      "sha256": "51623ee4d692d53b4d1ce05e7027cb10a1cd35c75052e03396a943c48eff4f7d",
+      "git_blob": "adf22a1b357c1000c22011891004d89756394a3e"
+    },
+    {
+      "path": "tools/audit_denice_correct_task_unregistered_class.py",
+      "bytes": 6285,
+      "sha256": "8b76219951522896cf97a33becca13517c93480d26cefd54da0ca5a538d0b7b2",
+      "git_blob": "9bffe937f3cc8cbfbfd453db025404c05fc8ab5e"
+    },
+    {
+      "path": "tools/audit_denice_coverage_provenance.py",
+      "bytes": 19918,
+      "sha256": "fbfd3f5e76e712059fa20e6f2062fdaf5a120803eb9ca030877192a94fd6a345",
+      "git_blob": "5f4a89e78ec82b05a740d65078586cafca5c82b3"
+    },
+    {
+      "path": "tools/audit_denice_coverage_ranks.py",
+      "bytes": 4562,
+      "sha256": "99021deaf5a4dbc750ca16253c1dad4c00a1f651c23aa1fac8ce9bcc72034f10",
+      "git_blob": "4db74e6ecb7211b204491437e44e3d363c8c2246"
+    },
+    {
+      "path": "tools/audit_denice_dataset.py",
+      "bytes": 6244,
+      "sha256": "e9a1d2b9ccc01d0f97130b011918f78d62db6dc45f2340918a943cf307e75fff",
+      "git_blob": "957a17543deea28d646e72a8717209dd5ceb29e1"
+    },
+    {
+      "path": "tools/audit_denice_invariants.py",
+      "bytes": 8522,
+      "sha256": "1b3e5289d0a9133164fe5a9d95f09b8c98e0953675a6b5b55f921d456bc879ff",
+      "git_blob": "1f0ccc6ca39359fe31f6865e1e8d762d7e4ef5fb"
+    },
+    {
+      "path": "tools/audit_denice_label_blind.py",
+      "bytes": 8497,
+      "sha256": "2bfb44a525b269d9cc1938910c1511a75124abf6cd517cabaaf83936025ade8f",
+      "git_blob": "2b454b1478bc625d83f5f7ef6594ab7b2eb96984"
+    },
+    {
+      "path": "tools/audit_denice_profile_provenance.py",
+      "bytes": 6416,
+      "sha256": "f90907dde8bda140c0fd7c8d96936f055a55749681f018918753bae7e752ee0e",
+      "git_blob": "484c6d460d755769529a26bfeddaf80fd8e166e7"
+    },
+    {
+      "path": "tools/audit_denice_v2_routerless_old_logits.py",
+      "bytes": 11787,
+      "sha256": "a1ffc35247c3c87205f15ed27d67b6a3af5c72ddbc66eb171580b6eb5ba31017",
+      "git_blob": "d59feb8f011a5b95111680afa890f9292b42792b"
+    },
+    {
+      "path": "tools/audit_denice_valid_scope.py",
+      "bytes": 9453,
+      "sha256": "a6d6ac74db85168a99ed409e2702fce35b1f3df0b8ee7f3eac86484e19965caa",
+      "git_blob": "8deb0b275234edfa571536bd6deb8b480c1b96df"
+    },
+    {
+      "path": "tools/benchmark_denice_der_ewc.py",
+      "bytes": 3257,
+      "sha256": "ee390ff0b8186c83c903eb586700f5600c42b82370d522023da01d0931e4847e",
+      "git_blob": "fd6af2cbf1bffaee3e21c28037d64fcdefdb995a"
+    },
+    {
+      "path": "tools/benchmark_denice_incremental.py",
+      "bytes": 4655,
+      "sha256": "3c73d9d2ede01ca51504d69caa988642c1aeaedd50be3f90a42fde65e0f55bf8",
+      "git_blob": "ed5f63e0862f5846cad52d8763c2dfd1e5890ee3"
+    },
+    {
+      "path": "tools/benchmark_denice_transfer.py",
+      "bytes": 3940,
+      "sha256": "236745f46fc87267ef42bb969e1160595373f45fd06951bb203611f96f60261e",
+      "git_blob": "aaed73309222919d7166c707f9861cf16e648248"
+    },
+    {
+      "path": "tools/build_appliance_full_eval_notebook.py",
+      "bytes": 4575,
+      "sha256": "4da7fd55f01ed91b0dd25d94c257a6af6498676a5dd04655b4e651cfc1966d22",
+      "git_blob": "6c964826d167ed798f18fe8a4029c4d6992e38df"
+    },
+    {
+      "path": "tools/build_appliance_training_notebook.py",
+      "bytes": 6466,
+      "sha256": "b66e126263345c03f8eef8fc93150cd9b393dd4751dda9d0b688a831ad26371c",
+      "git_blob": "df5b61d9b3dd2d7aeb39e1aaccc136ea82ebb4c4"
+    },
+    {
+      "path": "tools/build_candle_v1_notebook.py",
+      "bytes": 4420,
+      "sha256": "72ee4199e48b45d1c4c20dd5db27d83583b4975532e77346d3f5f3c148caaff2",
+      "git_blob": "797df77dee1bd780209f0b2c3e4339aa5b07fab1"
+    },
+    {
+      "path": "tools/build_denice_class28_notebook.py",
+      "bytes": 1457,
+      "sha256": "6be38df1c33be3f9e9d864839720d130fc0e278cb6c9a40b15f6e2684d01ab88",
+      "git_blob": "e753fa6897dba26ad3dc10f5f36267d0d155ec22"
+    },
+    {
+      "path": "tools/build_denice_class_meta_notebook.py",
+      "bytes": 4595,
+      "sha256": "361eb0c5f311feb58264f58554f8a4ab690990f45d5a785ba3cf9404c5f90220",
+      "git_blob": "6dad378224d4e2655af4cca0fd66038494a28855"
+    },
+    {
+      "path": "tools/build_denice_clean_training_notebook.py",
+      "bytes": 1541,
+      "sha256": "7467591b632567fdb2af428f6f658d8c66aacb1d331f75d1962e8a2849f14811",
+      "git_blob": "c12325560a45d75479d0b40e8c8ffbbb39ffa8bf"
+    },
+    {
+      "path": "tools/build_denice_competence_gate_notebook.py",
+      "bytes": 3317,
+      "sha256": "3e4c58d4af8791ef87af20844f53402c0599dc804c7e842d007e84a5920faaa7",
+      "git_blob": "b514e43a81776db89a4549fd74b185ca3b58e405"
+    },
+    {
+      "path": "tools/build_denice_competence_gate_v2_notebook.py",
+      "bytes": 3077,
+      "sha256": "3b31e32164a0afe765ced5569f118546ca1c37a7307ab203af8f12fe22c55993",
+      "git_blob": "1829093aa4971f223c3b0ee4c9ad7599dd7c83a2"
+    },
+    {
+      "path": "tools/build_denice_frozen_panel_notebook.py",
+      "bytes": 7664,
+      "sha256": "07d73a032d67c31a6cf200411108ec99fb1e1a3b2f8478c88946fb2fe54bab25",
+      "git_blob": "440ccd73cb999de3d179d0690d0a8677fdf6c97d"
+    },
+    {
+      "path": "tools/build_denice_frozen_router_archive.py",
+      "bytes": 2938,
+      "sha256": "50a5955376ca5f6b59d84ac3570ac8af5076005fe8cbe1b05bbf4c1bac49765d",
+      "git_blob": "7780648bcfdd13d1afae3003780c06e29ebba2c6"
+    },
+    {
+      "path": "tools/build_denice_launchers.py",
+      "bytes": 3695,
+      "sha256": "a2bc022fe75505b3176404f7a1b28300fcfbfd8895d05bb85144d53c9a4e518f",
+      "git_blob": "e3668a1f077d89074f12fcf97c3c231b898b85b3"
+    },
+    {
+      "path": "tools/build_denice_matched_notebook.py",
+      "bytes": 4226,
+      "sha256": "0b16bae451916ad50b7a30f31fff0bd4c033ab06c9a2edd3448fb3a5d8e29782",
+      "git_blob": "f5988c0815bcb180c723ae77a34346507847cab3"
+    },
+    {
+      "path": "tools/build_denice_multiclass_notebook.py",
+      "bytes": 2355,
+      "sha256": "f1b7be95b26b58867ef234f55b7dcc1c76b36f8cbe93339b21d95deac32430ce",
+      "git_blob": "0fe52db8cd50e68e997658ffde5ebdd4316ce114"
+    },
+    {
+      "path": "tools/build_denice_peer_notebook.py",
+      "bytes": 2435,
+      "sha256": "84a7a405c198aec486c44b74bed126e97ba23236aa1011483eb07c9343334cc7",
+      "git_blob": "1ffe5917823910b6f2535f952306fe3d8fd75bbd"
+    },
+    {
+      "path": "tools/build_denice_peer_voting_notebook.py",
+      "bytes": 2745,
+      "sha256": "462ff07c4bab0620c3ec5b4c3ab95122ad6003f589257561a321be878e19cf25",
+      "git_blob": "04bfeffc70215cb62fb38132ebce39e07e476277"
+    },
+    {
+      "path": "tools/build_denice_tip_notebook.py",
+      "bytes": 5498,
+      "sha256": "06a6113d7af3f03a2f8e845e7ae57251c41c283d319cf83d0189248298a1c617",
+      "git_blob": "bd83b667764148ce70023db3a7e7f2c61390584d"
+    },
+    {
+      "path": "tools/build_denice_v2_full_notebook.py",
+      "bytes": 6154,
+      "sha256": "f7b6c9131f9e95eec0effa9a830ff57f0af90c176bec8cd12c8801f498fb28eb",
+      "git_blob": "4374a54cdf9f170c5a578ef7753ef5611e49e1f1"
+    },
+    {
+      "path": "tools/check_appliance_deployment_protocol.py",
+      "bytes": 7156,
+      "sha256": "9a540e683ca0129c97276738dc6015f5516ccbff99829199365034c9e3f55620",
+      "git_blob": "5cb7f732e851ac11f99b9f782f4b659e0950a187"
+    },
+    {
+      "path": "tools/check_appliance_direct_head_mechanics.py",
+      "bytes": 9129,
+      "sha256": "d4f6ef69b9f3c038e3d59df9c5c3dbe24d7edf897424c4b640cee7ef5725d9d8",
+      "git_blob": "a6493147e77535b8008b09a7bcc9bff84f619e19"
+    },
+    {
+      "path": "tools/check_appliance_training_delivery.py",
+      "bytes": 1247,
+      "sha256": "86ec440435b5bed1b969f937ad881d14b92d0a15826e1f7d3655bc13c3913ad2",
+      "git_blob": "42ad045723c458ed17727abdb2af1c305589c629"
+    },
+    {
+      "path": "tools/complete_appliance_train_time_development.py",
+      "bytes": 7937,
+      "sha256": "e9d8e21abec97b3e653c5eaf0afea5349495c8caa52b409a09220fb50054ff1a",
+      "git_blob": "19f2278b77c42f8c2d87521cf571dc846bd3dfe0"
+    },
+    {
+      "path": "tools/debug_denice_class28.py",
+      "bytes": 13160,
+      "sha256": "da92b6b87ac4a617b0b7d8602d04148b723b94d3c7485c1ca65a1b82b63c6111",
+      "git_blob": "498963a8a97028bad9c8ae1fb1d24463ab806328"
+    },
+    {
+      "path": "tools/denice_class_meta.py",
+      "bytes": 4514,
+      "sha256": "72012b4b84733ba72842d80ecde1ccf052efe6405ab6326cbbfc85db7ae0680e",
+      "git_blob": "aa760396f28cfb9d72d65a850dbc16622aeedc7b"
+    },
+    {
+      "path": "tools/denice_competence_gate.py",
+      "bytes": 4786,
+      "sha256": "54a7e927fa65f61ed68bb3569aac2e59fa326600cf2f2fd82b598166db4834c1",
+      "git_blob": "cbeb5c918aaa2ae00dc975fb49a0fde651f48923"
+    },
+    {
+      "path": "tools/denice_peer_supported_gate_data.py",
+      "bytes": 7715,
+      "sha256": "2e892ec69f9d6cdcb0b94255f51a6e0fb1dca035ed8c3d86180a6e38a5b5ad2f",
+      "git_blob": "68a952848a4c0f88877fa1ecdeedb9d75d137197"
+    },
+    {
+      "path": "tools/denice_peer_voting.py",
+      "bytes": 1964,
+      "sha256": "06e4752d3e25e6bf73f865f3b0883e3a0a8b9a1ff9b71fee63092cb570c65d5c",
+      "git_blob": "63a21190e660d51584b57c5b051c022a0891666e"
+    },
+    {
+      "path": "tools/diagnose_denice_group.py",
+      "bytes": 11862,
+      "sha256": "f2d7a2e2a2e3a09e7a131ee8238ef90d838fda8c2bd6f0bb88d172bae3a4b352",
+      "git_blob": "ef01a542aba68a6a4e805027f3cc922fbb239c2b"
+    },
+    {
+      "path": "tools/diagnose_denice_real_client.py",
+      "bytes": 11547,
+      "sha256": "c77e353edb3da24e7b56bfbcc2bc23c56b5e43d12c55757262032b62c0880104",
+      "git_blob": "cc3ee065a53339f6928849be4a1d637e08841c57"
+    },
+    {
+      "path": "tools/diagnose_denice_router.py",
+      "bytes": 5098,
+      "sha256": "0a6cb5d98c35e4c59d4d6e05a8ee88a52901848b8bdc5fecbcddb1774c491c31",
+      "git_blob": "c9258839861cc78e6270a1af15599e0c62914433"
+    },
+    {
+      "path": "tools/diagnose_denice_router_budget.py",
+      "bytes": 4730,
+      "sha256": "2d490db59dc00f1f1dff8b2db60d06535a82ec1a4a41adb56083feb6ed45956f",
+      "git_blob": "695a4b91baf8938ff7b3e0b2422c52c15fefd4bf"
+    },
+    {
+      "path": "tools/dry_run_denice_v2_partition.py",
+      "bytes": 5088,
+      "sha256": "00a872dca22820641a9d5c958dbed156842e00a9b9cae008e49688cfa0736872",
+      "git_blob": "d6241816699f410c72cce75b5d36bad449293334"
+    },
+    {
+      "path": "tools/eval_denice_class_meta.py",
+      "bytes": 15430,
+      "sha256": "e9b8055404279a3ae37a3a62d2ff8402bf4c6adf8fd6c5f66845f71e74f5f423",
+      "git_blob": "09dd5f2488d038b91952bea7d261d2f2938a9960"
+    },
+    {
+      "path": "tools/eval_denice_competence_gate.py",
+      "bytes": 23143,
+      "sha256": "f865832a6ebd6b9f56d7d9cc20c1be9aa6b082ed174cc84f9874b713dc0232f4",
+      "git_blob": "d030eebb91609945af24048308762e4bbb6f90b5"
+    },
+    {
+      "path": "tools/eval_denice_competence_gate_v2.py",
+      "bytes": 405,
+      "sha256": "a7b06bd25f650ff735c48364c4400b25de898a8d97ecf7e7a79d46f2bace325c",
+      "git_blob": "bff082db84c9d1327221c293c113339f77ae2e3b"
+    },
+    {
+      "path": "tools/eval_denice_frozen_panel.py",
+      "bytes": 26679,
+      "sha256": "be6e62fe0700531d4a8c9cd440ea8e06b0e3ea1abaf2b66f13b498316949a359",
+      "git_blob": "a55bbd5e076e5de2728d5f8b5abe4e9beec05a08"
+    },
+    {
+      "path": "tools/eval_denice_legacy_self.py",
+      "bytes": 14350,
+      "sha256": "6240fdb0375b5b840ab20e9fad7a9376c8da957bf083fe0855be851a215594c7",
+      "git_blob": "d32f39821833b5a750e3e15f05168085fa397ca3"
+    },
+    {
+      "path": "tools/eval_denice_matched_oracle.py",
+      "bytes": 10605,
+      "sha256": "9c83f3dfd369d03dd27818cebfbfa69bd33fb024da1f0b705ee239e634028c8a",
+      "git_blob": "4519fbc628462a65c9b70005eb563321ac46f2d0"
+    },
+    {
+      "path": "tools/eval_denice_multiclass_integration.py",
+      "bytes": 5944,
+      "sha256": "84f417f344078d28e8656ab8c0625c7f9d5e3e42846563f3313138f5fdd6fd9d",
+      "git_blob": "b01354ede2f70a053349f94d9bb123d729551836"
+    },
+    {
+      "path": "tools/eval_denice_peer_coverage.py",
+      "bytes": 9887,
+      "sha256": "3fdb1605af746ac1f824127d236c6f3bd1254cf7ae599dcb4c2dd7477b1936de",
+      "git_blob": "d8b45e30d55e460a0531a2d3e8e3d4f1f125724c"
+    },
+    {
+      "path": "tools/eval_denice_peer_voting.py",
+      "bytes": 15648,
+      "sha256": "614d055e225782401fa53f90c44110bf5f0357c5028db1cd2451fef60a376cea",
+      "git_blob": "2a53a89cb45ce485c5d85688f351479f75e618ae"
+    },
+    {
+      "path": "tools/eval_denice_tip_router.py",
+      "bytes": 25983,
+      "sha256": "0c35aef773ed4aa52c2fd8aaaee20872ed1b549577c9cfd9713fe151117c1b09",
+      "git_blob": "a0f93ba54a5a14ca6a9f2b8f0eb073d48e5655ab"
+    },
+    {
+      "path": "tools/finalize_appliance_empirical_smoke.py",
+      "bytes": 5612,
+      "sha256": "dc86a56e5ea773735560d2d96d2f501fb9544aaa470efab3136c931131716283",
+      "git_blob": "f4a8e14754ae257b0a98680e5cb61b16ccbdf9c2"
+    },
+    {
+      "path": "tools/finalize_appliance_production_smoke.py",
+      "bytes": 5983,
+      "sha256": "4db092c7b3161964d4cda8ecd88fd691a70eed6286cc9fb3e75305dc4e70a1cd",
+      "git_blob": "25d833bdd90319352b33c16a25618eb1ca90ee20"
+    },
+    {
+      "path": "tools/package_denice.py",
+      "bytes": 2452,
+      "sha256": "883ef44f3ac4eb2f96ead2394bbe92969633d7bea61f97561030b745d89ea34e",
+      "git_blob": "f89eb10b65a78a82e76a7ea9e3dc4dd86451bd43"
+    },
+    {
+      "path": "tools/package_denice_appliance.py",
+      "bytes": 1759,
+      "sha256": "287dba4d5e3b610d759592a699ff9f6f2612f5b30c2bb10a4cd90db308b4847d",
+      "git_blob": "7bb08f2dbc1f5b0f5bb2c8225e10c7f9227d1e10"
+    },
+    {
+      "path": "tools/package_denice_single_file.py",
+      "bytes": 693,
+      "sha256": "e7cf2293f31f303d8d56ed011e11ea309dc7bf8426a41e1d4b89c608dd7ebbb9",
+      "git_blob": "1147b9527096d6a8321502a0182f4593078fdb59"
+    },
+    {
+      "path": "tools/plan_appliance_scoped_install.py",
+      "bytes": 4181,
+      "sha256": "fed07257139dbafe183c1d181e1dd4f5b63ed325565985a1183bde67cc051482",
+      "git_blob": "5b449557d3abbb16ca69ac1bf7f203bd0a0be5a2"
+    },
+    {
+      "path": "tools/prepare_appliance_current_runtime_data.py",
+      "bytes": 3144,
+      "sha256": "63682e75e07e618b6fc4b9423e9cdb692b52285c4b7de4518d7f0b79c2cdf577",
+      "git_blob": "28ad96ef487b54d654d4aa89f7e0929ff3d0b2de"
+    },
+    {
+      "path": "tools/prepare_denice_bottleneck_inputs.py",
+      "bytes": 1869,
+      "sha256": "937fe9d768f4ea94bd3a18efc529113f5e43b42d52e191369bedb001e316a82e",
+      "git_blob": "0bcce87693840bfaa4231515c89506e8ea47901a"
+    },
+    {
+      "path": "tools/prepare_denice_clean_roles.py",
+      "bytes": 9048,
+      "sha256": "2fabbecd0f0c30d6d880e30d602f70cdff284ebec4604b849d5558573c2d4410",
+      "git_blob": "a1a2555a7f3e1405f1e2ba4ad77ef2a95f89f337"
+    },
+    {
+      "path": "tools/probe_denice_v2_router_capacity.py",
+      "bytes": 4099,
+      "sha256": "c96a478ab398b1708b40906f0a5953fca131b3ed5e50e3ef9af77f58551827f7",
+      "git_blob": "84ed188e12308c11ed12e1529705403db7178120"
+    },
+    {
+      "path": "tools/recompute_f1_weighted_batch.py",
+      "bytes": 11554,
+      "sha256": "8006092f8c037845bbddb20794327e4346d6670102f940c5073525d039c804e5",
+      "git_blob": "b50f5db8957dac1219e31a31a5fbe34c18d0596b"
+    },
+    {
+      "path": "tools/recompute_f1_weighted_from_checkpoint.py",
+      "bytes": 11514,
+      "sha256": "6008f30dae81511f606ec2dd16c48c4d423a614c9e000275a97750d13cc7d42d",
+      "git_blob": "58c34b158c623cda205ba20f1f2894eba2f5f122"
+    },
+    {
+      "path": "tools/replay_appliance_functional_gap_fit.py",
+      "bytes": 4878,
+      "sha256": "23c5e93f4e1fbb5af9df5cf38e2efba75d3a7d7cc132332292f575a5465dd4db",
+      "git_blob": "a7daf7fce2f83a82187de6b570d58323e7b44992"
+    },
+    {
+      "path": "tools/run_appliance_bounded_gap_campaign.py",
+      "bytes": 22968,
+      "sha256": "955b502e3c136be6c2a6ddb2998ec65be451bbb861242cbcd8f0cab656c98d99",
+      "git_blob": "831804912d89441ce6a34172e5238c61ff995671"
+    },
+    {
+      "path": "tools/run_appliance_direct_head_feasibility.py",
+      "bytes": 21180,
+      "sha256": "f61dd225b00b19d9992b39744323f837d82fe331cc228896d332f0ab7149f0ed",
+      "git_blob": "a3e6b083597214a8e4299384008e688b22d0c5df"
+    },
+    {
+      "path": "tools/run_appliance_full_evaluation.py",
+      "bytes": 7444,
+      "sha256": "7362ae8f58db124d4a3d53af1a44c0320c42141321d25e454165b1d19f5c55f1",
+      "git_blob": "a2f4ea2152cc61ed545c4eeebbb9d29d9c7c99cb"
+    },
+    {
+      "path": "tools/run_appliance_functional_gap_transfer.py",
+      "bytes": 15974,
+      "sha256": "7c45f9a44cb9bf5b5bd832e96c7c1ff119ee643204fde8b72ef991c81cfb5c49",
+      "git_blob": "d68e28b88a5583b2aa07a0bd167ab6cb406994eb"
+    },
+    {
+      "path": "tools/run_appliance_train_time_transfer.py",
+      "bytes": 15148,
+      "sha256": "5cf606ff68f4dec71c7cf31120bee902b39ba63cc39d0ca9401c6dfc5350e7c6",
+      "git_blob": "78cf7f4e1a2deea0cd679ba974c8a5c27f4b682a"
+    },
+    {
+      "path": "tools/run_appliance_training_smoke.py",
+      "bytes": 17362,
+      "sha256": "8e53c0de71328a50c9542f2a2e3c9ca6f35c9d1911b719eb3ddb2ef00ea6adf3",
+      "git_blob": "e0636d2369533b99277a5be68a08056e2a488ece"
+    },
+    {
+      "path": "tools/run_denice_bottleneck_local.py",
+      "bytes": 2948,
+      "sha256": "a4ca4bd121458bbec0daf39cc41625b53ef532b7a89041b76a262552329e065a",
+      "git_blob": "f755613cdd8ac4dc4cd62a73aa45e73567d61f1e"
+    },
+    {
+      "path": "tools/run_denice_recovery.py",
+      "bytes": 3558,
+      "sha256": "cf4314201b420f063da35b2cd1f2ff7a88f9b26f498bfd11d9e74b09333bb0f9",
+      "git_blob": "2bf628c56bd4ff3871cfa0d25fbb37eeb50a241c"
+    },
+    {
+      "path": "tools/run_denice_v2_coordinate_smoke.py",
+      "bytes": 10877,
+      "sha256": "a13ddeebf9194da5c877fd4db64889f098784b0850eb0ed0b5644c86978d881a",
+      "git_blob": "8c53e53ec92958260676e6b953b65d36c20cae2e"
+    },
+    {
+      "path": "tools/run_denice_v2_end_to_end_smoke.py",
+      "bytes": 5456,
+      "sha256": "27d5c57f9d1494146e532ab19b0d0406dcf87657f1e535eddedd1ed83b889472",
+      "git_blob": "6d24ac5937fa0b178ce2458df661f7dfe081b218"
+    },
+    {
+      "path": "tools/run_denice_v2_native_smoke.py",
+      "bytes": 8367,
+      "sha256": "64edb765bdde5633dbcc3efb3a431bc2036188a1132eeecb929ffc98e1c783ef",
+      "git_blob": "7539a827e45268ccb85ee3817766174b53a51dd6"
+    },
+    {
+      "path": "tools/run_denice_v2_official_budget_smoke.py",
+      "bytes": 3499,
+      "sha256": "dbd2f0ac13b7236331b7bd02da7cda2f3c1ab8ffce1c4ad76a3cc682ce9ea6f1",
+      "git_blob": "55cefa493d641e6df9c866bedf351d461c4fb3a6"
+    },
+    {
+      "path": "tools/run_denice_v2_routerless_smoke.py",
+      "bytes": 13033,
+      "sha256": "76eb1e3a6d1fcb74a930d169e9fde2095d51b4046c918f7d4ad2916addb6f764",
+      "git_blob": "78c1350c86616e03542a4387279d75cdd281ff0c"
+    },
+    {
+      "path": "tools/run_denice_v2_shallow_smoke.py",
+      "bytes": 10958,
+      "sha256": "1a31c6f675d57cc01da1c731fb3f9bf01267ba99f54630895907eeef326d1114",
+      "git_blob": "b6bc74a56faae21aea9fef0e7c21a645cbb3909c"
+    },
+    {
+      "path": "tools/smoke_denice_appliance.py",
+      "bytes": 3062,
+      "sha256": "e9f8f81d9ad5fdebf881e3759138acc47e21d9f0cd9e53efd95edd695b40ef5e",
+      "git_blob": "43b18e84de7fbe8eedfa33958d2633ad6e125aa9"
+    },
+    {
+      "path": "tools/smoke_denice_overlay_resume.py",
+      "bytes": 2743,
+      "sha256": "63fc6492f94c346582bd8eb4ee120376f561f38f7bd109304ffea27fcc7d6b1a",
+      "git_blob": "0403a703feb6b5e70190a7ba10224031f4e3601d"
+    },
+    {
+      "path": "tools/summarize_appliance_actual_transfer.py",
+      "bytes": 14587,
+      "sha256": "4f4ad0f636b7de3b33957be415ceed77d2c89d62c2c8fd82b2ec44ea56391712",
+      "git_blob": "cb910cc137166dfe56df87e47c515c57af4b1646"
+    },
+    {
+      "path": "tools/summarize_appliance_counter_development.py",
+      "bytes": 3670,
+      "sha256": "77e2434a8469c8d6a7f32d7b6b86ab81db8e9f239b5a598ee04f34e9632334d7",
+      "git_blob": "6782c93cfe8ac1816156f7479766a6a7c8799e32"
+    },
+    {
+      "path": "tools/summarize_appliance_discriminative_development.py",
+      "bytes": 2669,
+      "sha256": "4b80e37a5baa6a7e5800875ae9717dd68152d950025c83c1bd7ee24980e6a397",
+      "git_blob": "8da094c74056c9e7816ea9017020542c661b7826"
+    },
+    {
+      "path": "tools/summarize_appliance_donor_eligibility.py",
+      "bytes": 15732,
+      "sha256": "fd62ae2b6ae2b9426e88b70684d593aafac8634caf83640d209dd0a5100a6047",
+      "git_blob": "4df291db4a1bb816777d3cf07b62a70f3e84f0bb"
+    },
+    {
+      "path": "tools/summarize_appliance_separability.py",
+      "bytes": 3252,
+      "sha256": "14b204cfb22051f87819db838743d68c333918915c7d99006c88d514c31c4722",
+      "git_blob": "72bb23b62804a06f907c4073bb34a25ebc463c05"
+    },
+    {
+      "path": "tools/trace_denice_mask_cleanup.py",
+      "bytes": 4124,
+      "sha256": "fa94c812430563d45d0faad89ca9f8b17bd1ef91f8997b2067adf5b3ebd87a8c",
+      "git_blob": "a018d6a782aafd6b0dbc765ebb2d8bfe2da6afe4"
+    },
+    {
+      "path": "tools/train_candle_v1.py",
+      "bytes": 6271,
+      "sha256": "a51660a4e3fdab3e9fe492fe3a536c6f53f7de169cad067564c80bbc2bc16f2b",
+      "git_blob": "2236ca114e5d5d3be0924acd8047ab0d8fc24564"
+    },
+    {
+      "path": "tools/train_denice_clean_meta.py",
+      "bytes": 19252,
+      "sha256": "45368ef6ebca26791d32af4dba4684567fd8f4b4585cfa828cb70b30413a1f8d",
+      "git_blob": "fa873579eb9724d953ca94324c2411d52c13e0bb"
+    },
+    {
+      "path": "tools/train_denice_v2.py",
+      "bytes": 5625,
+      "sha256": "3173727d77c3f88705b474c87c0667fabefee10475e66560cad0258a2d6c7334",
+      "git_blob": "41cd311944f0b162d34018939899fcd32638917b"
+    },
+    {
+      "path": "tools/validate_denice_run.py",
+      "bytes": 8899,
+      "sha256": "7b9b55338d9572cd66a981f49f12e5c8faaf00a5cb6ef797ae709c3265a45526",
+      "git_blob": "a65e8f173b48f62eddfd5e5d6efaa6195467f48c"
+    },
+    {
+      "path": "tools/verify_appliance_actual_transfer.py",
+      "bytes": 5705,
+      "sha256": "420223fa591239dded1e3d3188f5341d96238cc7ee375e85c8fa2816820ef499",
+      "git_blob": "042e985283ece5b860009b6b9bdf5d87db5879e9"
+    },
+    {
+      "path": "tools/verify_appliance_training_resume.py",
+      "bytes": 5334,
+      "sha256": "ad5e12ba9cee31c08ab210426648c5ab1f86f0095c7197613004ce6985b71cc3",
+      "git_blob": "484f4b694465650b1dd7a13353ce0219d35b21b5"
+    },
+    {
+      "path": "tools/verify_denice_bottleneck_audit.py",
+      "bytes": 3263,
+      "sha256": "ea4cad08befb7b2e2242c70b7ac709382dad5a1c44ad5af3e9ae813cedfba1de",
+      "git_blob": "4e52053ded41ef011638e63ac025ef35ba2a5f59"
+    },
+    {
+      "path": "tools/verify_denice_group_probe.py",
+      "bytes": 3838,
+      "sha256": "3da14c64fe68a02217bf9e46025e9292c350af518e8b4d29998a5dab258722af",
+      "git_blob": "a8ed3e79bd9a0ff6d8d21046fb1fe107ffc743a4"
+    },
+    {
+      "path": "tools/verify_denice_real_probe.py",
+      "bytes": 3391,
+      "sha256": "1d0edf8967a45043c68884c9f7ed621f87e3341b023df7a23046197e2a341ee3",
+      "git_blob": "e4c5430f47a4d0bf677ceea3f7efd2c1ecffe6c2"
+    },
+    {
+      "path": "tools/verify_denice_router_budget.py",
+      "bytes": 3439,
+      "sha256": "4ff2fe455a2b299eefbc608ad147e2c0ca6bfc14554a6a89b4aa3e08987943c9",
+      "git_blob": "31f2205fefc60c70171669d809f7c581ebc23acb"
+    },
+    {
+      "path": "train_incremental_kaggle.py",
+      "bytes": 48097,
+      "sha256": "239a3f67e4947ac228b45513137f1b8ac2905091b6e5269c29ed584d629414dd",
+      "git_blob": "02d191a6c88f7728dece81357dc3d557079af479"
+    }
+  ],
+  "algorithm_changes": false,
+  "training_executed": false,
+  "evaluation_executed": false,
+  "tests_executed": false,
+  "launcher_status": "V4 launcher/notebook not created at core-clone stage",
+  "scope": "Exact V1 sparse-checkout code; no datasets, checkpoints, outputs, Git metadata or V3 additions"
+}
