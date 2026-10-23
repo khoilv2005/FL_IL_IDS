@@ -57,7 +57,7 @@ if RESUME_STATE:
             shutil.copytree(source.parent/'v4_gate_journal',out/'v4_gate_journal',dirs_exist_ok=True)
     args += ['--resume',RESUME_STATE]
 print('Pinned source:',actual,flush=True)
-print('Development run: no automatic TEST; retain output/checkpoints using Kaggle Save Version.',flush=True)
+print('Full TEST runs only after Task5/Round19 consolidation; retain output with Kaggle Save Version.',flush=True)
 subprocess.check_call(args,cwd=runtime,env=env)
 print(Path(OUTPUT_DIR,'candle_v4_completion.json').read_text())
 '''
@@ -75,7 +75,9 @@ auxiliary peers. Includes matched no-auxiliary and donor-only controls plus V1.
 ACTIVE only after unchanged risk gates; rejection does not prevent completing training.
 
 Uses the locked V1 BASE/FIT/CAL/validation split. Cumulative VALIDATION after each
-task; **no automatic TEST**. This is a development run, not independent confirmation.
+task; **full 34-class TEST runs once after Task5/Round19 and consolidation**.
+V1 and three V4 arms use identical disjoint receiver shards covering the entire TEST.
+This remains a development run, not independent confirmation. TEST never tunes gates.
 No historical raw-data replay. Round continuation and task ZIPs contain expert state.
 Enable **GPU and Internet**. Source is cloned at a fixed Git SHA; no embedded runtime.
 Keep the output with Kaggle Save Version. A stopped interactive session is not an

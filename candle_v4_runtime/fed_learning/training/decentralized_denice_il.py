@@ -4216,6 +4216,12 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             from tools.train_denice_graph_cme import after_training_task
             after_training_task(config, task_id, final_round_id)
 
+    if config.get('candle_v4_terminal_full_test'):
+        if not config.get('candle_v4_full_service') or v4_shadow is None:
+            raise ValueError('Terminal V4 TEST requires the full coverage service')
+        from fed_learning.training.candle_v4_terminal_test import evaluate_terminal
+        evaluate_terminal(v4_shadow, models, context_detectors, task_end, rounds_per_task-1)
+
     if appliance_probe:
         return appliance_probe.finish(models,context_detectors,task_end,rounds_per_task-1,
             task_completed=True,native_history=history)

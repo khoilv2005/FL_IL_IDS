@@ -1,4 +1,4 @@
-"""Kaggle full CANDLE V4 development seed42; never auto-opens TEST."""
+"""Kaggle CANDLE V4 seed42; full TEST only after terminal consolidation."""
 import argparse
 import json
 import os
@@ -39,12 +39,13 @@ def main():
                   denice_clean_roles_dir=str(roles),candle_v4_full_service=spec,
                   denice_post_task_eval_tasks=[],denice_eval_final_round=False,
                   denice_evaluation_data_role='validation',
+                  candle_v4_terminal_full_test=True,
                   resume_state_path=str(Path(args.resume).resolve()) if args.resume else None)
     source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
     output.mkdir(parents=True,exist_ok=True)
     lock=dict(version=VERSION,source_commit=source,seed=42,config=config,
               protocol='Full development; quality rejection continues native run; no two-ACTIVE prerequisite',
-              evaluation='Cumulative VALIDATION after each task, disjoint receiver shards, pooled; TEST untouched',
+              evaluation='Cumulative VALIDATION after each task; one full 34-class TEST after T5/R19 consolidation, disjoint receiver shards, pooled, identical rows for V1 and three V4 arms',
               controls=['isolated V1','V4 no auxiliary negatives','class-balanced donor-only'],
               risk='Recall>=.95, observed per-owner/class FAR<=.001, break=0; historical unobserved risk UNKNOWN',
               runtime=dict(python=sys.version,torch=str(torch.__version__),cuda=torch.version.cuda,gpu=torch.cuda.get_device_name(0)))
@@ -68,16 +69,22 @@ def main():
                       DENICE_CODE_DIR=str(root),DENICE_SEED='42',DENICE_OUTPUT_DIR=str(output),
                       DENICE_CONFIG_OVERRIDES=json.dumps(config))
     print('CANDLE V4: fresh/resume seed42, T0..T5 x20 rounds; native V1 unchanged; coverage-aware + matched controls.',flush=True)
-    print('One GPU, native batch2048 AMP; experts CPU; per-round continuation; task ZIP. Development VALIDATION only.',flush=True)
+    print('One GPU, native batch2048 AMP; experts CPU; per-round continuation; task ZIP. Final full TEST after T5/R19 consolidation only.',flush=True)
     started=time.perf_counter()
     runpy.run_path(str(root/'train_incremental_kaggle.py'),run_name='__main__')
     report=output/'candle_v4_development_report.json'
     if not report.exists():raise RuntimeError('Missing V4 final development report')
     result=json.loads(report.read_text())
     if len(result['evaluations'])!=6:raise RuntimeError('Incomplete task evaluations')
+    test_report=output/'candle_v4_final_test.json'
+    if not test_report.exists():raise RuntimeError('Missing terminal full TEST report')
+    test=json.loads(test_report.read_text())
+    if not test.get('completed') or test['evaluated_rows']!=test['test_rows']:
+        raise RuntimeError('Incomplete terminal full TEST')
     (output/'candle_v4_completion.json').write_text(json.dumps(dict(completed=True,source_commit=source,
-        seed=42,development_only=True,TEST_opened=False,report=str(report),
-        invocation_wall_seconds=time.perf_counter()-started,final=result['evaluations'][-1]),indent=2),encoding='utf-8')
+        seed=42,development_only=True,TEST_opened=True,report=str(report),test_report=str(test_report),
+        invocation_wall_seconds=time.perf_counter()-started,final_validation=result['evaluations'][-1],
+        final_test=test['metrics']),indent=2),encoding='utf-8')
     print('Completed CANDLE V4 development:',output/'candle_v4_completion.json',flush=True)
 
 
