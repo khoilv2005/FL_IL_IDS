@@ -1,5 +1,9 @@
 # CANDLE V4 — ý tưởng Round-wise Complementary Expert Learning
 
+**Tiến độ graph-aware mới:** [preflight + smoke hợp lệ](../docs/CANDLE_V4_GRAPH_PREFLIGHT_SMOKE_20261023_VI.md).
+Hai expert học 352 steps/expert, retention/isolation PASS; bank REJECT vì 3 FP
+class13→12 tại owner3. Giữ NO-GO full, không đổi gate hoặc tìm candidate khác sau CAL.
+
 **Mốc mới:** [transition smoke T2→T3](../docs/CANDLE_V4_TRANSITION_SMOKE_20261023_VI.md)
 chưa đủ điều kiện full: declared donor ngoài live graph, hai draft có 0 updates,
 không ACTIVE. Native transition/isolation PASS không thay thế learned-expert/ACTIVE proof.

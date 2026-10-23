@@ -231,7 +231,7 @@ class ExpertBank:
             for c in classes:
                 old=self.certificates.get(c)
                 if old and hashes[c]!=old['expert_sha256']:raise RuntimeError('Historical expert weights drifted')
-        failures=[]; rows={}; total_rescue=0; total_break=0; collisions=0
+        failures=[]; rows={}; total_rescue=0; total_break=0; collisions=0; inference_pools=[]
         receiver=self.spec['receiver']; seen=list(range(min(6*(task+1),34)))
         # Verification scope is the current required owner set, not the global population.
         owners=[o for o in self.spec['owners'] if o in active_ids]
@@ -260,6 +260,7 @@ class ExpertBank:
             baseline=base_predictions(models[receiver],detectors[receiver],x,seen)
             scores=score_matrix(self.engines,classes,x)
             predicted,activation_count=fuse(baseline,scores,[self.thresholds[c] for c in classes],classes)
+            inference_pools.append((x,baseline,predicted))
             old=baseline==y; new=predicted==y; negative=~np.isin(y,classes)
             rescue=int((~old&new).sum()); broken=int((old&~new).sum())
             total_rescue+=rescue; total_break+=broken; collisions+=int((activation_count>1).sum())
@@ -294,9 +295,18 @@ class ExpertBank:
                     scope='empirical observed current CAL owner pools; historical risk UNKNOWN')
             elif self.status[c] in ('ACTIVE','PENDING_NEW_TASK'):
                 self.status[c]='SUSPENDED' if failures else 'ACTIVE'
+        active_verified=False
+        if all(self.status[c]=='ACTIVE' for c in classes):
+            # Technical equality only: same current-CAL vectors, no new evidence read,
+            # calibration or decision changes after the one-shot acceptance outcome.
+            for x,baseline,candidate in inference_pools:
+                deployed,_=self.infer(baseline,x)
+                if not np.array_equal(deployed,candidate):raise RuntimeError('ACTIVE inference differs from accepted bank')
+            active_verified=True
         receipt=dict(task=task,outcome=outcome,birth_acceptance=birth,failures=sorted(set(failures)),
             thresholds=deepcopy(self.thresholds),expert_hashes=hashes,owners=rows,collisions=collisions,
             total_rescue=total_rescue,total_break=total_break,status=deepcopy(self.status),bytes=self.bytes,
+            ACTIVE_inference_verified=active_verified,
             evidence_policy='Current CAL, previously available development source; not independent confirmation')
         self.gated_tasks.append(task); self.acceptances.append(receipt)
         if before!=native_fingerprint(models,detectors):raise RuntimeError('Gate mutated native state')

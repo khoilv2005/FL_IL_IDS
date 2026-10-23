@@ -1,5 +1,8 @@
 # CANDLE V4 — contract cho native shadow integration tiếp theo
 
+Mốc mới nhất: [graph-aware preflight và smoke](../docs/CANDLE_V4_GRAPH_PREFLIGHT_SMOKE_20261023_VI.md)
+đã có hai expert học thật. Engineering PASS, acceptance REJECT, chưa mở full.
+
 Kết quả tiếp theo: [transition smoke](../docs/CANDLE_V4_TRANSITION_SMOKE_20261023_VI.md)
 NO-GO full do candidate reachability/preflight; chưa có hai ACTIVE experts.
 

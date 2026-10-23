@@ -1,0 +1,1194 @@
+{
+  "experiment": "CANDLE V4 graph-aware preflight plus one locked transition smoke",
+  "completed_execution": true,
+  "engineering_pass": true,
+  "checks": {
+    "native_on_off_task_2": true,
+    "native_on_off_task_3": true,
+    "bank_restore_exact": true,
+    "both_experts_trained": true,
+    "both_experts_changed_from_init": true,
+    "learned_expert_weights_retained": true,
+    "no_T2_expert_updates_in_T3": true,
+    "unique_round_step_ids": true,
+    "native_parameters_finite": true,
+    "closed_historical_CAL_rejected": true,
+    "all_T2_updates_have_current_edges": true,
+    "T2_gate_owners_reachable": true,
+    "deterministic_metadata_selection": true,
+    "bank_budget_including_setup": true,
+    "per_class_budget_including_setup": true,
+    "combined_budget_including_setup": true
+  },
+  "decision": "NO_GO_FULL",
+  "full_training_started": false,
+  "registered_protocol": {
+    "fixture": {
+      "version": "candle_v4_graph_candidate_preflight_v1",
+      "status": "METADATA_FEASIBLE",
+      "receiver": 6,
+      "experts": [
+        {
+          "target": 12,
+          "donor": 1
+        },
+        {
+          "target": 13,
+          "donor": 2
+        }
+      ],
+      "owners": [
+        1,
+        2,
+        3,
+        6
+      ],
+      "selection_rule": "receiver ID, class pair IDs, donor tuple IDs, filler IDs ascending after eligibility",
+      "owner_CAL_negative_counts": {
+        "1": 398,
+        "2": 1817,
+        "3": 158,
+        "6": 128
+      },
+      "current_peers": [
+        1,
+        2,
+        3,
+        5,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        15,
+        16,
+        17,
+        21,
+        22,
+        24,
+        26,
+        29,
+        30,
+        31,
+        34,
+        36,
+        37,
+        39,
+        40,
+        44,
+        46,
+        47,
+        48,
+        50,
+        52,
+        53,
+        56,
+        61,
+        62,
+        63,
+        64,
+        65,
+        67,
+        73,
+        74,
+        76,
+        77,
+        78,
+        79,
+        82,
+        87,
+        90,
+        91,
+        92,
+        93,
+        95,
+        96,
+        97,
+        98
+      ],
+      "scope": "Opportunity at current graph only; not functional-gap proof or predicted acceptance",
+      "graph_sha256": "b05b95011dd9b1afb6c742318c886d320df82ffc1dbc77d3b3824f4491c64f18",
+      "rule_lock_sha256": "5ac7e52c24cdc1e34db43e2c31c46afc702bc0ba15e18321c7853ee747cbb158",
+      "preflight_cost": {
+        "application_descriptor_bytes": 27784368,
+        "policy": "all-to-all graph descriptor projections; no model or raw samples",
+        "optimizer_steps": 0,
+        "expert_updates": 0,
+        "FIT_samples_opened": false,
+        "CAL_samples_opened": false,
+        "TEST_opened": false,
+        "graph_weight_policy": "positive uniform eligibility weights at pre-optimizer clock, not aggregation alpha"
+      }
+    },
+    "receiver": 6,
+    "experts": [
+      {
+        "target": 12,
+        "donor": 1
+      },
+      {
+        "target": 13,
+        "donor": 2
+      }
+    ],
+    "owners": [
+      1,
+      2,
+      3,
+      6
+    ],
+    "seed": 42,
+    "task_start": 2,
+    "task_end": 3,
+    "rounds": 8,
+    "prepared_current_task_optimizer_steps": 0,
+    "rules": {
+      "version": "candle_v4_graph_candidate_preflight_v1",
+      "task": 2,
+      "seed": 42,
+      "xi": 0.8,
+      "clock": "native prepared T2, before first local/expert optimizer step",
+      "selection": "receiver ID, class pair IDs, donor tuple IDs, filler IDs ascending after eligibility",
+      "BASE_min": 32,
+      "FIT_positive_count_min": 32,
+      "CAL_positive_count_min": 32,
+      "owner_negative_CAL_count_min": 32,
+      "owner_count": 4,
+      "targets": 2,
+      "optimizer": "Unchanged balanced joint MLP39->64->1 Adam .001 clip5",
+      "threshold": "donor FIT recall95 order statistic fixed before CAL; no CAL search",
+      "gate": "recall>=.95; unique positive>=32; negatives>=32; observed FAR/per-negative-class FAR<=.001; break=0; atomic bank; net gain>0",
+      "smoke_rounds_per_task": 8,
+      "tasks": [
+        2,
+        3
+      ],
+      "full_rule": "Two ACTIVE still required; unchanged from previous protocol",
+      "budgets": {
+        "bank": 134217728,
+        "receiver_class": 67108864,
+        "total": 2147483648
+      },
+      "no_FIT_CAL_outcomes_for_selection": true,
+      "no_future_graphs": true,
+      "CAL_confirmation_independent": false,
+      "TEST_opened": false
+    },
+    "seed_sha256": "10a482d1231f4e8d5f9c912c569e388e4b241e62f0263eb81388710d0ee0fcb9",
+    "source_sha256": "3a127fdfcf8314da61ba0cbe680fb7d6b4f469a9f71fa624e2907ab3d893ab00",
+    "roles_sha256": "b89cd6868f4185d3307f1bbed56dafd170a10c73a1752496aeb944b037d98a15",
+    "selection_rule_sha256": "5ac7e52c24cdc1e34db43e2c31c46afc702bc0ba15e18321c7853ee747cbb158",
+    "candidate_preflight_sha256": "9d9e331aa12d4f0484af3bc04c13be655d0db5be6c03b879eb573494562b3526",
+    "CAL_confirmation_independent": false,
+    "no_prior_CAL_outcomes_consulted": true,
+    "TEST_opened": false
+  },
+  "preflight_candidate": {
+    "version": "candle_v4_graph_candidate_preflight_v1",
+    "status": "METADATA_FEASIBLE",
+    "receiver": 6,
+    "experts": [
+      {
+        "target": 12,
+        "donor": 1
+      },
+      {
+        "target": 13,
+        "donor": 2
+      }
+    ],
+    "owners": [
+      1,
+      2,
+      3,
+      6
+    ],
+    "selection_rule": "receiver ID, class pair IDs, donor tuple IDs, filler IDs ascending after eligibility",
+    "owner_CAL_negative_counts": {
+      "1": 398,
+      "2": 1817,
+      "3": 158,
+      "6": 128
+    },
+    "current_peers": [
+      1,
+      2,
+      3,
+      5,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      15,
+      16,
+      17,
+      21,
+      22,
+      24,
+      26,
+      29,
+      30,
+      31,
+      34,
+      36,
+      37,
+      39,
+      40,
+      44,
+      46,
+      47,
+      48,
+      50,
+      52,
+      53,
+      56,
+      61,
+      62,
+      63,
+      64,
+      65,
+      67,
+      73,
+      74,
+      76,
+      77,
+      78,
+      79,
+      82,
+      87,
+      90,
+      91,
+      92,
+      93,
+      95,
+      96,
+      97,
+      98
+    ],
+    "scope": "Opportunity at current graph only; not functional-gap proof or predicted acceptance",
+    "graph_sha256": "b05b95011dd9b1afb6c742318c886d320df82ffc1dbc77d3b3824f4491c64f18",
+    "rule_lock_sha256": "5ac7e52c24cdc1e34db43e2c31c46afc702bc0ba15e18321c7853ee747cbb158",
+    "preflight_cost": {
+      "application_descriptor_bytes": 27784368,
+      "policy": "all-to-all graph descriptor projections; no model or raw samples",
+      "optimizer_steps": 0,
+      "expert_updates": 0,
+      "FIT_samples_opened": false,
+      "CAL_samples_opened": false,
+      "TEST_opened": false,
+      "graph_weight_policy": "positive uniform eligibility weights at pre-optimizer clock, not aggregation alpha"
+    }
+  },
+  "preflight_artifact": "artifacts/candle_v4_graph_preflight_20261023.json",
+  "preflight_artifact_sha256": "be8e6c8c2c5ee54d62987c201b93d7484f72d8cbab1acc856f41e66247332a29",
+  "source_graph_clock": "prepared T2 before any current-task optimizer; not a future round snapshot",
+  "expert_steps": {
+    "12": 352,
+    "13": 352
+  },
+  "status": {
+    "12": "REJECTED",
+    "13": "REJECTED"
+  },
+  "two_trained_experts": true,
+  "two_ACTIVE": false,
+  "ACTIVE_inference_verified": false,
+  "gates": [
+    {
+      "task": 2,
+      "outcome": "REJECT",
+      "birth_acceptance": true,
+      "failures": [
+        "OWNER_3_CLASS_12_FAR",
+        "OWNER_3_CLASS_12_PER_CLASS_FAR"
+      ],
+      "thresholds": {
+        "12": 0.9854978322982788,
+        "13": 0.9858531951904297
+      },
+      "expert_hashes": {
+        "12": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074",
+        "13": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+      },
+      "owners": {
+        "1": {
+          "rows": 430,
+          "rescue": 43,
+          "break_count": 0,
+          "correct": 71,
+          "native_correct": 28,
+          "collisions": 0,
+          "targets": {
+            "12": {
+              "positive": 43,
+              "hits": 43,
+              "negative": 387,
+              "false_activations": 0,
+              "required_positive_owner": true,
+              "per_negative_class": {
+                "14": {
+                  "n": 315,
+                  "fp": 0
+                },
+                "16": {
+                  "n": 4,
+                  "fp": 0
+                },
+                "17": {
+                  "n": 68,
+                  "fp": 0
+                }
+              }
+            },
+            "13": {
+              "positive": 0,
+              "hits": 0,
+              "negative": 430,
+              "false_activations": 0,
+              "required_positive_owner": false,
+              "per_negative_class": {
+                "12": {
+                  "n": 43,
+                  "fp": 0
+                },
+                "14": {
+                  "n": 315,
+                  "fp": 0
+                },
+                "16": {
+                  "n": 4,
+                  "fp": 0
+                },
+                "17": {
+                  "n": 68,
+                  "fp": 0
+                }
+              }
+            }
+          },
+          "excluded_BASE_FIT_overlaps": 0
+        },
+        "2": {
+          "rows": 3834,
+          "rescue": 2091,
+          "break_count": 0,
+          "correct": 2091,
+          "native_correct": 0,
+          "collisions": 0,
+          "targets": {
+            "12": {
+              "positive": 1757,
+              "hits": 1682,
+              "negative": 2077,
+              "false_activations": 0,
+              "required_positive_owner": false,
+              "per_negative_class": {
+                "13": {
+                  "n": 427,
+                  "fp": 0
+                },
+                "14": {
+                  "n": 1648,
+                  "fp": 0
+                },
+                "16": {
+                  "n": 2,
+                  "fp": 0
+                }
+              }
+            },
+            "13": {
+              "positive": 427,
+              "hits": 409,
+              "negative": 3407,
+              "false_activations": 0,
+              "required_positive_owner": true,
+              "per_negative_class": {
+                "12": {
+                  "n": 1757,
+                  "fp": 0
+                },
+                "14": {
+                  "n": 1648,
+                  "fp": 0
+                },
+                "16": {
+                  "n": 2,
+                  "fp": 0
+                }
+              }
+            }
+          },
+          "excluded_BASE_FIT_overlaps": 0
+        },
+        "3": {
+          "rows": 1384,
+          "rescue": 1178,
+          "break_count": 0,
+          "correct": 1241,
+          "native_correct": 63,
+          "collisions": 0,
+          "targets": {
+            "12": {
+              "positive": 652,
+              "hits": 625,
+              "negative": 732,
+              "false_activations": 3,
+              "required_positive_owner": false,
+              "per_negative_class": {
+                "13": {
+                  "n": 574,
+                  "fp": 3
+                },
+                "15": {
+                  "n": 58,
+                  "fp": 0
+                },
+                "16": {
+                  "n": 5,
+                  "fp": 0
+                },
+                "17": {
+                  "n": 95,
+                  "fp": 0
+                }
+              }
+            },
+            "13": {
+              "positive": 574,
+              "hits": 553,
+              "negative": 810,
+              "false_activations": 0,
+              "required_positive_owner": false,
+              "per_negative_class": {
+                "12": {
+                  "n": 652,
+                  "fp": 0
+                },
+                "15": {
+                  "n": 58,
+                  "fp": 0
+                },
+                "16": {
+                  "n": 5,
+                  "fp": 0
+                },
+                "17": {
+                  "n": 95,
+                  "fp": 0
+                }
+              }
+            }
+          },
+          "excluded_BASE_FIT_overlaps": 0
+        },
+        "6": {
+          "rows": 127,
+          "rescue": 0,
+          "break_count": 0,
+          "correct": 41,
+          "native_correct": 41,
+          "collisions": 0,
+          "targets": {
+            "12": {
+              "positive": 0,
+              "hits": 0,
+              "negative": 127,
+              "false_activations": 0,
+              "required_positive_owner": false,
+              "per_negative_class": {
+                "15": {
+                  "n": 29,
+                  "fp": 0
+                },
+                "17": {
+                  "n": 98,
+                  "fp": 0
+                }
+              }
+            },
+            "13": {
+              "positive": 0,
+              "hits": 0,
+              "negative": 127,
+              "false_activations": 0,
+              "required_positive_owner": false,
+              "per_negative_class": {
+                "15": {
+                  "n": 29,
+                  "fp": 0
+                },
+                "17": {
+                  "n": 98,
+                  "fp": 0
+                }
+              }
+            }
+          },
+          "excluded_BASE_FIT_overlaps": 0
+        }
+      },
+      "collisions": 0,
+      "total_rescue": 3312,
+      "total_break": 0,
+      "status": {
+        "12": "REJECTED",
+        "13": "REJECTED"
+      },
+      "bytes": 37567625,
+      "ACTIVE_inference_verified": false,
+      "evidence_policy": "Current CAL, previously available development source; not independent confirmation"
+    },
+    {
+      "task": 3,
+      "outcome": "SKIPPED_NO_ACTIVE_BANK",
+      "birth_acceptance": false,
+      "failures": [
+        "NO_PREVIOUSLY_ACCEPTED_BANK"
+      ],
+      "status": {
+        "12": "REJECTED",
+        "13": "REJECTED"
+      },
+      "steps": {
+        "12": 352,
+        "13": 352
+      },
+      "current_peers": [
+        1,
+        3
+      ],
+      "FIT_opened": false,
+      "CAL_opened": false,
+      "bytes": 37567625,
+      "policy": "Preflight only; no candidate/threshold search and no evidence retry"
+    }
+  ],
+  "native_graph_trace": [
+    {
+      "task": 2,
+      "round": 0,
+      "current_peers": [
+        1,
+        2,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": true
+      }
+    },
+    {
+      "task": 2,
+      "round": 1,
+      "current_peers": [
+        1,
+        2,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": true
+      }
+    },
+    {
+      "task": 2,
+      "round": 2,
+      "current_peers": [
+        1,
+        2,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": true
+      }
+    },
+    {
+      "task": 2,
+      "round": 3,
+      "current_peers": [
+        1,
+        2,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": true
+      }
+    },
+    {
+      "task": 2,
+      "round": 4,
+      "current_peers": [
+        1,
+        2,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": true
+      }
+    },
+    {
+      "task": 2,
+      "round": 5,
+      "current_peers": [
+        1,
+        2,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": true
+      }
+    },
+    {
+      "task": 2,
+      "round": 6,
+      "current_peers": [
+        1,
+        2,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": true
+      }
+    },
+    {
+      "task": 2,
+      "round": 7,
+      "current_peers": [
+        1,
+        2,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": true
+      }
+    },
+    {
+      "task": 3,
+      "round": 0,
+      "current_peers": [
+        1,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": false
+      }
+    },
+    {
+      "task": 3,
+      "round": 1,
+      "current_peers": [
+        1,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": false
+      }
+    },
+    {
+      "task": 3,
+      "round": 2,
+      "current_peers": [
+        1,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": false
+      }
+    },
+    {
+      "task": 3,
+      "round": 3,
+      "current_peers": [
+        1,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": false
+      }
+    },
+    {
+      "task": 3,
+      "round": 4,
+      "current_peers": [
+        1,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": false
+      }
+    },
+    {
+      "task": 3,
+      "round": 5,
+      "current_peers": [
+        1,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": false
+      }
+    },
+    {
+      "task": 3,
+      "round": 6,
+      "current_peers": [
+        1,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": false
+      }
+    },
+    {
+      "task": 3,
+      "round": 7,
+      "current_peers": [
+        1,
+        3
+      ],
+      "donors_eligible": {
+        "12": true,
+        "13": false
+      }
+    }
+  ],
+  "expert_history": [
+    {
+      "task": 2,
+      "round": 0,
+      "experts": {
+        "12": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 44,
+          "pending": 0,
+          "expert_sha256": "65118b624d5358ca06e4faad51140c2db853ef68288a9cc94788bf5de6be7415"
+        },
+        "13": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 44,
+          "pending": 0,
+          "expert_sha256": "e608975fc01157db51d1e40076a4f38d7cee7c50941e1ca0d50fd0b80793593f"
+        }
+      },
+      "bytes": 2152352,
+      "native_sha256": "c54351e7fd27c799c90a7b9b2876dd9006cf986599c441b10a9df5eb4d769579"
+    },
+    {
+      "task": 2,
+      "round": 1,
+      "experts": {
+        "12": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 88,
+          "pending": 0,
+          "expert_sha256": "dd731c03a9a3068c3c14f14c75c16db88fc65f3d74dfa74aa07625e8cc990bd8"
+        },
+        "13": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 88,
+          "pending": 0,
+          "expert_sha256": "9f1f33e78050f09df85a26b147d10d2e874feb248ed4725938108c13a0160e4b"
+        }
+      },
+      "bytes": 4304668,
+      "native_sha256": "238d34cb7397d05ae1ce5278c10b21964706ac19a61a6d5772cd6af7fc106d03"
+    },
+    {
+      "task": 2,
+      "round": 2,
+      "experts": {
+        "12": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 132,
+          "pending": 0,
+          "expert_sha256": "d194002c630c1676a9d4baa7824bf1c42c81a487db7c4cd806bf8b09203583e1"
+        },
+        "13": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 132,
+          "pending": 0,
+          "expert_sha256": "500c4f6a781d0afcb76d690746c20452856d177dc8c862dfa910948164e51604"
+        }
+      },
+      "bytes": 6456996,
+      "native_sha256": "68be8e8114583a0a0d33a6e215cf4f3be18ebdb743fd03163328572a42818604"
+    },
+    {
+      "task": 2,
+      "round": 3,
+      "experts": {
+        "12": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 176,
+          "pending": 0,
+          "expert_sha256": "5c06854008f6fbc6a2d8beb789b103e1a9a314fe306dc43535ac8d035ca4f11a"
+        },
+        "13": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 176,
+          "pending": 0,
+          "expert_sha256": "a741555758a514cb7ec0d69df63bacca232edbc2c0ef8971a8c941a9b454f292"
+        }
+      },
+      "bytes": 8609320,
+      "native_sha256": "e276981834ad6d3e8b2876a6397f6436b0de803f735ba9c766c8a8ccd1f46f04"
+    },
+    {
+      "task": 2,
+      "round": 4,
+      "experts": {
+        "12": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 220,
+          "pending": 0,
+          "expert_sha256": "ad02e79365bde4fc1cb9cf83a9b91efd5dae6a1ef26783c3188308401f708f6d"
+        },
+        "13": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 220,
+          "pending": 0,
+          "expert_sha256": "e0e011e26262b5afeba1a6e928bab475f164176e133e449f6b672ecab6006d81"
+        }
+      },
+      "bytes": 10761656,
+      "native_sha256": "db60be2e9cca04a8363e5245c8f4bb06293007c586d8a8aba928349ceb64d41e"
+    },
+    {
+      "task": 2,
+      "round": 5,
+      "experts": {
+        "12": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 264,
+          "pending": 0,
+          "expert_sha256": "35967e71a295bc21ba5477e5b7b4195c4a2ccdfe2baafcc0625e72ad3779ea33"
+        },
+        "13": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 264,
+          "pending": 0,
+          "expert_sha256": "c7a4aaaf8d36441f9cbd49b0e6237713a1b1d5cf6b8fd874e477bf16a96cd884"
+        }
+      },
+      "bytes": 12914004,
+      "native_sha256": "c0a6d5f48a70b286f58d599b6021676a0b2f18d05e269987b21a6548215278e9"
+    },
+    {
+      "task": 2,
+      "round": 6,
+      "experts": {
+        "12": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 308,
+          "pending": 0,
+          "expert_sha256": "1830841c7f1b8a8ec8b63d3bf1565ac1370027f924f7dde2494c58213f216bac"
+        },
+        "13": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 308,
+          "pending": 0,
+          "expert_sha256": "6dbb84a7868d380d02548c3a1da7a642f9aef75c997c876a6d604f47a0df4506"
+        }
+      },
+      "bytes": 15066468,
+      "native_sha256": "b48805230f908d394998968857615b5c7eb73f7defa92593d576ce0e7583f272"
+    },
+    {
+      "task": 2,
+      "round": 7,
+      "experts": {
+        "12": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 352,
+          "pending": 0,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "eligible": true,
+          "updates": 44,
+          "steps": 352,
+          "pending": 0,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 17218980,
+      "native_sha256": "463c98f914295df9a1fe11185c2f24ae495222051879795b5d4c6f42e79ab564"
+    },
+    {
+      "task": 3,
+      "round": 0,
+      "experts": {
+        "12": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 37567625,
+      "native_sha256": "f172e7bc45bdf99e992a92c2401fd0a1dad18b96c0c9cec3e748bcd0e93ebac5"
+    },
+    {
+      "task": 3,
+      "round": 1,
+      "experts": {
+        "12": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 37567625,
+      "native_sha256": "87ffa583751d6f075c3b855a454b61bbf14c2136bee3b55d80725b9041c220f4"
+    },
+    {
+      "task": 3,
+      "round": 2,
+      "experts": {
+        "12": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 37567625,
+      "native_sha256": "ad7b0881971de608b544c7afa4622c70588eae31686ded05c64d8b19f483a59e"
+    },
+    {
+      "task": 3,
+      "round": 3,
+      "experts": {
+        "12": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 37567625,
+      "native_sha256": "9f4f84c5aef63b643bb26848ec97927670d55e165bed1208e09961d7b93a2a54"
+    },
+    {
+      "task": 3,
+      "round": 4,
+      "experts": {
+        "12": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 37567625,
+      "native_sha256": "d9e3dc5667654097be5aea7165b30312858490334460c3d9674f3eb6e9bebe4a"
+    },
+    {
+      "task": 3,
+      "round": 5,
+      "experts": {
+        "12": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 37567625,
+      "native_sha256": "2187c625b3c26c702c1c1ee53bede77d0048f70516c26148d42cc09583add414"
+    },
+    {
+      "task": 3,
+      "round": 6,
+      "experts": {
+        "12": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 37567625,
+      "native_sha256": "01520465145b4934e1f8aa074e217c64da4db22513be18656285fd46f5fba1bc"
+    },
+    {
+      "task": 3,
+      "round": 7,
+      "experts": {
+        "12": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "c0f42da73eeaade19a978fd3558316ebdfd64658524d734f0c7cee1441525074"
+        },
+        "13": {
+          "status": "REJECTED",
+          "frozen": true,
+          "expert_sha256": "8bf99af8f47baa39817f6495db188d2e31073e721f47f46057c6619b3590993c"
+        }
+      },
+      "bytes": 37567625,
+      "native_sha256": "8ededacd078d4170f6def0ca05dffce545fd8bc895e7982d886e6cca58bce718"
+    }
+  ],
+  "communication": {
+    "preflight_native_descriptor_bytes": 27784368,
+    "preflight_metadata_advertisement_bytes": 1414983,
+    "preflight_setup_total": 29199351,
+    "bank_training_and_gate_bytes": 37567625,
+    "bank_by_kind": {
+      "training_reference_gradient": 17218980,
+      "gate_base_reference": 20275359,
+      "gate_expert_reference": 71046,
+      "CAL_provenance": 876,
+      "gate_CAL_receipt": 1364
+    },
+    "V4_incremental_total_including_setup": 66766976,
+    "per_receiver_class_including_setup": {
+      "12": 33383753,
+      "13": 33383223
+    },
+    "native_T2_T3_modeled_bytes": 891452976,
+    "combined_modeled_bytes": 958219952,
+    "mode": "Application serialization models, not actual network benchmark; metadata setup fully charged to this one fixture"
+  },
+  "model_device_resume_fix": {
+    "reason": "Round resume loaded reference tensors onto CPU; move to model device before task-final novelty computation",
+    "changes": {
+      "execution_source_lock.json": {
+        "tools/run_candle_v4_transition.py": {
+          "before": "1c0bef3eaefe61765ad323d5e6ecd79c74c2d34076243134df93e4d196227055",
+          "after": "07892ff513581c9f5daaed6870f3839d18f3406462fad34817bed3f8ddffa880"
+        },
+        "candle_v4_runtime/fed_learning/training/decentralized_denice_il.py": {
+          "before": "7b36c4b9df9abee54a33676b29126b1d5b3a4a7ec34f5d49a482b6e8929b6595",
+          "after": "ca0cd8fc0706f3b016d8153455245dcc8e2e570bf81f4371e7574616e439d573"
+        }
+      },
+      "graph_implementation_lock.json": {
+        "tools/run_candle_v4_graph_transition.py": {
+          "before": "fe34889a2d4d9de692365d321c0d08fad8bafb98b666f2728a824af186277f31",
+          "after": "d57a72dff1af26e3f86c9b62e29df367088db58c0ad059d2d0c71067f976f5bc"
+        }
+      }
+    },
+    "resume_checkpoint_sha256": "03bbf0064c852b377250fade8efbd61df9525914fbe1ddd4d2b5b8c5fb2b21d3",
+    "no_CAL_opened_before_fix": true,
+    "no_candidate_threshold_or_optimizer_change": true,
+    "no_T2_retraining": true
+  },
+  "execution_source_lock": {
+    "tools/run_candle_v4_transition.py": "07892ff513581c9f5daaed6870f3839d18f3406462fad34817bed3f8ddffa880",
+    "candle_v4_runtime/fed_learning/training/candle_v4_bank.py": "d2d9c255ed74c52ad7a8dc990842432dc775b0486d350d175268caadc98ee65d",
+    "candle_v4_runtime/fed_learning/training/candle_v4_shadow.py": "198d0ea9c9e742a319da26c3428ecf32340bae59cbfbaa4a11e0a1b2d521f069",
+    "candle_v4_runtime/fed_learning/training/decentralized_denice_il.py": "ca0cd8fc0706f3b016d8153455245dcc8e2e570bf81f4371e7574616e439d573",
+    "candle_v4_runtime/fed_learning/data/denice_clean_roles.py": "78883040a9393387e563bc73792bd087723c8b4d40f482cdf82a9cfb4fdc42b0"
+  },
+  "graph_implementation_lock": {
+    "tools/run_candle_v4_graph_transition.py": "d57a72dff1af26e3f86c9b62e29df367088db58c0ad059d2d0c71067f976f5bc",
+    "candle_v4_runtime/fed_learning/training/candle_v4_preflight.py": "300af2bcc10764dedbfe1fe6dcadbea92a6e8281d9241edd5d1dfc119827e2de"
+  },
+  "metadata_negative_coverage": {
+    "12": {
+      "donor": 1,
+      "receiver": 6,
+      "donor_current_BASE": {
+        "12": 1272,
+        "14": 3687,
+        "15": 11,
+        "16": 93,
+        "17": 2357
+      },
+      "receiver_current_BASE": {
+        "15": 1360,
+        "17": 3573
+      }
+    },
+    "13": {
+      "donor": 2,
+      "receiver": 6,
+      "donor_current_BASE": {
+        "12": 3687,
+        "13": 3687,
+        "14": 3687,
+        "16": 29,
+        "17": 19
+      },
+      "receiver_current_BASE": {
+        "15": 1360,
+        "17": 3573
+      }
+    }
+  },
+  "CAL_confirmation_independent": false,
+  "TEST_opened": false,
+  "no_post_CAL_reselection": true,
+  "no_threshold_or_optimizer_tuning": true,
+  "limits": [
+    "Metadata feasibility is not proof of functional gap or safety",
+    "CAL reused development lineage; no independent confirmation or population FAR guarantee",
+    "CAL current-role exclusion checks selected owners BASE/FIT; other preflight BASE influences graph selection; no stronger independence claim",
+    "No historical raw CAL/FIT reopened for this summary; only checkpoint receipts and role metadata",
+    "Full-run projection and ACTIVE inference latency not established when bank is rejected"
+  ]
+}

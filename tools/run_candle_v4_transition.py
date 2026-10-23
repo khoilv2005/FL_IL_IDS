@@ -87,10 +87,10 @@ def spec(out):
         stage_dir=str(out/'evidence'),per_expert_budget=64*1024**2,bank_budget=128*1024**2)
 
 
-def run(out, enabled):
-    name='bank' if enabled else 'baseline'; target=out/name;target.mkdir(exist_ok=False)
+def run(out, enabled, resume_path=None):
+    name='bank' if enabled else 'baseline'; target=out/name;target.mkdir(exist_ok=bool(resume_path))
     config=json.loads((out/'config.json').read_text())
-    config.update(output_dir=str(target),resume_output_dir=str(target),resume_state_path=str(out/'seed.pt'))
+    config.update(output_dir=str(target),resume_output_dir=str(target),resume_state_path=str(resume_path or out/'seed.pt'))
     if enabled:config['candle_v4_expert_bank']=spec(out)
     source_paths=['tools/run_candle_v4_transition.py',
         'candle_v4_runtime/fed_learning/training/candle_v4_bank.py',

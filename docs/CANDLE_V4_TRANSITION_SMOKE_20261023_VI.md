@@ -1,5 +1,8 @@
 # CANDLE V4 — smoke cuối T2 → T3: chưa đủ điều kiện full
 
+Tiếp nối: [graph-aware preflight và fixture đã học](CANDLE_V4_GRAPH_PREFLIGHT_SMOKE_20261023_VI.md).
+Báo cáo dưới giữ nguyên kết quả của fixture cũ; không thay bằng kết quả case mới.
+
 **NO-GO cho full seed 42.** Đã chạy đúng một fixture 4 clients qua T2 → T3,
 nhưng fixture không tạo được hai expert đã học: donor 16 nằm ngoài neighborhood
 thực tế của receiver 18 trong cả 8 round T2. Hai draft có **0 optimizer updates**,

@@ -1335,8 +1335,10 @@ def _load_denice_continuation_state(path: str) -> Dict[str, Any]:
         saved_round = state.get('round_state') or {}
         next_round = saved_round.get('next_round')
         active = saved_round.get('active_ids')
+        first_round = 0 if (state.get('config', {}).get('candle_v4_native_fixture', {}).get('version') ==
+                            'candle_v4_graph_transition_v1' and saved_round.get('prepared_before_optimizer')) else 1
         if (saved_round.get('version') != 'denice_round_boundary_v1' or
-                type(next_round) is not int or not 1 <= next_round <= int(state['config']['rounds_per_task']) or
+                type(next_round) is not int or not first_round <= next_round <= int(state['config']['rounds_per_task']) or
                 not isinstance(active, list) or active != sorted(set(active)) or
                 not set(active).issubset(state['client_ids']) or
                 not (state.get('appliance_service_state') or state.get('config', {}).get('candle_v4_native_fixture')) or
@@ -2906,8 +2908,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             if active_ids != round_resume['active_ids']:
                 raise ValueError('Round resume active client membership changed')
             canc_plans = _resume_clone(round_resume['canc_plans'])
-            ref_data = _resume_clone(round_resume['ref_data'])
-            ref_labels = _resume_clone(round_resume['ref_labels'])
+            ref_data = {int(cid): value.to(device) for cid,value in round_resume['ref_data'].items()}
+            ref_labels = {int(cid): value.to(device) for cid,value in round_resume['ref_labels'].items()}
             for cid in active_ids:
                 scaler = round_resume.get('client_scalers', {}).get(cid)
                 if scaler is not None:
@@ -3012,6 +3014,26 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         },
                     }
                 )
+
+        if config.get('candle_v4_graph_preflight_only'):
+            from fed_learning.training.candle_v4_preflight import capture_prepared_graph
+            prepared_graph, preflight_cost = capture_prepared_graph(models=models,clients=clients,
+                detectors=context_detectors,active_ids=active_ids,task=task_id,config=config,
+                ref_data=ref_data,ref_labels=ref_labels)
+            boundary=dict(version='denice_round_boundary_v1',next_round=0,prepared_before_optimizer=True,
+                active_ids=active_ids,canc_plans=canc_plans,ref_data=ref_data,ref_labels=ref_labels,
+                previous_valid_cluster=None,consecutive_self_only_rounds=0,task_final_round_eval_metrics=None,
+                cluster_summary=prepared_graph,losses={},client_scalers={})
+            state=_build_denice_continuation_state(task_id=task_id,config=config,models=models,
+                context_detectors=context_detectors,novelty_estimators=novelty_estimators,prev_ages=prev_ages,
+                old_ref_banks=old_ref_banks,old_ref_loss_baselines=old_ref_loss_baselines,last_active_task=last_active_task,
+                history=history,cluster_history=cluster_history,adapter_history=adapter_history,debug_history=debug_history,
+                replay_memories=replay_memories,round_state=boundary,clients=clients)
+            path=os.path.join(output_dir,'prepared_state.pt')
+            torch.save(state,path+'.tmp');os.replace(path+'.tmp',path)
+            _write_json(os.path.join(output_dir,'prepared_graph.json'),dict(graph=prepared_graph,cost=preflight_cost,
+                current_train_BASE_counts={cid:_count_histogram(clients[cid].y_train) for cid in active_ids}))
+            return dict(output_dir=output_dir,preflight_only=True,current_task_optimizer_steps=0)
 
         delta_base_path: Optional[str] = None
         previous_round_checkpoint_path: Optional[str] = None

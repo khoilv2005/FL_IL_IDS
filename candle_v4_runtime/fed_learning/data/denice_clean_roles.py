@@ -139,7 +139,16 @@ def validate_clean_training_config(config):
               'denice_cl_method':method,'denice_require_label_overlap':True,
               'denice_collab_use_context_edges':True}
     v4_fixture = config.get('candle_v4_native_fixture')
-    if v4_fixture and v4_fixture.get('version') == 'candle_v4_transition_smoke_v1':
+    if v4_fixture and v4_fixture.get('version') == 'candle_v4_graph_transition_v1':
+        preflight=bool(config.get('candle_v4_graph_preflight_only'))
+        if (protocol!='legacy_multiclass' or config.get('appliance_enabled') or
+                config.get('denice_evaluation_data_role')!='validation' or config.get('denice_post_task_eval') or
+                config.get('denice_eval_final_round') or config.get('denice_eval_local_validation') or
+                config.get('eval_every')!=999999 or not config.get('resume_state_path') or
+                not (1 if preflight else 4)<=len(set(v4_fixture['client_ids']))<=(100 if preflight else 8) or
+                config.get('task_start') not in (2,3) or config.get('task_end')!=3 or config.get('rounds_per_task')!=8):
+            raise ValueError('Graph-aware transition protocol requires a pre-optimizer snapshot or locked 4..8 clients')
+    elif v4_fixture and v4_fixture.get('version') == 'candle_v4_transition_smoke_v1':
         if (protocol != 'legacy_multiclass' or config.get('appliance_enabled') or
                 config.get('denice_evaluation_data_role') != 'validation' or
                 config.get('denice_post_task_eval') or config.get('denice_eval_final_round') or
