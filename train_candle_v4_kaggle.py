@@ -6,7 +6,7 @@ import subprocess
 import sys
 import zipfile
 
-CODE_REF = "3b04346ebec7722d35065c7ffe101e9b36bb3ce4"
+CODE_REF = "75cee9b65bcd3a656d7a8ea26030f44109509405"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
 ROLES_DIR = "/kaggle/working/candle_v4_roles"
 OUTPUT_DIR = "/kaggle/working/results_candle_v4_seed42"
@@ -52,6 +52,6 @@ if RESUME_STATE:
             shutil.copytree(source.parent/'v4_gate_journal',out/'v4_gate_journal',dirs_exist_ok=True)
     args += ['--resume',RESUME_STATE]
 print('Pinned source:',actual,flush=True)
-print('Development run: no automatic TEST; retain output/checkpoints using Kaggle Save Version.',flush=True)
+print('Full TEST runs only after Task5/Round19 consolidation; retain output with Kaggle Save Version.',flush=True)
 subprocess.check_call(args,cwd=runtime,env=env)
 print(Path(OUTPUT_DIR,'candle_v4_completion.json').read_text())
