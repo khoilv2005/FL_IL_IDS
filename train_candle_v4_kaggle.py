@@ -6,10 +6,10 @@ import subprocess
 import sys
 import zipfile
 
-CODE_REF = "75cee9b65bcd3a656d7a8ea26030f44109509405"
+CODE_REF = "f9382e0c1123a1f0d3721bbb4049e9ebb9069c1d"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
-ROLES_DIR = "/kaggle/working/candle_v4_roles"
-OUTPUT_DIR = "/kaggle/working/results_candle_v4_seed42"
+OUTPUT_DIR = "/kaggle/working/results_candle_v4_original_seed42"
+VARIANT = "coverage"  # "native-only" reruns V1 with the SAME original-TRAIN protocol.
 # Optional mounted round continuation .pt or task archive .zip; empty=fresh T0.
 # Resume also needs the original run lock/threshold locks in that folder/archive.
 RESUME_STATE = ""
@@ -20,7 +20,7 @@ env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1"}
 for name in ('DENICE_CONFIG_FILE','DENICE_CONFIG_OVERRIDES','DENICE_RESUME_STATE_PATH',
              'DENICE_CONFIG_ONLY','DENICE_TASK_END'):
     env.pop(name,None)
-code = Path('/kaggle/working/candle_v4_source')
+code = Path('/kaggle/working/candle_v4_original_source')
 if not code.exists():
     subprocess.check_call(['git','clone','--filter=blob:none','--no-checkout',
         'https://github.com/khoilv2005/FL_IL_IDS.git',str(code)],env=env)
@@ -32,7 +32,7 @@ runtime = code/'candle_v4_runtime'
 subprocess.check_call([sys.executable,'-m','pip','install','-q','-r',
                        str(runtime/'requirements-candle-v1-kaggle.txt')],env=env)
 args = [sys.executable,'-u',str(runtime/'tools/train_candle_v4.py'),
-        '--data-dir',DATA_DIR,'--roles',ROLES_DIR,'--output',OUTPUT_DIR]
+        '--data-dir',DATA_DIR,'--output',OUTPUT_DIR,'--variant',VARIANT]
 if RESUME_STATE:
     source = Path(RESUME_STATE);out=Path(OUTPUT_DIR);out.mkdir(parents=True,exist_ok=True)
     if source.suffix=='.zip':
