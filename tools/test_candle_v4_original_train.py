@@ -106,7 +106,7 @@ class OriginalTrainTests(unittest.TestCase):
         for k in s.entries:self.assertEqual(digest(s.engines['coverage'][k].state_dict()),digest(restored.engines['coverage'][k].state_dict()))
         self.assertEqual(s.bytes,restored.bytes);self.finish(s);restored=self.new(s.state_dict())
         self.assertEqual(s.status,restored.status);self.assertEqual(s.certificates,restored.certificates)
-        for version in ('candle_v4_original_train_v1','candle_v4_original_train_empirical_gate_v2','candle_v4_full_train_provisional_v3','candle_v4_direct_prediction_fusion_v4'):
+        for version in ('candle_v4_original_train_v1','candle_v4_original_train_empirical_gate_v2','candle_v4_full_train_provisional_v3','candle_v4_direct_prediction_fusion_v4','candle_v4_predicted_task_scoped_v5'):
             saved=s.state_dict();saved['version']=version
             with self.assertRaises(ValueError):self.new(saved)
 
@@ -198,5 +198,5 @@ if __name__=='__main__':
     receipt=dict(protocol_version=original.VERSION,tests=result.testsRun,passed=result.wasSuccessful(),
         errors=len(result.errors),failures=len(result.failures),fixture='synthetic full current-task TRAIN NPZ only',
         validation_read=False,roles_created=False,real_TEST_opened=False,full_training_started=False)
-    (ROOT/'artifacts/candle_v4_scoped_fusion_regression_20261024.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+    (ROOT/'artifacts/candle_v4_handoff_original_regression_20261024.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
     sys.exit(not result.wasSuccessful())

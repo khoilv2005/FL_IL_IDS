@@ -69,7 +69,7 @@ class TerminalTests(unittest.TestCase):
 
 if __name__=='__main__':
     result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(TerminalTests))
-    (ROOT/'artifacts/candle_v4_scoped_terminal_regression_20261024.json').write_text(json.dumps(dict(
+    (ROOT/'artifacts/candle_v4_handoff_terminal_regression_20261024.json').write_text(json.dumps(dict(
         tests=result.testsRun,passed=result.wasSuccessful(),failures=len(result.failures),errors=len(result.errors),
         real_TEST_opened=False,real_CAL_opened=False,full_training_started=False,fixture='synthetic TEST only'),indent=2)+'\n',encoding='utf-8')
     sys.exit(not result.wasSuccessful())

@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--data-dir',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--variant',choices=('coverage','native-only'),default='coverage')
+    parser.add_argument('--router-mode',choices=('binary_cosine','multiclass_balanced'),default='binary_cosine')
     parser.add_argument('--resume',help='Original-TRAIN continuation only; role-based checkpoints are incompatible')
     args=parser.parse_args()
     if not Path('/kaggle/working').is_dir():raise RuntimeError('Full training is Kaggle-only')
@@ -33,11 +34,12 @@ def main():
               data_dir=str(data),output_dir=str(output),arms=['coverage'] if args.variant=='coverage' else [],
               data_protocol='100% original current-task TRAIN; no validation',fixed_threshold=.5,
               activation_policy='training_only_unverified',
-              prediction_fusion='predicted_task_scoped',console_every_rounds=5,
+              prediction_fusion='predicted_task_scoped',donor_policy='retain_else_current_graph_min_id',
+              router_mode=args.router_mode,console_every_rounds=5,
               per_expert_bytes=128*1024**2,per_arm_bytes=64*1024**3)
     config.update(data_dir=str(data),output_dir=str(output),resume_output_dir=str(output),
                   denice_clean_roles_dir=None,candle_v4_full_service=spec,candle_v4_original_train=True,
-                  denice_validation_fraction=0.0,
+                  denice_validation_fraction=0.0,denice_router_mode=args.router_mode,
                   denice_post_task_eval_tasks=[],denice_eval_final_round=False,
                   denice_evaluation_data_role='test',
                   candle_v4_terminal_full_test=True,
@@ -59,7 +61,7 @@ def main():
         policy='Caps are enforced, not a prediction of measured traffic; native traffic additional')
     lock_path=output/'candle_v4_run_lock.json'
     if args.resume:
-        if not lock_path.exists():raise ValueError('Restore the same predicted-task-scoped v5 run lock with continuation')
+        if not lock_path.exists():raise ValueError('Restore the same current-graph-handoff v6 run lock with continuation')
         previous=json.loads(lock_path.read_text())
         if previous['source_commit']!=source or previous['config']['candle_v4_full_service']!=spec:
             raise ValueError('Resume source/config changed')
@@ -70,7 +72,7 @@ def main():
                       DENICE_CODE_DIR=str(root),DENICE_SEED='42',DENICE_OUTPUT_DIR=str(output),
                       DENICE_CONFIG_OVERRIDES=json.dumps(config))
     print('CANDLE V1/V4: 100% CURRENT-TASK TRAIN; NO VALIDATION, ROLES OR SHADOW NATIVE MODEL.',flush=True)
-    print(f'Seed42 T0..T5 x20 rounds; variant={args.variant}; active expert arms={spec["arms"]}.',flush=True)
+    print(f'Seed42 T0..T5 x20 rounds; variant={args.variant}; router={args.router_mode}; active expert arms={spec["arms"]}.',flush=True)
     print('One GPU, native batch2048 AMP; experts CPU; per-round continuation; task ZIP. Final full TEST after T5/R19 consolidation only.',flush=True)
     started=time.perf_counter()
     runpy.run_path(str(root/'train_incremental_kaggle.py'),run_name='__main__')

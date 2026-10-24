@@ -1,0 +1,11 @@
+{
+  "version": "candle_v4_current_graph_handoff_v6",
+  "tests": 7,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "fixture": "synthetic current-task TRAIN only",
+  "real_TEST_opened": false,
+  "real_CAL_opened": false,
+  "full_training_started": false
+}

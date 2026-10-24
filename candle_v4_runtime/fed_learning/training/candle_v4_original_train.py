@@ -10,11 +10,11 @@ from .candle_v4_service import FullCoverageService
 from .candle_v4_preflight import positive_neighbors
 from .candle_v4_shadow import digest,native_fingerprint
 
-VERSION='candle_v4_predicted_task_scoped_v5'
+VERSION='candle_v4_current_graph_handoff_v6'
 
 
 def validate_original_config(config):
-    required=dict(denice_clean_roles_dir=None,candle_v4_original_train=True,denice_router_mode='binary_cosine',
+    required=dict(denice_clean_roles_dir=None,candle_v4_original_train=True,
         denice_clustering_mode='paper',denice_similarity_threshold=.8,denice_validation_fraction=0.0,
         denice_post_task_eval=False,denice_eval_final_round=False,denice_eval_terminal_state_only=True,
         rounds_per_task=20,task_end=5,num_clients=100,seed=42)
@@ -23,6 +23,9 @@ def validate_original_config(config):
     if config.get('denice_max_train_samples_per_client') or config.get('denice_max_batches_per_epoch'):
         raise ValueError('No pilot native training sample/step cap in original TRAIN full run')
     if config['candle_v4_full_service']['version']!=VERSION:raise ValueError('Wrong data-service version')
+    router=config.get('denice_router_mode')
+    if router not in ('binary_cosine','multiclass_balanced') or router!=config['candle_v4_full_service'].get('router_mode','binary_cosine'):
+        raise ValueError('Router mode must match the locked V4 spec')
 
 
 class OriginalTrainService(FullCoverageService):
@@ -87,9 +90,34 @@ class OriginalTrainService(FullCoverageService):
                 if key in self.entries:continue
                 donors=[o for o in positive_neighbors(graph,receiver) if o in active_ids and self.counts(o,'train').get(c,0)>=32]
                 if not donors:continue
-                self.entries[key]=dict(receiver=receiver,target=c,donor=min(donors),task=task,discovered_round=self.boundary[1])
+                self.entries[key]=dict(receiver=receiver,target=c,donor=min(donors),initial_donor=min(donors),
+                                       donor_lineage=[],task=task,discovered_round=self.boundary[1])
                 for arm in self.arms:
                     self.engines[arm][key]=self._engine(self.entries[key],arm);self.status[arm][key]='DRAFT'
+
+    def _select_training_donor(self,key,peers,data,graph):
+        entry=self.entries[key];receiver,c=key;previous=entry['donor']
+        if entry['task']!=self.task or self.boundary[0]!=self.task:
+            raise ValueError('Donor handoff outside current task')
+        counts={o:self.counts(o,'train') for o in peers}
+        receiver_negatives=sum(n for label,n in self.counts(receiver,'train').items() if label!=c)
+        negative_counts={o:receiver_negatives+sum(n for label,n in count.items() if label!=c)
+                         for o,count in counts.items()}
+        candidates=[o for o in sorted(peers) if o!=receiver and counts[o].get(c,0)>=32 and
+                    negative_counts[o]>0]
+        selected=previous if previous in candidates else (min(candidates) if candidates else previous)
+        handoff=bool(candidates) and selected!=previous
+        if handoff:
+            # Same receiver-owned model, Adam state, pending quota and wire counters.
+            entry['donor_lineage'].append(dict(task=self.task,round=self.boundary[1],
+                from_donor=previous,to_donor=selected,graph_sha256=digest(graph.get('alpha_debug',{}))))
+            entry['donor']=selected
+            for arm in self.arms:self.engines[arm][key].spec['donor']=selected
+        authorized=selected in candidates
+        return selected,dict(previous_donor=previous,selected_donor=selected,handoff=handoff,
+            authorized=authorized,target_count=counts.get(selected,{}).get(c,0),
+            negative_count=negative_counts.get(selected,0) if authorized else 0,
+            eligible_donor_count=len(candidates),reason='HANDOFF' if handoff else ('RETAINED' if authorized else 'NO_ELIGIBLE_DONOR'))
 
     def after_round(self,task,round_id,models,detectors,clients,active_ids,graph):
         self.bind_clients(task,clients,active_ids)
@@ -102,19 +130,40 @@ class OriginalTrainService(FullCoverageService):
         return result
 
     def _training_proof(self,key,arm):
-        entry=self.entries[key];engine=self.engines[arm][key];updates=0;boundaries=[]
+        entry=self.entries[key];engine=self.engines[arm][key];updates=0;boundaries=[];donor_updates={}
+        expected=entry['initial_donor'];events=entry['donor_lineage'];events_by_round={}
+        previous_round=entry['discovered_round']-1
+        for event in events:
+            if (event['task']!=entry['task'] or event['round']<=previous_round or
+                    event['from_donor']!=expected or event['to_donor']==expected):
+                return dict(valid=False,reason='INVALID_DONOR_LINEAGE')
+            events_by_round[event['round']]=event;expected=event['to_donor'];previous_round=event['round']
+        if expected!=entry['donor']:return dict(valid=False,reason='INVALID_DONOR_LINEAGE')
+        expected=entry['initial_donor'];seen_events=set()
         for row in self.history:
+            if row['task']!=entry['task']:continue
+            if row['round'] in events_by_round:
+                event=events_by_round[row['round']]
+                if event['graph_sha256']!=row.get('graph_sha256'):
+                    return dict(valid=False,reason='INVALID_DONOR_LINEAGE')
+                expected=event['to_donor'];seen_events.add(row['round'])
             for item in row['experts']:
                 if (row['task']==entry['task'] and item['receiver']==key[0] and
                         item['target']==key[1] and item['arm']==arm and item['updates']>0):
-                    if not item['eligible'] or item.get('donor')!=entry['donor'] or not row.get('graph_sha256'):
+                    auth=item.get('donor_authorization',{})
+                    if (not item['eligible'] or item.get('donor')!=expected or not row.get('graph_sha256') or
+                            not auth.get('authorized') or auth.get('selected_donor')!=expected or
+                            auth.get('target_count',0)<32 or auth.get('negative_count',0)<=0):
                         return dict(valid=False,reason='UNAUTHORIZED_TRAINING')
                     updates+=item['updates'];boundaries.append([row['task'],row['round']])
+                    donor_updates[expected]=donor_updates.get(expected,0)+item['updates']
         valid=(updates>0 and updates==engine.steps and engine.spec['task']==entry['task'] and
                engine.spec['receiver']==key[0] and engine.spec['target']==key[1] and
-               engine.spec['donor']==entry['donor'] and engine.spec['input_sha256']==self.spec['input_sha256'])
+               engine.spec['donor']==entry['donor'] and seen_events==set(events_by_round) and
+               engine.spec['input_sha256']==self.spec['input_sha256'])
         return dict(valid=valid,updates=updates,steps=engine.steps,authorized_rounds=boundaries,
-                    provenance_sha256=digest(dict(entry=entry,boundaries=boundaries,updates=updates)),
+                    donor_updates=donor_updates,
+                    provenance_sha256=digest(dict(entry=entry,boundaries=boundaries,updates=updates,donor_updates=donor_updates)),
                     reason=None if valid else 'NO_UPDATES_OR_INCONSISTENT_PROVENANCE')
 
     def _activate_trained(self,receiver,arm,task):
@@ -168,7 +217,8 @@ class OriginalTrainService(FullCoverageService):
                         cert['sha256']!=digest(engine.branches['joint_class_balanced'][0].state_dict())):
                     raise ValueError('ACTIVE expert changed')
                 entry=self.entries[key]
-                if entry['target']!=key[1] or entry['task']!=key[1]//6 or cert['birth_task']!=entry['task']:
+                if (entry['target']!=key[1] or entry['task']!=key[1]//6 or cert['birth_task']!=entry['task'] or
+                        cert['donor']!=entry['donor'] or engine.spec['donor']!=entry['donor']):
                     raise ValueError('Inconsistent expert birth-task metadata')
         if not keys:return np.asarray(native).copy(),np.zeros(len(native),dtype=np.int64)
         if predicted_tasks is None:raise ValueError('Scoped fusion requires native predicted tasks')
@@ -205,6 +255,9 @@ class OriginalTrainService(FullCoverageService):
         report=json.loads(path.read_text(encoding='utf-8'))
         report.update(data_protocol=VERSION,train_fraction=1.0,local_validation_fraction=0.0,
                       prediction_fusion='predicted_task_scoped',acceptance_gate=False,
+                      router_mode=self.spec.get('router_mode','binary_cosine'),
+                      donor_policy='retain_else_current_graph_min_id',
+                      donor_handoff_count=sum(row.get('handoff_count',0) for row in self.history),
                       validation_metrics_status='NOT_MEASURED',activation_policy='training_only_unverified',
                       quality_status='UNVERIFIED',statistical_safety_certificate=False,
                       external_roles_created=False,shadow_native_models=0,expert_arms=list(self.arms),

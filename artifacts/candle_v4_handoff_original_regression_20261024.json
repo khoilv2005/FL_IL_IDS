@@ -1,0 +1,12 @@
+{
+  "protocol_version": "candle_v4_current_graph_handoff_v6",
+  "tests": 11,
+  "passed": true,
+  "errors": 0,
+  "failures": 0,
+  "fixture": "synthetic full current-task TRAIN NPZ only",
+  "validation_read": false,
+  "roles_created": false,
+  "real_TEST_opened": false,
+  "full_training_started": false
+}

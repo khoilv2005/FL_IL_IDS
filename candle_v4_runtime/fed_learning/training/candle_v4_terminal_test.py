@@ -39,7 +39,7 @@ def evaluate_terminal(service,models,detectors,task,round_id):
     expected=len(y);ids=sorted(models)
     if not ids:raise ValueError('No terminal receiver predictors')
     shards,partition=_partition_test_data_by_client(x,y,ids,seed=42+104729*5,lazy_features=True)
-    scoped=service.spec['version']=='candle_v4_predicted_task_scoped_v5'
+    scoped=service.spec['version']=='candle_v4_current_graph_handoff_v6'
     names=('V1',*service.arms);cms={a:np.zeros((34,34),dtype=np.int64) for a in names}
     fusion_counts={a:dict(rows=0,triggered=0,multiple_triggers=0,overrides=0) for a in service.arms}
     per_client={};rescue={a:0 for a in service.arms};broken={a:0 for a in service.arms}
