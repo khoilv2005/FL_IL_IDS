@@ -4,12 +4,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import torch
+import numpy as np
 
 from .candle_v4_service import FullCoverageService
 from .candle_v4_preflight import positive_neighbors
 from .candle_v4_shadow import digest,native_fingerprint
 
-VERSION='candle_v4_direct_prediction_fusion_v4'
+VERSION='candle_v4_predicted_task_scoped_v5'
 
 
 def validate_original_config(config):
@@ -150,14 +151,30 @@ class OriginalTrainService(FullCoverageService):
                     quality_metrics_status='NOT_MEASURED',activated=activated,deferred=deferred,experts=entries,
                     validation_opened=False,CAL_opened=False,TEST_opened=False)
 
-    def infer(self,receiver,arm,native,x):
+    def infer(self,receiver,arm,native,x,predicted_tasks=None):
+        from . import candle_v4_service as shared
+        from .candle_v4_bank import fuse_scoped
+        keys=sorted(k for k,status in self.status[arm].items() if k[0]==receiver and status=='ACTIVE')
+        if len(native)!=len(x):raise ValueError('Input/prediction length mismatch')
         for key,status in self.status[arm].items():
             if key[0]==receiver and status=='ACTIVE':
                 cert=self.certificates[arm][key]
                 if (cert['version']!=VERSION or cert['quality_status']!='UNVERIFIED' or
                         cert['acceptance_type']!='training_only_unverified'):
                     raise ValueError('Wrong provisional activation receipt')
-        return super().infer(receiver,arm,native,x)
+                engine=self.engines[arm][key]
+                if (cert['threshold']!=.5 or self.thresholds[arm][key]!=.5 or
+                        cert['input_sha256']!=self.spec['input_sha256'] or
+                        cert['sha256']!=digest(engine.branches['joint_class_balanced'][0].state_dict())):
+                    raise ValueError('ACTIVE expert changed')
+                entry=self.entries[key]
+                if entry['target']!=key[1] or entry['task']!=key[1]//6 or cert['birth_task']!=entry['task']:
+                    raise ValueError('Inconsistent expert birth-task metadata')
+        if not keys:return np.asarray(native).copy(),np.zeros(len(native),dtype=np.int64)
+        if predicted_tasks is None:raise ValueError('Scoped fusion requires native predicted tasks')
+        classes=[k[1] for k in keys];engines={k[1]:self.engines[arm][k] for k in keys}
+        return fuse_scoped(native,shared.score_matrix(engines,classes,x),[.5]*len(keys),classes,
+                           np.array([self.entries[k]['task'] for k in keys],dtype=np.int64),predicted_tasks)
 
     def evaluation_data(self,*args):
         raise ValueError('No validation access under full-TRAIN protocol')
@@ -187,7 +204,7 @@ class OriginalTrainService(FullCoverageService):
         path=Path(self.spec['output_dir'])/'candle_v4_development_report.json'
         report=json.loads(path.read_text(encoding='utf-8'))
         report.update(data_protocol=VERSION,train_fraction=1.0,local_validation_fraction=0.0,
-                      prediction_fusion='direct_after_round',acceptance_gate=False,
+                      prediction_fusion='predicted_task_scoped',acceptance_gate=False,
                       validation_metrics_status='NOT_MEASURED',activation_policy='training_only_unverified',
                       quality_status='UNVERIFIED',statistical_safety_certificate=False,
                       external_roles_created=False,shadow_native_models=0,expert_arms=list(self.arms),

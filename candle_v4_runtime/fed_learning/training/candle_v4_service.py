@@ -24,7 +24,7 @@ ARMS = ('coverage', 'no_aux', 'donor_only')
 
 class FullCoverageService:
     def __init__(self, spec, saved=None, authority=None):
-        if spec['version'] not in (VERSION, 'candle_v4_direct_prediction_fusion_v4') or spec['seed'] != 42:
+        if spec['version'] not in (VERSION, 'candle_v4_direct_prediction_fusion_v4', 'candle_v4_predicted_task_scoped_v5') or spec['seed'] != 42:
             raise ValueError('Unregistered full development protocol')
         self.spec = deepcopy(spec)
         self.arms = tuple(spec.get('arms', ARMS))
@@ -178,7 +178,7 @@ class FullCoverageService:
                  graph_sha256=digest(graph.get('alpha_debug',{})),
                  native_dense_payload_upper_bound=graph.get('dense_model_transfer_upper_bound_bytes'))
         self.history.append(row)
-        print(f'CANDLE V4 T{task} R{round_id}: experts={len(self.entries)} updates={sum(r["updates"] for r in receipt)} bytes={dict(self.bytes)}',flush=True)
+        if round_id==0 or (round_id+1)%self.spec.get('console_every_rounds',5)==0:print(f'CANDLE V4 T{task} R{round_id}: experts={len(self.entries)} updates={sum(r["updates"] for r in receipt)} bytes={dict(self.bytes)}',flush=True)
         return row
 
     def _wire(self,arm,kind,message,local=False):

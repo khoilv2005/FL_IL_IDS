@@ -33,7 +33,7 @@ def main():
               data_dir=str(data),output_dir=str(output),arms=['coverage'] if args.variant=='coverage' else [],
               data_protocol='100% original current-task TRAIN; no validation',fixed_threshold=.5,
               activation_policy='training_only_unverified',
-              prediction_fusion='direct_after_round',
+              prediction_fusion='predicted_task_scoped',console_every_rounds=5,
               per_expert_bytes=128*1024**2,per_arm_bytes=64*1024**3)
     config.update(data_dir=str(data),output_dir=str(output),resume_output_dir=str(output),
                   denice_clean_roles_dir=None,candle_v4_full_service=spec,candle_v4_original_train=True,
@@ -59,7 +59,7 @@ def main():
         policy='Caps are enforced, not a prediction of measured traffic; native traffic additional')
     lock_path=output/'candle_v4_run_lock.json'
     if args.resume:
-        if not lock_path.exists():raise ValueError('Restore the same direct-fusion v4 run lock with continuation')
+        if not lock_path.exists():raise ValueError('Restore the same predicted-task-scoped v5 run lock with continuation')
         previous=json.loads(lock_path.read_text())
         if previous['source_commit']!=source or previous['config']['candle_v4_full_service']!=spec:
             raise ValueError('Resume source/config changed')

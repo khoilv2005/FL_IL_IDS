@@ -13,10 +13,10 @@ import zipfile
 
 CODE_REF = "__REF__"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
-OUTPUT_DIR = "/kaggle/working/results_candle_v4_direct_fusion_seed42"
+OUTPUT_DIR = "/kaggle/working/results_candle_v4_scoped_seed42"
 VARIANT = "coverage"  # "native-only" reruns V1 with the SAME original-TRAIN protocol.
 # Optional mounted round continuation .pt or task archive .zip; empty=fresh T0.
-# Resume needs the same direct-fusion v4 run lock in that folder/archive.
+# Resume needs the same scoped-v5 run lock in that folder/archive.
 RESUME_STATE = ""
 
 if not Path('/kaggle/working').is_dir():
@@ -25,7 +25,7 @@ env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1"}
 for name in ('DENICE_CONFIG_FILE','DENICE_CONFIG_OVERRIDES','DENICE_RESUME_STATE_PATH',
              'DENICE_CONFIG_ONLY','DENICE_TASK_END'):
     env.pop(name,None)
-code = Path('/kaggle/working/candle_v4_direct_fusion_source')
+code = Path('/kaggle/working/candle_v4_scoped_source')
 if not code.exists():
     subprocess.check_call(['git','clone','--filter=blob:none','--no-checkout',
         'https://github.com/khoilv2005/FL_IL_IDS.git',str(code)],env=env)
@@ -59,12 +59,16 @@ if RESUME_STATE:
 print('Pinned source:',actual,flush=True)
 print('Full TEST runs only after Task5/Round19 consolidation; retain output with Kaggle Save Version.',flush=True)
 subprocess.check_call(args,cwd=runtime,env=env)
-print(Path(OUTPUT_DIR,'candle_v1_completion.json' if VARIANT=='native-only' else 'candle_v4_completion.json').read_text())
+import json
+completion=json.loads(Path(OUTPUT_DIR,'candle_v1_completion.json' if VARIANT=='native-only' else 'candle_v4_completion.json').read_text())
+print('Completed:',completion['completed'],'metrics:',
+      {arm:{k:m[k] for k in ('accuracy','macro_f1')} for arm,m in completion['final_test'].items()})
 '''
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--ref',required=True);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--ref',required=True)
+    parser.add_argument('--v4-only',action='store_true');args=parser.parse_args()
     if len(args.ref)!=40 or any(c not in '0123456789abcdef' for c in args.ref):raise ValueError('Full public SHA required')
     root=Path(__file__).resolve().parents[1];source=SOURCE.replace('__REF__',args.ref)
     markdown='''# CANDLE V4 — native coverage-aware, development seed 42
@@ -77,14 +81,17 @@ Receipts are training_only_unverified; no recall/FAR/break quality acceptance.
 
 Uses 100% original client TRAIN, filtered by current task; validation fraction0.0.
 NO validation split, BASE/FIT/CAL preparation, role manifest or shadow native model.
-Threshold .5, native fallback; validation/quality metrics NOT_MEASURED before final TEST.
+Threshold .5, native fallback; only experts matching the input-predicted binary-router task may override.
+No true task labels at inference. Missing router profiles use native fallback.
+Validation/quality metrics NOT_MEASURED before final TEST.
 Old experts retain frozen weights and stay provisionally ACTIVE through task transitions.
 **Full 34-class TEST runs once after Task5/Round19 and consolidation**.
 V1 native counterfactual and V4 use identical disjoint shards covering the entire TEST.
 Set VARIANT="native-only" and a separate OUTPUT_DIR for a standalone matched V1 rerun.
-No validation/acceptance callback: direct prediction fusion using fuse(), threshold .5.
+No validation/acceptance callback. Predicted-task-scoped fusion, threshold .5.
+V4 expert console summaries: first round and every 5 rounds. No per-sample expert logs.
 No MLP parameter aggregation into the CNN-GRU backbone.
-Old role/validation/provisional-v3 checkpoints cannot resume direct-fusion v4.
+Old checkpoints, including direct-fusion v4, cannot resume scoped-v5 training.
 Start fresh; never change gate/source or resume under a new protocol mid-run.
 No historical raw-data replay. Round continuation and task ZIPs contain expert state.
 Enable **GPU and Internet**. Source is cloned at a fixed Git SHA; no embedded runtime.
@@ -96,9 +103,12 @@ automatic saved notebook output. Set RESUME_STATE to resume a retained continuat
                dict(cell_type='code',metadata={},execution_count=None,outputs=[],source=source.splitlines(True))])
     (root/'train_candle_v4_kaggle.py').write_text(source,encoding='utf-8')
     (root/'train_candle_v4_kaggle.ipynb').write_text(json.dumps(notebook,ensure_ascii=False,indent=1)+'\n',encoding='utf-8')
+    if args.v4_only:
+        print('Created scoped V4 notebook pinned to',args.ref)
+        return
     v1source=source.replace('VARIANT = "coverage"','VARIANT = "native-only"').replace(
-        'results_candle_v4_direct_fusion_seed42','results_candle_v1_full_train_seed42').replace(
-        'candle_v4_direct_fusion_source','candle_v1_full_train_source').replace(
+        'results_candle_v4_scoped_seed42','results_candle_v1_full_train_seed42').replace(
+        'candle_v4_scoped_source','candle_v1_full_train_source').replace(
         '# CANDLE V4 coverage-aware full development. Edit paths only.',
         '# CANDLE V1 full-TRAIN baseline; native-only. Edit paths only.')
     v1notebook=json.loads(json.dumps(notebook))

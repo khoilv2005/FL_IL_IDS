@@ -61,7 +61,7 @@ class TerminalTests(unittest.TestCase):
                       output_dir=str(Path(self.directory.name)/str(index)))
             Path(spec['output_dir']).mkdir()
             self.service=OriginalTrainService(spec);self.prepare_terminal()
-            with patch.object(terminal,'IncrementalDataLoader',return_value=self.loader),patch.object(terminal,'base_predictions',side_effect=lambda m,d,x,seen:np.full(len(x),2,dtype=np.int64)):
+            with patch.object(terminal,'IncrementalDataLoader',return_value=self.loader),patch.object(terminal,'base_predictions',side_effect=lambda m,d,x,seen,return_episodes=False: (np.full(len(x),2,dtype=np.int64),np.zeros(len(x),dtype=np.int64)) if return_episodes else np.full(len(x),2,dtype=np.int64)):
                 result=terminal.evaluate_terminal(self.service,self.models,self.detectors,5,19)
             self.assertEqual(set(result['metrics']),{'V1',*arms})
             self.assertEqual(result['evaluated_rows'],102)
@@ -69,7 +69,7 @@ class TerminalTests(unittest.TestCase):
 
 if __name__=='__main__':
     result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(TerminalTests))
-    (ROOT/'artifacts/candle_v4_terminal_test_regression_20261023.json').write_text(json.dumps(dict(
+    (ROOT/'artifacts/candle_v4_scoped_terminal_regression_20261024.json').write_text(json.dumps(dict(
         tests=result.testsRun,passed=result.wasSuccessful(),failures=len(result.failures),errors=len(result.errors),
         real_TEST_opened=False,real_CAL_opened=False,full_training_started=False,fixture='synthetic TEST only'),indent=2)+'\n',encoding='utf-8')
     sys.exit(not result.wasSuccessful())

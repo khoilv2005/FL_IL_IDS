@@ -106,7 +106,7 @@ class OriginalTrainTests(unittest.TestCase):
         for k in s.entries:self.assertEqual(digest(s.engines['coverage'][k].state_dict()),digest(restored.engines['coverage'][k].state_dict()))
         self.assertEqual(s.bytes,restored.bytes);self.finish(s);restored=self.new(s.state_dict())
         self.assertEqual(s.status,restored.status);self.assertEqual(s.certificates,restored.certificates)
-        for version in ('candle_v4_original_train_v1','candle_v4_original_train_empirical_gate_v2','candle_v4_full_train_provisional_v3'):
+        for version in ('candle_v4_original_train_v1','candle_v4_original_train_empirical_gate_v2','candle_v4_full_train_provisional_v3','candle_v4_direct_prediction_fusion_v4'):
             saved=s.state_dict();saved['version']=version
             with self.assertRaises(ValueError):self.new(saved)
 
@@ -122,18 +122,50 @@ class OriginalTrainTests(unittest.TestCase):
     def test_provisional_inference_and_native_fallback(self):
         s=self.new();self.run_round(s)  # Inference works before task-end callbacks.
         with patch('fed_learning.training.candle_v4_service.score_matrix',return_value=np.array([[.9,.1],[.1,.1],[.1,.9]])):
-            self.assertEqual(s.infer(0,'coverage',np.array([2,2,2]),torch.zeros(3,39))[0].tolist(),[0,2,1])
+            self.assertEqual(s.infer(0,'coverage',np.array([2,2,2]),torch.zeros(3,39),predicted_tasks=np.zeros(3,dtype=np.int64))[0].tolist(),[0,2,1])
         s.certificates['coverage'][0,0]['quality_status']='VERIFIED'
-        with self.assertRaises(ValueError):s.infer(0,'coverage',np.array([2]),torch.zeros(1,39))
+        with self.assertRaises(ValueError):s.infer(0,'coverage',np.array([2]),torch.zeros(1,39),predicted_tasks=np.zeros(1,dtype=np.int64))
 
     def test_receipt_refreshes_as_active_expert_keeps_learning(self):
         s=self.new();self.run_round(s);old=s.certificates['coverage'][0,0]['sha256']
-        self.run_round(s,1)
+        with patch('builtins.print') as output:
+            self.run_round(s,1)
+        self.assertFalse(any('CANDLE V4 T' in str(c) for c in output.call_args_list))
         cert=s.certificates['coverage'][0,0]
         self.assertNotEqual(old,cert['sha256']);self.assertEqual(cert['activation_round'],1)
         self.assertEqual(cert['training_proof']['updates'],88)
         self.assertEqual(cert['sha256'],digest(s.engines['coverage'][0,0].branches['joint_class_balanced'][0].state_dict()))
-        s.infer(0,'coverage',np.array([2]),torch.zeros(1,39))
+        s.infer(0,'coverage',np.array([2]),torch.zeros(1,39),predicted_tasks=np.zeros(1,dtype=np.int64))
+
+    def test_scope_blocks_high_score_and_requires_real_routes(self):
+        s=self.new();self.run_round(s)
+        with patch('fed_learning.training.candle_v4_service.score_matrix',return_value=np.array([[1.,.99],[.9,.1]])):
+            before=digest(s.state_dict())
+            p,n=s.infer(0,'coverage',np.array([7,2]),torch.zeros(2,39),predicted_tasks=np.array([1,0]))
+            self.assertEqual(p.tolist(),[7,0]);self.assertEqual(n.tolist(),[0,1])
+            self.assertEqual(before,digest(s.state_dict()))
+            with self.assertRaises(ValueError):s.infer(0,'coverage',np.array([7,2]),torch.zeros(2,39))
+        s.entries[0,0]['task']=1
+        with self.assertRaises(ValueError):s.infer(0,'coverage',np.array([2]),torch.zeros(1,39),np.array([0]))
+
+    def test_scope_arbitration_invalid_routes_and_empty_bank(self):
+        from fed_learning.training.candle_v4_bank import fuse_scoped,base_predictions
+        native=np.array([2,8,14,3]);scores=np.array([[.9,.9,.99],[1.,.6,1.],[1.,1.,1.],[.1,.2,.9]])
+        args=(native,scores,[.5]*3,[0,1,6],np.array([0,0,1]))
+        p,n=fuse_scoped(*args,np.array([0,1,2,0]))
+        self.assertEqual(p.tolist(),[0,6,14,3]);self.assertEqual(n.tolist(),[2,1,0,0])
+        p,n=fuse_scoped(*args,np.full(4,-1,dtype=np.int64))
+        self.assertTrue(np.array_equal(p,native));self.assertFalse(n.any())
+        for routes in (np.array([0.]*4),np.array([-2,0,1,2]),np.array([0,1,2,6]),np.array([0])):
+            with self.assertRaises(ValueError):fuse_scoped(*args,routes)
+        s=self.new();p,n=s.infer(0,'coverage',native,torch.zeros(4,39))
+        self.assertTrue(np.array_equal(p,native));self.assertFalse(n.any())
+        model=torch.nn.Linear(39,34);model.train()
+        logits=torch.zeros(4,34);logits[:,2]=1
+        with patch('fed_learning.training.denice_eval._denice_routed_logits_with_episodes',return_value=(logits,np.array([0,1,2,3]))) as forward:
+            p,routes=base_predictions(model,None,torch.zeros(4,39),list(range(34)),return_episodes=True)
+        self.assertEqual(forward.call_count,1);self.assertTrue(model.training)
+        self.assertEqual(p.tolist(),[2]*4);self.assertEqual(routes.tolist(),[0,1,2,3])
 
     def test_causal_graph_and_native_only_baseline(self):
         s=self.new();self.run_round(s)
@@ -166,5 +198,5 @@ if __name__=='__main__':
     receipt=dict(protocol_version=original.VERSION,tests=result.testsRun,passed=result.wasSuccessful(),
         errors=len(result.errors),failures=len(result.failures),fixture='synthetic full current-task TRAIN NPZ only',
         validation_read=False,roles_created=False,real_TEST_opened=False,full_training_started=False)
-    (ROOT/'artifacts/candle_v4_direct_fusion_regression_20261024.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+    (ROOT/'artifacts/candle_v4_scoped_fusion_regression_20261024.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
     sys.exit(not result.wasSuccessful())
