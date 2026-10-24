@@ -6,12 +6,13 @@ import subprocess
 import sys
 import zipfile
 
-CODE_REF = "70ab07d8bdf4dd2d5bc0d089b210116ed96d97cc"
+CODE_REF = "a0524739c2bb93bd8ea1823d78710df04351528d"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
-OUTPUT_DIR = "/kaggle/working/results_candle_v4_scoped_seed42"
+OUTPUT_DIR = "/kaggle/working/results_candle_v4_handoff_multiclass_seed42"
 VARIANT = "coverage"  # "native-only" reruns V1 with the SAME original-TRAIN protocol.
+ROUTER_MODE = "multiclass_balanced"  # Locked in config; binary_cosine remains an explicit variant.
 # Optional mounted round continuation .pt or task archive .zip; empty=fresh T0.
-# Resume needs the same scoped-v5 run lock in that folder/archive.
+# Resume needs the same handoff-v6 run lock and router configuration.
 RESUME_STATE = ""
 
 if not Path('/kaggle/working').is_dir():
@@ -20,7 +21,7 @@ env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1"}
 for name in ('DENICE_CONFIG_FILE','DENICE_CONFIG_OVERRIDES','DENICE_RESUME_STATE_PATH',
              'DENICE_CONFIG_ONLY','DENICE_TASK_END'):
     env.pop(name,None)
-code = Path('/kaggle/working/candle_v4_scoped_source')
+code = Path('/kaggle/working/candle_v4_handoff_source')
 if not code.exists():
     subprocess.check_call(['git','clone','--filter=blob:none','--no-checkout',
         'https://github.com/khoilv2005/FL_IL_IDS.git',str(code)],env=env)
@@ -32,7 +33,7 @@ runtime = code/'candle_v4_runtime'
 subprocess.check_call([sys.executable,'-m','pip','install','-q','-r',
                        str(runtime/'requirements-candle-v1-kaggle.txt')],env=env)
 args = [sys.executable,'-u',str(runtime/'tools/train_candle_v4.py'),
-        '--data-dir',DATA_DIR,'--output',OUTPUT_DIR,'--variant',VARIANT]
+        '--data-dir',DATA_DIR,'--output',OUTPUT_DIR,'--variant',VARIANT,'--router-mode',ROUTER_MODE]
 if RESUME_STATE:
     source = Path(RESUME_STATE);out=Path(OUTPUT_DIR);out.mkdir(parents=True,exist_ok=True)
     if source.suffix=='.zip':
