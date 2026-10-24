@@ -14,14 +14,15 @@ def main():
     parser.add_argument('--data-dir',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--variant',choices=('coverage','native-only'),default='coverage')
-    parser.add_argument('--router-mode',choices=('binary_cosine','multiclass_balanced'),default='binary_cosine')
+    parser.add_argument('--router-mode',choices=('binary_cosine','multiclass_balanced','continuous_class_v1'),default='binary_cosine')
     parser.add_argument('--resume',help='Original-TRAIN continuation only; role-based checkpoints are incompatible')
     args=parser.parse_args()
+    if args.variant=='native-only' and args.router_mode=='continuous_class_v1':raise ValueError('Continuous router is a V4 variant; do not relabel it as V1')
     if not Path('/kaggle/working').is_dir():raise RuntimeError('Full training is Kaggle-only')
     root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root))
     import torch
     from tools.train_candle_v1 import resolve_data
-    from fed_learning.training.candle_v4_original_train import VERSION
+    from fed_learning.training.candle_v4_original_train import VERSION,CONTINUOUS_VERSION
     import hashlib
     if not torch.cuda.is_available():raise RuntimeError('Enable Kaggle GPU')
     data=resolve_data(args.data_dir);output=Path(args.output).resolve()
@@ -30,7 +31,8 @@ def main():
         if not (data/f'client_{owner}_train.npz').is_file():raise FileNotFoundError(f'Original TRAIN missing for client {owner}')
     if not args.resume and output.exists() and any(output.iterdir()):raise ValueError('Fresh output required')
     config=json.loads((root/'configs/candle_v1.json').read_text())
-    spec=dict(version=VERSION,seed=42,input_sha256=metadata_sha256,
+    protocol=CONTINUOUS_VERSION if args.router_mode=='continuous_class_v1' else VERSION
+    spec=dict(version=protocol,seed=42,input_sha256=metadata_sha256,
               data_dir=str(data),output_dir=str(output),arms=['coverage'] if args.variant=='coverage' else [],
               data_protocol='100% original current-task TRAIN; no validation',fixed_threshold=.5,
               activation_policy='training_only_unverified',
@@ -39,14 +41,14 @@ def main():
               per_expert_bytes=128*1024**2,per_arm_bytes=64*1024**3)
     config.update(data_dir=str(data),output_dir=str(output),resume_output_dir=str(output),
                   denice_clean_roles_dir=None,candle_v4_full_service=spec,candle_v4_original_train=True,
-                  denice_validation_fraction=0.0,denice_router_mode=args.router_mode,
+                  denice_validation_fraction=0.0,denice_router_mode=('multiclass_balanced' if args.router_mode=='continuous_class_v1' else args.router_mode),
                   denice_post_task_eval_tasks=[],denice_eval_final_round=False,
                   denice_evaluation_data_role='test',
                   candle_v4_terminal_full_test=True,
                   resume_state_path=str(Path(args.resume).resolve()) if args.resume else None)
     source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
     output.mkdir(parents=True,exist_ok=True)
-    lock=dict(version=VERSION,source_commit=source,seed=42,config=config,
+    lock=dict(version=protocol,source_commit=source,seed=42,config=config,
               protocol='100% current-task TRAIN; no validation, roles or shadow native model',
               evaluation='Per-task validation NOT_MEASURED; full 34-class TEST only after T5/R19 consolidation',
               controls=['native V1 counterfactual from same backbone; historical 80/2/8/10 V1 is not a matched baseline'],

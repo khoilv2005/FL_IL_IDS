@@ -69,9 +69,44 @@ print('Completed:',completion['completed'],'metrics:',
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--ref',required=True)
-    parser.add_argument('--v4-only',action='store_true');args=parser.parse_args()
+    parser.add_argument('--v4-only',action='store_true')
+    parser.add_argument('--continuous-only',action='store_true');args=parser.parse_args()
     if len(args.ref)!=40 or any(c not in '0123456789abcdef' for c in args.ref):raise ValueError('Full public SHA required')
     root=Path(__file__).resolve().parents[1];source=SOURCE.replace('__REF__',args.ref)
+    if args.continuous_only:
+        source=source.replace('ROUTER_MODE = "multiclass_balanced"','ROUTER_MODE = "continuous_class_v1"').replace(
+            'results_candle_v4_handoff_multiclass_seed42','results_candle_v4_continuous_class_seed42').replace(
+            'candle_v4_handoff_source','candle_v4_continuous_source').replace('same handoff-v6 run lock','same continuous-v7 run lock').replace(
+            'VARIANT = "coverage"  # "native-only" reruns V1 with the SAME original-TRAIN protocol.',
+            'VARIANT = "coverage"  # V4 only. Keep the separate V1 notebook unchanged.')
+        markdown='''# CANDLE V4 continuous_class_v1 — experimental variant
+
+Same original TRAIN, current-task filtering, backbone loss/optimizer/steps, graph,
+100 clients, seed42, six tasks x20 rounds and final T5/R19 TEST protocol.
+V1 source and notebook remain unchanged. No validation/roles/shadow model.
+
+The V4-only router keeps continuous selected activations and class/task identity
+from the SAME native reference samples, capped by the existing per-class budget.
+It does not retain raw inputs. Native binary memory/capsules and RNG are preserved.
+Scaler and class-balanced LR fit only saved feature memory; class predictions map
+to task IDs. No true task at inference. Expert handoff and scoped threshold .5 remain.
+
+Native V1 multiclass remains a separate unchanged evaluation control on identical
+TEST rows. Continuous-native and expert outputs are recorded without fitting TEST.
+No extra per-round/per-task evaluation. Logging stays compact.
+
+This variant has technical regression only, NO measured benchmark gain.
+Fresh current-task memory capture is required: binary checkpoints cannot convert.
+Keep RESUME_STATE empty for a new run; old v4/v5/v6 runs cannot resume as v7.
+Enable GPU + Internet. Use Kaggle Save Version to retain checkpoint/output.
+'''
+        notebook=dict(nbformat=4,nbformat_minor=5,metadata=dict(kernelspec=dict(display_name='Python 3',language='python',name='python3'),language_info=dict(name='python')),
+            cells=[dict(cell_type='markdown',metadata={},source=markdown.splitlines(True)),
+                   dict(cell_type='code',metadata={},execution_count=None,outputs=[],source=source.splitlines(True))])
+        (root/'train_candle_v4_continuous_router_kaggle.py').write_text(source,encoding='utf-8')
+        (root/'train_candle_v4_continuous_router_kaggle.ipynb').write_text(json.dumps(notebook,ensure_ascii=False,indent=1)+'\n',encoding='utf-8')
+        print('Created separate continuous V4 notebook pinned to',args.ref)
+        return
     markdown='''# CANDLE V4 — native coverage-aware, development seed 42
 
 100 benchmark clients, six tasks ×20 rounds; native V1 batch2048/AMP, one GPU.

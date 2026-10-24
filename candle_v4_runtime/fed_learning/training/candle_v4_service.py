@@ -24,7 +24,7 @@ ARMS = ('coverage', 'no_aux', 'donor_only')
 
 class FullCoverageService:
     def __init__(self, spec, saved=None, authority=None):
-        if spec['version'] not in (VERSION, 'candle_v4_direct_prediction_fusion_v4', 'candle_v4_predicted_task_scoped_v5', 'candle_v4_current_graph_handoff_v6') or spec['seed'] != 42:
+        if spec['version'] not in (VERSION, 'candle_v4_direct_prediction_fusion_v4', 'candle_v4_predicted_task_scoped_v5', 'candle_v4_current_graph_handoff_v6', 'candle_v4_continuous_class_router_v7') or spec['seed'] != 42:
             raise ValueError('Unregistered full development protocol')
         self.spec = deepcopy(spec)
         self.arms = tuple(spec.get('arms', ARMS))

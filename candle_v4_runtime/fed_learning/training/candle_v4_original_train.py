@@ -11,6 +11,7 @@ from .candle_v4_preflight import positive_neighbors
 from .candle_v4_shadow import digest,native_fingerprint
 
 VERSION='candle_v4_current_graph_handoff_v6'
+CONTINUOUS_VERSION='candle_v4_continuous_class_router_v7'
 
 
 def validate_original_config(config):
@@ -22,21 +23,39 @@ def validate_original_config(config):
         if config.get(name)!=value:raise ValueError(f'Original TRAIN V4 requires {name}={value!r}')
     if config.get('denice_max_train_samples_per_client') or config.get('denice_max_batches_per_epoch'):
         raise ValueError('No pilot native training sample/step cap in original TRAIN full run')
-    if config['candle_v4_full_service']['version']!=VERSION:raise ValueError('Wrong data-service version')
+    version=config['candle_v4_full_service']['version']
+    if version not in (VERSION,CONTINUOUS_VERSION):raise ValueError('Wrong data-service version')
     router=config.get('denice_router_mode')
-    if router not in ('binary_cosine','multiclass_balanced') or router!=config['candle_v4_full_service'].get('router_mode','binary_cosine'):
+    effective=config['candle_v4_full_service'].get('router_mode','binary_cosine')
+    allowed=('continuous_class_v1',) if version==CONTINUOUS_VERSION else ('binary_cosine','multiclass_balanced')
+    expected='multiclass_balanced' if version==CONTINUOUS_VERSION else effective
+    if effective not in allowed or router!=expected:
         raise ValueError('Router mode must match the locked V4 spec')
+    if version==CONTINUOUS_VERSION and (config.get('denice_memory_policy')!='sketches' or
+            config.get('denice_router_replay_enabled') or config.get('denice_replay_capacity',0)):
+        raise ValueError('Continuous variant forbids raw replay/reference memory')
 
 
 class OriginalTrainService(FullCoverageService):
     def __init__(self,spec,saved=None):
-        if (spec.get('version')!=VERSION or spec.get('arms') not in (['coverage'],[]) or
+        if (spec.get('version') not in (VERSION,CONTINUOUS_VERSION) or spec.get('arms') not in (['coverage'],[]) or
                 spec.get('fixed_threshold')!=.5 or spec.get('activation_policy')!='training_only_unverified'):
             raise ValueError('Original TRAIN protocol requires one coverage bank or native-only baseline')
         self.sampling_cache={};self.count_cache={}
         super().__init__(spec,saved,authority=SimpleNamespace(manifest={}))
         self.metadata_roles=('train',)
         self.current_clients={}
+        self.continuous_routers={}
+        if self.spec['version']==CONTINUOUS_VERSION and saved:
+            from fed_learning.servers.continuous_class_router import ContinuousClassMemory
+            if 'continuous_routers' not in saved:raise ValueError('Continuous checkpoint memory missing')
+            self.continuous_routers={int(cid):ContinuousClassMemory.restore(state) for cid,state in saved['continuous_routers'].items()}
+
+    def state_dict(self):
+        state=super().state_dict()
+        if self.spec['version']==CONTINUOUS_VERSION:
+            state['continuous_routers']={cid:memory.state_dict() for cid,memory in self.continuous_routers.items()}
+        return state
 
     def begin_task(self,task):
         if self.task is not None and task<self.task:raise ValueError('Historical task access')
@@ -186,7 +205,7 @@ class OriginalTrainService(FullCoverageService):
                 entries[key[1]]=dict(status='DEFERRED',training_proof=proof,finite_weights=finite)
                 continue
             self.thresholds[arm][key]=.5;self.status[arm][key]='ACTIVE';activated.append(key[1])
-            self.certificates[arm][key]=dict(version=VERSION,sha256=sha,threshold=.5,
+            self.certificates[arm][key]=dict(version=self.spec['version'],sha256=sha,threshold=.5,
                 input_sha256=self.spec['input_sha256'],birth_task=entry['task'],activation_task=task,
                 activation_round=self.boundary[1],
                 donor=entry['donor'],training_proof=proof,quality_status='UNVERIFIED',
@@ -208,7 +227,7 @@ class OriginalTrainService(FullCoverageService):
         for key,status in self.status[arm].items():
             if key[0]==receiver and status=='ACTIVE':
                 cert=self.certificates[arm][key]
-                if (cert['version']!=VERSION or cert['quality_status']!='UNVERIFIED' or
+                if (cert['version']!=self.spec['version'] or cert['quality_status']!='UNVERIFIED' or
                         cert['acceptance_type']!='training_only_unverified'):
                     raise ValueError('Wrong provisional activation receipt')
                 engine=self.engines[arm][key]
@@ -253,7 +272,7 @@ class OriginalTrainService(FullCoverageService):
         super().write_report()
         path=Path(self.spec['output_dir'])/'candle_v4_development_report.json'
         report=json.loads(path.read_text(encoding='utf-8'))
-        report.update(data_protocol=VERSION,train_fraction=1.0,local_validation_fraction=0.0,
+        report.update(data_protocol=self.spec['version'],train_fraction=1.0,local_validation_fraction=0.0,
                       prediction_fusion='predicted_task_scoped',acceptance_gate=False,
                       router_mode=self.spec.get('router_mode','binary_cosine'),
                       donor_policy='retain_else_current_graph_min_id',
@@ -266,4 +285,9 @@ class OriginalTrainService(FullCoverageService):
                       baseline='Native V1 counterfactual on the same full current-task TRAIN',
                       forgetting_status='NOT_MEASURED; no intermediate TEST or historical validation')
         report['activation_events']=report.pop('acceptances')
+        if self.spec['version']==CONTINUOUS_VERSION:
+            report['continuous_router_memory']={cid:memory.stats() for cid,memory in self.continuous_routers.items()}
+            report['continuous_local_feature_bytes']=sum(memory.stats()['feature_bytes'] for memory in self.continuous_routers.values())
+            report['native_control_router_mode']='multiclass_balanced'
+            report['baseline']='Unchanged native V1 + multiclass control on identical TEST rows'
         path.write_text(json.dumps(report,indent=2),encoding='utf-8')
