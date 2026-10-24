@@ -1,0 +1,156 @@
+{
+  "completed": true,
+  "clients": 100,
+  "test_rows": 13505771,
+  "accuracy_v1": 0.3844060439052313,
+  "accuracy_v4_scoped": 0.4290726534605096,
+  "macro_f1_v1": 0.19866202210076128,
+  "macro_f1_v4_scoped": 0.23038832332506146,
+  "accuracy_gain_pp": 4.466660955527829,
+  "macro_f1_gain_pp": 3.1726301224300175,
+  "rows": 13505771,
+  "expert_count": 667,
+  "triggered": 2895679,
+  "multiple_triggers": 366150,
+  "rescue": 705677,
+  "break_count": 102420,
+  "net_correct": 603257,
+  "clients_improved": 86,
+  "clients_tied": 1,
+  "clients_worsened": 13,
+  "route_accuracy": 0.4551918583544768,
+  "remaining_total_errors": 7710814,
+  "remaining_wrong_route_errors": 7358054,
+  "remaining_correct_route_class_errors": 352760,
+  "remaining_error_fraction_wrong_route": 0.9542512632259058,
+  "coverage": {
+    "rows": 13505771,
+    "task_available_rows": 10464359,
+    "task_absent_rows": 3041412,
+    "native_class_available_rows": 7692013,
+    "native_or_expert_class_available_rows": 10343761,
+    "correct_route": 6147717,
+    "wrong_route_with_task_available": 4316642,
+    "task_coverage": 0.7748064882782331,
+    "route_accuracy_on_available_tasks": 0.5874910254894734,
+    "native_class_coverage": 0.5695352749576459,
+    "native_or_expert_class_coverage": 0.7658771202325287
+  },
+  "largest_break_pairs": [
+    {
+      "true_class": 22,
+      "expert_class": 23,
+      "count": 33218
+    },
+    {
+      "true_class": 23,
+      "expert_class": 22,
+      "count": 23429
+    },
+    {
+      "true_class": 13,
+      "expert_class": 12,
+      "count": 18853
+    },
+    {
+      "true_class": 32,
+      "expert_class": 30,
+      "count": 4450
+    },
+    {
+      "true_class": 1,
+      "expert_class": 3,
+      "count": 4082
+    },
+    {
+      "true_class": 1,
+      "expert_class": 2,
+      "count": 3954
+    },
+    {
+      "true_class": 1,
+      "expert_class": 0,
+      "count": 2077
+    },
+    {
+      "true_class": 12,
+      "expert_class": 13,
+      "count": 1504
+    },
+    {
+      "true_class": 14,
+      "expert_class": 13,
+      "count": 1376
+    },
+    {
+      "true_class": 32,
+      "expert_class": 33,
+      "count": 1325
+    }
+  ],
+  "break_by_task": {
+    "3": 57311,
+    "4": 6107,
+    "5": 6264,
+    "2": 22104,
+    "1": 351,
+    "0": 10283
+  },
+  "lock": {
+    "version": "candle_v4_mc_scoped_readout_v1",
+    "reference_sha256": "c8a3a0917ca6e01d6d4811cc9037d9cafe72fccece2174ace9babb998471a6bc",
+    "checkpoint_sha256": "57f1a05e0c0732de11dd4179b44d1a865b39955574552abfcc7a909f87a38b41",
+    "test_sha256": "bfdb96f41a233cbc5a574074899c98cd5dd766bb6b109e8756ce328bcd32e54f",
+    "threshold": 0.5,
+    "router": "multiclass_balanced",
+    "seed": 523687,
+    "batch": 512,
+    "source_commit": "2ec3d0e43b4cccd4ebc56a9ad78ddacdd9f41a20",
+    "no_training": true
+  },
+  "evaluation": "Read-only retrospective checkpoint development; no real training or threshold tuning",
+  "direct_full_forward_verification": {
+    "passed": true,
+    "clients": {
+      "9": {
+        "native": 0,
+        "scoped": 0
+      },
+      "71": {
+        "native": 0,
+        "scoped": 0
+      }
+    },
+    "note": "Direct full native multiclass forward plus scoped expert fusion; no reused class confusion cells"
+  },
+  "alternate_donor_proof": {
+    "owner": 48,
+    "target": 12,
+    "original_TRAIN_label_count": 3075,
+    "minimum_count": 32,
+    "labels_only_metadata_audit": true,
+    "training_inputs_opened": false,
+    "optimizer_run": false,
+    "both_receivers_all_rounds_1_to_19_have_alternate_in_actual_positive_graph": true
+  },
+  "training_budget_breakdown": {
+    "880_updates": {
+      "experts": 522,
+      "rescue": 628271,
+      "break_count": 72942,
+      "net": 555329
+    },
+    "other_partial": {
+      "experts": 120,
+      "rescue": 44694,
+      "break_count": 5738,
+      "net": 38956
+    },
+    "44_updates": {
+      "experts": 25,
+      "rescue": 32712,
+      "break_count": 23740,
+      "net": 8972
+    }
+  }
+}
