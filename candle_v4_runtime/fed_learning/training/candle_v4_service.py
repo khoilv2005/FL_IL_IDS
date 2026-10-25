@@ -24,7 +24,7 @@ ARMS = ('coverage', 'no_aux', 'donor_only')
 
 class FullCoverageService:
     def __init__(self, spec, saved=None, authority=None):
-        if spec['version'] not in (VERSION, 'candle_v4_direct_prediction_fusion_v4') or spec['seed'] != 42:
+        if spec['version'] not in (VERSION, 'candle_v4_direct_prediction_fusion_v4', 'candle_v4_predicted_task_scoped_v5', 'candle_v4_current_graph_handoff_v6', 'candle_v4_continuous_class_router_v7') or spec['seed'] != 42:
             raise ValueError('Unregistered full development protocol')
         self.spec = deepcopy(spec)
         self.arms = tuple(spec.get('arms', ARMS))
@@ -128,6 +128,9 @@ class FullCoverageService:
             return self._after_round(task,round_id,models,detectors,clients,active_ids,graph)
         finally:torch.set_num_threads(threads)
 
+    def _select_training_donor(self,key,peers,data,graph):
+        return self.entries[key]['donor'],None
+
     def _after_round(self,task,round_id,models,detectors,clients,active_ids,graph):
         if self.task != task:self.begin_task(task)
         if self.boundary and (task,round_id)<=tuple(self.boundary):raise ValueError('Repeated V4 round')
@@ -149,7 +152,9 @@ class FullCoverageService:
             if receiver not in active_ids:continue
             engine=self.engines['coverage'][key]
             data={o:self._data(o,clients,engine) for o in sorted({receiver,*peers})}
+            donor,authorization=self._select_training_donor(key,peers,data,graph)
             eligible=donor in peers and bool((data[donor][1]==c).any())
+            if authorization is not None:eligible=eligible and authorization['authorized']
             if eligible:
                 required_pools=({donor},{receiver,donor}) if 'donor_only' in self.arms else ({receiver,donor},)
                 eligible=all(sum(int((data[o][1]!=c).sum()) for o in owners)>0
@@ -170,15 +175,18 @@ class FullCoverageService:
                 updated+=1
             for arm in self.arms:
                 e=self.engines[arm][key]
-                receipt.append(dict(receiver=receiver,target=c,arm=arm,eligible=eligible,
-                                    donor=donor,updates=updated,steps=e.steps,pending=e.pending))
+                record=dict(receiver=receiver,target=c,arm=arm,eligible=eligible,
+                            donor=donor,updates=updated,steps=e.steps,pending=e.pending)
+                if authorization is not None:record['donor_authorization']=authorization
+                receipt.append(record)
         if before!=native_fingerprint(models,detectors):raise RuntimeError('V4 mutated native state')
         self.runtime+=time.perf_counter()-start
         row=dict(task=task,round=round_id,experts=receipt,bytes=dict(self.bytes),native_sha256=before,
                  graph_sha256=digest(graph.get('alpha_debug',{})),
-                 native_dense_payload_upper_bound=graph.get('dense_model_transfer_upper_bound_bytes'))
+                 native_dense_payload_upper_bound=graph.get('dense_model_transfer_upper_bound_bytes'),
+                 handoff_count=sum(bool(r.get('donor_authorization',{}).get('handoff')) for r in receipt if r['arm']=='coverage'))
         self.history.append(row)
-        print(f'CANDLE V4 T{task} R{round_id}: experts={len(self.entries)} updates={sum(r["updates"] for r in receipt)} bytes={dict(self.bytes)}',flush=True)
+        if round_id==0 or (round_id+1)%self.spec.get('console_every_rounds',5)==0:print(f'CANDLE V4 T{task} R{round_id}: experts={len(self.entries)} updates={sum(r["updates"] for r in receipt)} handoffs_task={sum(r.get("handoff_count",0) for r in self.history if r["task"]==task)} bytes={dict(self.bytes)}',flush=True)
         return row
 
     def _wire(self,arm,kind,message,local=False):

@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "unchanged_protected_files": {
+    "candle_v4_runtime/fed_learning/servers/nice_server.py": true,
+    "candle_v4_runtime/fed_learning/training/local_task_loop.py": true,
+    "candle_v4_runtime/fed_learning/training/denice_eval.py": true,
+    "candle_v4_runtime/fed_learning/training/checkpoint_state.py": true,
+    "train_candle_v1_kaggle.ipynb": true,
+    "train_candle_v1_kaggle.py": true,
+    "fed_learning/servers/nice_server.py": true,
+    "candle_v4_runtime/configs/candle_v1.json": true
+  },
+  "sha256": {
+    "candle_v4_runtime/fed_learning/servers/nice_server.py": "25872917e5f4ff70b6e40ac48a84920817b907775a7d78a5593881a20f4b557f",
+    "candle_v4_runtime/fed_learning/training/local_task_loop.py": "e7b0bddb1bec4eec5dc0cedc0f185a990e3e806b79a69b89b3b06f92fbbd38ec",
+    "candle_v4_runtime/fed_learning/training/denice_eval.py": "8854922f33b535404918432fa165abdf775471ca57981c1ad20e67924d1ccf1b",
+    "candle_v4_runtime/fed_learning/training/checkpoint_state.py": "4fbc0000ef9492f0a33713b336d8f505f24ee2f5e1e1631a0f796cc751a7d262",
+    "train_candle_v1_kaggle.ipynb": "bd4191e9d82fec8b0d4caf7941d64a5ee68cf6814e6e81826d2065541043e2d5",
+    "train_candle_v1_kaggle.py": "7cd375661a1d89684c8754dfc5e0fba6600cba62ab345876cce984cea1200a0c",
+    "fed_learning/servers/nice_server.py": "2637197a71f05b86ddeb62c0108c6bb9b12242ea834f7d1e0e3cb02335d19e0d",
+    "candle_v4_runtime/configs/candle_v1.json": "9e06057eca9647932079687ca6242d46e1fe55f913c129a906c9b90ea2471622"
+  },
+  "real_TEST_opened": false,
+  "full_training_started": false,
+  "protected_git_diff_empty": true
+}

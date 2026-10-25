@@ -37,19 +37,41 @@ def score_matrix(engines, classes, x):
                                 for c in classes]) if classes else np.empty((len(x), 0))
 
 
-def base_predictions(model, detector, x, seen_classes):
+def fuse_scoped(native, scores, thresholds, classes, expert_tasks, predicted_tasks):
+    """Use input-predicted routing only; outside-scope experts cannot override."""
+    native=np.asarray(native)
+    routes=np.asarray(predicted_tasks)
+    tasks=np.asarray(expert_tasks)
+    if routes.shape!=(len(native),) or routes.dtype.kind not in 'iu' or np.any((routes<-1)|(routes>5)):
+        raise ValueError('Expected one predicted task ID 0..5, or -1 for native fallback, per input')
+    if tasks.shape!=(len(classes),) or tasks.dtype.kind not in 'iu' or np.any((tasks<0)|(tasks>5)):
+        raise ValueError('Invalid expert birth-task metadata')
+    scores=np.asarray(scores)
+    if scores.shape!=(len(native),len(classes)) or not np.isfinite(scores).all():
+        raise ValueError('Malformed expert scores')
+    thresholds=np.asarray(thresholds)
+    if thresholds.shape!=(len(classes),) or not np.all(thresholds==.5):
+        raise ValueError('Scoped fusion requires fixed threshold 0.5')
+    return fuse(native,np.where(routes[:,None]==tasks[None,:],scores,-1.),thresholds,classes)
+
+
+def base_predictions(model, detector, x, seen_classes, return_episodes=False):
     from .denice_eval import _denice_routed_logits_with_episodes
     modes = [(module, module.training) for module in model.modules()]
-    device = next(model.parameters()).device; model.eval(); predictions=[]
+    device = next(model.parameters()).device; model.eval(); predictions=[];episodes=[]
     try:
         with torch.no_grad():
             for start in range(0, len(x), 512):
-                logits,_ = _denice_routed_logits_with_episodes(model,x[start:start+512].to(device),
+                logits,ep = _denice_routed_logits_with_episodes(model,x[start:start+512].to(device),
                     detector,seen_classes,str(device),inference_policy='pred_hard')
                 predictions.extend(logits.argmax(1).cpu().tolist())
+                if return_episodes:
+                    # A detector with no task profile follows native fallback only.
+                    episodes.extend(np.full(len(logits),-1,dtype=np.int64).tolist() if ep is None else np.asarray(ep).tolist())
     finally:
         for module, mode in modes: module.training=mode
-    return np.asarray(predictions, dtype=np.int64)
+    predictions=np.asarray(predictions,dtype=np.int64)
+    return (predictions,np.asarray(episodes,dtype=np.int64)) if return_episodes else predictions
 
 
 class ExpertBank:

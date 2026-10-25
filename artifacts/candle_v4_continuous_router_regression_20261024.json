@@ -1,0 +1,11 @@
+{
+  "version": "continuous_class_v1",
+  "tests": 9,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "fixture": "synthetic TRAIN, real encoder, unchanged V1 sampler/graph/control path",
+  "real_TEST_opened": false,
+  "old_raw_data_replayed": false,
+  "full_training_started": false
+}

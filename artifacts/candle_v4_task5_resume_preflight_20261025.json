@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "checks": {
+    "explicit_task4_ignores_latest": true,
+    "repeat_preparation_preserves_state": true,
+    "incomplete_rounds_rejected": true,
+    "checksum_mismatch_rejected": true,
+    "existing_task5_not_overwritten": true,
+    "notebook_companion_syntax": true,
+    "existing_v1_v4_notebooks_unchanged": true
+  },
+  "checkpoint": {
+    "source_commit": "37a277c8f6ae85e74c9553d4d30e5e27f052ca93",
+    "version": "candle_v4_continuous_class_router_v7",
+    "meta": {
+      "mode": "decentralized",
+      "algorithm": "denice",
+      "completed_task": 4,
+      "resume_from_task": 5,
+      "boundary": "task"
+    },
+    "round_state_is_none": true,
+    "continuation_member": "continuation_state_task_4.pt",
+    "continuation_bytes": 800923403,
+    "sha256": "1336e1d91f4301bac73b78005c9ecd195bbd3ec36b9d4832e7b3b63967bed075",
+    "clients": 99,
+    "continuous_routers": 99
+  },
+  "training_started": false,
+  "TEST_opened": false
+}

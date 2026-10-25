@@ -103,6 +103,7 @@ from fed_learning.training.checkpoint_state import (
 from fed_learning.training.local_task_loop import (
     _update_local_nice_context_memory,
 )
+from fed_learning.training.candle_v4_continuous_runtime import update_memory as _update_v4_router_memory
 from fed_learning.training.task_loop import _resolve_output_dir
 from fed_learning.utils.seed import set_seed
 
@@ -2691,7 +2692,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
     v4_shadow = None
     if config.get('candle_v4_full_service'):
-        if config['candle_v4_full_service'].get('version') == 'candle_v4_direct_prediction_fusion_v4':
+        if config['candle_v4_full_service'].get('version') in ('candle_v4_current_graph_handoff_v6', 'candle_v4_continuous_class_router_v7'):
             from fed_learning.training.candle_v4_original_train import OriginalTrainService
             service_type = OriginalTrainService
         else:
@@ -3187,8 +3188,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 if _should_update_local_router_context(
                     round_id, router_update_schedule
                 ):
-                    context_profile = _update_local_nice_context_memory(
-                        context_detectors[cid],
+                    context_profile = _update_v4_router_memory(
+                        v4_shadow, cid, context_detectors[cid],
                         model,
                         client.X_train,
                         client.y_train,
@@ -3330,8 +3331,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
             for cid in active_ids:
                 context_detectors[cid].mark_router_stale("encoder_changed_after_aggregation")
                 if config.get('denice_memory_policy', 'references') in ('sketches', 'local_replay'):
-                    _update_local_nice_context_memory(
-                        context_detectors[cid], models[cid], clients[cid].X_train,
+                    _update_v4_router_memory(
+                        v4_shadow, cid, context_detectors[cid], models[cid], clients[cid].X_train,
                         clients[cid].y_train, task_id, context_detectors[cid].episode_classes[task_id], str(device), fit_router=True,
                     )
                     context_detectors[cid].mark_router_fresh(task_id=task_id, round_id=round_id)
@@ -3953,8 +3954,8 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                 history.setdefault('router_replay', []).append({'task': task_id, 'client_id': cid, **audit})
 
         if v4_shadow and hasattr(v4_shadow, 'finish_task'):
-            completion_key = ('candle_v4_task_completion' if config.get('candle_v4_full_service', {}).get('version') ==
-                              'candle_v4_direct_prediction_fusion_v4' else 'candle_v4_gate')
+            completion_key = ('candle_v4_task_completion' if config.get('candle_v4_full_service', {}).get('version') in
+                              ('candle_v4_current_graph_handoff_v6', 'candle_v4_continuous_class_router_v7') else 'candle_v4_gate')
             cluster_summary[completion_key] = v4_shadow.finish_task(
                 task_id, models, context_detectors, clients, active_ids, cluster_summary)
         if appliance_probe:
