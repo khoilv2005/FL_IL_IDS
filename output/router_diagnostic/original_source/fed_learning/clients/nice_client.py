@@ -1,0 +1,342 @@
+"""
+NICE Client - Client for Neurogenesis Inspired Contextual Encoding.
+
+Reference:
+    "NICE: Neurogenesis Inspired Contextual Encoding for Replay-free Class Incremental Learning"
+    Gurbuz, Moorman, Dovrolis (CVPR 2024)
+    GitHub: https://github.com/BurakGurbuz97/NICE
+
+Key Features:
+    - Phase-based training: max_phases x phase_epochs per episode
+    - Tau-greedy neuron selection per phase
+    - Connection pruning (drop_young_to_learner, grow_all_to_young)
+    - Output masking via model.forward_output()
+    - Gradient freezing via model.reset_frozen_gradients()
+    - No replay buffer (replay-free)
+"""
+
+import torch
+import math
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Dict, Optional, List, Set, Any
+from collections import OrderedDict
+
+try:
+    from torch.amp import autocast as torch_autocast, GradScaler
+except ImportError:
+    from torch.cuda.amp import autocast as torch_autocast, GradScaler
+
+from .client import FederatedClient
+from ..core import BaseTrainer
+from ..models.nice_model import NICEModel
+from ..strategies.fed_incremental.nice import (
+    select_learner_units,
+    drop_young_to_learner,
+    grow_all_to_young,
+)
+
+
+class NICEClient(FederatedClient):
+    """
+    Client for NICE algorithm with phase-based training.
+
+    Training loop per episode (task):
+        For each phase in max_phases:
+            1. select_learner_units(model, tau, sample_data)
+               - Phase 1: tau=1.0 (keep all), Phase 2+: tau=0.95
+            2. drop_young_to_learner(model) - prune connections
+            3. grow_all_to_young(model) - restore young connections
+            4. Train phase_epochs with:
+               - model.forward_output(x) for loss (output masking)
+               - model.reset_frozen_gradients() after backward
+            5. Store activations for context detector
+
+    No replay buffer needed (replay-free algorithm).
+    """
+
+    def __init__(
+        self,
+        client_id: int,
+        X_train: torch.Tensor,
+        y_train: torch.Tensor,
+        max_phases: int = 5,
+        phase_epochs: int = 5,
+        tau: float = 0.95,
+    ):
+        super().__init__(client_id, X_train, y_train)
+
+        # NICE hyperparameters
+        self.max_phases = max_phases
+        self.phase_epochs = phase_epochs
+        self.tau = tau
+
+        # Task tracking
+        self.current_task: int = 0
+        self.current_classes: Set[int] = set()
+        self.seen_classes: Set[int] = set()
+
+    def set_task_data(
+        self,
+        X_train: torch.Tensor,
+        y_train: torch.Tensor,
+        task_id: int,
+        task_classes: List[int],
+    ):
+        """Set data for current task."""
+        self.X_train = X_train
+        self.y_train = y_train
+        self.num_samples = len(y_train)
+        self.current_task = task_id
+        self.current_classes = set(task_classes)
+        self.seen_classes.update(task_classes)
+
+    def train(
+        self,
+        trainer: BaseTrainer,
+        epochs: int,
+        batch_size: int,
+        lr: float,
+        global_params: Optional[OrderedDict] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Phase-based NICE training.
+
+        The `epochs` parameter is ignored in favor of max_phases x phase_epochs.
+        This matches the paper's training protocol.
+
+        Official behavior (from GitHub learner.py):
+        - New optimizer created each phase (fresh momentum/state)
+        - Phase 1: tau=100% (keep all), Phase 2+: tau=95%
+        - Last episode: all phases use tau=100% (keep all neurons)
+
+        Args:
+            trainer: NICETrainer instance
+            epochs: Ignored (uses max_phases x phase_epochs)
+            batch_size: Batch size
+            lr: Learning rate
+            global_params: Global model parameters
+            **kwargs: Additional arguments (neuron_ages, masks, is_last_task, etc.)
+
+        Returns:
+            Dict with client_id, num_samples, loss, params, neuron_ages
+        """
+        model = self.model
+        model.train()
+
+        # Get NICE-specific config from kwargs or trainer
+        max_phases = getattr(trainer, "max_phases", self.max_phases)
+        phase_epochs = getattr(trainer, "phase_epochs", self.phase_epochs)
+        tau = getattr(trainer, "tau", self.tau)
+        is_last_task = kwargs.get("is_last_task", False)
+        phase_offset = int(kwargs.get("phase_offset", 0))
+        max_phases_override = kwargs.get("max_phases_override")
+        class_weights = kwargs.get("class_weights")
+        # Opt-in V2 workers receive canonical cluster allocation/masks. Local
+        # selection/pruning would destroy shared parameter coordinates. V1's
+        # default continues to run its existing preparation unchanged.
+        cluster_layout_locked = bool(kwargs.get("cluster_layout_locked", False))
+        if max_phases_override is not None:
+            max_phases = max(1, int(max_phases_override))
+
+        # Sample data for neuron selection (subsample for efficiency)
+        if not cluster_layout_locked:
+            n_sample = min(500, self.num_samples)
+            sample_idx = torch.randperm(self.num_samples)[:n_sample]
+            sample_data = self.X_train[sample_idx].to(self.device)
+
+        total_loss = 0.0
+        total_objective = 0.0
+        total_batches = 0
+        successful_steps = 0
+        use_amp = self.use_amp and bool(kwargs.get("amp_enabled", True))
+        # Keep loss-scale adaptation across client rounds; optimizer state is
+        # intentionally restarted per NICE phase, scaler state is not.
+        if use_amp and getattr(self, "_nice_grad_scaler", None) is None:
+            initial_amp_scale = kwargs.get("amp_initial_scale")
+            if initial_amp_scale is None:
+                self._nice_grad_scaler = GradScaler(enabled=True)
+            else:
+                if isinstance(initial_amp_scale, bool) or not math.isfinite(float(initial_amp_scale)) or float(initial_amp_scale) <= 0:
+                    raise ValueError('amp_initial_scale must be a positive finite number')
+                self._nice_grad_scaler = GradScaler(enabled=True, init_scale=float(initial_amp_scale))
+        scaler = self._nice_grad_scaler if use_amp else None
+        initial_scale = float(scaler.get_scale()) if scaler is not None else 1.0
+        nonfinite_gradient_names = set()
+        # Opt-in observation only. The regular training path performs no
+        # tensor copies or additional forward passes when this is absent.
+        diagnostic = kwargs.get("training_diagnostic")
+
+        def observe(stage, **context):
+            if diagnostic is not None:
+                diagnostic(stage, model, context)
+
+        # Freeze BN for layers with all-mature neurons
+        if not cluster_layout_locked:
+            model.freeze_bn_for_mature()
+
+        # ================================================================
+        # Phase loop
+        # ================================================================
+        for phase in range(max_phases):
+            global_phase = phase_offset + phase
+            # Official: Phase 1 uses tau=100% (keep all), Phase 2+ uses tau=config
+            # Official: Last episode uses tau=100% for ALL phases (keep all neurons)
+            if is_last_task:
+                phase_tau = 1.0  # Last episode: keep all neurons
+            elif global_phase == 0:
+                phase_tau = 1.0  # First phase: keep all candidates
+            else:
+                phase_tau = tau  # Other phases: prune with tau
+
+            # 1. Select learner neurons via tau-greedy
+            if not cluster_layout_locked:
+                model.eval()
+                select_learner_units(model, phase_tau, sample_data)
+                model.train()
+                model.freeze_bn_for_mature()
+
+                # 2. Connection pruning (also physically zeros weights)
+                drop_young_to_learner(model)
+
+                # 3. Restore connections into young neurons
+                grow_all_to_young(model)
+
+            # Move masks to device
+            model._move_masks_to_device(self.device)
+
+            # 4. Create NEW optimizer each phase (official behavior)
+            # Fresh optimizer state prevents momentum from previous phase
+            # from interfering with newly selected neurons
+            optimizer_factory = kwargs.get("optimizer_factory")
+            optimizer = (
+                optimizer_factory(model.parameters(), lr)
+                if optimizer_factory is not None
+                else torch.optim.Adam(model.parameters(), lr=lr)
+            )
+
+            # 5. Train phase_epochs
+            for ep in range(phase_epochs):
+                for X_batch, y_batch in self._create_batches(batch_size):
+                    optimizer.zero_grad()
+
+                    if use_amp:
+                        with torch.autocast(device_type="cuda", dtype=torch.float16):
+                            output = kwargs.get('supervised_forward', model.forward_output)(X_batch)
+                            loss = trainer.compute_loss(
+                                model,
+                                output,
+                                y_batch,
+                                global_params,
+                                class_weights=class_weights,
+                            )
+                            main_loss = loss
+                            if kwargs.get('auxiliary_loss') is not None:
+                                loss = loss + kwargs['auxiliary_loss'](model, X_batch, y_batch)
+
+                        previous_scale = scaler.get_scale()
+                        observe('forward', output=output, loss=loss, labels=y_batch,
+                                inputs=X_batch, scale=float(previous_scale))
+                        scaler.scale(loss).backward()
+                        observe('scaled_backward', scale=float(previous_scale))
+                        scaler.unscale_(optimizer)
+                        observe('unscaled_backward', scale=float(previous_scale))
+                        # Freeze mature gradients
+                        kwargs.get('gradient_filter', model.reset_frozen_gradients)()
+                        if kwargs.get("pre_optimizer_step") is not None:
+                            kwargs["pre_optimizer_step"](model)
+                        observe('before_clipping', scale=float(previous_scale))
+                        clip_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        observe('after_clipping', scale=float(previous_scale), clip_norm=clip_norm)
+                        if kwargs.get("before_optimizer_step") is not None:
+                            kwargs["before_optimizer_step"](model)
+                        scaler.step(optimizer)
+                        scaler.update()
+                        step_succeeded = scaler.get_scale() >= previous_scale
+                        observe('optimizer_step', step_succeeded=bool(step_succeeded),
+                                scale_before=float(previous_scale), scale_after=float(scaler.get_scale()))
+                        if not step_succeeded:
+                            nonfinite_gradient_names.update(
+                                name for name, param in model.named_parameters()
+                                if param.grad is not None and not torch.isfinite(param.grad).all()
+                            )
+                    else:
+                        output = kwargs.get('supervised_forward', model.forward_output)(X_batch)
+                        loss = trainer.compute_loss(
+                            model,
+                            output,
+                            y_batch,
+                            global_params,
+                            class_weights=class_weights,
+                        )
+                        main_loss = loss
+                        if kwargs.get('auxiliary_loss') is not None:
+                            loss = loss + kwargs['auxiliary_loss'](model, X_batch, y_batch)
+
+                        observe('forward', output=output, loss=loss, labels=y_batch,
+                                inputs=X_batch, scale=1.0)
+                        if not torch.isfinite(loss):
+                            raise FloatingPointError(f"Client {self.client_id}: non-finite FP32 loss")
+                        loss.backward()
+                        observe('unscaled_backward', scale=1.0)
+                        # Freeze mature gradients
+                        kwargs.get('gradient_filter', model.reset_frozen_gradients)()
+                        if kwargs.get("pre_optimizer_step") is not None:
+                            kwargs["pre_optimizer_step"](model)
+                        observe('before_clipping', scale=1.0)
+                        clip_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                        observe('after_clipping', scale=1.0, clip_norm=clip_norm)
+                        if kwargs.get("before_optimizer_step") is not None:
+                            kwargs["before_optimizer_step"](model)
+                        invalid = [name for name, param in model.named_parameters()
+                                   if param.grad is not None and not torch.isfinite(param.grad).all()]
+                        if invalid:
+                            raise FloatingPointError(
+                                f"Client {self.client_id}: non-finite FP32 gradients: {invalid}"
+                            )
+                        optimizer.step()
+                        step_succeeded = True
+                        observe('optimizer_step', step_succeeded=True, scale_before=1.0, scale_after=1.0)
+
+                    if step_succeeded and kwargs.get("after_optimizer_step_update") is not None:
+                        kwargs["after_optimizer_step_update"](model)
+                    if step_succeeded and kwargs.get('after_optimizer_step') is not None:
+                        kwargs['after_optimizer_step'](X_batch, y_batch, output.detach())
+                    observe('after_step_protection', step_succeeded=bool(step_succeeded))
+                    successful_steps += int(step_succeeded)
+
+                    # Capsule reliability must remain based on current-data CE,
+                    # independent of a client's replay budget/loss coefficients.
+                    total_loss += main_loss.item()
+                    total_objective += loss.item()
+                    total_batches += 1
+
+        avg_loss = total_loss / max(total_batches, 1)
+
+        return {
+            "client_id": self.client_id,
+            "num_samples": self.num_samples,
+            "loss": avg_loss,
+            "optimization_loss": total_objective / max(total_batches, 1),
+            "optimizer_steps": successful_steps,
+            "skipped_optimizer_steps": total_batches - successful_steps,
+            "amp": {
+                "enabled": bool(use_amp), "initial_scale": initial_scale,
+                "final_scale": float(scaler.get_scale()) if scaler is not None else 1.0,
+                "skipped_fraction": (total_batches - successful_steps) / max(1, total_batches),
+                "nonfinite_gradient_parameters_after_clipping": sorted(nonfinite_gradient_names),
+            },
+            "params": OrderedDict(
+                (k, v.cpu().clone()) for k, v in model.state_dict().items()
+            ),
+            "neuron_ages": model.get_neuron_ages_state(),
+        }
+
+    def get_buffer_stats(self) -> Dict:
+        """NICE does not use buffer - return empty stats."""
+        return {
+            "buffer_type": "none",
+            "has_replay": False,
+            "note": "NICE is replay-free",
+        }

@@ -240,7 +240,7 @@ class AggregationResult:
         return broadcast(self.state)
 
 
-def aggregate_round(plan, contributions, *, eta=1.0, bn_provider=None, acceptance=None):
+def aggregate_round(plan, contributions, *, eta=1.0, bn_provider=None, acceptance=None, groups=None):
     """Build a shadow candidate; reference never mutates, including on failure."""
     plan.validate()
     if not np.isfinite(eta) or not 0 <= eta <= 1:
@@ -249,22 +249,34 @@ def aggregate_round(plan, contributions, *, eta=1.0, bn_provider=None, acceptanc
     if len({p.event.client_id for p in packets}) != len(packets):
         raise ValueError('Duplicate client contribution')
     trained = {p.event.client_id: _validate_contribution(plan, p) for p in packets}
+    if groups is not None:
+        flat = [cid for group in groups for cid in group]
+        if len(flat) != len(set(flat)) or set(flat) != set(trained) or any(not g for g in groups):
+            raise ValueError('Hierarchy must partition every contributor exactly once')
+    packet_groups = ([packets] if groups is None else
+        [tuple(p for p in packets if p.event.client_id in group) for group in groups])
     candidate = restore(snapshot(plan.reference))
     coverage = {}
     for name in parameter_names(candidate):
         old = candidate.model_state[name]
         numerator, denominator = np.zeros(old.shape, np.float64), np.zeros(old.shape, np.float64)
-        for packet in packets:
-            counts = plan.base_counts[packet.event.client_id]
-            actual_classes = trained[packet.event.client_id]
-            if name.startswith('fc2.'):
-                weight = np.array([counts.get(c, 0) if c in actual_classes else 0 for c in range(len(old))], np.float64)
-                weight = weight.reshape((-1,) + (1,) * (old.ndim - 1))
-            else:
-                weight = float(sum(counts[c] for c in actual_classes))
-            weighted_mask = weight * array(packet.masks[name]).astype(bool)
-            numerator += weighted_mask * array(packet.deltas[name])
-            denominator += weighted_mask
+        for group in packet_groups:
+            # Only these sufficient statistics cross cluster boundaries. Never
+            # average group means equally: clusters can have unequal support.
+            group_sum, group_weight = np.zeros_like(numerator), np.zeros_like(denominator)
+            for packet in group:
+                counts = plan.base_counts[packet.event.client_id]
+                actual_classes = trained[packet.event.client_id]
+                if name.startswith('fc2.'):
+                    weight = np.array([counts.get(c, 0) if c in actual_classes else 0 for c in range(len(old))], np.float64)
+                    weight = weight.reshape((-1,) + (1,) * (old.ndim - 1))
+                else:
+                    weight = float(sum(counts[c] for c in actual_classes))
+                weighted_mask = weight * array(packet.masks[name]).astype(bool)
+                group_sum += weighted_mask * array(packet.deltas[name])
+                group_weight += weighted_mask
+            numerator += group_sum
+            denominator += group_weight
         touched = denominator > 0
         result = array(old).copy()
         if eta:
@@ -290,4 +302,8 @@ def aggregate_round(plan, contributions, *, eta=1.0, bn_provider=None, acceptanc
         fc2_contributors={c: tuple(p.event.client_id for p in packets if c in trained[p.event.client_id])
                           for c in plan.current_classes}, parameter_coverage=coverage, bn=bn_receipt,
         result_model_hash=state_hash(candidate.model_state), result_state_hash=candidate.fingerprint())
+    if groups is not None:
+        receipt.update(policy='hierarchical_class_sample_count_masked_delta_v1',
+            groups=tuple(tuple(g) for g in groups), shared_payload='weighted_delta_sums_and_coordinate_weights',
+            raw_training_rows_shared=False)
     return AggregationResult(candidate, receipt)

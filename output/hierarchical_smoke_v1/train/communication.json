@@ -1,0 +1,177 @@
+{
+  "total_application_wire_bytes": 590262747,
+  "entries": [
+    {
+      "task": 0,
+      "round": -1,
+      "phase": "task_partition_handoff",
+      "metadata_bytes": 600,
+      "current_context_bytes": 0,
+      "context_reference_download_bytes": 0,
+      "state_handoff_bytes": 5684907
+    },
+    {
+      "task": 0,
+      "round": 0,
+      "phase": "hierarchical_round",
+      "exchange_coordinator": 0,
+      "temporary_servers": [
+        0,
+        2
+      ],
+      "model_delta_upload_bytes": 6155461,
+      "reference_broadcast_bytes": 5684890,
+      "server_statistic_upload_bytes": 8202464,
+      "server_receipt_upper_bound_bytes": 1651,
+      "server_reference_download_bytes": 11370140,
+      "bn_moment_upload_bytes": 32430,
+      "bn_reference_download_bytes": 34109340,
+      "final_state_broadcast_bytes": 0,
+      "raw_training_rows_shared": false,
+      "accounting": "modeled binary sums; typed JSON models/receipts; BN client-to-reducer upper bound"
+    },
+    {
+      "task": 1,
+      "round": -1,
+      "phase": "task_partition_handoff",
+      "metadata_bytes": 918,
+      "current_context_bytes": 2832,
+      "context_reference_download_bytes": 5685115,
+      "state_handoff_bytes": 11370204
+    },
+    {
+      "task": 1,
+      "round": 0,
+      "phase": "hierarchical_round",
+      "exchange_coordinator": 0,
+      "temporary_servers": [
+        0
+      ],
+      "model_delta_upload_bytes": 18466387,
+      "reference_broadcast_bytes": 17055699,
+      "server_statistic_upload_bytes": 0,
+      "server_receipt_upper_bound_bytes": 0,
+      "server_reference_download_bytes": 0,
+      "bn_moment_upload_bytes": 48645,
+      "bn_reference_download_bytes": 51167097,
+      "final_state_broadcast_bytes": 0,
+      "raw_training_rows_shared": false,
+      "accounting": "modeled binary sums; typed JSON models/receipts; BN client-to-reducer upper bound"
+    },
+    {
+      "task": 2,
+      "round": -1,
+      "phase": "task_partition_handoff",
+      "metadata_bytes": 1085,
+      "current_context_bytes": 2832,
+      "context_reference_download_bytes": 17056278,
+      "state_handoff_bytes": 0
+    },
+    {
+      "task": 2,
+      "round": 0,
+      "phase": "hierarchical_round",
+      "exchange_coordinator": 0,
+      "temporary_servers": [
+        0
+      ],
+      "model_delta_upload_bytes": 18466392,
+      "reference_broadcast_bytes": 17056359,
+      "server_statistic_upload_bytes": 0,
+      "server_receipt_upper_bound_bytes": 0,
+      "server_reference_download_bytes": 0,
+      "bn_moment_upload_bytes": 48645,
+      "bn_reference_download_bytes": 51169077,
+      "final_state_broadcast_bytes": 0,
+      "raw_training_rows_shared": false,
+      "accounting": "modeled binary sums; typed JSON models/receipts; BN client-to-reducer upper bound"
+    },
+    {
+      "task": 3,
+      "round": -1,
+      "phase": "task_partition_handoff",
+      "metadata_bytes": 1253,
+      "current_context_bytes": 2832,
+      "context_reference_download_bytes": 17056962,
+      "state_handoff_bytes": 0
+    },
+    {
+      "task": 3,
+      "round": 0,
+      "phase": "hierarchical_round",
+      "exchange_coordinator": 0,
+      "temporary_servers": [
+        0
+      ],
+      "model_delta_upload_bytes": 18466392,
+      "reference_broadcast_bytes": 17057043,
+      "server_statistic_upload_bytes": 0,
+      "server_receipt_upper_bound_bytes": 0,
+      "server_reference_download_bytes": 0,
+      "bn_moment_upload_bytes": 48645,
+      "bn_reference_download_bytes": 51171129,
+      "final_state_broadcast_bytes": 0,
+      "raw_training_rows_shared": false,
+      "accounting": "modeled binary sums; typed JSON models/receipts; BN client-to-reducer upper bound"
+    },
+    {
+      "task": 4,
+      "round": -1,
+      "phase": "task_partition_handoff",
+      "metadata_bytes": 1421,
+      "current_context_bytes": 2832,
+      "context_reference_download_bytes": 17057646,
+      "state_handoff_bytes": 0
+    },
+    {
+      "task": 4,
+      "round": 0,
+      "phase": "hierarchical_round",
+      "exchange_coordinator": 0,
+      "temporary_servers": [
+        0
+      ],
+      "model_delta_upload_bytes": 18466392,
+      "reference_broadcast_bytes": 17057727,
+      "server_statistic_upload_bytes": 0,
+      "server_receipt_upper_bound_bytes": 0,
+      "server_reference_download_bytes": 0,
+      "bn_moment_upload_bytes": 48645,
+      "bn_reference_download_bytes": 51173181,
+      "final_state_broadcast_bytes": 0,
+      "raw_training_rows_shared": false,
+      "accounting": "modeled binary sums; typed JSON models/receipts; BN client-to-reducer upper bound"
+    },
+    {
+      "task": 5,
+      "round": -1,
+      "phase": "task_partition_handoff",
+      "metadata_bytes": 1473,
+      "current_context_bytes": 2832,
+      "context_reference_download_bytes": 17058330,
+      "state_handoff_bytes": 0
+    },
+    {
+      "task": 5,
+      "round": 0,
+      "phase": "hierarchical_round",
+      "exchange_coordinator": 0,
+      "temporary_servers": [
+        0
+      ],
+      "model_delta_upload_bytes": 18466275,
+      "reference_broadcast_bytes": 17058411,
+      "server_statistic_upload_bytes": 0,
+      "server_receipt_upper_bound_bytes": 0,
+      "server_reference_download_bytes": 0,
+      "bn_moment_upload_bytes": 48645,
+      "bn_reference_download_bytes": 51175233,
+      "final_state_broadcast_bytes": 0,
+      "raw_training_rows_shared": false,
+      "accounting": "modeled binary sums; typed JSON models/receipts; BN client-to-reducer upper bound"
+    }
+  ],
+  "encoding": "typed_json_utf8",
+  "scope": "modeled_P2P_application_messages_in_single_process_includes_native_model_BN_router_handoff",
+  "tcp_tls_network_overhead_included": false
+}

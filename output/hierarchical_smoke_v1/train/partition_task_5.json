@@ -1,0 +1,25 @@
+{
+  "task": 5,
+  "K": 1,
+  "clusters": [
+    [
+      0,
+      1,
+      2,
+      3
+    ]
+  ],
+  "active_clients": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "dormant_clients": [],
+  "source": "current_base_context_capsules",
+  "rejected_merges": [],
+  "similarity_hash": "69012fd9f0d144c2460a32639397e421ea6030db58a469e86ce28fa601adacae",
+  "coordinators": {
+    "t5-305e670ea2802a67": 0
+  }
+}

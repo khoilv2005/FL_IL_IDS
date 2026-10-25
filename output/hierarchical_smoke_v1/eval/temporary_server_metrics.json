@@ -1,0 +1,249 @@
+{
+  "K": 1,
+  "unique_test_rows": 102,
+  "prediction_evaluations": 102,
+  "mean_cluster_accuracy": 0.029411764705882353,
+  "mean_cluster_macro_f1": 0.001680672268907563,
+  "accuracy_std": 0.0,
+  "macro_f1_std": 0.0,
+  "cluster_metrics": {
+    "t5-305e670ea2802a67": {
+      "rows": 102,
+      "correct": 3,
+      "accuracy": 0.029411764705882353,
+      "macro_f1": 0.001680672268907563,
+      "per_class": {
+        "0": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "1": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "2": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "3": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "4": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "5": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "6": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "7": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "8": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "9": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "10": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "11": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "12": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "13": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "14": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "15": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "16": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "17": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "18": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "19": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "20": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "21": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "22": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "23": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "24": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "25": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "26": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "27": {
+          "support": 3,
+          "recall": 1.0,
+          "precision": 0.029411764705882353,
+          "f1": 0.05714285714285714
+        },
+        "28": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "29": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "30": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "31": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "32": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        },
+        "33": {
+          "support": 3,
+          "recall": 0.0,
+          "precision": 0.0,
+          "f1": 0.0
+        }
+      },
+      "unregistered_prediction_rows": 0
+    }
+  },
+  "primary_weighting": "uniform_clusters",
+  "task": 5,
+  "checkpoint_round": 1,
+  "prediction_mode": "routerless_v1",
+  "server_exchange": true,
+  "model_stage": "task_boundary_consolidated",
+  "test_sha256": "dbe43a7829567a4e86b2bb8e96937d5200483ba114ceeefc2af7890cdfd62456",
+  "protocol_lock": "339875c87fbb2c457a206de041087885344dbd277817a60820060df29a294b82",
+  "per_temporary_server": [
+    {
+      "cluster_uid": "t5-305e670ea2802a67",
+      "temporary_server": 0,
+      "member_count": 4,
+      "members": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "test_samples": 102,
+      "accuracy": 0.029411764705882353,
+      "macro_f1": 0.001680672268907563
+    }
+  ],
+  "full_test": true
+}

@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "tasks": 6,
+  "rounds_per_task": 1,
+  "full_test_rows_per_server": 102,
+  "all_servers_learned_34_classes": true,
+  "dormant_rejoin": true,
+  "train_read_test": false,
+  "raw_training_rows_shared": false,
+  "scientific_accuracy_benchmark": false
+}

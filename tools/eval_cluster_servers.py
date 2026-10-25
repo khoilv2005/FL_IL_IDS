@@ -56,6 +56,8 @@ def evaluate_servers(checkpoint_root, data_dir, output_dir, *, batch_size=8192, 
             macro_f1=result['metrics']['macro_f1']))
     summary = aggregate_evaluations(results)
     summary.update(task=5, checkpoint_round=payload['config']['rounds_per_task'],
+        prediction_mode=next(iter(states.values())).router_state['router_mode'],
+        server_exchange=payload['config'].get('server_exchange', False),
         model_stage='task_boundary_consolidated', test_sha256=binding,
         protocol_lock=payload['lock'], per_temporary_server=rows, full_test=True)
     atomic_json(output/'temporary_server_metrics.json', summary)

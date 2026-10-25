@@ -347,7 +347,7 @@ def run_native_round(state, bases, current_classes, *, log_progress=False, verif
         batch_size=training.get('batch_size',16),device=training.get('device','cpu'),verify_broadcast=verify_broadcast)
 
 
-def finalize_native_round(plan,bases,packets,workers,allocation,*,batch_size=16,device='cpu',verify_broadcast=True):
+def finalize_native_round(plan,bases,packets,workers,allocation,*,batch_size=16,device='cpu',verify_broadcast=True,groups=None):
     """Common deterministic aggregation path after serial or parallel workers."""
     plan.validate()
     if set(bases)!=set(plan.reference.members):raise ValueError('Incomplete cluster BASE providers')
@@ -356,7 +356,7 @@ def finalize_native_round(plan,bases,packets,workers,allocation,*,batch_size=16,
     if [p.event.client_id for p in packets]!=list(plan.reference.members):
         raise ValueError('Missing/duplicate cluster worker results')
     collector = NativeBNCollector(plan,bases,batch_size=batch_size,device=device)
-    result = aggregate_round(plan, packets, bn_provider=collector)
+    result = aggregate_round(plan, packets, bn_provider=collector,groups=groups)
     if not verify_broadcast:
         # The coordinator owns the only persistent state. Workers download the
         # next reference on demand; no post-round model copies/broadcast.

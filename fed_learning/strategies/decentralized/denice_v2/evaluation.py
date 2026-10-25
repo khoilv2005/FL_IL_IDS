@@ -51,7 +51,12 @@ def evaluate_cluster(state, x, y, test_binding, output, *, batch_size=8192, devi
             raise ValueError('Invalid evaluation resume accounting')
         if saved.get('completed'):
             return saved
-    predictor = ClusterRouter(state, device=device) if state.router_state['activation_memory'] else None
+    routerless = state.router_state['router_mode'] == 'routerless_v1'
+    if routerless:
+        from .routerless import RouterlessPredictor
+        predictor = RouterlessPredictor(state, device=device) if state.algorithm_state['seen_classes'] else None
+    else:
+        predictor = ClusterRouter(state, device=device) if state.router_state['activation_memory'] else None
     task_cm = {t: np.zeros((34,35), np.int64) for t in range(state.task+1)}
     if cursor:
         task_cm = {int(t): np.asarray(v, np.int64) for t,v in saved['task_confusions'].items()}
@@ -66,9 +71,15 @@ def evaluate_cluster(state, x, y, test_binding, output, *, batch_size=8192, devi
             inputs = torch.from_numpy(np.asarray(x[start:end][keep], np.float32).copy())
             if not torch.isfinite(inputs).all():raise ValueError('Nonfinite TEST input')
             if predictor:
-                pred, tasks, scores, _ = predictor.predict(inputs)
-                if not np.isfinite(scores).all():
-                    raise ValueError('Nonfinite router output')
+                if routerless:
+                    pred, logits = predictor.predict(inputs)
+                    if not np.isfinite(logits[:, state.algorithm_state['seen_classes']]).all():
+                        raise ValueError('Nonfinite registered logits')
+                    tasks = np.full(len(pred), -1)  # No routing decision; never infer task from labels.
+                else:
+                    pred, tasks, scores, _ = predictor.predict(inputs)
+                    if not np.isfinite(scores).all():
+                        raise ValueError('Nonfinite router output')
             else:
                 pred, tasks = np.full(len(truth), -1), np.full(len(truth), -1)
             if not np.isin(pred, [-1, *scope]).all():
@@ -86,6 +97,7 @@ def evaluate_cluster(state, x, y, test_binding, output, *, batch_size=8192, devi
             task_confusions={t:v.tolist() for t,v in task_cm.items()},
             metrics=metrics(cm,scope), task_metrics={t:metrics(v,range(t*6,min(t*6+6,34))) for t,v in task_cm.items()},
             inference_uses_true_task=False,evaluation_role=evaluation_role,
+            prediction_mode=state.router_state['router_mode'],router_metrics_applicable=not routerless,
             evaluated_full_cumulative_test=evaluation_role=='test')
         saved = json.loads(json.dumps(saved))
         saved['receipt_sha256']=state_hash(saved)

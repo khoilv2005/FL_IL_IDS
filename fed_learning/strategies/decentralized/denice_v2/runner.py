@@ -43,15 +43,19 @@ class RunConfig:
     smoke: bool = False
     defer_evaluation: bool = False
     server_only_storage: bool = False
+    server_exchange: bool = False
 
     def validate(self):
-        if (self.policy!='cnn_coordinate_router_v1' or self.feature_layer!='conv2' or self.xi!=.8
+        if (self.policy not in ('cnn_coordinate_router_v1', 'routerless_v1') or self.feature_layer!='conv2' or self.xi!=.8
             or not self.engineering_baseline or not np.isfinite([self.learning_rate,self.output_budget_gib]).all()
             or self.learning_rate<=0 or self.output_budget_gib<=0 or self.batch_size<2 or self.local_epochs<1
             or self.eval_batch_size<1 or self.context_rows<1 or self.rounds_per_task<1 or not 1<=self.tasks<=6
             or type(self.eval_final_task_only) is not bool
             or type(self.defer_evaluation) is not bool or type(self.server_only_storage) is not bool):
             raise ValueError('Invalid locked V2 configuration')
+        if type(self.server_exchange) is not bool or (self.server_exchange and
+                (self.policy != 'routerless_v1' or not self.server_only_storage or not self.defer_evaluation)):
+            raise ValueError('Server exchange requires routerless, server-only, train-only mode')
         if not self.smoke and (self.tasks!=6 or self.rounds_per_task!=20 or self.seed!=42 or not self.eval_final_task_only):
             raise ValueError('Full main run is seed42, six tasks, twenty rounds/task, final-task-only evaluation')
         if self.worker_devices:
@@ -129,8 +133,12 @@ class Runner:
 
     def initialize(self):
         torch.manual_seed(self.config.seed);np.random.seed(self.config.seed);random.seed(self.config.seed)
-        template=fresh_coordinate_state(DeNICEModel(self.data.input_shape,34),feature_layer='conv2',
-            members=self.data.client_ids,coordinator_id=min(self.data.client_ids),cluster_uid='fresh-population')
+        identity=dict(members=self.data.client_ids,coordinator_id=min(self.data.client_ids),cluster_uid='fresh-population')
+        if self.config.policy == 'routerless_v1':
+            from .routerless import capture_routerless
+            template=capture_routerless(DeNICEModel(self.data.input_shape,34),**identity)
+        else:
+            template=fresh_coordinate_state(DeNICEModel(self.data.input_shape,34),feature_layer='conv2',**identity)
         self.states={cid:template for cid in self.data.client_ids}
 
     def start_task(self, task):
@@ -243,10 +251,15 @@ class Runner:
         for uid,bases,result,plan,packets,receipt in self.cluster_round_results(task,round_id):
             state=plan.reference
             if any(p.event.successful_steps for p in packets):
-                proposal=stage_cluster_router(result.state,plan,packets,bases,feature_policy=self.config.policy,
-                    batch_size=self.config.batch_size,device=self.config.device,engineering_baseline=True)
-                final=proposal.commit(engineering_baseline=True)
-                routing=proposal.receipt
+                if self.config.policy == 'routerless_v1':
+                    from .routerless import register_learned_classes
+                    final,routing=register_learned_classes(result.state,plan,packets)
+                    routing.update(threshold_wire_bytes_by_client={},sketch_wire_bytes_by_client={})
+                else:
+                    proposal=stage_cluster_router(result.state,plan,packets,bases,feature_policy=self.config.policy,
+                        batch_size=self.config.batch_size,device=self.config.device,engineering_baseline=True)
+                    final=proposal.commit(engineering_baseline=True)
+                    routing=proposal.receipt
             else:
                 final=result.state
                 routing=dict(skipped='NO_SUCCESSFUL_CURRENT_TRAINING',capacity_report_only=True,
@@ -314,9 +327,10 @@ class Runner:
             summary.update(task=task,round=self.config.rounds_per_task-1,quality_is_report_only=True)
             atomic_json(self.output/f'metrics_task_{task}.json',summary)
             self.evaluations.extend(results)
-        for uid in self.active:
+        for uid in (self.unique_states() if self.config.server_exchange else self.active):
             state=self.unique_states()[uid]
-            if task in state.router_state['activation_memory']:
+            if (task in state.router_state['activation_memory'] or
+                    task in state.algorithm_state.get('learned_classes_by_task', {})):
                 final=consolidate_native_task(state)
                 for cid in final.members:self.states[cid]=final
         # Dormant parent tasks advance in start_task without reading old BASE.

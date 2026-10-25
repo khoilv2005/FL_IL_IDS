@@ -59,6 +59,19 @@ def moment(stage, layer, p, cid, *, rows, observations):
 
 
 class AggregationTests(unittest.TestCase):
+    def test_hierarchical_reduction_matches_unequal_sample_flat_aggregation(self):
+        p = plan()
+        a = contribution(p, 0, {'fc2.bias': [0, 0, 2, 0]})
+        b = contribution(p, 1, {'fc2.bias': [0, 0, 6, 10]}, (2, 3))
+        flat = aggregate_round(p, [a, b])
+        grouped = aggregate_round(p, [a, b], groups=((0,), (1,)))
+        self.assertEqual(state_hash(flat.state.model_state), state_hash(grouped.state.model_state))
+        self.assertEqual(float(grouped.state.model_state['fc2.bias'][2]), 5.)
+        self.assertFalse(grouped.receipt['raw_training_rows_shared'])
+        for groups in (((0,),), ((0,), (0, 1)), ((), (0, 1))):
+            with self.assertRaisesRegex(ValueError, 'Hierarchy'):
+                aggregate_round(p, [a, b], groups=groups)
+
     def test_shared_reference_clones_and_hashes(self):
         p = plan()
         workers = [start_worker(p, c) for c in (0, 1)]

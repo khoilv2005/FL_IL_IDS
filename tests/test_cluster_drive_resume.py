@@ -16,7 +16,7 @@ def helpers():
     source = Path(__file__).resolve().parents[1]/'train_incremental_kaggle.py'
     tree = ast.parse(source.read_text(encoding='utf-8'))
     nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef)
-             and n.name in ('download_resume_zip', 'extract_cluster_resume', 'configure_cluster_resume')]
+             and n.name in ('download_resume_zip', 'extract_cluster_resume', 'configure_cluster_resume', 'ensure_resume_torch')]
     scope = dict(Path=Path, json=json, os=os, shutil=shutil, subprocess=subprocess,
                  sys=sys, tempfile=tempfile, zipfile=zipfile)
     exec(compile(ast.Module(body=nodes, type_ignores=[]), str(source), 'exec'), scope)
@@ -83,6 +83,27 @@ class ClusterDriveResumeTests(unittest.TestCase):
         os.environ['DENICE_CLUSTER_RESUME_ROUND'] = '1'
         with self.assertRaisesRegex(ValueError, 'No checkpoint'):
             self.h['configure_cluster_resume'](self.root)
+
+    def test_matching_runtime_does_not_install(self):
+        result = subprocess.CompletedProcess([], 0, '2.10.0+cu128\n', '')
+        with patch.object(subprocess, 'run', return_value=result) as run:
+            self.h['ensure_resume_torch']({'torch': '2.10.0+cu128'})
+        self.assertEqual(run.call_count, 1)
+
+    def test_runtime_install_reprobes_fresh_interpreter(self):
+        old = subprocess.CompletedProcess([], 0, '2.11.0+cu130\n', '')
+        new = subprocess.CompletedProcess([], 0, '2.10.0+cu128\n', '')
+        with patch.object(subprocess, 'run', side_effect=[old, None, new]) as run:
+            self.h['ensure_resume_torch']({'torch': '2.10.0+cu128'})
+        self.assertEqual(run.call_count, 3)
+        self.assertIn('torch==2.10.0+cu128', run.call_args_list[1].args[0])
+        self.assertEqual(run.call_args_list[0].args[0][0], sys.executable)
+
+    def test_unresolved_install_stops_before_training(self):
+        old = subprocess.CompletedProcess([], 0, '2.11.0+cu130\n', '')
+        with patch.object(subprocess, 'run', side_effect=[old, None, old]):
+            with self.assertRaisesRegex(RuntimeError, 'did not resolve'):
+                self.h['ensure_resume_torch']({'torch': '2.10.0+cu128'})
 
 
 if __name__ == '__main__':

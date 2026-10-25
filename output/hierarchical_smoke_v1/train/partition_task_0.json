@@ -1,0 +1,28 @@
+{
+  "task": 0,
+  "K": 2,
+  "clusters": [
+    [
+      0,
+      1
+    ],
+    [
+      2
+    ]
+  ],
+  "active_clients": [
+    0,
+    1,
+    2
+  ],
+  "dormant_clients": [
+    3
+  ],
+  "source": "task0_base_class_overlap",
+  "rejected_merges": [],
+  "similarity_hash": "76a9a4d660b234c941793dcb5156aa0a6e5c777884744c618d4648873a16002e",
+  "coordinators": {
+    "t0-6dd5224a2e60419e": 0,
+    "t0-230f9620c7220d40": 2
+  }
+}

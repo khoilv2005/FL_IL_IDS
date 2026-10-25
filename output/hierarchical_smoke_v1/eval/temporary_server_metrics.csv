@@ -1,0 +1,2 @@
+cluster_uid,temporary_server,member_count,members,test_samples,accuracy,macro_f1
+t5-305e670ea2802a67,0,4,"[0, 1, 2, 3]",102,0.029411764705882353,0.001680672268907563

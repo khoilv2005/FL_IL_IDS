@@ -33,8 +33,11 @@ def main():
         '--data-dir', str(data), '--output', output, '--device', device,
         '--worker-devices', workers, '--batch-size', os.environ.get('DENICE_BATCH_SIZE', '2048'),
         '--output-budget-gib', os.environ.get('DENICE_OUTPUT_BUDGET_GIB', '18'),
-        '--defer-evaluation', '--server-only-storage']
+        '--defer-evaluation', '--server-only-storage',
+        '--prediction-mode', os.environ.get('DENICE_PREDICTION_MODE', 'cnn_coordinate_router_v1')]
     resume_root = os.environ.get('DENICE_CLUSTER_RESUME_ROOT')
+    if os.environ.get('DENICE_SERVER_EXCHANGE') == '1':
+        args.append('--server-exchange')
     resume_task = os.environ.get('DENICE_CLUSTER_RESUME_TASK')
     resume_round = os.environ.get('DENICE_CLUSTER_RESUME_ROUND')
     if resume_root and resume_task is None or resume_round and resume_task is None:

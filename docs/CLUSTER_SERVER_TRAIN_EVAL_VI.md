@@ -53,6 +53,14 @@ Giữ output các phiên trước để bảo toàn lịch sử. Nếu cần res
 
 ## Eval sau khi train xong
 
+### Một file eval, tải output từ Google Drive
+
+Dùng `eval_selective.py` mới: dán toàn bộ file vào một cell Kaggle, điền `EVAL_DRIVE_URL` ở đầu file bằng link FILE ZIP output train cuối cùng. Thêm dataset `100-clients` vào Input, bật Internet và GPU. Sửa `DATA_DIR` nếu đường dẫn mount khác. Không cần notebook `.ipynb` hoặc upload source riêng.
+
+ZIP cần giữ nguyên `completion.json`, `execution_provenance.json`, `checkpoint_task_5_all_rounds.zip` trong cùng thư mục; có thể nén toàn bộ output, launcher chỉ giải nén các file cần cho eval. Không giải nén ZIP checkpoint bên trong. File tự kiểm tra train đủ Task 0–5, khớp PyTorch (tự cài bản 2.10.0+cu128 khi cần), clone đúng commit nguồn, đối chiếu hash rồi gọi evaluator trong tiến trình mới. TEST vẫn lấy từ Kaggle Input, không lấy từ Drive output. Đầu ra mặc định `/kaggle/working/eval_cluster_servers`.
+
+CLI tương đương: `python eval_selective.py --drive-url LINK --data-dir DATA_DIR`. Vẫn hỗ trợ `--checkpoint-root` thay cho Drive, nhưng không đặt cả hai. Bỏ các biến `DENICE_CODE_DIR`/`DENICE_SOURCE_ZIP` cũ nếu muốn tự lấy source đúng commit.
+
 Dùng `eval_selective.ipynb`: đặt `CHECKPOINT_ROOT` tới output có `completion.json` và ZIP Task 5, `DATA_DIR` chứa `global_test_data.npz`, `EVAL_SELECTIVE_SCRIPT` tới `eval_selective.py` đã cung cấp. Đặt cùng `DENICE_SOURCE_ZIP` như train. `EVAL_TASKS=5`, `EVAL_ROUNDS=None`, `EVAL_CLIENT_FRACTION=1.0`.
 
 Hoặc chạy script:
@@ -64,3 +72,17 @@ python eval_selective.py --checkpoint-root /kaggle/input/YOUR_TRAIN_OUTPUT --dat
 Eval chỉ mở checkpoint cuối sau khi đủ Task 0–5. Mỗi temporary server dùng model/router cluster đã consolidate, chạy trên cùng toàn bộ TEST 34 class; không giới hạn 50.000 mẫu và không lọc class theo cluster. Nhãn TEST chỉ dùng tính metric. Có kiểm tra số mẫu từng server bằng tổng số mẫu TEST.
 
 Đầu ra: `temporary_server_metrics.csv/json` và từng `evaluation_CLUSTER_UID.json`; gồm server ID, cluster UID, members, số mẫu, accuracy, macro-F1, confusion matrix và per-class metrics. Eval có thể tiếp tục từ receipt đã lưu. Train không tự gọi eval.
+# Chẩn đoán router trên checkpoint đã train
+
+Trong `eval_selective.py`, đặt `DIAGNOSTIC = True`, giữ link ZIP output train đã hoàn tất,
+rồi paste toàn bộ file vào một cell Kaggle. `DIAGNOSTIC_PER_CLASS = 256` chọn tối đa 256
+mẫu mỗi lớp, cố định seed 42 và dùng cùng mẫu cho tất cả server. Không cần train lại.
+Kết quả ở `eval_cluster_servers/diagnostics/diagnostic_summary.json` và từng
+`diagnostic_<cluster_uid>.json`. Chế độ này so sánh router thật và oracle biết task
+trên cùng logits, cùng danh sách lớp đã đăng ký; task thiếu vẫn tính là dự đoán sai.
+Oracle chỉ phục vụ chẩn đoán, không phải accuracy chính thức. Tập con cân bằng lớp
+không so trực tiếp với accuracy full test. Không dùng TEST để chọn tham số sửa model.
+Đặt `DIAGNOSTIC = False` để quay lại eval full test. Chế độ chẩn đoán không sửa
+checkpoint, thuật toán train hoặc kết quả eval chính thức. File một cell đã nhúng
+worker chẩn đoán, vẫn kiểm tra mã nguồn và phiên bản torch gốc.
+

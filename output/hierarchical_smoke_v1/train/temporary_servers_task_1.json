@@ -1,0 +1,19 @@
+{
+  "task": 1,
+  "round": 0,
+  "checkpoint": "checkpoint_task_1_all_rounds.zip",
+  "persistent_model_policy": "one_per_cluster",
+  "servers": [
+    {
+      "cluster_uid": "t1-7fe1947b90462dd2",
+      "temporary_server": 0,
+      "members": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "state_hash": "188609a39bcf6440b3abd20918b21a4b5432655ace73007918ff5ef1ea873211"
+    }
+  ]
+}

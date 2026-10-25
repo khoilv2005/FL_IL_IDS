@@ -13,7 +13,7 @@ from pathlib import Path
 
 # Dán link ZIP output cluster_server lên Drive vào đây; để trống để train mới.
 # Có thể đặt biến môi trường DENICE_RESUME_DRIVE_URL thay cho sửa dòng này.
-CLUSTER_RESUME_DRIVE_URL = ""
+CLUSTER_RESUME_DRIVE_URL = "https://drive.google.com/file/d/1ng8AwBvAW2wy7VDRMAWY1QktoQNu21uo/view?usp=sharing"
 
 
 def download_resume_zip(url):
@@ -60,6 +60,8 @@ def configure_cluster_resume(root):
     config = json.loads((root/'protocol_lock.json').read_text(encoding='utf-8'))['config']
     if not config.get('server_only_storage') or not config.get('defer_evaluation'):
         raise ValueError('Expected train-only cluster-server output, not legacy row_overlay checkpoints')
+    if os.environ.get('DENICE_SERVER_EXCHANGE') == '1' and not config.get('server_exchange'):
+        raise ValueError('Hierarchical training requires a fresh run. Old independent cluster checkpoints cannot migrate.')
     available = {}
     for path in root.glob('checkpoint_task_*.zip'):
         match = re.fullmatch(r'checkpoint_task_(\d+)_(?:all_rounds|round_\d+)\.zip', path.name)
@@ -94,6 +96,36 @@ def configure_cluster_resume(root):
     print(f"Required torch={provenance.get('torch')}; source={provenance.get('commit')}", flush=True)
     return provenance
 
+def ensure_resume_torch(provenance):
+    """Probe a fresh interpreter; never rely on torch already imported by Jupyter."""
+    expected = provenance['torch']
+
+    def probe():
+        result = subprocess.run(
+            [sys.executable, '-c', 'import torch; print(torch.__version__)'],
+            capture_output=True, text=True)
+        if result.returncode:
+            raise RuntimeError('Cannot import torch in training interpreter:\n' + result.stderr)
+        return result.stdout.strip().splitlines()[-1]
+
+    actual = probe()
+    print(f'Training interpreter: {sys.executable}; torch installed={actual}; required={expected}', flush=True)
+    if actual == expected:
+        return
+    if os.environ.get('DENICE_AUTO_INSTALL_TORCH', '1') != '1':
+        raise RuntimeError(f'Install torch {expected} in {sys.executable}; currently {actual}')
+    if expected != '2.10.0+cu128':
+        raise RuntimeError(f'Automatic install is only configured for 2.10.0+cu128; required {expected}')
+    print('Installing original PyTorch CUDA 12.8 packages before starting a fresh training process...', flush=True)
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-cache-dir',
+        'torch==2.10.0+cu128', 'torchvision==0.25.0+cu128', 'torchaudio==2.10.0+cu128',
+        '--index-url', 'https://download.pytorch.org/whl/cu128'], check=True)
+    actual = probe()
+    if actual != expected:
+        raise RuntimeError(f'PyTorch installation did not resolve mismatch: installed={actual}, required={expected}')
+    print(f'Resume runtime verified: torch={actual}', flush=True)
+
+
 # Environment overrides make P6 multi-seed runs reproducible without editing
 # this file between Kaggle sessions, e.g. DENICE_SEED=43.
 # Default cluster_server profile trains Task 0 plus incremental Tasks 1-5, with external eval.
@@ -126,7 +158,8 @@ if TRAIN_PROFILE == 'cluster_server' and __name__ == '__main__':
         print('Downloading cluster-server output ZIP from Google Drive...', flush=True)
         resume_root = extract_cluster_resume(download_resume_zip(drive_url))
     if resume_root:
-        configure_cluster_resume(resume_root)
+        provenance = configure_cluster_resume(resume_root)
+        ensure_resume_torch(provenance)
     local = os.environ.get('DENICE_CODE_DIR')
     here = Path(__file__).resolve().parent if '__file__' in dir() else Path.cwd()
     if not local and not resume_root and (here/'fed_learning').is_dir():
@@ -155,9 +188,14 @@ if TRAIN_PROFILE == 'cluster_server' and __name__ == '__main__':
                 ['git', '-C', local, 'checkout', '--detach', revision],
                 check=True, env=clone_env,
             )
-    sys.path.insert(0, local)
-    from tools.train_cluster_server import main
-    main()
+    if resume_root:
+        # A new interpreter sees freshly installed torch even if the notebook cached an older build.
+        subprocess.run([sys.executable, '-u', str(Path(local)/'tools/train_cluster_server.py')],
+                       cwd=local, check=True)
+    else:
+        sys.path.insert(0, local)
+        from tools.train_cluster_server import main
+        main()
     raise SystemExit(0)
 
 

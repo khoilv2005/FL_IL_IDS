@@ -1,0 +1,1 @@
+{"torch": "2.5.1+cu121", "expected": "2.10.0+cu128", "exploratory": true, "source_hashes_verified": true, "device": "NVIDIA GeForce RTX 4050 Laptop GPU"}
