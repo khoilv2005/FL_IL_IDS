@@ -8,7 +8,7 @@ import zipfile
 CODE_REF = "842a59ad4e2d334f32d0150490f69322b1ca9c01"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
 RESULTS16_DRIVE_URL = "https://drive.google.com/file/d/12m7ZyoowmKNhKPiSQQ0FH2mzhAweD7tw/view?usp=drive_link"
-RESULTS17_DRIVE_URL = ""  # Paste the results (17).zip Drive sharing link here.
+RESULTS17_DRIVE_URL = "https://drive.google.com/file/d/1UJspR1UrSdM3DeiYqLCHCmSr_LACrYMX/view?usp=drive_link"
 RESULTS16_ZIP = ""  # Optional mounted /kaggle/input/.../results (16).zip.
 RESULTS17_ZIP = ""  # Optional mounted /kaggle/input/.../results (17).zip.
 OUTPUT_DIR = "/kaggle/working/results_candle_v4_historical_repair_seed42"
