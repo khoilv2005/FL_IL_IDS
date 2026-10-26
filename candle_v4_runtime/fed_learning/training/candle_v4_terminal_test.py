@@ -25,6 +25,9 @@ def statistics(cm):
 
 
 def evaluate_terminal(service,models,detectors,task,round_id):
+    if service.spec.get('evaluation_mode')=='v4_only':
+        from .candle_v4_only_eval import evaluate_v4_only
+        return evaluate_v4_only(service,models,detectors,task,round_id)
     if (task,round_id)!=(5,19) or service.boundary!=[5,19] or 5 not in service.gated:
         raise ValueError('Full TEST requires completed Task5/Round19 and terminal gate')
     if [r['task'] for r in service.evaluations]!=list(range(6)):

@@ -267,9 +267,10 @@ class OriginalTrainService(FullCoverageService):
 
     def _evaluate(self,task,models,detectors):
         # Placeholders record completion, never fabricated validation measurements.
+        names=('V4',) if self.spec.get('evaluation_mode')=='v4_only' else ('V1',*self.arms)
         self.evaluations.append(dict(task=task,role='NONE',status='NOT_MEASURED',rows=0,
             metrics={name:dict(accuracy=None,macro_f1=None,per_task_accuracy={},average_forgetting=None,
-                              evidence_status='NOT_MEASURED') for name in ('V1',*self.arms)},per_client={}))
+                              evidence_status='NOT_MEASURED') for name in names},per_client={}))
 
     def finish_task(self,task,models,detectors,clients,active_ids,graph):
         if task in self.gated:raise ValueError('Repeated task completion')
@@ -311,4 +312,7 @@ class OriginalTrainService(FullCoverageService):
             report['continuous_bootstrap_receipts']=self.continuous_bootstrap_receipts
             report['continuous_bootstrap_wire_bytes']=self.bytes['continuous_bootstrap']
             report['continuous_bootstrap_policy']='exact_model_clone_v1'
+        if self.spec.get('evaluation_mode')=='v4_only':
+            report.pop('baseline',None);report.pop('native_control_router_mode',None)
+            report['evaluation_mode']='v4_only';report['comparisons_computed']=False
         path.write_text(json.dumps(report,indent=2),encoding='utf-8')
