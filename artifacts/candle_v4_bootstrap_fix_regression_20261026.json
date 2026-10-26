@@ -1,0 +1,10 @@
+{
+  "protocol": "candle_v4_continuous_bootstrap_v8",
+  "tests": 11,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "synthetic_only": true,
+  "backbone_training": false,
+  "real_TEST_opened": false
+}

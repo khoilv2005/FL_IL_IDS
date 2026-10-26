@@ -103,7 +103,7 @@ from fed_learning.training.checkpoint_state import (
 from fed_learning.training.local_task_loop import (
     _update_local_nice_context_memory,
 )
-from fed_learning.training.candle_v4_continuous_runtime import update_memory as _update_v4_router_memory
+from fed_learning.training.candle_v4_continuous_runtime import update_memory as _update_v4_router_memory, clone_continuous_memory
 from fed_learning.training.task_loop import _resolve_output_dir
 from fed_learning.utils.seed import set_seed
 
@@ -2692,7 +2692,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError('Cannot silently disable APPLIANCE while resuming its checkpoint')
     v4_shadow = None
     if config.get('candle_v4_full_service'):
-        if config['candle_v4_full_service'].get('version') in ('candle_v4_current_graph_handoff_v6', 'candle_v4_continuous_class_router_v7'):
+        if config['candle_v4_full_service'].get('version') in ('candle_v4_current_graph_handoff_v6', 'candle_v4_continuous_class_router_v7', 'candle_v4_continuous_bootstrap_v8'):
             from fed_learning.training.candle_v4_original_train import OriginalTrainService
             service_type = OriginalTrainService
         else:
@@ -2830,6 +2830,11 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
                         # source detector's sketches/calibration are compatible.
                         restore_context_detector(
                             context_detectors[cid], source_detector_state
+                        )
+                        clone_continuous_memory(
+                            v4_shadow, int(cid), int(source_id), task_id,
+                            models[source_id], models[cid],
+                            context_detectors[source_id], context_detectors[cid],
                         )
                         bootstrap_events.append(
                             {
@@ -3955,7 +3960,7 @@ def run_decentralized_denice_il(config: Dict[str, Any]) -> Dict[str, Any]:
 
         if v4_shadow and hasattr(v4_shadow, 'finish_task'):
             completion_key = ('candle_v4_task_completion' if config.get('candle_v4_full_service', {}).get('version') in
-                              ('candle_v4_current_graph_handoff_v6', 'candle_v4_continuous_class_router_v7') else 'candle_v4_gate')
+                              ('candle_v4_current_graph_handoff_v6', 'candle_v4_continuous_class_router_v7', 'candle_v4_continuous_bootstrap_v8') else 'candle_v4_gate')
             cluster_summary[completion_key] = v4_shadow.finish_task(
                 task_id, models, context_detectors, clients, active_ids, cluster_summary)
         if appliance_probe:

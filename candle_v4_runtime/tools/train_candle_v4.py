@@ -15,14 +15,17 @@ def main():
     parser.add_argument('--output',required=True)
     parser.add_argument('--variant',choices=('coverage','native-only'),default='coverage')
     parser.add_argument('--router-mode',choices=('binary_cosine','multiclass_balanced','continuous_class_v1'),default='binary_cosine')
+    parser.add_argument('--continuous-bootstrap',action='store_true',help='V8 exact-model-clone continuous memory; fresh run only across protocol versions')
     parser.add_argument('--resume',help='Original-TRAIN continuation only; role-based checkpoints are incompatible')
     args=parser.parse_args()
+    if args.continuous_bootstrap and (args.router_mode!='continuous_class_v1' or args.variant!='coverage'):
+        raise ValueError('V8 bootstrap fix applies only to V4 continuous coverage')
     if args.variant=='native-only' and args.router_mode=='continuous_class_v1':raise ValueError('Continuous router is a V4 variant; do not relabel it as V1')
     if not Path('/kaggle/working').is_dir():raise RuntimeError('Full training is Kaggle-only')
     root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root))
     import torch
     from tools.train_candle_v1 import resolve_data
-    from fed_learning.training.candle_v4_original_train import VERSION,CONTINUOUS_VERSION
+    from fed_learning.training.candle_v4_original_train import VERSION,CONTINUOUS_VERSION,BOOTSTRAP_VERSION
     import hashlib
     if not torch.cuda.is_available():raise RuntimeError('Enable Kaggle GPU')
     data=resolve_data(args.data_dir);output=Path(args.output).resolve()
@@ -32,6 +35,7 @@ def main():
     if not args.resume and output.exists() and any(output.iterdir()):raise ValueError('Fresh output required')
     config=json.loads((root/'configs/candle_v1.json').read_text())
     protocol=CONTINUOUS_VERSION if args.router_mode=='continuous_class_v1' else VERSION
+    if args.continuous_bootstrap:protocol=BOOTSTRAP_VERSION
     spec=dict(version=protocol,seed=42,input_sha256=metadata_sha256,
               data_dir=str(data),output_dir=str(output),arms=['coverage'] if args.variant=='coverage' else [],
               data_protocol='100% original current-task TRAIN; no validation',fixed_threshold=.5,
