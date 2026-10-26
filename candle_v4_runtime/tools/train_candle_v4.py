@@ -26,7 +26,10 @@ def main():
     parser.add_argument('--continuous-bootstrap',action='store_true',help='V8 exact-model-clone continuous memory; fresh run only across protocol versions')
     parser.add_argument('--v4-only',action='store_true',help='Train and report V4 only; no baseline or ablation readouts')
     parser.add_argument('--resume',help='Original-TRAIN continuation only; role-based checkpoints are incompatible')
+    parser.add_argument('--import-task4-archive',help='Explicit results16 T4 migration to bootstrap-fixed V4-only; not exact legacy resume')
     args=parser.parse_args()
+    if args.import_task4_archive and (args.resume or not args.v4_only):
+        raise ValueError('Task4 migration requires --v4-only and cannot be combined with --resume')
     if args.continuous_bootstrap and (args.router_mode!='continuous_class_v1' or args.variant!='coverage'):
         raise ValueError('V8 bootstrap fix applies only to V4 continuous coverage')
     if args.v4_only and not args.continuous_bootstrap:
@@ -77,6 +80,14 @@ def main():
         native_output_guard_gib=config['denice_checkpoint_storage_budget_gib'],
         policy='Caps are enforced, not a prediction of measured traffic; native traffic additional')
     lock_path=output/'candle_v4_run_lock.json'
+    if args.import_task4_archive:
+        sys.path.insert(0,str(root.parent/'tools'))
+        from migrate_candle_v4_task4 import migrate_archive
+        migrated=migrate_archive(args.import_task4_archive,output,config,spec)
+        args.resume=str(migrated)
+        config['resume_state_path']=str(migrated)
+        lock['migration']='results16 T4 legacy -> repaired bootstrap-fixed V4-only; T0-T4 not rerun'
+        lock_path.write_text(json.dumps(lock,indent=2),encoding='utf-8')
     if args.resume:
         if not lock_path.exists():raise ValueError('Restore the same current-graph-handoff v6 run lock with continuation')
         previous=json.loads(lock_path.read_text())
