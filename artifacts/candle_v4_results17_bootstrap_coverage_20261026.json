@@ -1,0 +1,8950 @@
+{
+  "completed": true,
+  "source_checkpoint": "E:\\School\\UIT\\FL_IL_IDS\\audit_denice\\candle_v4_results17_20261026\\continuation_state_latest.pt",
+  "task": 5,
+  "no_training": true,
+  "no_new_inference": true,
+  "no_raw_data_access": true,
+  "no_runtime_changes": true,
+  "no_TEST_fitting": true,
+  "estimator_version_warnings": [
+    "Trying to unpickle estimator LogisticRegression from version 1.6.1 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:\nhttps://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations"
+  ],
+  "warning_scope": "No estimator prediction/fit used; analysis reads saved memory support and confusion counts",
+  "clients": 100,
+  "affected_count": 50,
+  "affected_ids": [
+    1,
+    2,
+    3,
+    5,
+    6,
+    7,
+    8,
+    10,
+    11,
+    12,
+    16,
+    17,
+    20,
+    21,
+    22,
+    23,
+    24,
+    27,
+    28,
+    29,
+    31,
+    35,
+    36,
+    37,
+    39,
+    40,
+    41,
+    43,
+    44,
+    50,
+    51,
+    59,
+    61,
+    62,
+    63,
+    66,
+    67,
+    74,
+    75,
+    77,
+    79,
+    82,
+    84,
+    85,
+    86,
+    87,
+    90,
+    92,
+    93,
+    95
+  ],
+  "representative_clone_count": 50,
+  "affected_all_had_representative_clone": true,
+  "missing_inherited_test_rows": 1253856,
+  "native_correct_unreachable_in_continuous": 913811,
+  "clients_detail": {
+    "0": {
+      "native_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        19,
+        20,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 0,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 0,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 74,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 5.075652599334717
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.27986494691169717,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.11113743724918183,
+        "continuous_native": 0.1361933391579914,
+        "coverage": 0.20674080765300834
+      }
+    },
+    "1": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        8,
+        9,
+        10,
+        12,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        26,
+        27,
+        28,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 1,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 15,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1809,
+      "correct_in_missing": {
+        "V1": 1809,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.47720979134890196,
+        "continuous_native": 0.4909668438744836,
+        "coverage": 0.5288468657909935
+      }
+    },
+    "2": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 2,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 5,
+          "client_id": 2,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 1.649510383605957
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1937,
+      "correct_in_missing": {
+        "V1": 1937,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7282945105065972,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.41141583615927974,
+        "continuous_native": 0.3932976943239201,
+        "coverage": 0.4751514164284974
+      }
+    },
+    "3": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26,
+        27,
+        28,
+        29,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 3,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1673,
+      "correct_in_missing": {
+        "V1": 1673,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5667787172918302,
+        "continuous_native": 0.5896133513009225,
+        "coverage": 0.590494454234477
+      }
+    },
+    "4": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6,
+        8,
+        9,
+        10,
+        11,
+        18,
+        19,
+        20,
+        21,
+        24,
+        25,
+        27,
+        28,
+        29,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 4,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 4,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 74,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.2914968729019165
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6927468198847903,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5326822550311718,
+        "continuous_native": 0.5658309763212842,
+        "coverage": 0.5666602496705119
+      }
+    },
+    "5": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        5
+      ],
+      "continuous_classes": [
+        17,
+        19,
+        21,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 5,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 22,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 5,
+          "client_id": 5,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.6999017000198364
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 59860,
+      "missing_inherited_native_correct": 49041,
+      "correct_in_missing": {
+        "V1": 49041,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5245598187445394,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.4741296331946275,
+        "continuous_native": 0.12119978083490056,
+        "coverage": 0.1975447585481793
+      }
+    },
+    "6": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        15,
+        17,
+        18,
+        19,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 6,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 5,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 59860,
+      "missing_inherited_native_correct": 48748,
+      "correct_in_missing": {
+        "V1": 48748,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.556783011743103,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5051829584326734,
+        "continuous_native": 0.1590872069777429,
+        "coverage": 0.212479083060611
+      }
+    },
+    "7": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        22,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 7,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1493,
+      "correct_in_missing": {
+        "V1": 1493,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6210739089872499,
+        "continuous_native": 0.6487212901123962,
+        "coverage": 0.6464555968546847
+      }
+    },
+    "8": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        8,
+        10,
+        11,
+        12,
+        14,
+        17,
+        18,
+        19,
+        22,
+        24,
+        27,
+        29,
+        30,
+        31
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 8,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1927,
+      "correct_in_missing": {
+        "V1": 1927,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.2932369796679945,
+        "continuous_native": 0.3137096654770543,
+        "coverage": 0.4141035703179375
+      }
+    },
+    "9": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        13,
+        14,
+        15,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 9,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 9,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 4.476248264312744
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.587118127026907,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.28064979490293057,
+        "continuous_native": 0.3326126553036473,
+        "coverage": 0.3306135141939019
+      }
+    },
+    "10": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        8,
+        12,
+        14,
+        15,
+        16,
+        17,
+        25,
+        26,
+        27,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 10,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 4,
+          "client_id": 10,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.4701489210128784
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1969,
+      "correct_in_missing": {
+        "V1": 1969,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7605251077314932,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.300204356646774,
+        "continuous_native": 0.2948807179137852,
+        "coverage": 0.3923499533533741
+      }
+    },
+    "11": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        18,
+        19,
+        21,
+        22,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 11,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1903,
+      "correct_in_missing": {
+        "V1": 1903,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5876068059648447,
+        "continuous_native": 0.6013342415850967,
+        "coverage": 0.6373039731078499
+      }
+    },
+    "12": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        14,
+        15,
+        16,
+        25,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 12,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 4,
+          "client_id": 12,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.4985100030899048
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1474,
+      "correct_in_missing": {
+        "V1": 1474,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7605251077314932,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.46149802307156923,
+        "continuous_native": 0.4690503339306076,
+        "coverage": 0.5993499089280161
+      }
+    },
+    "13": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        7,
+        9,
+        10,
+        11,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 13,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 13,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 74,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.2830591201782227
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6927468198847903,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.31882598587273614,
+        "continuous_native": 0.35102696619230256,
+        "coverage": 0.3627478564764768
+      }
+    },
+    "14": {
+      "native_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        3,
+        5,
+        19,
+        20,
+        23,
+        25,
+        28,
+        29,
+        30,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 14,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 14,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 74,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 4.44003438949585
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.27986494691169717,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.12220675561610567,
+        "continuous_native": 0.12895941003124584,
+        "coverage": 0.2030905240711398
+      }
+    },
+    "15": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 15,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 5,
+          "client_id": 15,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.658341646194458
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.967769402775104,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6453227502258289,
+        "continuous_native": 0.6588280590561092,
+        "coverage": 0.6588280590561092
+      }
+    },
+    "16": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        8,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        23,
+        25,
+        26,
+        28,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 16,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1443,
+      "correct_in_missing": {
+        "V1": 1443,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.3596751025485347,
+        "continuous_native": 0.4102385641724296,
+        "coverage": 0.4508285329265945
+      }
+    },
+    "17": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        15,
+        16,
+        17,
+        18,
+        19,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        31
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 17,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2098,
+      "correct_in_missing": {
+        "V1": 2098,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.45890654385523255,
+        "continuous_native": 0.4800678227132047,
+        "coverage": 0.5953220098031957
+      }
+    },
+    "18": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        14,
+        15,
+        16,
+        19,
+        20,
+        21,
+        23,
+        25,
+        26,
+        27,
+        28,
+        29,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 18,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.45079891602126493,
+        "continuous_native": 0.5941077166846837,
+        "coverage": 0.6130699403219357
+      }
+    },
+    "19": {
+      "native_tasks": [
+        0,
+        4
+      ],
+      "continuous_tasks": [
+        0,
+        4
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        4
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 19,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 4,
+          "client_id": 19,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 3,
+          "catch_up_param_distance": 4.977285385131836
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.06255830828236753,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          4
+        ],
+        "coverage": [
+          0,
+          4
+        ]
+      },
+      "accuracy": {
+        "V1": 0.01945830680152231,
+        "continuous_native": 0.023597269321328614,
+        "coverage": 0.018110737609027233
+      }
+    },
+    "20": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        18,
+        20,
+        22,
+        23,
+        24,
+        25,
+        26,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1,
+        2
+      ],
+      "local_training_tasks": [
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 3,
+          "client_id": 20,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 74,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 101357,
+      "missing_inherited_native_correct": 76105,
+      "correct_in_missing": {
+        "V1": 76105,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.24952983162789322,
+      "predicted_task_support": {
+        "continuous_native": [
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6433606302477454,
+        "continuous_native": 0.1017784951650402,
+        "coverage": 0.2099024122969391
+      }
+    },
+    "21": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        24,
+        25,
+        26,
+        27,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 21,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 4,
+          "client_id": 21,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.5185033082962036
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1361,
+      "correct_in_missing": {
+        "V1": 1361,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7605251077314932,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.4208710331857424,
+        "continuous_native": 0.4194642301825882,
+        "coverage": 0.5002443394689688
+      }
+    },
+    "22": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        25,
+        26,
+        27,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 22,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1184,
+      "correct_in_missing": {
+        "V1": 1184,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5535473648358483,
+        "continuous_native": 0.568348413274297,
+        "coverage": 0.5604777206829659
+      }
+    },
+    "23": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        18,
+        20,
+        21,
+        22,
+        27,
+        29,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 23,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 3,
+          "client_id": 23,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.2550263404846191
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1935,
+      "correct_in_missing": {
+        "V1": 1935,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6624117046009863,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5449658665166077,
+        "continuous_native": 0.5557168031512387,
+        "coverage": 0.5603962741933095
+      }
+    },
+    "24": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        8,
+        9,
+        10,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 24,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1829,
+      "correct_in_missing": {
+        "V1": 1829,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5900057752965393,
+        "continuous_native": 0.617453242310711,
+        "coverage": 0.6219846288261339
+      }
+    },
+    "25": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        3,
+        12,
+        13,
+        17,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        27,
+        29,
+        31
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 25,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 25,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 3.326878786087036
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.587118127026907,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.13143242162626428,
+        "continuous_native": 0.28290067970797733,
+        "coverage": 0.29054924550933675
+      }
+    },
+    "26": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 26,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 4,
+          "client_id": 26,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.5392314195632935
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7908602230152971,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6177790282693362,
+        "continuous_native": 0.6637222526618194,
+        "coverage": 0.6638925498674644
+      }
+    },
+    "27": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        10,
+        11,
+        18,
+        20,
+        21,
+        22,
+        23,
+        24,
+        26,
+        29,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 27,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 3,
+          "client_id": 27,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.2637940645217896
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2115,
+      "correct_in_missing": {
+        "V1": 2115,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6624117046009863,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.4015608109108679,
+        "continuous_native": 0.40653645100623437,
+        "coverage": 0.493136282189874
+      }
+    },
+    "28": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        8,
+        9,
+        11,
+        19,
+        20,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 28,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 3,
+          "client_id": 28,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.2416472434997559
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2035,
+      "correct_in_missing": {
+        "V1": 2035,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6624117046009863,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.4116601756282486,
+        "continuous_native": 0.42414370122465905,
+        "coverage": 0.4962164403441484
+      }
+    },
+    "29": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        9,
+        12,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        22,
+        24,
+        26,
+        27,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 29,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2044,
+      "correct_in_missing": {
+        "V1": 2044,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.455463578610671,
+        "continuous_native": 0.4545084334137926,
+        "coverage": 0.5423891957529358
+      }
+    },
+    "30": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        27,
+        29,
+        31
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 30,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.2526618193664944,
+        "continuous_native": 0.45689999851915475,
+        "coverage": 0.46141657658191293
+      }
+    },
+    "31": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        8,
+        9,
+        11,
+        12,
+        13,
+        15,
+        16,
+        25,
+        27,
+        31
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 31,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 4,
+          "client_id": 31,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.463020920753479
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1705,
+      "correct_in_missing": {
+        "V1": 1705,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7605177035051607,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5085370729612463,
+        "continuous_native": 0.5150972174917443,
+        "coverage": 0.6320099512801908
+      }
+    },
+    "32": {
+      "native_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 32,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 32,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 1.6027947664260864
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.27987235113802955,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.22034977565194214,
+        "continuous_native": 0.22547350027395638,
+        "coverage": 0.22511809741000163
+      }
+    },
+    "33": {
+      "native_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        3,
+        19,
+        20,
+        23,
+        24,
+        25,
+        26,
+        28,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 33,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 33,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 5.103464126586914
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.27987235113802955,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.08925794843696783,
+        "continuous_native": 0.1447896459298968,
+        "coverage": 0.2162256215848006
+      }
+    },
+    "34": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        23,
+        25,
+        26,
+        27,
+        29,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 34,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6158317167439175,
+        "continuous_native": 0.6745176146544447,
+        "coverage": 0.6763464585585452
+      }
+    },
+    "35": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        5
+      ],
+      "continuous_classes": [
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "local_training_tasks": [
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 5,
+          "client_id": 35,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 85,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 133955,
+      "missing_inherited_native_correct": 87892,
+      "correct_in_missing": {
+        "V1": 87892,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.008166861644626766,
+      "predicted_task_support": {
+        "continuous_native": [
+          5
+        ],
+        "coverage": [
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6551777754742407,
+        "continuous_native": 0.007944734854655038,
+        "coverage": 0.007944734854655038
+      }
+    },
+    "36": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        10,
+        11,
+        13,
+        14,
+        17,
+        18,
+        20,
+        21,
+        23,
+        24,
+        26,
+        28,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 36,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1845,
+      "correct_in_missing": {
+        "V1": 1845,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.30790475203246015,
+        "continuous_native": 0.29335544728931273,
+        "coverage": 0.41170460098624295
+      }
+    },
+    "37": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        13,
+        14,
+        15,
+        17,
+        18,
+        19,
+        20,
+        23,
+        24,
+        26,
+        27,
+        28,
+        29,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 37,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 5,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 59860,
+      "missing_inherited_native_correct": 48795,
+      "correct_in_missing": {
+        "V1": 48795,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.556783011743103,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6144101052880985,
+        "continuous_native": 0.29138592308489686,
+        "coverage": 0.2985606184009833
+      }
+    },
+    "38": {
+      "native_tasks": [
+        0,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        24,
+        25,
+        26,
+        27,
+        28,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 38,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 4,
+          "client_id": 38,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 85,
+          "missed_tasks": 3,
+          "catch_up_param_distance": 1.7818604707717896
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.07072516992699429,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.027514105051163203,
+        "continuous_native": 0.03924980378800219,
+        "coverage": 0.0344740778036103
+      }
+    },
+    "39": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        8,
+        11,
+        13,
+        14,
+        15,
+        18,
+        19,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 39,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1903,
+      "correct_in_missing": {
+        "V1": 1903,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.4155029690947593,
+        "continuous_native": 0.4064994298745724,
+        "coverage": 0.4110382206163278
+      }
+    },
+    "40": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        15,
+        18,
+        20,
+        22,
+        25,
+        26,
+        27,
+        28,
+        29,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 40,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1643,
+      "correct_in_missing": {
+        "V1": 1643,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.25060344444608984,
+        "continuous_native": 0.24989263871818035,
+        "coverage": 0.3575426853648062
+      }
+    },
+    "41": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        8,
+        9,
+        20,
+        22,
+        23,
+        24,
+        25,
+        28,
+        29,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 41,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 3,
+          "client_id": 41,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.2593413591384888
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2207,
+      "correct_in_missing": {
+        "V1": 2207,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6624191088273186,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.28594381673058983,
+        "continuous_native": 0.2794577144634157,
+        "coverage": 0.3902915784329695
+      }
+    },
+    "42": {
+      "native_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        4,
+        5,
+        19,
+        20,
+        21,
+        23,
+        24,
+        27,
+        28,
+        30,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 42,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 42,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 3.6996066570281982
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.27987235113802955,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.18161826770720726,
+        "continuous_native": 0.22035717987827452,
+        "coverage": 0.22689511172977536
+      }
+    },
+    "43": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        4,
+        5
+      ],
+      "continuous_classes": [
+        24,
+        27,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "local_training_tasks": [
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 4,
+          "client_id": 43,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 85,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 129603,
+      "missing_inherited_native_correct": 85585,
+      "correct_in_missing": {
+        "V1": 85585,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.04039005464319034,
+      "predicted_task_support": {
+        "continuous_native": [
+          4,
+          5
+        ],
+        "coverage": [
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6384442239630381,
+        "continuous_native": 0.005767892312932222,
+        "coverage": 0.008914688504198196
+      }
+    },
+    "44": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        9,
+        10,
+        11,
+        12,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        30,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 44,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1754,
+      "correct_in_missing": {
+        "V1": 1754,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.3251343867079329,
+        "continuous_native": 0.33683306431310994,
+        "coverage": 0.5190436701269084
+      }
+    },
+    "45": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        24,
+        26,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 45,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 4,
+          "client_id": 45,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.4697983264923096
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7908528187889647,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.2974055590931304,
+        "continuous_native": 0.6189563002561862,
+        "coverage": 0.6229397740230124
+      }
+    },
+    "46": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        12,
+        13,
+        14,
+        15,
+        18,
+        19,
+        21,
+        24,
+        27,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 46,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 46,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.6799023151397705
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.587118127026907,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.21167942661671282,
+        "continuous_native": 0.2753335603962742,
+        "coverage": 0.2767921929837551
+      }
+    },
+    "47": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        2,
+        3,
+        4,
+        5,
+        15,
+        16,
+        18,
+        20,
+        22,
+        23,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 47,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 47,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.899825096130371
+        },
+        {
+          "task": 5,
+          "client_id": 47,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 35,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.541987419128418
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5548949340283433,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.0841934576256127,
+        "continuous_native": 0.08894697093100742,
+        "coverage": 0.20704438093263636
+      }
+    },
+    "48": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        24,
+        25,
+        26,
+        28,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 48,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 48,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 4.850017547607422
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.587118127026907,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.2697211568363222,
+        "continuous_native": 0.3416384072028314,
+        "coverage": 0.33870633357520474
+      }
+    },
+    "49": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13,
+        14,
+        17,
+        18,
+        21,
+        23,
+        25,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 49,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.4085948259266389,
+        "continuous_native": 0.6383627774733818,
+        "coverage": 0.645929896785085
+      }
+    },
+    "50": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        5
+      ],
+      "continuous_classes": [
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        22,
+        23,
+        30,
+        31
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 50,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 5,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 5,
+          "client_id": 50,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 35,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.5761079788208008
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 59860,
+      "missing_inherited_native_correct": 48707,
+      "correct_in_missing": {
+        "V1": 48707,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5245598187445394,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6163870337188467,
+        "continuous_native": 0.30449880791956047,
+        "coverage": 0.3087118127026907
+      }
+    },
+    "51": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 51,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 3,
+          "client_id": 51,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.2574409246444702
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2062,
+      "correct_in_missing": {
+        "V1": 2062,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6624191088273186,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.4996742140413748,
+        "continuous_native": 0.5066193783411571,
+        "coverage": 0.5070784403737654
+      }
+    },
+    "52": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        12,
+        13,
+        15,
+        17,
+        18,
+        19,
+        22,
+        23,
+        24,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 52,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 52,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 4.865427017211914
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.587118127026907,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.20585230049312148,
+        "continuous_native": 0.22112721941684313,
+        "coverage": 0.3379288898103037
+      }
+    },
+    "53": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        26,
+        28,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 53,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 53,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 3.960761070251465
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.587118127026907,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.2785469946245317,
+        "continuous_native": 0.29001614121340463,
+        "coverage": 0.2901864384190496
+      }
+    },
+    "54": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        18,
+        19,
+        21,
+        22,
+        23,
+        27,
+        28,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 54,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 54,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.231127142906189
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6927542241111226,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.31391698381436123,
+        "continuous_native": 0.5121577396377852,
+        "coverage": 0.5739089872499222
+      }
+    },
+    "55": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        2,
+        4,
+        6,
+        7,
+        11,
+        18,
+        19,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 55,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 55,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 2.75701642036438
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6927542241111226,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.1307808497090139,
+        "continuous_native": 0.33475988094004056,
+        "coverage": 0.3461846021709192
+      }
+    },
+    "56": {
+      "native_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        4,
+        5,
+        12,
+        13,
+        15,
+        17,
+        24,
+        25,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 56,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 56,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 4.601678371429443
+        },
+        {
+          "task": 4,
+          "client_id": 56,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.4796279668807983
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.37797094581587165,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.2173954893453183,
+        "continuous_native": 0.22495520443068903,
+        "coverage": 0.3334123117475455
+      }
+    },
+    "57": {
+      "native_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        2,
+        3,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        27,
+        28,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 57,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 57,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 4.989193439483643
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.27987235113802955,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.16219698203734692,
+        "continuous_native": 0.2221786195560426,
+        "coverage": 0.22393342119681914
+      }
+    },
+    "58": {
+      "native_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        2,
+        5,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 58,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 58,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.9185600280761719
+        },
+        {
+          "task": 4,
+          "client_id": 58,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.466343641281128
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.37797094581587165,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.26183565579232626,
+        "continuous_native": 0.32318707518251416,
+        "coverage": 0.3233203512564972
+      }
+    },
+    "59": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        20,
+        24,
+        26,
+        28,
+        29,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1,
+        2
+      ],
+      "local_training_tasks": [
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 3,
+          "client_id": 59,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 20,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 101356,
+      "missing_inherited_native_correct": 75586,
+      "correct_in_missing": {
+        "V1": 75586,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.2495372358542256,
+      "predicted_task_support": {
+        "continuous_native": [
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6239911741622118,
+        "continuous_native": 0.08123917131898888,
+        "coverage": 0.18468361740881695
+      }
+    },
+    "60": {
+      "native_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        2,
+        3,
+        4,
+        18,
+        19,
+        20,
+        21,
+        22,
+        24,
+        25,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 60,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 60,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 2.6667606830596924
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.27987235113802955,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.20791067541352604,
+        "continuous_native": 0.22230449140369324,
+        "coverage": 0.22610285951220957
+      }
+    },
+    "61": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        12,
+        13,
+        14,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 61,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 5,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 59860,
+      "missing_inherited_native_correct": 48464,
+      "correct_in_missing": {
+        "V1": 48464,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.556783011743103,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.63256526825512,
+        "continuous_native": 0.3256600867775326,
+        "coverage": 0.32627463756312103
+      }
+    },
+    "62": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        14,
+        15,
+        16,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 62,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 5,
+          "client_id": 62,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 35,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 1.6106187105178833
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2519,
+      "correct_in_missing": {
+        "V1": 2519,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7282945105065972,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5438626367930814,
+        "continuous_native": 0.5401605236268863,
+        "coverage": 0.6314694427579263
+      }
+    },
+    "63": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        11,
+        14,
+        15,
+        17,
+        25,
+        26,
+        28,
+        29,
+        30
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 63,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 4,
+          "client_id": 63,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.5663803815841675
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1728,
+      "correct_in_missing": {
+        "V1": 1728,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7605177035051607,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.21698825689703682,
+        "continuous_native": 0.20756267677590368,
+        "coverage": 0.4710050496823587
+      }
+    },
+    "64": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        14,
+        15,
+        20,
+        22,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 64,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 5,
+          "client_id": 64,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 35,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.5179619789123535
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.9677768070014364,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.46930948185224125,
+        "continuous_native": 0.5009255282915488,
+        "coverage": 0.5496305291060137
+      }
+    },
+    "65": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        2,
+        4,
+        5,
+        12,
+        14,
+        15,
+        16,
+        18,
+        19,
+        21,
+        25,
+        26,
+        27,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 65,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 65,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 2.048534870147705
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.587118127026907,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.20859926846243837,
+        "continuous_native": 0.19621940203468138,
+        "coverage": 0.2539575589746627
+      }
+    },
+    "66": {
+      "native_tasks": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        7,
+        10,
+        11,
+        24,
+        25,
+        26,
+        28,
+        29,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 66,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 4,
+          "client_id": 66,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 1.5243405103683472
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1978,
+      "correct_in_missing": {
+        "V1": 1978,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.4532719276162833,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.1212442061928949,
+        "continuous_native": 0.10899761583912097,
+        "coverage": 0.4318737135156748
+      }
+    },
+    "67": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 67,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1723,
+      "correct_in_missing": {
+        "V1": 1723,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.969664884716196,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5891394808156496,
+        "continuous_native": 0.5774185905314754,
+        "coverage": 0.6632631906292111
+      }
+    },
+    "68": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        3,
+        4,
+        5,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 68,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 68,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 9.498260498046875
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.587118127026907,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.248730175183995,
+        "continuous_native": 0.3148128952005805,
+        "coverage": 0.3167676109523316
+      }
+    },
+    "69": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        4,
+        7,
+        8,
+        10,
+        12,
+        13,
+        14,
+        16,
+        18,
+        19,
+        21,
+        22,
+        24,
+        25,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 69,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.08733284959054628,
+        "continuous_native": 0.42640939448237053,
+        "coverage": 0.42640939448237053
+      }
+    },
+    "70": {
+      "native_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        5,
+        18,
+        22,
+        23,
+        24,
+        25,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 70,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 70,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 5.136577606201172
+        }
+      ],
+      "test_rows": 135058,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.27987235113802955,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.046617008988730765,
+        "continuous_native": 0.047231559774319185,
+        "coverage": 0.11742362540538138
+      }
+    },
+    "71": {
+      "native_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        13,
+        16,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 71,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 71,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 4.704325199127197
+        },
+        {
+          "task": 4,
+          "client_id": 71,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.481773853302002
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.3779663401378677,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.12397728366541534,
+        "continuous_native": 0.13255884552448224,
+        "coverage": 0.31075027580947306
+      }
+    },
+    "72": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        3,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        8,
+        10,
+        11,
+        18,
+        19,
+        20,
+        22,
+        23,
+        30,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        3,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 72,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 72,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.3524010181427002
+        },
+        {
+          "task": 5,
+          "client_id": 72,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 35,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.6093266010284424
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6605285175888699,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          3,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          3,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.35690116025085705,
+        "continuous_native": 0.40399979268012765,
+        "coverage": 0.48046380417157203
+      }
+    },
+    "73": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        2,
+        4,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        23,
+        24,
+        25,
+        26,
+        28,
+        30
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 73,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.2388324929474222,
+        "continuous_native": 0.42075568093471644,
+        "coverage": 0.5326343691922669
+      }
+    },
+    "74": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 74,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 5,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 59860,
+      "missing_inherited_native_correct": 50551,
+      "correct_in_missing": {
+        "V1": 50551,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5567797300399091,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6184573920640914,
+        "continuous_native": 0.34840104548449913,
+        "coverage": 0.35162190778708247
+      }
+    },
+    "75": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        9,
+        13,
+        16,
+        18,
+        19,
+        21,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 75,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2147,
+      "correct_in_missing": {
+        "V1": 2147,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.9696646601064736,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5140866448980801,
+        "continuous_native": 0.5197953456688658,
+        "coverage": 0.5427115958447174
+      }
+    },
+    "76": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        3,
+        4,
+        5,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13,
+        14,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        27,
+        28,
+        29,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 76,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.34103378573491194,
+        "continuous_native": 0.4422355005664275,
+        "coverage": 0.45250523852891744
+      }
+    },
+    "77": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        22,
+        23,
+        24,
+        25,
+        27,
+        28,
+        29,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 77,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2033,
+      "correct_in_missing": {
+        "V1": 2033,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.9696646601064736,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5537291662038991,
+        "continuous_native": 0.5802068756154809,
+        "coverage": 0.6656004501802942
+      }
+    },
+    "78": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        14,
+        15,
+        16,
+        17,
+        24,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 78,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 4,
+          "client_id": 78,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.4976825714111328
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7908512702044322,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5597192296585886,
+        "continuous_native": 0.5834055250745981,
+        "coverage": 0.6783876437356079
+      }
+    },
+    "79": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        12,
+        13,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        23,
+        26,
+        27,
+        28,
+        30,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 79,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 5,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 59860,
+      "missing_inherited_native_correct": 48151,
+      "correct_in_missing": {
+        "V1": 48151,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5567797300399091,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5705368844265755,
+        "continuous_native": 0.2456074102045803,
+        "coverage": 0.25541808273543765
+      }
+    },
+    "80": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        4,
+        5,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26,
+        28,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 80,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.20905247414054806,
+        "continuous_native": 0.286464233619879,
+        "coverage": 0.31072806296600697
+      }
+    },
+    "81": {
+      "native_tasks": [
+        0,
+        1,
+        4
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        4
+      ],
+      "continuous_classes": [
+        0,
+        2,
+        3,
+        4,
+        6,
+        8,
+        9,
+        10,
+        26,
+        27,
+        28
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        4
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 81,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 4,
+          "client_id": 81,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 1.5095031261444092
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.47544370154823523,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          4
+        ],
+        "coverage": [
+          0,
+          1,
+          4
+        ]
+      },
+      "accuracy": {
+        "V1": 0.32797263377684976,
+        "continuous_native": 0.3330297578059634,
+        "coverage": 0.41098202980963594
+      }
+    },
+    "82": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        8,
+        9,
+        10,
+        12,
+        15,
+        16,
+        17,
+        19,
+        21,
+        22,
+        23,
+        24,
+        25,
+        28,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 82,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1367,
+      "correct_in_missing": {
+        "V1": 1367,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.9696646601064736,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.503120904506986,
+        "continuous_native": 0.5273847338531139,
+        "coverage": 0.5828724168314119
+      }
+    },
+    "83": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        3,
+        6,
+        8,
+        9,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        24,
+        26,
+        27,
+        29,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 83,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.24913184803453356,
+        "continuous_native": 0.6110383023464167,
+        "coverage": 0.6055887514160687
+      }
+    },
+    "84": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        9,
+        10,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        26,
+        27,
+        28,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 84,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 3,
+          "client_id": 84,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.3301163911819458
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 2107,
+      "correct_in_missing": {
+        "V1": 2107,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6624166092834878,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.3045158710766565,
+        "continuous_native": 0.2970079299851174,
+        "coverage": 0.384867130174667
+      }
+    },
+    "85": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        18,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1,
+        2
+      ],
+      "local_training_tasks": [
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 3,
+          "client_id": 85,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 20,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 101356,
+      "missing_inherited_native_correct": 76427,
+      "correct_in_missing": {
+        "V1": 76427,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.2495316792169232,
+      "predicted_task_support": {
+        "continuous_native": [
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6487260934272197,
+        "continuous_native": 0.16181316036932555,
+        "coverage": 0.20706072250975513
+      }
+    },
+    "86": {
+      "native_tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        10,
+        18,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        28,
+        29,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 86,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 3,
+          "client_id": 86,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.2454701662063599
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1629,
+      "correct_in_missing": {
+        "V1": 1629,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.6624166092834878,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.3979356864138845,
+        "continuous_native": 0.4119445863598333,
+        "coverage": 0.4574883197464774
+      }
+    },
+    "87": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        13,
+        15,
+        16,
+        19,
+        20,
+        21,
+        22,
+        24,
+        25,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 87,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 5,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 59860,
+      "missing_inherited_native_correct": 49994,
+      "correct_in_missing": {
+        "V1": 49994,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5567797300399091,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5928459835476872,
+        "continuous_native": 0.24960572202847686,
+        "coverage": 0.2456666444538232
+      }
+    },
+    "88": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        2,
+        3,
+        5,
+        12,
+        13,
+        15,
+        17,
+        20,
+        21,
+        22,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 88,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 88,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 2.8112826347351074
+        },
+        {
+          "task": 5,
+          "client_id": 88,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 35,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.581459403038025
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5548990426264466,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.23910645135017067,
+        "continuous_native": 0.26856808606736415,
+        "coverage": 0.2745433409597429
+      }
+    },
+    "89": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        12,
+        13,
+        14,
+        19,
+        22,
+        23,
+        25,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 89,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 89,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 2.1016616821289062
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5871224742145909,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.3053821719718341,
+        "continuous_native": 0.32752837690752795,
+        "coverage": 0.3302901737784787
+      }
+    },
+    "90": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26,
+        27,
+        28,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 90,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 4097,
+      "missing_inherited_native_correct": 1292,
+      "correct_in_missing": {
+        "V1": 1292,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.9696646601064736,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6262911215264666,
+        "continuous_native": 0.6375012031956877,
+        "coverage": 0.6371532019813856
+      }
+    },
+    "91": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        27,
+        28,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 91,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.3900205098588004,
+        "continuous_native": 0.47944941765328714,
+        "coverage": 0.47343714135513154
+      }
+    },
+    "92": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        13,
+        14,
+        15,
+        16,
+        17,
+        20,
+        21,
+        22,
+        23,
+        27,
+        29,
+        30,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0,
+        1
+      ],
+      "local_training_tasks": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 2,
+          "client_id": 92,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 5,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 59859,
+      "missing_inherited_native_correct": 54699,
+      "correct_in_missing": {
+        "V1": 54699,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5567871343210644,
+      "predicted_task_support": {
+        "continuous_native": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.588366393448692,
+        "continuous_native": 0.24596281570003775,
+        "coverage": 0.29215072154719857
+      }
+    },
+    "93": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        9,
+        10,
+        11,
+        13,
+        14,
+        17,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 93,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        },
+        {
+          "task": 4,
+          "client_id": 93,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 43,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.5541943311691284
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 4096,
+      "missing_inherited_native_correct": 1562,
+      "correct_in_missing": {
+        "V1": 1562,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.7605233345920611,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5476502513753452,
+        "continuous_native": 0.5492051504179717,
+        "coverage": 0.6173393456096314
+      }
+    },
+    "94": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        1,
+        3,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        16,
+        18,
+        19,
+        20,
+        21,
+        22,
+        24,
+        25,
+        26,
+        30,
+        31,
+        32
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 94,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.464700089591802,
+        "continuous_native": 0.5861006834151506,
+        "coverage": 0.5760974995742538
+      }
+    },
+    "95": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        6,
+        9,
+        10,
+        11,
+        12,
+        13,
+        15,
+        16,
+        17,
+        18,
+        21,
+        23,
+        24,
+        25,
+        26,
+        28,
+        29,
+        30,
+        31
+      ],
+      "missing_inherited_tasks": [
+        0
+      ],
+      "local_training_tasks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 1,
+          "client_id": 95,
+          "bootstrap_policy": "representative_clone",
+          "bootstrap_source": 1,
+          "param_distance_to_source": 0.0,
+          "param_distance_to_initial": 380.0,
+          "novelty_bootstrap": "source_clone",
+          "novelty_source_has_history": true
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 4096,
+      "missing_inherited_native_correct": 1633,
+      "correct_in_missing": {
+        "V1": 1633,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.9696720643876289,
+      "predicted_task_support": {
+        "continuous_native": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.5075856860436705,
+        "continuous_native": 0.535544251686325,
+        "coverage": 0.6273943594186159
+      }
+    },
+    "96": {
+      "native_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        25,
+        26,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 96,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 2,
+          "client_id": 96,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 5,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 4.8879313468933105
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.5871150699334355,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.23412337013261067,
+        "continuous_native": 0.32027958565642656,
+        "coverage": 0.3201833300014068
+      }
+    },
+    "97": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        4,
+        7,
+        8,
+        9,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 97,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.46857252863605736,
+        "continuous_native": 0.5266665185810435,
+        "coverage": 0.5233642091857512
+      }
+    },
+    "98": {
+      "native_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        17,
+        19,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        29,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 98,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 1.0,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "coverage": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.6473266842888559,
+        "continuous_native": 0.6874652924320842,
+        "coverage": 0.6855179664882235
+      }
+    },
+    "99": {
+      "native_tasks": [
+        0,
+        3,
+        5
+      ],
+      "continuous_tasks": [
+        0,
+        3,
+        5
+      ],
+      "continuous_classes": [
+        0,
+        1,
+        2,
+        4,
+        5,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        30,
+        31,
+        32,
+        33
+      ],
+      "missing_inherited_tasks": [],
+      "local_training_tasks": [
+        0,
+        3,
+        5
+      ],
+      "bootstrap_events": [
+        {
+          "task": 0,
+          "client_id": 99,
+          "bootstrap_policy": "initial_template",
+          "bootstrap_source": null,
+          "param_distance_to_initial": 0.0,
+          "novelty_bootstrap": "empty_initial"
+        },
+        {
+          "task": 3,
+          "client_id": 99,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 20,
+          "missed_tasks": 2,
+          "catch_up_param_distance": 4.713149547576904
+        },
+        {
+          "task": 5,
+          "client_id": 99,
+          "bootstrap_policy": "rejoining_plastic_catch_up",
+          "bootstrap_source": 35,
+          "missed_tasks": 1,
+          "catch_up_param_distance": 1.6004263162612915
+        }
+      ],
+      "test_rows": 135057,
+      "missing_inherited_test_rows": 0,
+      "missing_inherited_native_correct": 0,
+      "correct_in_missing": {
+        "V1": 0,
+        "continuous_native": 0,
+        "coverage": 0
+      },
+      "continuous_support_accuracy_ceiling": 0.24763618324115,
+      "predicted_task_support": {
+        "continuous_native": [
+          0,
+          3,
+          5
+        ],
+        "coverage": [
+          0,
+          3,
+          5
+        ]
+      },
+      "accuracy": {
+        "V1": 0.199552781418216,
+        "continuous_native": 0.21053333037162086,
+        "coverage": 0.20777893778182546
+      }
+    }
+  },
+  "protocol": "candle_v4_continuous_class_router_v7",
+  "group_metrics": {
+    "missing_inherited_memory": {
+      "clients": 50,
+      "rows": 6752887,
+      "accuracy": {
+        "V1": 0.48715416087963564,
+        "continuous_native": 0.37736970868903924,
+        "coverage": 0.4430746434821137
+      }
+    },
+    "no_inherited_memory_gap": {
+      "clients": 50,
+      "rows": 6752884,
+      "accuracy": {
+        "V1": 0.28167091275372125,
+        "continuous_native": 0.35837325208014825,
+        "coverage": 0.3867720813803406
+      }
+    }
+  }
+}
