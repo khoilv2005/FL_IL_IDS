@@ -1,0 +1,387 @@
+{
+  "completed": true,
+  "clients_selected_before_readout": [
+    35,
+    43
+  ],
+  "protocol": "historical-feature counterfactual, not official V8 run",
+  "local_sklearn": "1.9.0",
+  "original_sklearn": "1.6.1",
+  "estimator_caveat": "Local LR refit uses existing local sklearn; not exact environment reproduction",
+  "backbone_training": false,
+  "expert_training": false,
+  "raw_TRAIN_opened": false,
+  "TEST_used_for_fitting": false,
+  "threshold": 0.5,
+  "selection_or_threshold_tuning": false,
+  "clients": {
+    "35": {
+      "provenance": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            35,
+            85,
+            20,
+            74,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            35,
+            85,
+            20,
+            74,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 2,
+          "source_client": 74,
+          "snapshot_task": 2,
+          "clone_chain": [
+            35,
+            85,
+            20,
+            74
+          ],
+          "classes": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 3,
+          "source_client": 85,
+          "snapshot_task": 3,
+          "clone_chain": [
+            35,
+            85
+          ],
+          "classes": [
+            18,
+            20,
+            21,
+            22,
+            23
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 4,
+          "source_client": 85,
+          "snapshot_task": 4,
+          "clone_chain": [
+            35,
+            85
+          ],
+          "classes": [
+            24,
+            25,
+            26,
+            27,
+            28,
+            29
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "original_tasks": [
+        5
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "original_feature_bytes": 22440,
+      "repaired_feature_bytes": 245616,
+      "geometry_probe": [
+        {
+          "task": 0,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        },
+        {
+          "task": 1,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        },
+        {
+          "task": 2,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        },
+        {
+          "task": 3,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        },
+        {
+          "task": 4,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        }
+      ],
+      "rows": 135058,
+      "routing_accuracy": {
+        "old": 0.008166861644626752,
+        "repaired": 0.7336551703712479
+      },
+      "rescue_vs_old_v4": 94394,
+      "break_vs_old_v4": 602,
+      "native_weights_unchanged": true,
+      "official_metrics": {
+        "V1": {
+          "accuracy": 0.6551777754742407,
+          "macro_f1": 0.35476474065995156
+        },
+        "continuous_native": {
+          "accuracy": 0.007944734854655038,
+          "macro_f1": 0.00046365373837570814
+        },
+        "coverage": {
+          "accuracy": 0.007944734854655038,
+          "macro_f1": 0.00046365373837570814
+        }
+      },
+      "metrics": {
+        "native_local": {
+          "samples": 135058,
+          "accuracy": 0.6551777754742407,
+          "macro_f1": 0.35476474065995156
+        },
+        "old_v4_local": {
+          "samples": 135058,
+          "accuracy": 0.007944734854655038,
+          "macro_f1": 0.00046365373837570814
+        },
+        "repaired_native": {
+          "samples": 135058,
+          "accuracy": 0.7024019310222275,
+          "macro_f1": 0.4122559613410126
+        },
+        "repaired_v4": {
+          "samples": 135058,
+          "accuracy": 0.7024019310222275,
+          "macro_f1": 0.4122559613410126
+        }
+      }
+    },
+    "43": {
+      "provenance": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            43,
+            85,
+            20,
+            74,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            43,
+            85,
+            20,
+            74,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 2,
+          "source_client": 74,
+          "snapshot_task": 2,
+          "clone_chain": [
+            43,
+            85,
+            20,
+            74
+          ],
+          "classes": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 3,
+          "source_client": 85,
+          "snapshot_task": 3,
+          "clone_chain": [
+            43,
+            85
+          ],
+          "classes": [
+            18,
+            20,
+            21,
+            22,
+            23
+          ],
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "original_tasks": [
+        4,
+        5
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "original_feature_bytes": 47736,
+      "repaired_feature_bytes": 229296,
+      "geometry_probe": [
+        {
+          "task": 0,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        },
+        {
+          "task": 1,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        },
+        {
+          "task": 2,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        },
+        {
+          "task": 3,
+          "rows": 1780,
+          "max_abs_drift": 0.0,
+          "relative_l1_drift": 0.0
+        }
+      ],
+      "rows": 135058,
+      "routing_accuracy": {
+        "old": 0.030068563135837938,
+        "repaired": 0.7281760428852789
+      },
+      "rescue_vs_old_v4": 91091,
+      "break_vs_old_v4": 643,
+      "native_weights_unchanged": true,
+      "official_metrics": {
+        "V1": {
+          "accuracy": 0.6384442239630381,
+          "macro_f1": 0.3162517188725431
+        },
+        "continuous_native": {
+          "accuracy": 0.005767892312932222,
+          "macro_f1": 0.007585268783564227
+        },
+        "coverage": {
+          "accuracy": 0.008914688504198196,
+          "macro_f1": 0.008736617164036427
+        }
+      },
+      "metrics": {
+        "native_local": {
+          "samples": 135058,
+          "accuracy": 0.6384442239630381,
+          "macro_f1": 0.3162517188725431
+        },
+        "old_v4_local": {
+          "samples": 135058,
+          "accuracy": 0.008914688504198196,
+          "macro_f1": 0.008736617164036427
+        },
+        "repaired_native": {
+          "samples": 135058,
+          "accuracy": 0.6779013460883472,
+          "macro_f1": 0.363088546296746
+        },
+        "repaired_v4": {
+          "samples": 135058,
+          "accuracy": 0.6786121518162567,
+          "macro_f1": 0.37294991129446664
+        }
+      }
+    }
+  },
+  "device": "cuda",
+  "protected_v1_files_unchanged": true,
+  "native_and_old_v4_confusion_matrices_exact_match": true
+}
