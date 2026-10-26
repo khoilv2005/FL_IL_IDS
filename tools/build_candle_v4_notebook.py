@@ -104,6 +104,8 @@ Enable GPU + Internet. Use Kaggle Save Version to retain checkpoint/output.
         stem='train_candle_v4_continuous_router_kaggle'
         if args.bootstrap_only:
             stem='train_candle_v4_bootstrap_fixed_kaggle'
+            markdown=markdown.replace('old v4/v5/v6 runs cannot resume as v7',
+                                      'old v4/v5/v6/v7 runs cannot resume as v8')
             source=source.replace('results_candle_v4_continuous_class_seed42','results_candle_v4_continuous_bootstrap_seed42').replace(
                 'candle_v4_continuous_source','candle_v4_bootstrap_source').replace('same continuous-v7 run lock','same bootstrap-v8 run lock')
             source=source.replace("if RESUME_STATE:\n    source = Path(RESUME_STATE)","args += ['--continuous-bootstrap']\nif RESUME_STATE:\n    source = Path(RESUME_STATE)")
