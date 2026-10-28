@@ -10,8 +10,8 @@ CODE_REF = "9dcfe5afb06122ddfcc5ba427addb1fef61c9b25"
 DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
 RESULTS19_ZIP = ""  # Optional mounted ZIP containing T0-T4 archives.
 RESULTS19_DRIVE_URL = "https://drive.google.com/file/d/1Qmnb2pHEq7JL55oOTrNm5e963XW09tYp/view?usp=drive_link"
-RESULTS21_ZIP = ""  # Mount results (21).zip; auto-detected if only one matching ZIP.
-RESULTS21_DRIVE_URL = ""  # Optional Drive URL instead of mounted results21 ZIP.
+RESULTS21_ZIP = ""  # Optional mounted results (21).zip instead of Drive.
+RESULTS21_DRIVE_URL = "https://drive.google.com/file/d/1o5SJXPtDYfga2TLzQfBi5KfEttGT5PbD/view?usp=drive_link"
 OUTPUT_DIR = "/kaggle/working/eval_candle_v4_round19_top1_top2"
 
 if not Path('/kaggle/working').is_dir():raise RuntimeError('Run on Kaggle GPU + Internet')
