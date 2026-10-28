@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "real_checkpoints_synthetic_inputs_only": true,
+  "no_TRAIN_or_TEST_opened": true,
+  "no_training": true,
+  "no_refit": true,
+  "checks": [
+    {
+      "task": 0,
+      "client": 0,
+      "rows": 32,
+      "top1_production_exact": true,
+      "task0_top2_identical": true,
+      "weights_unchanged": true
+    },
+    {
+      "task": 0,
+      "client": 99,
+      "rows": 32,
+      "top1_production_exact": true,
+      "task0_top2_identical": true,
+      "weights_unchanged": true
+    },
+    {
+      "task": 5,
+      "client": 0,
+      "rows": 32,
+      "top1_production_exact": true,
+      "task0_top2_identical": false,
+      "weights_unchanged": true
+    },
+    {
+      "task": 5,
+      "client": 99,
+      "rows": 32,
+      "top1_production_exact": true,
+      "task0_top2_identical": false,
+      "weights_unchanged": true
+    }
+  ]
+}
