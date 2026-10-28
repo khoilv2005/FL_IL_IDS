@@ -98,7 +98,7 @@ def predict_pair(service,cid,model,det,inputs,seen):
     return predictions,selected,counts
 
 
-def evaluate_task(state,task,x,y,original,out):
+def evaluate_task(state,task,x,y,original,out,top2_policy='union'):
     saved=state['candle_v4_shadow_state']
     if (state['meta'].get('completed_task')!=task or state['meta'].get('boundary')!='task'
             or list(saved['boundary'])!=[task,19] or saved['version']!='candle_v4_continuous_bootstrap_v8'):
@@ -109,7 +109,8 @@ def evaluate_task(state,task,x,y,original,out):
     shards,partition=_partition_test_data_by_client(xx,yy,ids,seed=42+104729*task,lazy_features=True)
     del xx,yy
     cms={k:np.zeros((34,34),dtype=np.int64) for k in ('top1','top2')};clients={}
-    routecm=np.zeros((6,7),dtype=np.int64);top2hits=0;rescue=0;broken=0;started=time.perf_counter()
+    routecm=np.zeros((6,7),dtype=np.int64);selectedcm=np.zeros_like(routecm)
+    top2hits=0;rescue=0;broken=0;switched=0;started=time.perf_counter()
     for i,cid in enumerate(ids,1):
         model,det=_make_denice_client_model(state,cid,'cuda');model.eval();before=digest(model.state_dict())
         validate_task_support(service.continuous_routers[cid],det)
@@ -118,13 +119,21 @@ def evaluate_task(state,task,x,y,original,out):
         lroute=np.zeros_like(routecm);lhits=0;lr=0;lb=0
         for start in range(0,len(shard['y_test']),512):
             inputs=shard['X_test'][start:start+512].reshape(-1,39).cpu();truth=shard['y_test'][start:start+512].numpy()
-            with torch.no_grad():pred,selected,counts=predict_pair(service,cid,model,det,inputs,seen)
+            chosen=None
+            with torch.no_grad():
+                if top2_policy=='union':pred,selected,counts=predict_pair(service,cid,model,det,inputs,seen)
+                else:
+                    from candle_v4_top2_task_select import predict_selected
+                    pred,selected,chosen=predict_selected(service,cid,model,det,inputs,seen,rule=top2_policy)
             if start==0:
                 ref,ep=base_predictions(model,ContinuousRoutingView(det,service.continuous_routers[cid]),inputs,seen,True)
                 ref,_=service.infer(cid,'coverage',ref,inputs,predicted_tasks=ep)
                 if not np.array_equal(ref,pred['top1']):raise ValueError('Top1 differs from production')
             for k in cms:np.add.at(local[k],(truth,pred[k]),1)
             np.add.at(lroute,(truth//6,selected[:,0]),1)
+            if chosen is not None:
+                np.add.at(selectedcm,(truth//6,chosen),1)
+                switched+=int((chosen!=selected[:,0]).sum())
             lhits+=int((selected==truth[:,None]//6).any(1).sum())
             lr+=int(((pred['top2']==truth)&(pred['top1']!=truth)).sum())
             lb+=int(((pred['top2']!=truth)&(pred['top1']==truth)).sum())
@@ -140,12 +149,15 @@ def evaluate_task(state,task,x,y,original,out):
     if bank_before!=digest(service.state_dict()):raise ValueError('Expert/router/optimizer state changed')
     n=int(cms['top1'].sum())
     if n!=int(include.sum()) or cms['top2'].sum()!=n:raise ValueError('Missing test rows')
-    result=dict(completed=True,protocol=PROTOCOL,task=task,round=19,after_consolidation=True,rows=n,
+    if task==0 and not np.array_equal(cms['top1'],cms['top2']):raise ValueError('Task0 Top1/Top2 mismatch')
+    result=dict(completed=True,protocol=PROTOCOL if top2_policy=='union' else 'candle_v4_top2_single_task_round19_v2',top2_policy=top2_policy,task=task,round=19,after_consolidation=True,rows=n,
         classes=seen,metrics={k:statistics(v) for k,v in cms.items()},per_client=clients,partition=partition,
         top1_route_accuracy=float(np.trace(routecm[:,:6])/n),top2_task_recall=top2hits/n,
         route_confusion=routecm.tolist(),rescue=rescue,break_count=broken,net_rescue=rescue-broken,
+        top2_selected_route_accuracy=None if top2_policy=='union' else float(np.trace(selectedcm[:,:6])/n),
+        top2_selected_route_confusion=None if top2_policy=='union' else selectedcm.tolist(),switched_rows=None if top2_policy=='union' else switched,
         macro_f1_policy='Fixed34 labels as native reports; additional seen-class macro-F1 supplied',
-        rule='Actual Top2 union; same Top1 adapter; expert threshold0.5; no true labels used in predictions',
+        rule=('Actual Top2 union; same Top1 adapter' if top2_policy=='union' else 'Input-only Top2 rerank; single chosen task with its own adapter/mask/experts')+'; threshold0.5; no true labels used in predictions',
         no_training=True,no_refit=True,no_threshold_tuning=True,frozen_state_verified=True,
         t5_top1_exact_results21_match=task==5,wall_seconds=time.perf_counter()-started)
     for m in result['metrics'].values():m['macro_f1_seen_classes']=float(np.mean(m['per_class_f1'][:len(seen)]))
@@ -156,6 +168,7 @@ def evaluate_task(state,task,x,y,original,out):
 def main():
     p=argparse.ArgumentParser();p.add_argument('--results19',required=True);p.add_argument('--results21',required=True)
     p.add_argument('--data-dir',required=True);p.add_argument('--cache',required=True);p.add_argument('--output',required=True)
+    p.add_argument('--top2-policy',choices=('union','mass','prototype'),default='union')
     a=p.parse_args()
     if not Path('/kaggle/working').is_dir() or not torch.cuda.is_available():raise RuntimeError('Full evaluation is Kaggle GPU only')
     import sklearn
@@ -174,16 +187,17 @@ def main():
         import hashlib
         if hashlib.sha256((roots[0]/'metadata.json').read_bytes()).hexdigest()!=state['candle_v4_shadow_state']['spec']['input_sha256']:
             raise ValueError('Dataset metadata differs from training')
-        result=evaluate_task(state,task,x,y,original,out)
+        result=evaluate_task(state,task,x,y,original,out,top2_policy=a.top2_policy)
         for k,m in result['metrics'].items():
             summary.append(dict(task=task,round=19,mode=k,rows=result['rows'],accuracy=m['accuracy'],
                 macro_f1=m['macro_f1'],macro_f1_seen_classes=m['macro_f1_seen_classes'],
                 top1_route_accuracy=result['top1_route_accuracy'],top2_task_recall=result['top2_task_recall'],
+                top2_policy=a.top2_policy,top2_selected_route_accuracy=result['top2_selected_route_accuracy'],
                 rescue=result['rescue'] if k=='top2' else 0,break_count=result['break_count'] if k=='top2' else 0))
         with (out/'summary.csv').open('w',newline='',encoding='utf-8') as f:
             w=csv.DictWriter(f,fieldnames=list(summary[0]));w.writeheader();w.writerows(summary)
         del state,result;gc.collect();torch.cuda.empty_cache()
-    (out/'completion.json').write_text(json.dumps(dict(completed=True,protocol=PROTOCOL,source_training_commit=SOURCE,
+    (out/'completion.json').write_text(json.dumps(dict(completed=True,protocol=PROTOCOL if a.top2_policy=='union' else 'candle_v4_top2_single_task_round19_v2',top2_policy=a.top2_policy,source_training_commit=SOURCE,
         checkpoints={t:sha256(path) for t,path in paths.items()},summary=summary,full_TEST_development_readout=True,
         actual_top2_not_oracle=True,training=False),indent=2))
     print('Completed all six checkpoints. See summary.csv and per-task reports.',flush=True)
