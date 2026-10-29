@@ -25,6 +25,9 @@ def statistics(cm):
 
 
 def evaluate_terminal(service,models,detectors,task,round_id):
+    if service.spec.get('evaluation_mode')=='v4_only':
+        from .candle_v4_only_eval import evaluate_v4_only
+        return evaluate_v4_only(service,models,detectors,task,round_id)
     if (task,round_id)!=(5,19) or service.boundary!=[5,19] or 5 not in service.gated:
         raise ValueError('Full TEST requires completed Task5/Round19 and terminal gate')
     if [r['task'] for r in service.evaluations]!=list(range(6)):
@@ -39,8 +42,8 @@ def evaluate_terminal(service,models,detectors,task,round_id):
     expected=len(y);ids=sorted(models)
     if not ids:raise ValueError('No terminal receiver predictors')
     shards,partition=_partition_test_data_by_client(x,y,ids,seed=42+104729*5,lazy_features=True)
-    scoped=service.spec['version'] in ('candle_v4_current_graph_handoff_v6','candle_v4_continuous_class_router_v7')
-    continuous=service.spec['version']=='candle_v4_continuous_class_router_v7'
+    scoped=service.spec['version'] in ('candle_v4_current_graph_handoff_v6','candle_v4_continuous_class_router_v7','candle_v4_continuous_bootstrap_v8')
+    continuous=service.spec['version'] in ('candle_v4_continuous_class_router_v7','candle_v4_continuous_bootstrap_v8')
     route_counts=np.zeros((6,7),dtype=np.int64)
     names=('V1',*(['continuous_native'] if continuous else []),*service.arms);cms={a:np.zeros((34,34),dtype=np.int64) for a in names}
     fusion_counts={a:dict(rows=0,triggered=0,multiple_triggers=0,overrides=0) for a in service.arms}

@@ -1,0 +1,9 @@
+{
+  "tests": 6,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "synthetic_only": true,
+  "raw_TRAIN_or_TEST_opened": false,
+  "backbone_or_expert_training": false
+}

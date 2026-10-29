@@ -12,6 +12,7 @@ from .candle_v4_shadow import digest,native_fingerprint
 
 VERSION='candle_v4_current_graph_handoff_v6'
 CONTINUOUS_VERSION='candle_v4_continuous_class_router_v7'
+from .candle_v4_continuous_runtime import BOOTSTRAP_VERSION,CONTINUOUS_VERSIONS
 
 
 def validate_original_config(config):
@@ -24,21 +25,21 @@ def validate_original_config(config):
     if config.get('denice_max_train_samples_per_client') or config.get('denice_max_batches_per_epoch'):
         raise ValueError('No pilot native training sample/step cap in original TRAIN full run')
     version=config['candle_v4_full_service']['version']
-    if version not in (VERSION,CONTINUOUS_VERSION):raise ValueError('Wrong data-service version')
+    if version not in (VERSION,*CONTINUOUS_VERSIONS):raise ValueError('Wrong data-service version')
     router=config.get('denice_router_mode')
     effective=config['candle_v4_full_service'].get('router_mode','binary_cosine')
-    allowed=('continuous_class_v1',) if version==CONTINUOUS_VERSION else ('binary_cosine','multiclass_balanced')
-    expected='multiclass_balanced' if version==CONTINUOUS_VERSION else effective
+    allowed=('continuous_class_v1',) if version in CONTINUOUS_VERSIONS else ('binary_cosine','multiclass_balanced')
+    expected='multiclass_balanced' if version in CONTINUOUS_VERSIONS else effective
     if effective not in allowed or router!=expected:
         raise ValueError('Router mode must match the locked V4 spec')
-    if version==CONTINUOUS_VERSION and (config.get('denice_memory_policy')!='sketches' or
+    if version in CONTINUOUS_VERSIONS and (config.get('denice_memory_policy')!='sketches' or
             config.get('denice_router_replay_enabled') or config.get('denice_replay_capacity',0)):
         raise ValueError('Continuous variant forbids raw replay/reference memory')
 
 
 class OriginalTrainService(FullCoverageService):
     def __init__(self,spec,saved=None):
-        if (spec.get('version') not in (VERSION,CONTINUOUS_VERSION) or spec.get('arms') not in (['coverage'],[]) or
+        if (spec.get('version') not in (VERSION,*CONTINUOUS_VERSIONS) or spec.get('arms') not in (['coverage'],[]) or
                 spec.get('fixed_threshold')!=.5 or spec.get('activation_policy')!='training_only_unverified'):
             raise ValueError('Original TRAIN protocol requires one coverage bank or native-only baseline')
         self.sampling_cache={};self.count_cache={}
@@ -46,15 +47,31 @@ class OriginalTrainService(FullCoverageService):
         self.metadata_roles=('train',)
         self.current_clients={}
         self.continuous_routers={}
-        if self.spec['version']==CONTINUOUS_VERSION and saved:
+        self.continuous_bootstrap_receipts=[]
+        if self.spec['version'] in CONTINUOUS_VERSIONS and saved:
             from fed_learning.servers.continuous_class_router import ContinuousClassMemory
             if 'continuous_routers' not in saved:raise ValueError('Continuous checkpoint memory missing')
             self.continuous_routers={int(cid):ContinuousClassMemory.restore(state) for cid,state in saved['continuous_routers'].items()}
+            if self.spec['version']==BOOTSTRAP_VERSION:
+                from copy import deepcopy
+                if 'continuous_bootstrap_receipts' not in saved:raise ValueError('V8 bootstrap provenance missing')
+                self.continuous_bootstrap_receipts=deepcopy(saved['continuous_bootstrap_receipts'])
+                receipts=self.continuous_bootstrap_receipts
+                if (not isinstance(receipts,list) or
+                        any(r.get('policy')!='exact_model_clone_v1' or not 0<=r.get('task',-1)<=5 or
+                            r.get('receiver') not in self.continuous_routers or r.get('source')==r.get('receiver') or
+                            type(r.get('serialized_bytes')) is not int or r['serialized_bytes']<=0 for r in receipts) or
+                        len({r['receiver'] for r in receipts})!=len(receipts) or
+                        sum(r['serialized_bytes'] for r in receipts)!=self.bytes['continuous_bootstrap']):
+                    raise ValueError('Invalid continuous bootstrap provenance/communication ledger')
 
     def state_dict(self):
         state=super().state_dict()
-        if self.spec['version']==CONTINUOUS_VERSION:
+        if self.spec['version'] in CONTINUOUS_VERSIONS:
             state['continuous_routers']={cid:memory.state_dict() for cid,memory in self.continuous_routers.items()}
+        if self.spec['version']==BOOTSTRAP_VERSION:
+            from copy import deepcopy
+            state['continuous_bootstrap_receipts']=deepcopy(self.continuous_bootstrap_receipts)
         return state
 
     def begin_task(self,task):
@@ -250,9 +267,10 @@ class OriginalTrainService(FullCoverageService):
 
     def _evaluate(self,task,models,detectors):
         # Placeholders record completion, never fabricated validation measurements.
+        names=('V4',) if self.spec.get('evaluation_mode')=='v4_only' else ('V1',*self.arms)
         self.evaluations.append(dict(task=task,role='NONE',status='NOT_MEASURED',rows=0,
             metrics={name:dict(accuracy=None,macro_f1=None,per_task_accuracy={},average_forgetting=None,
-                              evidence_status='NOT_MEASURED') for name in ('V1',*self.arms)},per_client={}))
+                              evidence_status='NOT_MEASURED') for name in names},per_client={}))
 
     def finish_task(self,task,models,detectors,clients,active_ids,graph):
         if task in self.gated:raise ValueError('Repeated task completion')
@@ -285,9 +303,16 @@ class OriginalTrainService(FullCoverageService):
                       baseline='Native V1 counterfactual on the same full current-task TRAIN',
                       forgetting_status='NOT_MEASURED; no intermediate TEST or historical validation')
         report['activation_events']=report.pop('acceptances')
-        if self.spec['version']==CONTINUOUS_VERSION:
+        if self.spec['version'] in CONTINUOUS_VERSIONS:
             report['continuous_router_memory']={cid:memory.stats() for cid,memory in self.continuous_routers.items()}
             report['continuous_local_feature_bytes']=sum(memory.stats()['feature_bytes'] for memory in self.continuous_routers.values())
             report['native_control_router_mode']='multiclass_balanced'
             report['baseline']='Unchanged native V1 + multiclass control on identical TEST rows'
+        if self.spec['version']==BOOTSTRAP_VERSION:
+            report['continuous_bootstrap_receipts']=self.continuous_bootstrap_receipts
+            report['continuous_bootstrap_wire_bytes']=self.bytes['continuous_bootstrap']
+            report['continuous_bootstrap_policy']='exact_model_clone_v1'
+        if self.spec.get('evaluation_mode')=='v4_only':
+            report.pop('baseline',None);report.pop('native_control_router_mode',None)
+            report['evaluation_mode']='v4_only';report['comparisons_computed']=False
         path.write_text(json.dumps(report,indent=2),encoding='utf-8')

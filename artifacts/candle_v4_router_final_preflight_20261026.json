@@ -1,0 +1,9182 @@
+{
+  "completed": true,
+  "protocol": "frozen_results18_router_final_preflight",
+  "no_fit": true,
+  "no_training": true,
+  "no_runtime_or_threshold_changes": true,
+  "router_support_mismatches": [],
+  "total_rows": 13505771,
+  "global_route_accuracy": 0.5109147785787276,
+  "global_class_accuracy": 0.48082312368542307,
+  "task_support_ceiling": 0.7748064882782331,
+  "route_accuracy_when_task_present": 0.6594095252274889,
+  "class_accuracy_when_route_correct": 0.9411023987659664,
+  "error_decomposition": {
+    "missing_task": 3041412,
+    "wrong_route_with_task_present": 3564061,
+    "correct_route_wrong_class": 406411
+  },
+  "groups": {
+    "task_missing": {
+      "rows": 3041412,
+      "route_correct": 0,
+      "class_correct": 0,
+      "route_accuracy": 0.0
+    },
+    "class_missing_but_task_present": {
+      "rows": 2772346,
+      "route_correct": 698578,
+      "class_correct": 677212,
+      "route_accuracy": 0.25198081336168
+    },
+    "class_in_memory": {
+      "rows": 7692013,
+      "route_correct": 6201720,
+      "class_correct": 5816675,
+      "route_accuracy": 0.8062544876094203
+    }
+  },
+  "task_confusion": [
+    [
+      222944,
+      5057,
+      26946,
+      6730,
+      89992,
+      58022
+    ],
+    [
+      281817,
+      3090810,
+      875375,
+      1134270,
+      166340,
+      27685
+    ],
+    [
+      81790,
+      446263,
+      1818274,
+      1669704,
+      119190,
+      14422
+    ],
+    [
+      55763,
+      223353,
+      936366,
+      1494759,
+      111885,
+      2551
+    ],
+    [
+      64331,
+      5103,
+      43548,
+      55286,
+      234459,
+      32484
+    ],
+    [
+      28563,
+      323,
+      9032,
+      363,
+      32919,
+      39052
+    ]
+  ],
+  "clients": {
+    "0": {
+      "tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.2454649113714108,
+      "v4_accuracy": 0.20674080765300834,
+      "task_support_ceiling": 0.27986494691169717,
+      "groups": {
+        "task_missing": {
+          "rows": 97260,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 11866,
+          "route_correct": 9724,
+          "class_correct": 9617
+        },
+        "class_in_memory": {
+          "rows": 25932,
+          "route_correct": 23428,
+          "class_correct": 18305
+        }
+      },
+      "saved_memory_rows": 292,
+      "saved_memory_task_accuracy": 0.8938356164383562,
+      "class_counts_per_task": {
+        "0": 5,
+        "3": 4,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2142,
+          0,
+          0,
+          774,
+          695,
+          486
+        ],
+        [
+          8206,
+          0,
+          0,
+          47308,
+          225,
+          24
+        ],
+        [
+          530,
+          0,
+          0,
+          40056,
+          798,
+          113
+        ],
+        [
+          417,
+          0,
+          0,
+          27505,
+          311,
+          14
+        ],
+        [
+          682,
+          0,
+          0,
+          42,
+          3232,
+          396
+        ],
+        [
+          441,
+          0,
+          0,
+          1,
+          387,
+          273
+        ]
+      ]
+    },
+    "1": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5326008085415155,
+      "v4_accuracy": 0.5129796087606806,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 47670,
+          "route_correct": 3054,
+          "class_correct": 3001
+        },
+        "class_in_memory": {
+          "rows": 87388,
+          "route_correct": 68878,
+          "class_correct": 66281
+        }
+      },
+      "saved_memory_rows": 501,
+      "saved_memory_task_accuracy": 0.8363273453093812,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 5,
+        "3": 5,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2280,
+          18,
+          452,
+          56,
+          818,
+          473
+        ],
+        [
+          32,
+          24566,
+          8481,
+          22658,
+          17,
+          9
+        ],
+        [
+          212,
+          114,
+          20866,
+          20084,
+          109,
+          112
+        ],
+        [
+          132,
+          153,
+          7128,
+          20804,
+          21,
+          9
+        ],
+        [
+          611,
+          27,
+          255,
+          18,
+          3050,
+          391
+        ],
+        [
+          250,
+          0,
+          170,
+          0,
+          316,
+          366
+        ]
+      ]
+    },
+    "2": {
+      "tasks": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.49719379822002396,
+      "v4_accuracy": 0.4962534614758104,
+      "task_support_ceiling": 0.7586296257904012,
+      "groups": {
+        "task_missing": {
+          "rows": 32599,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 33266,
+          "route_correct": 11649,
+          "class_correct": 11615
+        },
+        "class_in_memory": {
+          "rows": 69193,
+          "route_correct": 55501,
+          "class_correct": 55408
+        }
+      },
+      "saved_memory_rows": 350,
+      "saved_memory_task_accuracy": 0.8685714285714285,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 5,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2577,
+          31,
+          738,
+          0,
+          0,
+          751
+        ],
+        [
+          87,
+          30699,
+          24930,
+          0,
+          0,
+          47
+        ],
+        [
+          311,
+          7701,
+          33266,
+          0,
+          0,
+          219
+        ],
+        [
+          654,
+          9248,
+          18273,
+          0,
+          0,
+          72
+        ],
+        [
+          1228,
+          63,
+          2415,
+          0,
+          0,
+          646
+        ],
+        [
+          309,
+          0,
+          185,
+          0,
+          0,
+          608
+        ]
+      ]
+    },
+    "3": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6248352559641043,
+      "v4_accuracy": 0.6048512490929823,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 26319,
+          "route_correct": 184,
+          "class_correct": 118
+        },
+        "class_in_memory": {
+          "rows": 108739,
+          "route_correct": 84205,
+          "class_correct": 81572
+        }
+      },
+      "saved_memory_rows": 507,
+      "saved_memory_task_accuracy": 0.8422090729783037,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 5,
+        "3": 5,
+        "4": 5,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2142,
+          30,
+          740,
+          8,
+          947,
+          230
+        ],
+        [
+          1019,
+          47555,
+          7034,
+          142,
+          11,
+          2
+        ],
+        [
+          271,
+          5144,
+          17451,
+          18409,
+          186,
+          36
+        ],
+        [
+          223,
+          3513,
+          8240,
+          16259,
+          11,
+          1
+        ],
+        [
+          615,
+          10,
+          349,
+          2350,
+          878,
+          150
+        ],
+        [
+          252,
+          0,
+          129,
+          2,
+          615,
+          104
+        ]
+      ]
+    },
+    "4": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5741311140398939,
+      "v4_accuracy": 0.5666602496705119,
+      "task_support_ceiling": 0.6927468198847903,
+      "groups": {
+        "task_missing": {
+          "rows": 41497,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 6791,
+          "route_correct": 388,
+          "class_correct": 285
+        },
+        "class_in_memory": {
+          "rows": 86770,
+          "route_correct": 77153,
+          "class_correct": 76247
+        }
+      },
+      "saved_memory_rows": 398,
+      "saved_memory_task_accuracy": 0.8668341708542714,
+      "class_counts_per_task": {
+        "0": 5,
+        "1": 5,
+        "3": 4,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2510,
+          31,
+          0,
+          67,
+          1016,
+          473
+        ],
+        [
+          184,
+          50459,
+          0,
+          3996,
+          1119,
+          5
+        ],
+        [
+          185,
+          6757,
+          0,
+          33321,
+          1004,
+          230
+        ],
+        [
+          50,
+          2704,
+          0,
+          20623,
+          4867,
+          3
+        ],
+        [
+          483,
+          6,
+          0,
+          4,
+          3499,
+          360
+        ],
+        [
+          231,
+          1,
+          0,
+          0,
+          420,
+          450
+        ]
+      ]
+    },
+    "5": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5555983355299204,
+      "v4_accuracy": 0.5518295843267337,
+      "task_support_ceiling": 0.9677768070014364,
+      "groups": {
+        "task_missing": {
+          "rows": 4352,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 53888,
+          "route_correct": 7629,
+          "class_correct": 7603
+        },
+        "class_in_memory": {
+          "rows": 76818,
+          "route_correct": 67409,
+          "class_correct": 66926
+        }
+      },
+      "saved_memory_rows": 325,
+      "saved_memory_task_accuracy": 0.9046153846153846,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 1,
+        "3": 2,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          3024,
+          39,
+          274,
+          7,
+          0,
+          753
+        ],
+        [
+          74,
+          49476,
+          16,
+          6140,
+          0,
+          57
+        ],
+        [
+          374,
+          5015,
+          214,
+          35779,
+          0,
+          115
+        ],
+        [
+          402,
+          6046,
+          16,
+          21772,
+          0,
+          11
+        ],
+        [
+          2073,
+          1409,
+          289,
+          42,
+          0,
+          539
+        ],
+        [
+          419,
+          0,
+          131,
+          0,
+          0,
+          552
+        ]
+      ]
+    },
+    "6": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6099601652623318,
+      "v4_accuracy": 0.5821128700262109,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 47831,
+          "route_correct": 6940,
+          "class_correct": 6929
+        },
+        "class_in_memory": {
+          "rows": 87227,
+          "route_correct": 75440,
+          "class_correct": 71690
+        }
+      },
+      "saved_memory_rows": 534,
+      "saved_memory_task_accuracy": 0.8277153558052435,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 2,
+        "3": 5,
+        "4": 6,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2107,
+          25,
+          170,
+          29,
+          967,
+          799
+        ],
+        [
+          55,
+          49161,
+          108,
+          6424,
+          12,
+          3
+        ],
+        [
+          194,
+          4397,
+          1060,
+          35247,
+          457,
+          142
+        ],
+        [
+          102,
+          1613,
+          208,
+          26192,
+          130,
+          2
+        ],
+        [
+          439,
+          11,
+          237,
+          15,
+          3347,
+          303
+        ],
+        [
+          212,
+          0,
+          99,
+          0,
+          278,
+          513
+        ]
+      ]
+    },
+    "7": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6807889943579796,
+      "v4_accuracy": 0.6538153978290808,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 23826,
+          "route_correct": 2668,
+          "class_correct": 2565
+        },
+        "class_in_memory": {
+          "rows": 111232,
+          "route_correct": 89278,
+          "class_correct": 85738
+        }
+      },
+      "saved_memory_rows": 455,
+      "saved_memory_task_accuracy": 0.8571428571428571,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 5,
+        "3": 3,
+        "4": 4,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2293,
+          22,
+          114,
+          35,
+          1326,
+          307
+        ],
+        [
+          1341,
+          46454,
+          5453,
+          2466,
+          38,
+          11
+        ],
+        [
+          317,
+          3438,
+          34302,
+          3154,
+          221,
+          65
+        ],
+        [
+          162,
+          1101,
+          19307,
+          7670,
+          5,
+          2
+        ],
+        [
+          673,
+          10,
+          1458,
+          1131,
+          914,
+          166
+        ],
+        [
+          331,
+          0,
+          24,
+          0,
+          434,
+          313
+        ]
+      ]
+    },
+    "8": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.47284129781279155,
+      "v4_accuracy": 0.4329251136548742,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 69101,
+          "route_correct": 16754,
+          "class_correct": 16561
+        },
+        "class_in_memory": {
+          "rows": 65957,
+          "route_correct": 47107,
+          "class_correct": 41909
+        }
+      },
+      "saved_memory_rows": 368,
+      "saved_memory_task_accuracy": 0.842391304347826,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 3,
+        "2": 3,
+        "3": 3,
+        "4": 3,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2648,
+          15,
+          220,
+          39,
+          640,
+          535
+        ],
+        [
+          1252,
+          20204,
+          25672,
+          8563,
+          69,
+          3
+        ],
+        [
+          213,
+          7627,
+          30213,
+          3136,
+          204,
+          104
+        ],
+        [
+          247,
+          3115,
+          17425,
+          7251,
+          208,
+          0
+        ],
+        [
+          706,
+          8,
+          240,
+          34,
+          3073,
+          292
+        ],
+        [
+          277,
+          3,
+          64,
+          0,
+          286,
+          472
+        ]
+      ]
+    },
+    "9": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.3589568925942928,
+      "v4_accuracy": 0.3306135141939019,
+      "task_support_ceiling": 0.587118127026907,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 12552,
+          "route_correct": 394,
+          "class_correct": 302
+        },
+        "class_in_memory": {
+          "rows": 66743,
+          "route_correct": 48086,
+          "class_correct": 44350
+        }
+      },
+      "saved_memory_rows": 385,
+      "saved_memory_task_accuracy": 0.8337662337662337,
+      "class_counts_per_task": {
+        "0": 5,
+        "2": 5,
+        "3": 5,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2603,
+          0,
+          109,
+          19,
+          627,
+          739
+        ],
+        [
+          1924,
+          0,
+          18313,
+          33871,
+          19,
+          1636
+        ],
+        [
+          368,
+          0,
+          25424,
+          15467,
+          90,
+          148
+        ],
+        [
+          314,
+          0,
+          11109,
+          16757,
+          47,
+          19
+        ],
+        [
+          515,
+          0,
+          210,
+          45,
+          3194,
+          389
+        ],
+        [
+          269,
+          0,
+          80,
+          0,
+          251,
+          502
+        ]
+      ]
+    },
+    "10": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.4121118334345244,
+      "v4_accuracy": 0.39981341349642374,
+      "task_support_ceiling": 0.7908602230152971,
+      "groups": {
+        "task_missing": {
+          "rows": 28246,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 59737,
+          "route_correct": 12931,
+          "class_correct": 12894
+        },
+        "class_in_memory": {
+          "rows": 47075,
+          "route_correct": 42728,
+          "class_correct": 41104
+        }
+      },
+      "saved_memory_rows": 327,
+      "saved_memory_task_accuracy": 0.8532110091743119,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 1,
+        "2": 5,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2527,
+          0,
+          372,
+          0,
+          722,
+          476
+        ],
+        [
+          2386,
+          11168,
+          42169,
+          0,
+          18,
+          22
+        ],
+        [
+          399,
+          86,
+          40766,
+          0,
+          172,
+          74
+        ],
+        [
+          491,
+          53,
+          27673,
+          0,
+          12,
+          17
+        ],
+        [
+          607,
+          0,
+          2692,
+          0,
+          779,
+          275
+        ],
+        [
+          284,
+          0,
+          164,
+          0,
+          235,
+          419
+        ]
+      ]
+    },
+    "11": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.7201720742199648,
+      "v4_accuracy": 0.6937537946659954,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 34880,
+          "route_correct": 13419,
+          "class_correct": 13191
+        },
+        "class_in_memory": {
+          "rows": 100178,
+          "route_correct": 83846,
+          "class_correct": 80506
+        }
+      },
+      "saved_memory_rows": 471,
+      "saved_memory_task_accuracy": 0.8959660297239915,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 3,
+        "3": 4,
+        "4": 6,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2429,
+          8,
+          12,
+          50,
+          1138,
+          460
+        ],
+        [
+          121,
+          52183,
+          51,
+          3360,
+          42,
+          6
+        ],
+        [
+          356,
+          7626,
+          28351,
+          4857,
+          225,
+          82
+        ],
+        [
+          167,
+          3840,
+          13695,
+          10481,
+          58,
+          5
+        ],
+        [
+          647,
+          5,
+          6,
+          8,
+          3410,
+          277
+        ],
+        [
+          358,
+          0,
+          0,
+          1,
+          332,
+          411
+        ]
+      ]
+    },
+    "12": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6668394319477557,
+      "v4_accuracy": 0.6644478668423937,
+      "task_support_ceiling": 0.7908602230152971,
+      "groups": {
+        "task_missing": {
+          "rows": 28246,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 28139,
+          "route_correct": 24391,
+          "class_correct": 24357
+        },
+        "class_in_memory": {
+          "rows": 78673,
+          "route_correct": 65671,
+          "class_correct": 65382
+        }
+      },
+      "saved_memory_rows": 336,
+      "saved_memory_task_accuracy": 0.9077380952380952,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 4,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2490,
+          22,
+          102,
+          0,
+          654,
+          829
+        ],
+        [
+          99,
+          52965,
+          2658,
+          0,
+          36,
+          5
+        ],
+        [
+          343,
+          7450,
+          33381,
+          0,
+          195,
+          128
+        ],
+        [
+          333,
+          3594,
+          24297,
+          0,
+          18,
+          4
+        ],
+        [
+          748,
+          3,
+          2466,
+          0,
+          729,
+          407
+        ],
+        [
+          293,
+          2,
+          1,
+          0,
+          309,
+          497
+        ]
+      ]
+    },
+    "13": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.38738912171067247,
+      "v4_accuracy": 0.3627478564764768,
+      "task_support_ceiling": 0.6927468198847903,
+      "groups": {
+        "task_missing": {
+          "rows": 41497,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 32751,
+          "route_correct": 1870,
+          "class_correct": 1834
+        },
+        "class_in_memory": {
+          "rows": 60810,
+          "route_correct": 50450,
+          "class_correct": 47158
+        }
+      },
+      "saved_memory_rows": 384,
+      "saved_memory_task_accuracy": 0.8671875,
+      "class_counts_per_task": {
+        "0": 5,
+        "1": 4,
+        "3": 5,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2211,
+          89,
+          0,
+          5,
+          1246,
+          546
+        ],
+        [
+          51,
+          21384,
+          0,
+          34190,
+          135,
+          3
+        ],
+        [
+          217,
+          7030,
+          0,
+          33732,
+          432,
+          86
+        ],
+        [
+          72,
+          3276,
+          0,
+          24776,
+          121,
+          1
+        ],
+        [
+          505,
+          10,
+          0,
+          17,
+          3573,
+          248
+        ],
+        [
+          285,
+          0,
+          0,
+          0,
+          441,
+          376
+        ]
+      ]
+    },
+    "14": {
+      "tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.2289682951028447,
+      "v4_accuracy": 0.2030905240711398,
+      "task_support_ceiling": 0.27986494691169717,
+      "groups": {
+        "task_missing": {
+          "rows": 97260,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 17721,
+          "route_correct": 13111,
+          "class_correct": 12914
+        },
+        "class_in_memory": {
+          "rows": 20077,
+          "route_correct": 17813,
+          "class_correct": 14515
+        }
+      },
+      "saved_memory_rows": 176,
+      "saved_memory_task_accuracy": 0.9034090909090909,
+      "class_counts_per_task": {
+        "0": 4,
+        "3": 3,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2034,
+          0,
+          0,
+          498,
+          1069,
+          496
+        ],
+        [
+          1593,
+          0,
+          0,
+          45406,
+          8754,
+          10
+        ],
+        [
+          404,
+          0,
+          0,
+          40666,
+          287,
+          140
+        ],
+        [
+          419,
+          0,
+          0,
+          27779,
+          43,
+          5
+        ],
+        [
+          598,
+          0,
+          0,
+          2537,
+          738,
+          480
+        ],
+        [
+          423,
+          0,
+          0,
+          1,
+          305,
+          373
+        ]
+      ]
+    },
+    "15": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6823216692087843,
+      "v4_accuracy": 0.6588280590561092,
+      "task_support_ceiling": 0.967769402775104,
+      "groups": {
+        "task_missing": {
+          "rows": 4353,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 10956,
+          "route_correct": 3,
+          "class_correct": 3
+        },
+        "class_in_memory": {
+          "rows": 119749,
+          "route_correct": 92150,
+          "class_correct": 88977
+        }
+      },
+      "saved_memory_rows": 444,
+      "saved_memory_task_accuracy": 0.8873873873873874,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 4,
+        "3": 6,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          3060,
+          13,
+          10,
+          33,
+          0,
+          981
+        ],
+        [
+          862,
+          44543,
+          5475,
+          4846,
+          0,
+          37
+        ],
+        [
+          543,
+          123,
+          25521,
+          15064,
+          0,
+          246
+        ],
+        [
+          249,
+          154,
+          9504,
+          18318,
+          0,
+          21
+        ],
+        [
+          1256,
+          4,
+          708,
+          1855,
+          0,
+          530
+        ],
+        [
+          389,
+          1,
+          0,
+          1,
+          0,
+          711
+        ]
+      ]
+    },
+    "16": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.485761672762813,
+      "v4_accuracy": 0.4574256985887545,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 55543,
+          "route_correct": 6895,
+          "class_correct": 6866
+        },
+        "class_in_memory": {
+          "rows": 79515,
+          "route_correct": 58711,
+          "class_correct": 54913
+        }
+      },
+      "saved_memory_rows": 461,
+      "saved_memory_task_accuracy": 0.8264642082429501,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 3,
+        "2": 5,
+        "3": 4,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2197,
+          23,
+          408,
+          53,
+          728,
+          688
+        ],
+        [
+          643,
+          26259,
+          47,
+          28790,
+          6,
+          18
+        ],
+        [
+          213,
+          11518,
+          21413,
+          8137,
+          107,
+          109
+        ],
+        [
+          162,
+          5526,
+          7991,
+          14547,
+          4,
+          16
+        ],
+        [
+          562,
+          0,
+          1933,
+          874,
+          663,
+          321
+        ],
+        [
+          252,
+          0,
+          102,
+          1,
+          220,
+          527
+        ]
+      ]
+    },
+    "17": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.634934620681485,
+      "v4_accuracy": 0.6121592204830517,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 45472,
+          "route_correct": 15622,
+          "class_correct": 15599
+        },
+        "class_in_memory": {
+          "rows": 89586,
+          "route_correct": 70131,
+          "class_correct": 67078
+        }
+      },
+      "saved_memory_rows": 484,
+      "saved_memory_task_accuracy": 0.8801652892561983,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 5,
+        "3": 4,
+        "4": 5,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2632,
+          20,
+          815,
+          26,
+          597,
+          7
+        ],
+        [
+          23,
+          41272,
+          1107,
+          13328,
+          31,
+          2
+        ],
+        [
+          213,
+          7255,
+          31244,
+          2611,
+          167,
+          7
+        ],
+        [
+          144,
+          3128,
+          17742,
+          7132,
+          96,
+          4
+        ],
+        [
+          540,
+          8,
+          318,
+          12,
+          3454,
+          21
+        ],
+        [
+          376,
+          0,
+          169,
+          1,
+          537,
+          19
+        ]
+      ]
+    },
+    "18": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6616564735150824,
+      "v4_accuracy": 0.6130699403219357,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 22246,
+          "route_correct": 4747,
+          "class_correct": 4684
+        },
+        "class_in_memory": {
+          "rows": 112812,
+          "route_correct": 84615,
+          "class_correct": 78116
+        }
+      },
+      "saved_memory_rows": 453,
+      "saved_memory_task_accuracy": 0.7770419426048565,
+      "class_counts_per_task": {
+        "0": 3,
+        "1": 6,
+        "2": 4,
+        "3": 4,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1229,
+          61,
+          140,
+          13,
+          1657,
+          997
+        ],
+        [
+          119,
+          49494,
+          1302,
+          4711,
+          116,
+          21
+        ],
+        [
+          121,
+          3890,
+          18971,
+          17593,
+          694,
+          228
+        ],
+        [
+          280,
+          1280,
+          7778,
+          18220,
+          649,
+          39
+        ],
+        [
+          153,
+          26,
+          76,
+          2621,
+          1014,
+          463
+        ],
+        [
+          59,
+          34,
+          82,
+          14,
+          479,
+          434
+        ]
+      ]
+    },
+    "19": {
+      "tasks": [
+        0,
+        4
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.02831376149506138,
+      "v4_accuracy": 0.018110737609027233,
+      "task_support_ceiling": 0.06255830828236753,
+      "groups": {
+        "task_missing": {
+          "rows": 126609,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 2575,
+          "route_correct": 19,
+          "class_correct": 13
+        },
+        "class_in_memory": {
+          "rows": 5874,
+          "route_correct": 3805,
+          "class_correct": 2433
+        }
+      },
+      "saved_memory_rows": 200,
+      "saved_memory_task_accuracy": 0.865,
+      "class_counts_per_task": {
+        "0": 5,
+        "4": 5
+      },
+      "task_confusion": [
+        [
+          2592,
+          0,
+          0,
+          0,
+          1505,
+          0
+        ],
+        [
+          54987,
+          0,
+          0,
+          0,
+          776,
+          0
+        ],
+        [
+          20790,
+          0,
+          0,
+          0,
+          20707,
+          0
+        ],
+        [
+          17647,
+          0,
+          0,
+          0,
+          10599,
+          0
+        ],
+        [
+          3120,
+          0,
+          0,
+          0,
+          1232,
+          0
+        ],
+        [
+          330,
+          0,
+          0,
+          0,
+          773,
+          0
+        ]
+      ]
+    },
+    "20": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.7122569562706392,
+      "v4_accuracy": 0.6867864176872158,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 15894,
+          "route_correct": 158,
+          "class_correct": 84
+        },
+        "class_in_memory": {
+          "rows": 119164,
+          "route_correct": 96038,
+          "class_correct": 92672
+        }
+      },
+      "saved_memory_rows": 534,
+      "saved_memory_task_accuracy": 0.8820224719101124,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 6,
+        "3": 4,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2575,
+          28,
+          292,
+          21,
+          464,
+          717
+        ],
+        [
+          22,
+          47942,
+          7656,
+          82,
+          19,
+          42
+        ],
+        [
+          281,
+          2586,
+          32116,
+          6297,
+          125,
+          92
+        ],
+        [
+          202,
+          930,
+          17027,
+          9970,
+          108,
+          9
+        ],
+        [
+          609,
+          10,
+          211,
+          10,
+          3049,
+          463
+        ],
+        [
+          311,
+          1,
+          159,
+          0,
+          88,
+          544
+        ]
+      ]
+    },
+    "21": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.523945267958951,
+      "v4_accuracy": 0.5170889543751573,
+      "task_support_ceiling": 0.7908602230152971,
+      "groups": {
+        "task_missing": {
+          "rows": 28246,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 33528,
+          "route_correct": 11877,
+          "class_correct": 11810
+        },
+        "class_in_memory": {
+          "rows": 73284,
+          "route_correct": 58886,
+          "class_correct": 58027
+        }
+      },
+      "saved_memory_rows": 405,
+      "saved_memory_task_accuracy": 0.8345679012345679,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 5,
+        "4": 4,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2162,
+          35,
+          529,
+          0,
+          730,
+          641
+        ],
+        [
+          93,
+          31883,
+          23747,
+          0,
+          32,
+          8
+        ],
+        [
+          389,
+          7246,
+          32944,
+          0,
+          820,
+          98
+        ],
+        [
+          392,
+          3959,
+          18829,
+          0,
+          5061,
+          5
+        ],
+        [
+          560,
+          17,
+          150,
+          0,
+          3295,
+          330
+        ],
+        [
+          267,
+          1,
+          80,
+          0,
+          276,
+          479
+        ]
+      ]
+    },
+    "22": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6046143138503458,
+      "v4_accuracy": 0.5758118734173466,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 34467,
+          "route_correct": 2290,
+          "class_correct": 2271
+        },
+        "class_in_memory": {
+          "rows": 100591,
+          "route_correct": 79368,
+          "class_correct": 75497
+        }
+      },
+      "saved_memory_rows": 436,
+      "saved_memory_task_accuracy": 0.8463302752293578,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 3,
+        "3": 4,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2343,
+          31,
+          702,
+          5,
+          506,
+          510
+        ],
+        [
+          69,
+          49341,
+          4555,
+          1734,
+          63,
+          1
+        ],
+        [
+          250,
+          4900,
+          5234,
+          30966,
+          93,
+          54
+        ],
+        [
+          293,
+          1472,
+          2826,
+          23641,
+          14,
+          0
+        ],
+        [
+          667,
+          21,
+          300,
+          2403,
+          746,
+          215
+        ],
+        [
+          306,
+          1,
+          213,
+          1,
+          229,
+          353
+        ]
+      ]
+    },
+    "23": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5994757807756668,
+      "v4_accuracy": 0.573997837965911,
+      "task_support_ceiling": 0.6927468198847903,
+      "groups": {
+        "task_missing": {
+          "rows": 41497,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 12909,
+          "route_correct": 2841,
+          "class_correct": 2674
+        },
+        "class_in_memory": {
+          "rows": 80652,
+          "route_correct": 78123,
+          "class_correct": 74849
+        }
+      },
+      "saved_memory_rows": 382,
+      "saved_memory_task_accuracy": 0.9424083769633508,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "3": 4,
+        "4": 2,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2883,
+          37,
+          0,
+          46,
+          583,
+          548
+        ],
+        [
+          644,
+          54944,
+          0,
+          157,
+          13,
+          5
+        ],
+        [
+          1826,
+          10251,
+          0,
+          29191,
+          116,
+          113
+        ],
+        [
+          577,
+          5365,
+          0,
+          22301,
+          3,
+          0
+        ],
+        [
+          936,
+          29,
+          0,
+          2502,
+          553,
+          332
+        ],
+        [
+          359,
+          4,
+          0,
+          5,
+          452,
+          283
+        ]
+      ]
+    },
+    "24": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6582431251758504,
+      "v4_accuracy": 0.6360970842156703,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 36204,
+          "route_correct": 2925,
+          "class_correct": 2896
+        },
+        "class_in_memory": {
+          "rows": 98854,
+          "route_correct": 85976,
+          "class_correct": 83014
+        }
+      },
+      "saved_memory_rows": 480,
+      "saved_memory_task_accuracy": 0.88125,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 4,
+        "3": 4,
+        "4": 6,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2356,
+          13,
+          117,
+          38,
+          1094,
+          479
+        ],
+        [
+          976,
+          43909,
+          428,
+          10428,
+          18,
+          4
+        ],
+        [
+          401,
+          119,
+          22609,
+          18009,
+          221,
+          138
+        ],
+        [
+          231,
+          197,
+          11422,
+          16283,
+          110,
+          3
+        ],
+        [
+          720,
+          5,
+          55,
+          4,
+          3380,
+          188
+        ],
+        [
+          306,
+          0,
+          49,
+          0,
+          384,
+          364
+        ]
+      ]
+    },
+    "25": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.32060300019250987,
+      "v4_accuracy": 0.29054924550933675,
+      "task_support_ceiling": 0.587118127026907,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 30461,
+          "route_correct": 4535,
+          "class_correct": 1034
+        },
+        "class_in_memory": {
+          "rows": 48834,
+          "route_correct": 38765,
+          "class_correct": 38207
+        }
+      },
+      "saved_memory_rows": 247,
+      "saved_memory_task_accuracy": 0.7004048582995951,
+      "class_counts_per_task": {
+        "0": 1,
+        "2": 3,
+        "3": 4,
+        "4": 4,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          1083,
+          0,
+          43,
+          364,
+          2281,
+          326
+        ],
+        [
+          123,
+          0,
+          16936,
+          28103,
+          10030,
+          571
+        ],
+        [
+          168,
+          0,
+          18453,
+          21666,
+          1126,
+          84
+        ],
+        [
+          27,
+          0,
+          7989,
+          20025,
+          191,
+          14
+        ],
+        [
+          334,
+          0,
+          39,
+          208,
+          3536,
+          235
+        ],
+        [
+          119,
+          0,
+          41,
+          68,
+          672,
+          203
+        ]
+      ]
+    },
+    "26": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6674613869596766,
+      "v4_accuracy": 0.6638925498674644,
+      "task_support_ceiling": 0.7908602230152971,
+      "groups": {
+        "task_missing": {
+          "rows": 28246,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 11458,
+          "route_correct": 162,
+          "class_correct": 126
+        },
+        "class_in_memory": {
+          "rows": 95354,
+          "route_correct": 89984,
+          "class_correct": 89538
+        }
+      },
+      "saved_memory_rows": 424,
+      "saved_memory_task_accuracy": 0.8514150943396226,
+      "class_counts_per_task": {
+        "0": 5,
+        "1": 4,
+        "2": 6,
+        "4": 5,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          1539,
+          787,
+          236,
+          0,
+          1000,
+          535
+        ],
+        [
+          1149,
+          44537,
+          10035,
+          0,
+          39,
+          3
+        ],
+        [
+          575,
+          113,
+          40531,
+          0,
+          167,
+          111
+        ],
+        [
+          617,
+          217,
+          27261,
+          0,
+          136,
+          15
+        ],
+        [
+          536,
+          1,
+          274,
+          0,
+          3235,
+          306
+        ],
+        [
+          260,
+          0,
+          135,
+          0,
+          404,
+          304
+        ]
+      ]
+    },
+    "27": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5387166994920701,
+      "v4_accuracy": 0.5126019932177287,
+      "task_support_ceiling": 0.6927468198847903,
+      "groups": {
+        "task_missing": {
+          "rows": 41497,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 30393,
+          "route_correct": 12258,
+          "class_correct": 12187
+        },
+        "class_in_memory": {
+          "rows": 63168,
+          "route_correct": 60500,
+          "class_correct": 57044
+        }
+      },
+      "saved_memory_rows": 387,
+      "saved_memory_task_accuracy": 0.9354005167958657,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "3": 5,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2750,
+          35,
+          0,
+          44,
+          387,
+          881
+        ],
+        [
+          157,
+          44151,
+          0,
+          11375,
+          68,
+          12
+        ],
+        [
+          476,
+          11817,
+          0,
+          28515,
+          499,
+          190
+        ],
+        [
+          210,
+          5603,
+          0,
+          22328,
+          100,
+          5
+        ],
+        [
+          911,
+          21,
+          0,
+          38,
+          2915,
+          467
+        ],
+        [
+          380,
+          0,
+          0,
+          0,
+          109,
+          614
+        ]
+      ]
+    },
+    "28": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5655496157206533,
+      "v4_accuracy": 0.5050496823586903,
+      "task_support_ceiling": 0.6927468198847903,
+      "groups": {
+        "task_missing": {
+          "rows": 41497,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 16358,
+          "route_correct": 9563,
+          "class_correct": 9523
+        },
+        "class_in_memory": {
+          "rows": 77203,
+          "route_correct": 66819,
+          "class_correct": 58688
+        }
+      },
+      "saved_memory_rows": 356,
+      "saved_memory_task_accuracy": 0.8932584269662921,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "3": 2,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2544,
+          7,
+          0,
+          8,
+          941,
+          597
+        ],
+        [
+          1812,
+          48961,
+          0,
+          4919,
+          50,
+          21
+        ],
+        [
+          452,
+          5107,
+          0,
+          34812,
+          986,
+          140
+        ],
+        [
+          386,
+          1829,
+          0,
+          20958,
+          5059,
+          14
+        ],
+        [
+          651,
+          2,
+          0,
+          0,
+          3442,
+          257
+        ],
+        [
+          312,
+          0,
+          0,
+          0,
+          314,
+          477
+        ]
+      ]
+    },
+    "29": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6098861229990078,
+      "v4_accuracy": 0.5570273512120718,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 55602,
+          "route_correct": 15098,
+          "class_correct": 15025
+        },
+        "class_in_memory": {
+          "rows": 79456,
+          "route_correct": 67272,
+          "class_correct": 60206
+        }
+      },
+      "saved_memory_rows": 413,
+      "saved_memory_task_accuracy": 0.9079903147699758,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 3,
+        "2": 5,
+        "3": 3,
+        "4": 3,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2388,
+          11,
+          621,
+          25,
+          557,
+          495
+        ],
+        [
+          1290,
+          33484,
+          13305,
+          7621,
+          58,
+          5
+        ],
+        [
+          229,
+          104,
+          34422,
+          6426,
+          164,
+          152
+        ],
+        [
+          174,
+          117,
+          19324,
+          8432,
+          190,
+          9
+        ],
+        [
+          600,
+          0,
+          298,
+          17,
+          3153,
+          284
+        ],
+        [
+          284,
+          0,
+          104,
+          0,
+          224,
+          491
+        ]
+      ]
+    },
+    "30": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5940114617423625,
+      "v4_accuracy": 0.46141657658191293,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 37275,
+          "route_correct": 2062,
+          "class_correct": 1523
+        },
+        "class_in_memory": {
+          "rows": 97783,
+          "route_correct": 78164,
+          "class_correct": 60795
+        }
+      },
+      "saved_memory_rows": 437,
+      "saved_memory_task_accuracy": 0.9016018306636155,
+      "class_counts_per_task": {
+        "0": 4,
+        "1": 4,
+        "2": 5,
+        "3": 6,
+        "4": 3,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2617,
+          29,
+          350,
+          30,
+          994,
+          77
+        ],
+        [
+          160,
+          33538,
+          5645,
+          16380,
+          40,
+          0
+        ],
+        [
+          164,
+          109,
+          17933,
+          23079,
+          127,
+          85
+        ],
+        [
+          55,
+          209,
+          5090,
+          22822,
+          23,
+          47
+        ],
+        [
+          688,
+          16,
+          298,
+          20,
+          3267,
+          63
+        ],
+        [
+          244,
+          2,
+          288,
+          0,
+          520,
+          49
+        ]
+      ]
+    },
+    "31": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6488619704127115,
+      "v4_accuracy": 0.6455596854684654,
+      "task_support_ceiling": 0.7908528187889647,
+      "groups": {
+        "task_missing": {
+          "rows": 28247,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 21708,
+          "route_correct": 15929,
+          "class_correct": 15770
+        },
+        "class_in_memory": {
+          "rows": 85103,
+          "route_correct": 71705,
+          "class_correct": 71418
+        }
+      },
+      "saved_memory_rows": 320,
+      "saved_memory_task_accuracy": 0.89375,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 4,
+        "4": 2,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2465,
+          4,
+          426,
+          0,
+          890,
+          312
+        ],
+        [
+          1105,
+          52775,
+          1877,
+          0,
+          6,
+          0
+        ],
+        [
+          516,
+          9278,
+          31511,
+          0,
+          148,
+          43
+        ],
+        [
+          588,
+          4183,
+          23472,
+          0,
+          3,
+          1
+        ],
+        [
+          893,
+          2,
+          2562,
+          0,
+          771,
+          124
+        ],
+        [
+          475,
+          0,
+          54,
+          0,
+          462,
+          112
+        ]
+      ]
+    },
+    "32": {
+      "tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.2554087873358113,
+      "v4_accuracy": 0.22511809741000163,
+      "task_support_ceiling": 0.27987235113802955,
+      "groups": {
+        "task_missing": {
+          "rows": 97259,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 11,
+          "route_correct": 3,
+          "class_correct": 1
+        },
+        "class_in_memory": {
+          "rows": 37788,
+          "route_correct": 34492,
+          "class_correct": 30403
+        }
+      },
+      "saved_memory_rows": 411,
+      "saved_memory_task_accuracy": 0.8832116788321168,
+      "class_counts_per_task": {
+        "0": 6,
+        "3": 6,
+        "4": 6,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2690,
+          0,
+          0,
+          20,
+          873,
+          514
+        ],
+        [
+          4687,
+          0,
+          0,
+          49790,
+          1166,
+          120
+        ],
+        [
+          1155,
+          0,
+          0,
+          40002,
+          250,
+          89
+        ],
+        [
+          264,
+          0,
+          0,
+          27863,
+          114,
+          6
+        ],
+        [
+          515,
+          0,
+          0,
+          29,
+          3572,
+          236
+        ],
+        [
+          349,
+          0,
+          0,
+          0,
+          384,
+          370
+        ]
+      ]
+    },
+    "33": {
+      "tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.24605724947800203,
+      "v4_accuracy": 0.2162256215848006,
+      "task_support_ceiling": 0.27987235113802955,
+      "groups": {
+        "task_missing": {
+          "rows": 97259,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 15110,
+          "route_correct": 12869,
+          "class_correct": 12584
+        },
+        "class_in_memory": {
+          "rows": 22689,
+          "route_correct": 20363,
+          "class_correct": 16619
+        }
+      },
+      "saved_memory_rows": 176,
+      "saved_memory_task_accuracy": 0.9204545454545454,
+      "class_counts_per_task": {
+        "0": 3,
+        "3": 3,
+        "4": 4,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          1606,
+          0,
+          0,
+          152,
+          1976,
+          363
+        ],
+        [
+          14,
+          0,
+          0,
+          41692,
+          14045,
+          12
+        ],
+        [
+          103,
+          0,
+          0,
+          39163,
+          2015,
+          215
+        ],
+        [
+          33,
+          0,
+          0,
+          27731,
+          454,
+          29
+        ],
+        [
+          485,
+          0,
+          0,
+          22,
+          3611,
+          234
+        ],
+        [
+          266,
+          0,
+          0,
+          3,
+          550,
+          284
+        ]
+      ]
+    },
+    "34": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.7027203127545203,
+      "v4_accuracy": 0.6763464585585452,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 11273,
+          "route_correct": 2873,
+          "class_correct": 2858
+        },
+        "class_in_memory": {
+          "rows": 123785,
+          "route_correct": 92035,
+          "class_correct": 88488
+        }
+      },
+      "saved_memory_rows": 532,
+      "saved_memory_task_accuracy": 0.8439849624060151,
+      "class_counts_per_task": {
+        "0": 5,
+        "1": 6,
+        "2": 6,
+        "3": 4,
+        "4": 4,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2190,
+          24,
+          340,
+          23,
+          797,
+          723
+        ],
+        [
+          43,
+          51521,
+          4019,
+          154,
+          25,
+          1
+        ],
+        [
+          215,
+          6681,
+          23747,
+          10591,
+          139,
+          123
+        ],
+        [
+          213,
+          3919,
+          7858,
+          16233,
+          12,
+          12
+        ],
+        [
+          427,
+          17,
+          242,
+          2491,
+          917,
+          258
+        ],
+        [
+          238,
+          7,
+          185,
+          0,
+          373,
+          300
+        ]
+      ]
+    },
+    "35": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.7335663196552592,
+      "v4_accuracy": 0.702335292985236,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 5830,
+          "route_correct": 285,
+          "class_correct": 0
+        },
+        "class_in_memory": {
+          "rows": 129228,
+          "route_correct": 98789,
+          "class_correct": 94856
+        }
+      },
+      "saved_memory_rows": 602,
+      "saved_memory_task_accuracy": 0.813953488372093,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 6,
+        "3": 5,
+        "4": 6,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2085,
+          16,
+          293,
+          14,
+          643,
+          1046
+        ],
+        [
+          33,
+          48003,
+          7395,
+          282,
+          44,
+          6
+        ],
+        [
+          190,
+          2688,
+          32220,
+          6132,
+          148,
+          118
+        ],
+        [
+          114,
+          723,
+          14399,
+          12961,
+          43,
+          7
+        ],
+        [
+          438,
+          11,
+          221,
+          11,
+          3323,
+          348
+        ],
+        [
+          214,
+          4,
+          147,
+          3,
+          253,
+          482
+        ]
+      ]
+    },
+    "36": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.4620015104621718,
+      "v4_accuracy": 0.42555790845414565,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 67966,
+          "route_correct": 15761,
+          "class_correct": 15556
+        },
+        "class_in_memory": {
+          "rows": 67092,
+          "route_correct": 46636,
+          "class_correct": 41919
+        }
+      },
+      "saved_memory_rows": 388,
+      "saved_memory_task_accuracy": 0.845360824742268,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 2,
+        "2": 3,
+        "3": 4,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2576,
+          19,
+          364,
+          61,
+          513,
+          564
+        ],
+        [
+          2486,
+          22655,
+          4741,
+          25848,
+          25,
+          8
+        ],
+        [
+          278,
+          11364,
+          17003,
+          12005,
+          731,
+          115
+        ],
+        [
+          223,
+          5508,
+          5731,
+          16682,
+          99,
+          4
+        ],
+        [
+          705,
+          15,
+          206,
+          23,
+          3042,
+          361
+        ],
+        [
+          266,
+          1,
+          108,
+          1,
+          288,
+          439
+        ]
+      ]
+    },
+    "37": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6931688607857365,
+      "v4_accuracy": 0.6719335396644405,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 26052,
+          "route_correct": 3149,
+          "class_correct": 3095
+        },
+        "class_in_memory": {
+          "rows": 109006,
+          "route_correct": 90469,
+          "class_correct": 87655
+        }
+      },
+      "saved_memory_rows": 474,
+      "saved_memory_task_accuracy": 0.9219409282700421,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 4,
+        "3": 4,
+        "4": 5,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2525,
+          30,
+          409,
+          37,
+          1056,
+          40
+        ],
+        [
+          67,
+          49320,
+          25,
+          6292,
+          59,
+          0
+        ],
+        [
+          329,
+          4071,
+          22641,
+          14265,
+          186,
+          4
+        ],
+        [
+          188,
+          970,
+          11357,
+          15691,
+          41,
+          0
+        ],
+        [
+          629,
+          10,
+          256,
+          10,
+          3425,
+          22
+        ],
+        [
+          361,
+          2,
+          97,
+          0,
+          627,
+          16
+        ]
+      ]
+    },
+    "38": {
+      "tasks": [
+        0,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.04805342889721453,
+      "v4_accuracy": 0.0344740778036103,
+      "task_support_ceiling": 0.07072516992699429,
+      "groups": {
+        "task_missing": {
+          "rows": 125506,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 1341,
+          "route_correct": 327,
+          "class_correct": 207
+        },
+        "class_in_memory": {
+          "rows": 8211,
+          "route_correct": 6163,
+          "class_correct": 4449
+        }
+      },
+      "saved_memory_rows": 200,
+      "saved_memory_task_accuracy": 0.815,
+      "class_counts_per_task": {
+        "0": 5,
+        "4": 5,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2583,
+          0,
+          0,
+          0,
+          1291,
+          223
+        ],
+        [
+          16330,
+          0,
+          0,
+          0,
+          39427,
+          6
+        ],
+        [
+          2615,
+          0,
+          0,
+          0,
+          38725,
+          156
+        ],
+        [
+          1462,
+          0,
+          0,
+          0,
+          26612,
+          173
+        ],
+        [
+          438,
+          0,
+          0,
+          0,
+          3756,
+          158
+        ],
+        [
+          207,
+          0,
+          0,
+          0,
+          745,
+          151
+        ]
+      ]
+    },
+    "39": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.4856950347258215,
+      "v4_accuracy": 0.425091442195205,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 52276,
+          "route_correct": 451,
+          "class_correct": 427
+        },
+        "class_in_memory": {
+          "rows": 82782,
+          "route_correct": 65146,
+          "class_correct": 56985
+        }
+      },
+      "saved_memory_rows": 455,
+      "saved_memory_task_accuracy": 0.9032967032967033,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 3,
+        "2": 3,
+        "3": 5,
+        "4": 5,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2515,
+          7,
+          27,
+          62,
+          915,
+          571
+        ],
+        [
+          679,
+          20727,
+          20738,
+          12922,
+          693,
+          4
+        ],
+        [
+          380,
+          8351,
+          25170,
+          7266,
+          211,
+          118
+        ],
+        [
+          155,
+          2905,
+          11678,
+          13457,
+          47,
+          5
+        ],
+        [
+          666,
+          0,
+          25,
+          45,
+          3385,
+          231
+        ],
+        [
+          317,
+          0,
+          4,
+          1,
+          438,
+          343
+        ]
+      ]
+    },
+    "40": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.3793851530453583,
+      "v4_accuracy": 0.3509233070236491,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 94561,
+          "route_correct": 14310,
+          "class_correct": 14254
+        },
+        "class_in_memory": {
+          "rows": 40497,
+          "route_correct": 36929,
+          "class_correct": 33141
+        }
+      },
+      "saved_memory_rows": 330,
+      "saved_memory_task_accuracy": 0.9181818181818182,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 2,
+        "2": 1,
+        "3": 3,
+        "4": 5,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2443,
+          7,
+          16,
+          45,
+          1256,
+          330
+        ],
+        [
+          17617,
+          21851,
+          65,
+          16145,
+          85,
+          0
+        ],
+        [
+          7110,
+          30,
+          849,
+          33177,
+          232,
+          98
+        ],
+        [
+          3272,
+          51,
+          133,
+          24759,
+          27,
+          5
+        ],
+        [
+          646,
+          0,
+          994,
+          1557,
+          1048,
+          107
+        ],
+        [
+          341,
+          0,
+          0,
+          0,
+          473,
+          289
+        ]
+      ]
+    },
+    "41": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.4161915621436716,
+      "v4_accuracy": 0.39097276725554947,
+      "task_support_ceiling": 0.6927542241111226,
+      "groups": {
+        "task_missing": {
+          "rows": 41496,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 47332,
+          "route_correct": 13444,
+          "class_correct": 13341
+        },
+        "class_in_memory": {
+          "rows": 46230,
+          "route_correct": 42766,
+          "class_correct": 39463
+        }
+      },
+      "saved_memory_rows": 354,
+      "saved_memory_task_accuracy": 0.9067796610169492,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 3,
+        "3": 3,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2681,
+          26,
+          0,
+          3,
+          818,
+          569
+        ],
+        [
+          4220,
+          24333,
+          0,
+          27126,
+          75,
+          9
+        ],
+        [
+          5389,
+          147,
+          0,
+          34992,
+          853,
+          115
+        ],
+        [
+          2205,
+          128,
+          0,
+          25566,
+          344,
+          4
+        ],
+        [
+          689,
+          25,
+          0,
+          25,
+          3251,
+          362
+        ],
+        [
+          309,
+          0,
+          0,
+          0,
+          415,
+          379
+        ]
+      ]
+    },
+    "42": {
+      "tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.24745664825482386,
+      "v4_accuracy": 0.22689511172977536,
+      "task_support_ceiling": 0.27987235113802955,
+      "groups": {
+        "task_missing": {
+          "rows": 97259,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 5654,
+          "route_correct": 3610,
+          "class_correct": 3367
+        },
+        "class_in_memory": {
+          "rows": 32145,
+          "route_correct": 29811,
+          "class_correct": 27277
+        }
+      },
+      "saved_memory_rows": 266,
+      "saved_memory_task_accuracy": 0.8872180451127819,
+      "class_counts_per_task": {
+        "0": 5,
+        "3": 4,
+        "4": 3,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2918,
+          0,
+          0,
+          9,
+          502,
+          668
+        ],
+        [
+          21801,
+          0,
+          0,
+          33900,
+          40,
+          22
+        ],
+        [
+          2346,
+          0,
+          0,
+          38519,
+          505,
+          126
+        ],
+        [
+          1015,
+          0,
+          0,
+          27099,
+          113,
+          20
+        ],
+        [
+          690,
+          0,
+          0,
+          99,
+          3026,
+          537
+        ],
+        [
+          313,
+          0,
+          0,
+          8,
+          404,
+          378
+        ]
+      ]
+    },
+    "43": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.7282722978276,
+      "v4_accuracy": 0.678693598305913,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 7106,
+          "route_correct": 452,
+          "class_correct": 159
+        },
+        "class_in_memory": {
+          "rows": 127952,
+          "route_correct": 97907,
+          "class_correct": 91504
+        }
+      },
+      "saved_memory_rows": 562,
+      "saved_memory_task_accuracy": 0.8629893238434164,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 6,
+        "3": 5,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2453,
+          34,
+          354,
+          26,
+          475,
+          755
+        ],
+        [
+          22,
+          47713,
+          7678,
+          284,
+          45,
+          21
+        ],
+        [
+          220,
+          2550,
+          31145,
+          7371,
+          76,
+          134
+        ],
+        [
+          128,
+          750,
+          13609,
+          13716,
+          33,
+          11
+        ],
+        [
+          724,
+          7,
+          313,
+          5,
+          2889,
+          414
+        ],
+        [
+          247,
+          0,
+          151,
+          1,
+          261,
+          443
+        ]
+      ]
+    },
+    "44": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5611292926002162,
+      "v4_accuracy": 0.5333708480800841,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 63882,
+          "route_correct": 24860,
+          "class_correct": 24698
+        },
+        "class_in_memory": {
+          "rows": 71176,
+          "route_correct": 50925,
+          "class_correct": 47338
+        }
+      },
+      "saved_memory_rows": 487,
+      "saved_memory_task_accuracy": 0.837782340862423,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 5,
+        "3": 4,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2183,
+          25,
+          387,
+          25,
+          998,
+          479
+        ],
+        [
+          50,
+          28938,
+          24633,
+          2102,
+          30,
+          10
+        ],
+        [
+          263,
+          4314,
+          33589,
+          2990,
+          241,
+          99
+        ],
+        [
+          192,
+          1569,
+          18854,
+          7471,
+          157,
+          4
+        ],
+        [
+          558,
+          12,
+          257,
+          7,
+          3262,
+          256
+        ],
+        [
+          299,
+          1,
+          137,
+          0,
+          324,
+          342
+        ]
+      ]
+    },
+    "45": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6461446193487242,
+      "v4_accuracy": 0.6229397740230124,
+      "task_support_ceiling": 0.7908528187889647,
+      "groups": {
+        "task_missing": {
+          "rows": 28247,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 5253,
+          "route_correct": 772,
+          "class_correct": 636
+        },
+        "class_in_memory": {
+          "rows": 101558,
+          "route_correct": 86495,
+          "class_correct": 83497
+        }
+      },
+      "saved_memory_rows": 398,
+      "saved_memory_task_accuracy": 0.7361809045226131,
+      "class_counts_per_task": {
+        "0": 2,
+        "1": 6,
+        "2": 5,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          1038,
+          424,
+          423,
+          0,
+          1104,
+          1108
+        ],
+        [
+          31,
+          49447,
+          5962,
+          0,
+          25,
+          298
+        ],
+        [
+          581,
+          7277,
+          33050,
+          0,
+          271,
+          317
+        ],
+        [
+          27,
+          6763,
+          18525,
+          0,
+          2835,
+          97
+        ],
+        [
+          137,
+          187,
+          208,
+          0,
+          3326,
+          494
+        ],
+        [
+          68,
+          108,
+          149,
+          0,
+          372,
+          406
+        ]
+      ]
+    },
+    "46": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.33479690207170254,
+      "v4_accuracy": 0.2767921929837551,
+      "task_support_ceiling": 0.587118127026907,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 14757,
+          "route_correct": 450,
+          "class_correct": 279
+        },
+        "class_in_memory": {
+          "rows": 64538,
+          "route_correct": 44767,
+          "class_correct": 37104
+        }
+      },
+      "saved_memory_rows": 304,
+      "saved_memory_task_accuracy": 0.875,
+      "class_counts_per_task": {
+        "0": 6,
+        "2": 4,
+        "3": 3,
+        "4": 2,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          3162,
+          0,
+          25,
+          5,
+          290,
+          615
+        ],
+        [
+          5785,
+          0,
+          29095,
+          13484,
+          659,
+          6740
+        ],
+        [
+          1514,
+          0,
+          29502,
+          10070,
+          94,
+          316
+        ],
+        [
+          607,
+          0,
+          13876,
+          8992,
+          4682,
+          90
+        ],
+        [
+          854,
+          0,
+          35,
+          3,
+          2994,
+          466
+        ],
+        [
+          404,
+          0,
+          1,
+          0,
+          131,
+          567
+        ]
+      ]
+    },
+    "47": {
+      "tasks": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.2311673503235647,
+      "v4_accuracy": 0.20704438093263636,
+      "task_support_ceiling": 0.5548949340283433,
+      "groups": {
+        "task_missing": {
+          "rows": 60115,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 59146,
+          "route_correct": 16213,
+          "class_correct": 15956
+        },
+        "class_in_memory": {
+          "rows": 15797,
+          "route_correct": 15008,
+          "class_correct": 12007
+        }
+      },
+      "saved_memory_rows": 259,
+      "saved_memory_task_accuracy": 0.8841698841698842,
+      "class_counts_per_task": {
+        "0": 5,
+        "2": 2,
+        "3": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2149,
+          0,
+          676,
+          43,
+          0,
+          1229
+        ],
+        [
+          1097,
+          0,
+          1201,
+          53353,
+          0,
+          112
+        ],
+        [
+          609,
+          0,
+          923,
+          39617,
+          0,
+          347
+        ],
+        [
+          574,
+          0,
+          159,
+          27474,
+          0,
+          40
+        ],
+        [
+          724,
+          0,
+          157,
+          2473,
+          0,
+          998
+        ],
+        [
+          316,
+          0,
+          112,
+          0,
+          0,
+          675
+        ]
+      ]
+    },
+    "48": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.3900768558693302,
+      "v4_accuracy": 0.33870633357520474,
+      "task_support_ceiling": 0.587118127026907,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 9327,
+          "route_correct": 2657,
+          "class_correct": 2520
+        },
+        "class_in_memory": {
+          "rows": 69968,
+          "route_correct": 50026,
+          "class_correct": 43225
+        }
+      },
+      "saved_memory_rows": 424,
+      "saved_memory_task_accuracy": 0.7924528301886793,
+      "class_counts_per_task": {
+        "0": 6,
+        "2": 5,
+        "3": 4,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2426,
+          0,
+          498,
+          27,
+          537,
+          609
+        ],
+        [
+          12948,
+          0,
+          21164,
+          21580,
+          52,
+          19
+        ],
+        [
+          279,
+          0,
+          31770,
+          8334,
+          980,
+          133
+        ],
+        [
+          150,
+          0,
+          13297,
+          14648,
+          143,
+          9
+        ],
+        [
+          444,
+          0,
+          210,
+          5,
+          3325,
+          368
+        ],
+        [
+          277,
+          0,
+          106,
+          0,
+          206,
+          514
+        ]
+      ]
+    },
+    "49": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.695434554043448,
+      "v4_accuracy": 0.645929896785085,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 33688,
+          "route_correct": 3889,
+          "class_correct": 3159
+        },
+        "class_in_memory": {
+          "rows": 101370,
+          "route_correct": 90035,
+          "class_correct": 84079
+        }
+      },
+      "saved_memory_rows": 435,
+      "saved_memory_task_accuracy": 0.7724137931034483,
+      "class_counts_per_task": {
+        "0": 2,
+        "1": 5,
+        "2": 4,
+        "3": 3,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          1087,
+          137,
+          203,
+          71,
+          1541,
+          1058
+        ],
+        [
+          89,
+          44516,
+          10403,
+          568,
+          94,
+          93
+        ],
+        [
+          643,
+          451,
+          37904,
+          2038,
+          261,
+          199
+        ],
+        [
+          152,
+          281,
+          18735,
+          8939,
+          80,
+          60
+        ],
+        [
+          24,
+          36,
+          684,
+          2112,
+          973,
+          523
+        ],
+        [
+          22,
+          10,
+          115,
+          41,
+          410,
+          505
+        ]
+      ]
+    },
+    "50": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6859719527906529,
+      "v4_accuracy": 0.6672392601697049,
+      "task_support_ceiling": 0.9677768070014364,
+      "groups": {
+        "task_missing": {
+          "rows": 4352,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 11440,
+          "route_correct": 509,
+          "class_correct": 380
+        },
+        "class_in_memory": {
+          "rows": 119266,
+          "route_correct": 92137,
+          "class_correct": 89736
+        }
+      },
+      "saved_memory_rows": 448,
+      "saved_memory_task_accuracy": 0.8816964285714286,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 5,
+        "3": 5,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          3031,
+          46,
+          483,
+          48,
+          0,
+          489
+        ],
+        [
+          39,
+          49154,
+          2752,
+          3809,
+          0,
+          9
+        ],
+        [
+          366,
+          3699,
+          27312,
+          10045,
+          0,
+          74
+        ],
+        [
+          112,
+          847,
+          14629,
+          12655,
+          0,
+          4
+        ],
+        [
+          1171,
+          22,
+          283,
+          2522,
+          0,
+          354
+        ],
+        [
+          427,
+          2,
+          179,
+          1,
+          0,
+          494
+        ]
+      ]
+    },
+    "51": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.5991648032697063,
+      "v4_accuracy": 0.524041522901272,
+      "task_support_ceiling": 0.6927542241111226,
+      "groups": {
+        "task_missing": {
+          "rows": 41496,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 3631,
+          "route_correct": 78,
+          "class_correct": 51
+        },
+        "class_in_memory": {
+          "rows": 89931,
+          "route_correct": 80844,
+          "class_correct": 70725
+        }
+      },
+      "saved_memory_rows": 441,
+      "saved_memory_task_accuracy": 0.8979591836734694,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "3": 6,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2517,
+          23,
+          0,
+          75,
+          1403,
+          79
+        ],
+        [
+          84,
+          52099,
+          0,
+          3521,
+          54,
+          5
+        ],
+        [
+          384,
+          7792,
+          0,
+          33013,
+          287,
+          20
+        ],
+        [
+          240,
+          2876,
+          0,
+          25108,
+          12,
+          11
+        ],
+        [
+          609,
+          12,
+          0,
+          2534,
+          1118,
+          79
+        ],
+        [
+          356,
+          1,
+          0,
+          0,
+          666,
+          80
+        ]
+      ]
+    },
+    "52": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.37345436775311347,
+      "v4_accuracy": 0.3379288898103037,
+      "task_support_ceiling": 0.587118127026907,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 34843,
+          "route_correct": 16072,
+          "class_correct": 15809
+        },
+        "class_in_memory": {
+          "rows": 44452,
+          "route_correct": 34366,
+          "class_correct": 29831
+        }
+      },
+      "saved_memory_rows": 380,
+      "saved_memory_task_accuracy": 0.8473684210526315,
+      "class_counts_per_task": {
+        "0": 5,
+        "2": 4,
+        "3": 4,
+        "4": 5,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2427,
+          0,
+          200,
+          99,
+          1203,
+          168
+        ],
+        [
+          129,
+          0,
+          37017,
+          12535,
+          6082,
+          0
+        ],
+        [
+          245,
+          0,
+          36108,
+          4843,
+          259,
+          41
+        ],
+        [
+          52,
+          0,
+          19560,
+          8360,
+          275,
+          0
+        ],
+        [
+          692,
+          0,
+          148,
+          42,
+          3364,
+          106
+        ],
+        [
+          311,
+          0,
+          129,
+          1,
+          483,
+          179
+        ]
+      ]
+    },
+    "53": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.31077759184942766,
+      "v4_accuracy": 0.2901864384190496,
+      "task_support_ceiling": 0.587118127026907,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 14701,
+          "route_correct": 254,
+          "class_correct": 131
+        },
+        "class_in_memory": {
+          "rows": 64594,
+          "route_correct": 41719,
+          "class_correct": 39061
+        }
+      },
+      "saved_memory_rows": 384,
+      "saved_memory_task_accuracy": 0.8203125,
+      "class_counts_per_task": {
+        "0": 5,
+        "2": 4,
+        "3": 6,
+        "4": 3,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          1552,
+          0,
+          545,
+          273,
+          1031,
+          696
+        ],
+        [
+          2077,
+          0,
+          28721,
+          24916,
+          42,
+          7
+        ],
+        [
+          183,
+          0,
+          15024,
+          25989,
+          107,
+          193
+        ],
+        [
+          80,
+          0,
+          6052,
+          21990,
+          113,
+          12
+        ],
+        [
+          509,
+          0,
+          356,
+          66,
+          2935,
+          486
+        ],
+        [
+          394,
+          0,
+          92,
+          2,
+          143,
+          472
+        ]
+      ]
+    },
+    "54": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.599460972323002,
+      "v4_accuracy": 0.5739089872499222,
+      "task_support_ceiling": 0.6927542241111226,
+      "groups": {
+        "task_missing": {
+          "rows": 41496,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 14661,
+          "route_correct": 8636,
+          "class_correct": 8421
+        },
+        "class_in_memory": {
+          "rows": 78901,
+          "route_correct": 72326,
+          "class_correct": 69090
+        }
+      },
+      "saved_memory_rows": 436,
+      "saved_memory_task_accuracy": 0.8944954128440367,
+      "class_counts_per_task": {
+        "0": 5,
+        "1": 6,
+        "3": 5,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1904,
+          18,
+          0,
+          28,
+          1446,
+          701
+        ],
+        [
+          125,
+          54611,
+          0,
+          978,
+          36,
+          13
+        ],
+        [
+          270,
+          11029,
+          0,
+          29669,
+          152,
+          376
+        ],
+        [
+          228,
+          4589,
+          0,
+          23243,
+          24,
+          163
+        ],
+        [
+          614,
+          22,
+          0,
+          2549,
+          784,
+          383
+        ],
+        [
+          355,
+          1,
+          0,
+          1,
+          326,
+          420
+        ]
+      ]
+    },
+    "55": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.38244309852063557,
+      "v4_accuracy": 0.3461846021709192,
+      "task_support_ceiling": 0.6927542241111226,
+      "groups": {
+        "task_missing": {
+          "rows": 41496,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 34388,
+          "route_correct": 1952,
+          "class_correct": 1866
+        },
+        "class_in_memory": {
+          "rows": 59174,
+          "route_correct": 49700,
+          "class_correct": 44889
+        }
+      },
+      "saved_memory_rows": 330,
+      "saved_memory_task_accuracy": 0.803030303030303,
+      "class_counts_per_task": {
+        "0": 2,
+        "1": 3,
+        "3": 5,
+        "4": 6,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1576,
+          27,
+          0,
+          224,
+          1797,
+          473
+        ],
+        [
+          50,
+          26152,
+          0,
+          18827,
+          10131,
+          603
+        ],
+        [
+          603,
+          15258,
+          0,
+          24669,
+          635,
+          331
+        ],
+        [
+          111,
+          7904,
+          0,
+          19977,
+          155,
+          100
+        ],
+        [
+          384,
+          34,
+          0,
+          170,
+          3505,
+          259
+        ],
+        [
+          81,
+          15,
+          0,
+          94,
+          471,
+          442
+        ]
+      ]
+    },
+    "56": {
+      "tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.34973863081046663,
+      "v4_accuracy": 0.3334123117475455,
+      "task_support_ceiling": 0.37797094581587165,
+      "groups": {
+        "task_missing": {
+          "rows": 84010,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 16272,
+          "route_correct": 15788,
+          "class_correct": 15710
+        },
+        "class_in_memory": {
+          "rows": 34776,
+          "route_correct": 31447,
+          "class_correct": 29320
+        }
+      },
+      "saved_memory_rows": 293,
+      "saved_memory_task_accuracy": 0.8464163822525598,
+      "class_counts_per_task": {
+        "0": 5,
+        "2": 4,
+        "4": 3,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2590,
+          0,
+          238,
+          0,
+          256,
+          1013
+        ],
+        [
+          2832,
+          0,
+          51657,
+          0,
+          1259,
+          15
+        ],
+        [
+          304,
+          0,
+          40917,
+          0,
+          121,
+          154
+        ],
+        [
+          463,
+          0,
+          27604,
+          0,
+          163,
+          17
+        ],
+        [
+          625,
+          0,
+          210,
+          0,
+          3169,
+          348
+        ],
+        [
+          291,
+          0,
+          94,
+          0,
+          159,
+          559
+        ]
+      ]
+    },
+    "57": {
+      "tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.24756030742347732,
+      "v4_accuracy": 0.22393342119681914,
+      "task_support_ceiling": 0.27987235113802955,
+      "groups": {
+        "task_missing": {
+          "rows": 97259,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 2184,
+          "route_correct": 619,
+          "class_correct": 513
+        },
+        "class_in_memory": {
+          "rows": 35615,
+          "route_correct": 32816,
+          "class_correct": 29731
+        }
+      },
+      "saved_memory_rows": 312,
+      "saved_memory_task_accuracy": 0.8365384615384616,
+      "class_counts_per_task": {
+        "0": 3,
+        "3": 6,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1454,
+          0,
+          0,
+          793,
+          1167,
+          683
+        ],
+        [
+          1,
+          0,
+          0,
+          44954,
+          1122,
+          9686
+        ],
+        [
+          192,
+          0,
+          0,
+          40062,
+          975,
+          267
+        ],
+        [
+          15,
+          0,
+          0,
+          28100,
+          90,
+          42
+        ],
+        [
+          557,
+          0,
+          0,
+          51,
+          3457,
+          287
+        ],
+        [
+          235,
+          0,
+          0,
+          13,
+          431,
+          424
+        ]
+      ]
+    },
+    "58": {
+      "tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.3337232892535059,
+      "v4_accuracy": 0.3233203512564972,
+      "task_support_ceiling": 0.37797094581587165,
+      "groups": {
+        "task_missing": {
+          "rows": 84010,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 4008,
+          "route_correct": 106,
+          "class_correct": 71
+        },
+        "class_in_memory": {
+          "rows": 47040,
+          "route_correct": 44966,
+          "class_correct": 43596
+        }
+      },
+      "saved_memory_rows": 323,
+      "saved_memory_task_accuracy": 0.6904024767801857,
+      "class_counts_per_task": {
+        "0": 2,
+        "2": 6,
+        "4": 6,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          179,
+          0,
+          1176,
+          0,
+          2295,
+          447
+        ],
+        [
+          1389,
+          0,
+          32886,
+          0,
+          20516,
+          972
+        ],
+        [
+          78,
+          0,
+          40896,
+          0,
+          424,
+          98
+        ],
+        [
+          301,
+          0,
+          22749,
+          0,
+          5169,
+          28
+        ],
+        [
+          130,
+          0,
+          288,
+          0,
+          3590,
+          344
+        ],
+        [
+          36,
+          0,
+          146,
+          0,
+          514,
+          407
+        ]
+      ]
+    },
+    "59": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6774941136400657,
+      "v4_accuracy": 0.673081194745961,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 21766,
+          "route_correct": 294,
+          "class_correct": 199
+        },
+        "class_in_memory": {
+          "rows": 113292,
+          "route_correct": 91207,
+          "class_correct": 90706
+        }
+      },
+      "saved_memory_rows": 452,
+      "saved_memory_task_accuracy": 0.8738938053097345,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 6,
+        "3": 1,
+        "4": 4,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2798,
+          24,
+          401,
+          0,
+          644,
+          230
+        ],
+        [
+          73,
+          47830,
+          7796,
+          0,
+          64,
+          0
+        ],
+        [
+          281,
+          2584,
+          31890,
+          6555,
+          151,
+          35
+        ],
+        [
+          421,
+          928,
+          16553,
+          5504,
+          4838,
+          3
+        ],
+        [
+          679,
+          13,
+          319,
+          0,
+          3173,
+          168
+        ],
+        [
+          251,
+          0,
+          226,
+          0,
+          320,
+          306
+        ]
+      ]
+    },
+    "60": {
+      "tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.2509144219520502,
+      "v4_accuracy": 0.22610285951220957,
+      "task_support_ceiling": 0.27987235113802955,
+      "groups": {
+        "task_missing": {
+          "rows": 97259,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 6064,
+          "route_correct": 3650,
+          "class_correct": 3429
+        },
+        "class_in_memory": {
+          "rows": 31735,
+          "route_correct": 30238,
+          "class_correct": 27108
+        }
+      },
+      "saved_memory_rows": 307,
+      "saved_memory_task_accuracy": 0.8175895765472313,
+      "class_counts_per_task": {
+        "0": 4,
+        "3": 5,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          1974,
+          0,
+          0,
+          95,
+          1188,
+          840
+        ],
+        [
+          754,
+          0,
+          0,
+          54869,
+          71,
+          69
+        ],
+        [
+          332,
+          0,
+          0,
+          40572,
+          429,
+          163
+        ],
+        [
+          117,
+          0,
+          0,
+          28052,
+          44,
+          34
+        ],
+        [
+          510,
+          0,
+          0,
+          93,
+          3304,
+          445
+        ],
+        [
+          277,
+          0,
+          0,
+          7,
+          261,
+          558
+        ]
+      ]
+    },
+    "61": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.7029942691288187,
+      "v4_accuracy": 0.6804261872676924,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 2120,
+          "route_correct": 73,
+          "class_correct": 50
+        },
+        "class_in_memory": {
+          "rows": 132938,
+          "route_correct": 94872,
+          "class_correct": 91847
+        }
+      },
+      "saved_memory_rows": 531,
+      "saved_memory_task_accuracy": 0.871939736346516,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 5,
+        "3": 5,
+        "4": 6,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2252,
+          32,
+          397,
+          3,
+          1232,
+          181
+        ],
+        [
+          62,
+          48708,
+          5119,
+          1825,
+          49,
+          0
+        ],
+        [
+          292,
+          3377,
+          22083,
+          15192,
+          537,
+          15
+        ],
+        [
+          322,
+          673,
+          8885,
+          18326,
+          38,
+          3
+        ],
+        [
+          554,
+          7,
+          218,
+          20,
+          3515,
+          38
+        ],
+        [
+          270,
+          0,
+          148,
+          0,
+          624,
+          61
+        ]
+      ]
+    },
+    "62": {
+      "tasks": [
+        0,
+        1,
+        2,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6550963289845844,
+      "v4_accuracy": 0.6522160849412845,
+      "task_support_ceiling": 0.7586296257904012,
+      "groups": {
+        "task_missing": {
+          "rows": 32599,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 13526,
+          "route_correct": 12702,
+          "class_correct": 12687
+        },
+        "class_in_memory": {
+          "rows": 88933,
+          "route_correct": 75774,
+          "class_correct": 75400
+        }
+      },
+      "saved_memory_rows": 325,
+      "saved_memory_task_accuracy": 0.9107692307692308,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 4,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          3199,
+          20,
+          382,
+          0,
+          0,
+          496
+        ],
+        [
+          111,
+          51166,
+          4466,
+          0,
+          0,
+          20
+        ],
+        [
+          553,
+          7242,
+          33605,
+          0,
+          0,
+          96
+        ],
+        [
+          607,
+          3909,
+          23718,
+          0,
+          0,
+          13
+        ],
+        [
+          1478,
+          4,
+          2459,
+          0,
+          0,
+          411
+        ],
+        [
+          449,
+          3,
+          145,
+          0,
+          0,
+          506
+        ]
+      ]
+    },
+    "63": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.4802751410505116,
+      "v4_accuracy": 0.4689836958936161,
+      "task_support_ceiling": 0.7908528187889647,
+      "groups": {
+        "task_missing": {
+          "rows": 28247,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 72669,
+          "route_correct": 33472,
+          "class_correct": 33361
+        },
+        "class_in_memory": {
+          "rows": 34142,
+          "route_correct": 31393,
+          "class_correct": 29979
+        }
+      },
+      "saved_memory_rows": 286,
+      "saved_memory_task_accuracy": 0.9090909090909091,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 2,
+        "2": 3,
+        "4": 4,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2582,
+          12,
+          149,
+          0,
+          996,
+          358
+        ],
+        [
+          3406,
+          31751,
+          20519,
+          0,
+          86,
+          1
+        ],
+        [
+          399,
+          11588,
+          29347,
+          0,
+          122,
+          40
+        ],
+        [
+          578,
+          5743,
+          21894,
+          0,
+          32,
+          0
+        ],
+        [
+          727,
+          0,
+          2632,
+          0,
+          839,
+          154
+        ],
+        [
+          334,
+          0,
+          107,
+          0,
+          316,
+          346
+        ]
+      ]
+    },
+    "64": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.6293296213478654,
+      "v4_accuracy": 0.5496305291060137,
+      "task_support_ceiling": 0.9677768070014364,
+      "groups": {
+        "task_missing": {
+          "rows": 4352,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 42840,
+          "route_correct": 9762,
+          "class_correct": 9747
+        },
+        "class_in_memory": {
+          "rows": 87866,
+          "route_correct": 75234,
+          "class_correct": 64485
+        }
+      },
+      "saved_memory_rows": 339,
+      "saved_memory_task_accuracy": 0.943952802359882,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 3,
+        "3": 2,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          3167,
+          26,
+          2,
+          1,
+          0,
+          901
+        ],
+        [
+          808,
+          49239,
+          5661,
+          2,
+          0,
+          53
+        ],
+        [
+          430,
+          8424,
+          19675,
+          12765,
+          0,
+          202
+        ],
+        [
+          330,
+          4479,
+          10986,
+          12435,
+          0,
+          17
+        ],
+        [
+          1118,
+          16,
+          100,
+          2512,
+          0,
+          606
+        ],
+        [
+          619,
+          0,
+          4,
+          0,
+          0,
+          480
+        ]
+      ]
+    },
+    "65": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.2785395903981993,
+      "v4_accuracy": 0.2539575589746627,
+      "task_support_ceiling": 0.587118127026907,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 32100,
+          "route_correct": 8430,
+          "class_correct": 8126
+        },
+        "class_in_memory": {
+          "rows": 47195,
+          "route_correct": 29189,
+          "class_correct": 26173
+        }
+      },
+      "saved_memory_rows": 324,
+      "saved_memory_task_accuracy": 0.8024691358024691,
+      "class_counts_per_task": {
+        "0": 4,
+        "2": 4,
+        "3": 3,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1489,
+          0,
+          250,
+          28,
+          1376,
+          954
+        ],
+        [
+          11026,
+          0,
+          9214,
+          22963,
+          12447,
+          113
+        ],
+        [
+          555,
+          0,
+          17634,
+          22663,
+          405,
+          239
+        ],
+        [
+          1152,
+          0,
+          9971,
+          16930,
+          134,
+          60
+        ],
+        [
+          358,
+          0,
+          2490,
+          41,
+          1002,
+          461
+        ],
+        [
+          189,
+          0,
+          40,
+          2,
+          308,
+          564
+        ]
+      ]
+    },
+    "66": {
+      "tasks": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.40880214426394584,
+      "v4_accuracy": 0.4011017488782597,
+      "task_support_ceiling": 0.4836070429000874,
+      "groups": {
+        "task_missing": {
+          "rows": 69743,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 44361,
+          "route_correct": 37547,
+          "class_correct": 37451
+        },
+        "class_in_memory": {
+          "rows": 20954,
+          "route_correct": 17665,
+          "class_correct": 16721
+        }
+      },
+      "saved_memory_rows": 280,
+      "saved_memory_task_accuracy": 0.9321428571428572,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 3,
+        "4": 5,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2869,
+          38,
+          0,
+          0,
+          811,
+          379
+        ],
+        [
+          6955,
+          48680,
+          0,
+          0,
+          127,
+          1
+        ],
+        [
+          1442,
+          34615,
+          0,
+          0,
+          5385,
+          54
+        ],
+        [
+          673,
+          19589,
+          0,
+          0,
+          7980,
+          5
+        ],
+        [
+          746,
+          23,
+          0,
+          0,
+          3405,
+          178
+        ],
+        [
+          435,
+          0,
+          0,
+          0,
+          410,
+          258
+        ]
+      ]
+    },
+    "67": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.7025352070962105,
+      "v4_accuracy": 0.6803077196463742,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 15371,
+          "route_correct": 14126,
+          "class_correct": 14091
+        },
+        "class_in_memory": {
+          "rows": 119687,
+          "route_correct": 80757,
+          "class_correct": 77790
+        }
+      },
+      "saved_memory_rows": 529,
+      "saved_memory_task_accuracy": 0.8260869565217391,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 5,
+        "3": 5,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2438,
+          29,
+          28,
+          30,
+          1095,
+          477
+        ],
+        [
+          46,
+          49694,
+          2176,
+          3822,
+          18,
+          7
+        ],
+        [
+          308,
+          5009,
+          19257,
+          16621,
+          143,
+          158
+        ],
+        [
+          90,
+          1747,
+          6694,
+          19683,
+          29,
+          4
+        ],
+        [
+          725,
+          7,
+          38,
+          2,
+          3331,
+          249
+        ],
+        [
+          287,
+          0,
+          22,
+          4,
+          310,
+          480
+        ]
+      ]
+    },
+    "68": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.344303928682492,
+      "v4_accuracy": 0.3167676109523316,
+      "task_support_ceiling": 0.587118127026907,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 3397,
+          "route_correct": 552,
+          "class_correct": 409
+        },
+        "class_in_memory": {
+          "rows": 75898,
+          "route_correct": 45949,
+          "class_correct": 42373
+        }
+      },
+      "saved_memory_rows": 441,
+      "saved_memory_task_accuracy": 0.7777777777777778,
+      "class_counts_per_task": {
+        "0": 4,
+        "2": 6,
+        "3": 5,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1424,
+          0,
+          504,
+          5,
+          1687,
+          477
+        ],
+        [
+          1975,
+          0,
+          35029,
+          17639,
+          1090,
+          30
+        ],
+        [
+          235,
+          0,
+          24339,
+          16646,
+          171,
+          105
+        ],
+        [
+          364,
+          0,
+          10823,
+          16984,
+          59,
+          17
+        ],
+        [
+          351,
+          0,
+          287,
+          32,
+          3374,
+          308
+        ],
+        [
+          212,
+          0,
+          78,
+          0,
+          433,
+          380
+        ]
+      ]
+    },
+    "69": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.451102489300893,
+      "v4_accuracy": 0.42640939448237053,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 57755,
+          "route_correct": 3065,
+          "class_correct": 0
+        },
+        "class_in_memory": {
+          "rows": 77303,
+          "route_correct": 57860,
+          "class_correct": 57590
+        }
+      },
+      "saved_memory_rows": 381,
+      "saved_memory_task_accuracy": 0.7112860892388452,
+      "class_counts_per_task": {
+        "0": 1,
+        "1": 3,
+        "2": 4,
+        "3": 4,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          848,
+          255,
+          78,
+          108,
+          1231,
+          1577
+        ],
+        [
+          30,
+          13275,
+          24344,
+          16430,
+          351,
+          1333
+        ],
+        [
+          36,
+          1528,
+          31641,
+          7609,
+          346,
+          336
+        ],
+        [
+          44,
+          357,
+          16239,
+          11388,
+          162,
+          57
+        ],
+        [
+          2,
+          66,
+          97,
+          208,
+          3213,
+          766
+        ],
+        [
+          6,
+          63,
+          90,
+          14,
+          370,
+          560
+        ]
+      ]
+    },
+    "70": {
+      "tasks": [
+        0,
+        3,
+        4,
+        5
+      ],
+      "rows": 135058,
+      "route_accuracy": 0.15120911016007937,
+      "v4_accuracy": 0.11742362540538138,
+      "task_support_ceiling": 0.27987235113802955,
+      "groups": {
+        "task_missing": {
+          "rows": 97259,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 24282,
+          "route_correct": 10396,
+          "class_correct": 10338
+        },
+        "class_in_memory": {
+          "rows": 13517,
+          "route_correct": 10026,
+          "class_correct": 5521
+        }
+      },
+      "saved_memory_rows": 264,
+      "saved_memory_task_accuracy": 0.7803030303030303,
+      "class_counts_per_task": {
+        "0": 3,
+        "3": 3,
+        "4": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          959,
+          0,
+          0,
+          294,
+          2195,
+          649
+        ],
+        [
+          12797,
+          0,
+          0,
+          17166,
+          24655,
+          1145
+        ],
+        [
+          1555,
+          0,
+          0,
+          17024,
+          22515,
+          402
+        ],
+        [
+          521,
+          0,
+          0,
+          15264,
+          11985,
+          477
+        ],
+        [
+          352,
+          0,
+          0,
+          23,
+          3688,
+          289
+        ],
+        [
+          204,
+          0,
+          0,
+          4,
+          384,
+          511
+        ]
+      ]
+    },
+    "71": {
+      "tasks": [
+        0,
+        2,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.3138378610512598,
+      "v4_accuracy": 0.31075027580947306,
+      "task_support_ceiling": 0.3779663401378677,
+      "groups": {
+        "task_missing": {
+          "rows": 84010,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 29365,
+          "route_correct": 24144,
+          "class_correct": 24141
+        },
+        "class_in_memory": {
+          "rows": 21682,
+          "route_correct": 18242,
+          "class_correct": 17828
+        }
+      },
+      "saved_memory_rows": 284,
+      "saved_memory_task_accuracy": 0.7852112676056338,
+      "class_counts_per_task": {
+        "0": 5,
+        "2": 2,
+        "4": 5,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          1632,
+          0,
+          161,
+          0,
+          1721,
+          583
+        ],
+        [
+          24609,
+          0,
+          28791,
+          0,
+          1399,
+          964
+        ],
+        [
+          2308,
+          0,
+          36985,
+          0,
+          1082,
+          1121
+        ],
+        [
+          1443,
+          0,
+          21461,
+          0,
+          5180,
+          163
+        ],
+        [
+          618,
+          0,
+          76,
+          0,
+          3349,
+          309
+        ],
+        [
+          369,
+          0,
+          81,
+          0,
+          232,
+          420
+        ]
+      ]
+    },
+    "72": {
+      "tasks": [
+        0,
+        1,
+        3,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.5028839675100143,
+      "v4_accuracy": 0.48046380417157203,
+      "task_support_ceiling": 0.6605285175888699,
+      "groups": {
+        "task_missing": {
+          "rows": 45848,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 24349,
+          "route_correct": 10856,
+          "class_correct": 10650
+        },
+        "class_in_memory": {
+          "rows": 64860,
+          "route_correct": 57062,
+          "class_correct": 54240
+        }
+      },
+      "saved_memory_rows": 300,
+      "saved_memory_task_accuracy": 0.89,
+      "class_counts_per_task": {
+        "0": 4,
+        "1": 4,
+        "3": 5,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2121,
+          745,
+          0,
+          93,
+          0,
+          1138
+        ],
+        [
+          1545,
+          39345,
+          0,
+          14841,
+          0,
+          32
+        ],
+        [
+          334,
+          6910,
+          0,
+          33928,
+          0,
+          324
+        ],
+        [
+          165,
+          2434,
+          0,
+          25635,
+          0,
+          13
+        ],
+        [
+          734,
+          21,
+          0,
+          2550,
+          0,
+          1047
+        ],
+        [
+          284,
+          1,
+          0,
+          0,
+          0,
+          817
+        ]
+      ]
+    },
+    "73": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6028047417016519,
+      "v4_accuracy": 0.5326343691922669,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 41254,
+          "route_correct": 18009,
+          "class_correct": 17518
+        },
+        "class_in_memory": {
+          "rows": 93803,
+          "route_correct": 63404,
+          "class_correct": 54418
+        }
+      },
+      "saved_memory_rows": 398,
+      "saved_memory_task_accuracy": 0.8266331658291457,
+      "class_counts_per_task": {
+        "0": 3,
+        "1": 5,
+        "2": 5,
+        "3": 4,
+        "4": 4,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2090,
+          60,
+          568,
+          45,
+          872,
+          462
+        ],
+        [
+          24,
+          34969,
+          14099,
+          6648,
+          16,
+          7
+        ],
+        [
+          99,
+          1753,
+          24890,
+          14048,
+          657,
+          49
+        ],
+        [
+          47,
+          927,
+          11388,
+          15743,
+          141,
+          1
+        ],
+        [
+          400,
+          14,
+          351,
+          8,
+          3388,
+          191
+        ],
+        [
+          171,
+          2,
+          303,
+          2,
+          291,
+          333
+        ]
+      ]
+    },
+    "74": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.7323130233901242,
+      "v4_accuracy": 0.7031253470756792,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 14589,
+          "route_correct": 473,
+          "class_correct": 377
+        },
+        "class_in_memory": {
+          "rows": 120468,
+          "route_correct": 98431,
+          "class_correct": 94585
+        }
+      },
+      "saved_memory_rows": 538,
+      "saved_memory_task_accuracy": 0.8810408921933085,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 6,
+        "3": 4,
+        "4": 6,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2734,
+          31,
+          398,
+          18,
+          735,
+          181
+        ],
+        [
+          33,
+          47716,
+          7759,
+          173,
+          82,
+          0
+        ],
+        [
+          251,
+          2585,
+          33437,
+          4980,
+          213,
+          30
+        ],
+        [
+          213,
+          730,
+          15730,
+          11502,
+          71,
+          1
+        ],
+        [
+          648,
+          6,
+          232,
+          13,
+          3357,
+          96
+        ],
+        [
+          299,
+          0,
+          184,
+          0,
+          461,
+          158
+        ]
+      ]
+    },
+    "75": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6188720318087918,
+      "v4_accuracy": 0.5577052651843296,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 50562,
+          "route_correct": 3226,
+          "class_correct": 3072
+        },
+        "class_in_memory": {
+          "rows": 84495,
+          "route_correct": 80357,
+          "class_correct": 72250
+        }
+      },
+      "saved_memory_rows": 433,
+      "saved_memory_task_accuracy": 0.9260969976905312,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 2,
+        "3": 4,
+        "4": 5,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2399,
+          9,
+          270,
+          44,
+          1001,
+          374
+        ],
+        [
+          746,
+          44940,
+          7,
+          9978,
+          87,
+          5
+        ],
+        [
+          1688,
+          306,
+          12805,
+          25794,
+          821,
+          82
+        ],
+        [
+          600,
+          144,
+          7428,
+          19945,
+          129,
+          1
+        ],
+        [
+          642,
+          5,
+          139,
+          31,
+          3304,
+          231
+        ],
+        [
+          311,
+          0,
+          118,
+          1,
+          482,
+          190
+        ]
+      ]
+    },
+    "76": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.5320272181375271,
+      "v4_accuracy": 0.45250523852891744,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 38372,
+          "route_correct": 4064,
+          "class_correct": 3554
+        },
+        "class_in_memory": {
+          "rows": 96685,
+          "route_correct": 67790,
+          "class_correct": 57560
+        }
+      },
+      "saved_memory_rows": 445,
+      "saved_memory_task_accuracy": 0.849438202247191,
+      "class_counts_per_task": {
+        "0": 4,
+        "1": 4,
+        "2": 5,
+        "3": 5,
+        "4": 4,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          1312,
+          68,
+          347,
+          41,
+          1971,
+          358
+        ],
+        [
+          36,
+          24412,
+          14529,
+          16730,
+          42,
+          14
+        ],
+        [
+          240,
+          103,
+          23154,
+          17745,
+          156,
+          98
+        ],
+        [
+          211,
+          139,
+          8687,
+          19171,
+          22,
+          17
+        ],
+        [
+          316,
+          12,
+          251,
+          41,
+          3548,
+          184
+        ],
+        [
+          213,
+          0,
+          160,
+          2,
+          470,
+          257
+        ]
+      ]
+    },
+    "77": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.7040064565331675,
+      "v4_accuracy": 0.6821342100002221,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 30205,
+          "route_correct": 11926,
+          "class_correct": 11869
+        },
+        "class_in_memory": {
+          "rows": 104852,
+          "route_correct": 83155,
+          "class_correct": 80258
+        }
+      },
+      "saved_memory_rows": 497,
+      "saved_memory_task_accuracy": 0.8511066398390342,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 5,
+        "3": 4,
+        "4": 5,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2431,
+          40,
+          324,
+          22,
+          844,
+          436
+        ],
+        [
+          18,
+          48906,
+          3327,
+          3458,
+          52,
+          2
+        ],
+        [
+          179,
+          4104,
+          31934,
+          4508,
+          718,
+          53
+        ],
+        [
+          150,
+          1701,
+          18211,
+          8081,
+          100,
+          4
+        ],
+        [
+          487,
+          36,
+          245,
+          4,
+          3386,
+          194
+        ],
+        [
+          228,
+          0,
+          136,
+          1,
+          394,
+          343
+        ]
+      ]
+    },
+    "78": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6804312253344884,
+      "v4_accuracy": 0.6783876437356079,
+      "task_support_ceiling": 0.7908512702044322,
+      "groups": {
+        "task_missing": {
+          "rows": 28247,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 14266,
+          "route_correct": 12942,
+          "class_correct": 12915
+        },
+        "class_in_memory": {
+          "rows": 92544,
+          "route_correct": 78955,
+          "class_correct": 78706
+        }
+      },
+      "saved_memory_rows": 441,
+      "saved_memory_task_accuracy": 0.8594104308390023,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 5,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2624,
+          4,
+          448,
+          0,
+          498,
+          523
+        ],
+        [
+          208,
+          54312,
+          1227,
+          0,
+          11,
+          5
+        ],
+        [
+          297,
+          9567,
+          31460,
+          0,
+          100,
+          72
+        ],
+        [
+          336,
+          4980,
+          18049,
+          0,
+          4877,
+          5
+        ],
+        [
+          662,
+          0,
+          354,
+          0,
+          3118,
+          218
+        ],
+        [
+          310,
+          0,
+          189,
+          0,
+          220,
+          383
+        ]
+      ]
+    },
+    "79": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6282606603137935,
+      "v4_accuracy": 0.6076693544207261,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 23140,
+          "route_correct": 3428,
+          "class_correct": 3236
+        },
+        "class_in_memory": {
+          "rows": 111917,
+          "route_correct": 81423,
+          "class_correct": 78834
+        }
+      },
+      "saved_memory_rows": 536,
+      "saved_memory_task_accuracy": 0.8190298507462687,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 5,
+        "3": 5,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2249,
+          28,
+          308,
+          45,
+          576,
+          891
+        ],
+        [
+          38,
+          48882,
+          844,
+          5939,
+          53,
+          7
+        ],
+        [
+          223,
+          3098,
+          8485,
+          29480,
+          80,
+          130
+        ],
+        [
+          145,
+          683,
+          3100,
+          24292,
+          19,
+          8
+        ],
+        [
+          643,
+          25,
+          1632,
+          1086,
+          576,
+          390
+        ],
+        [
+          258,
+          0,
+          147,
+          0,
+          330,
+          367
+        ]
+      ]
+    },
+    "80": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.4640114914443531,
+      "v4_accuracy": 0.31072806296600697,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 36920,
+          "route_correct": 4450,
+          "class_correct": 4236
+        },
+        "class_in_memory": {
+          "rows": 98137,
+          "route_correct": 58218,
+          "class_correct": 37730
+        }
+      },
+      "saved_memory_rows": 451,
+      "saved_memory_task_accuracy": 0.7738359201773836,
+      "class_counts_per_task": {
+        "0": 3,
+        "1": 3,
+        "2": 6,
+        "3": 5,
+        "4": 3,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          1952,
+          20,
+          395,
+          10,
+          858,
+          862
+        ],
+        [
+          272,
+          18500,
+          25123,
+          5116,
+          5217,
+          1535
+        ],
+        [
+          69,
+          2978,
+          20234,
+          17851,
+          204,
+          160
+        ],
+        [
+          211,
+          846,
+          6977,
+          20141,
+          43,
+          29
+        ],
+        [
+          236,
+          11,
+          2460,
+          35,
+          1266,
+          344
+        ],
+        [
+          76,
+          6,
+          244,
+          3,
+          198,
+          575
+        ]
+      ]
+    },
+    "81": {
+      "tasks": [
+        0,
+        1,
+        4
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.4178457984406584,
+      "v4_accuracy": 0.41098202980963594,
+      "task_support_ceiling": 0.47544370154823523,
+      "groups": {
+        "task_missing": {
+          "rows": 70845,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 18551,
+          "route_correct": 11167,
+          "class_correct": 10773
+        },
+        "class_in_memory": {
+          "rows": 45661,
+          "route_correct": 45266,
+          "class_correct": 44733
+        }
+      },
+      "saved_memory_rows": 196,
+      "saved_memory_task_accuracy": 0.9489795918367347,
+      "class_counts_per_task": {
+        "0": 4,
+        "1": 4,
+        "4": 3
+      },
+      "task_confusion": [
+        [
+          2146,
+          103,
+          0,
+          0,
+          1848,
+          0
+        ],
+        [
+          2228,
+          53487,
+          0,
+          0,
+          48,
+          0
+        ],
+        [
+          2318,
+          38985,
+          0,
+          0,
+          193,
+          0
+        ],
+        [
+          3261,
+          24946,
+          0,
+          0,
+          40,
+          0
+        ],
+        [
+          1053,
+          2499,
+          0,
+          0,
+          800,
+          0
+        ],
+        [
+          528,
+          8,
+          0,
+          0,
+          566,
+          0
+        ]
+      ]
+    },
+    "82": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6214117002450817,
+      "v4_accuracy": 0.5959409730706294,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 48651,
+          "route_correct": 7823,
+          "class_correct": 7754
+        },
+        "class_in_memory": {
+          "rows": 86406,
+          "route_correct": 76103,
+          "class_correct": 72732
+        }
+      },
+      "saved_memory_rows": 453,
+      "saved_memory_task_accuracy": 0.8896247240618101,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 4,
+        "3": 4,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2179,
+          12,
+          688,
+          16,
+          813,
+          389
+        ],
+        [
+          1108,
+          43808,
+          10005,
+          794,
+          40,
+          8
+        ],
+        [
+          320,
+          188,
+          11307,
+          29391,
+          226,
+          64
+        ],
+        [
+          308,
+          157,
+          4532,
+          23123,
+          124,
+          3
+        ],
+        [
+          647,
+          11,
+          275,
+          14,
+          3173,
+          232
+        ],
+        [
+          302,
+          0,
+          211,
+          0,
+          253,
+          336
+        ]
+      ]
+    },
+    "83": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6792909660365624,
+      "v4_accuracy": 0.6055887514160687,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 5566,
+          "route_correct": 2343,
+          "class_correct": 32
+        },
+        "class_in_memory": {
+          "rows": 129491,
+          "route_correct": 89400,
+          "class_correct": 81757
+        }
+      },
+      "saved_memory_rows": 428,
+      "saved_memory_task_accuracy": 0.6822429906542056,
+      "class_counts_per_task": {
+        "0": 2,
+        "1": 4,
+        "2": 6,
+        "3": 4,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1372,
+          79,
+          1360,
+          83,
+          549,
+          654
+        ],
+        [
+          76,
+          51650,
+          3232,
+          509,
+          224,
+          72
+        ],
+        [
+          184,
+          9585,
+          17722,
+          13699,
+          181,
+          125
+        ],
+        [
+          55,
+          4510,
+          5526,
+          17857,
+          233,
+          66
+        ],
+        [
+          477,
+          32,
+          425,
+          98,
+          2977,
+          343
+        ],
+        [
+          198,
+          32,
+          343,
+          45,
+          319,
+          165
+        ]
+      ]
+    },
+    "84": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.41350688968361504,
+      "v4_accuracy": 0.39124221624943545,
+      "task_support_ceiling": 0.6927519491770142,
+      "groups": {
+        "task_missing": {
+          "rows": 41496,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 45200,
+          "route_correct": 10640,
+          "class_correct": 10542
+        },
+        "class_in_memory": {
+          "rows": 48361,
+          "route_correct": 45207,
+          "class_correct": 42298
+        }
+      },
+      "saved_memory_rows": 349,
+      "saved_memory_task_accuracy": 0.9255014326647565,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 2,
+        "3": 6,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2876,
+          9,
+          0,
+          68,
+          786,
+          358
+        ],
+        [
+          2789,
+          21866,
+          0,
+          31077,
+          23,
+          8
+        ],
+        [
+          1709,
+          94,
+          0,
+          38871,
+          670,
+          152
+        ],
+        [
+          542,
+          195,
+          0,
+          27387,
+          116,
+          7
+        ],
+        [
+          798,
+          15,
+          0,
+          29,
+          3282,
+          228
+        ],
+        [
+          285,
+          0,
+          0,
+          0,
+          381,
+          436
+        ]
+      ]
+    },
+    "85": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.7330978771925928,
+      "v4_accuracy": 0.7014445752534115,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 6900,
+          "route_correct": 705,
+          "class_correct": 495
+        },
+        "class_in_memory": {
+          "rows": 128157,
+          "route_correct": 98305,
+          "class_correct": 94240
+        }
+      },
+      "saved_memory_rows": 595,
+      "saved_memory_task_accuracy": 0.8504201680672269,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 6,
+        "3": 5,
+        "4": 6,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2452,
+          25,
+          308,
+          42,
+          724,
+          546
+        ],
+        [
+          29,
+          47726,
+          7663,
+          295,
+          49,
+          1
+        ],
+        [
+          194,
+          2502,
+          31241,
+          7338,
+          127,
+          94
+        ],
+        [
+          112,
+          811,
+          13476,
+          13810,
+          36,
+          2
+        ],
+        [
+          488,
+          14,
+          235,
+          14,
+          3308,
+          293
+        ],
+        [
+          220,
+          1,
+          148,
+          0,
+          260,
+          473
+        ]
+      ]
+    },
+    "86": {
+      "tasks": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.4977083749824148,
+      "v4_accuracy": 0.470090406272907,
+      "task_support_ceiling": 0.6927519491770142,
+      "groups": {
+        "task_missing": {
+          "rows": 41496,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 29155,
+          "route_correct": 5990,
+          "class_correct": 5902
+        },
+        "class_in_memory": {
+          "rows": 64406,
+          "route_correct": 61229,
+          "class_correct": 57587
+        }
+      },
+      "saved_memory_rows": 391,
+      "saved_memory_task_accuracy": 0.9437340153452686,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "3": 5,
+        "4": 5,
+        "5": 1
+      },
+      "task_confusion": [
+        [
+          2244,
+          31,
+          0,
+          57,
+          1665,
+          100
+        ],
+        [
+          626,
+          34172,
+          0,
+          19956,
+          1008,
+          1
+        ],
+        [
+          1602,
+          961,
+          0,
+          38212,
+          641,
+          80
+        ],
+        [
+          500,
+          546,
+          0,
+          27161,
+          40,
+          0
+        ],
+        [
+          690,
+          16,
+          0,
+          15,
+          3553,
+          78
+        ],
+        [
+          416,
+          0,
+          0,
+          1,
+          596,
+          89
+        ]
+      ]
+    },
+    "87": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6465270219240765,
+      "v4_accuracy": 0.6200641210748055,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 30748,
+          "route_correct": 2501,
+          "class_correct": 2451
+        },
+        "class_in_memory": {
+          "rows": 104309,
+          "route_correct": 84817,
+          "class_correct": 81293
+        }
+      },
+      "saved_memory_rows": 488,
+      "saved_memory_task_accuracy": 0.8627049180327869,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 3,
+        "3": 4,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2093,
+          42,
+          230,
+          0,
+          829,
+          903
+        ],
+        [
+          56,
+          50661,
+          33,
+          4969,
+          27,
+          17
+        ],
+        [
+          279,
+          6081,
+          8009,
+          26757,
+          232,
+          138
+        ],
+        [
+          285,
+          2029,
+          3096,
+          22758,
+          77,
+          2
+        ],
+        [
+          499,
+          12,
+          112,
+          4,
+          3324,
+          401
+        ],
+        [
+          224,
+          0,
+          112,
+          0,
+          293,
+          473
+        ]
+      ]
+    },
+    "88": {
+      "tasks": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.2974595911355946,
+      "v4_accuracy": 0.2745433409597429,
+      "task_support_ceiling": 0.5548990426264466,
+      "groups": {
+        "task_missing": {
+          "rows": 60114,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 27746,
+          "route_correct": 3862,
+          "class_correct": 3668
+        },
+        "class_in_memory": {
+          "rows": 47197,
+          "route_correct": 36312,
+          "class_correct": 33411
+        }
+      },
+      "saved_memory_rows": 280,
+      "saved_memory_task_accuracy": 0.8214285714285714,
+      "class_counts_per_task": {
+        "0": 4,
+        "2": 4,
+        "3": 3,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          1723,
+          0,
+          1106,
+          10,
+          0,
+          1258
+        ],
+        [
+          12290,
+          0,
+          41877,
+          930,
+          0,
+          665
+        ],
+        [
+          380,
+          0,
+          17013,
+          23745,
+          0,
+          359
+        ],
+        [
+          483,
+          0,
+          6809,
+          20853,
+          0,
+          102
+        ],
+        [
+          664,
+          0,
+          868,
+          2037,
+          0,
+          783
+        ],
+        [
+          386,
+          0,
+          131,
+          0,
+          0,
+          585
+        ]
+      ]
+    },
+    "89": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.34932658062891964,
+      "v4_accuracy": 0.3302901737784787,
+      "task_support_ceiling": 0.5871224742145909,
+      "groups": {
+        "task_missing": {
+          "rows": 55762,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 21817,
+          "route_correct": 543,
+          "class_correct": 473
+        },
+        "class_in_memory": {
+          "rows": 57478,
+          "route_correct": 46636,
+          "class_correct": 44135
+        }
+      },
+      "saved_memory_rows": 355,
+      "saved_memory_task_accuracy": 0.7971830985915493,
+      "class_counts_per_task": {
+        "0": 5,
+        "2": 3,
+        "3": 3,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2403,
+          0,
+          21,
+          72,
+          1016,
+          585
+        ],
+        [
+          941,
+          0,
+          47090,
+          6925,
+          749,
+          57
+        ],
+        [
+          276,
+          0,
+          34225,
+          6604,
+          240,
+          152
+        ],
+        [
+          75,
+          0,
+          18945,
+          9165,
+          20,
+          42
+        ],
+        [
+          537,
+          0,
+          9,
+          2542,
+          960,
+          304
+        ],
+        [
+          357,
+          0,
+          1,
+          0,
+          318,
+          426
+        ]
+      ]
+    },
+    "90": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6779359825851308,
+      "v4_accuracy": 0.6511546976461791,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 3828,
+          "route_correct": 112,
+          "class_correct": 100
+        },
+        "class_in_memory": {
+          "rows": 131229,
+          "route_correct": 91448,
+          "class_correct": 87843
+        }
+      },
+      "saved_memory_rows": 532,
+      "saved_memory_task_accuracy": 0.806390977443609,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 5,
+        "3": 5,
+        "4": 4,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2352,
+          42,
+          294,
+          4,
+          765,
+          640
+        ],
+        [
+          150,
+          50899,
+          2434,
+          2262,
+          15,
+          2
+        ],
+        [
+          262,
+          5016,
+          23943,
+          12092,
+          96,
+          88
+        ],
+        [
+          283,
+          2254,
+          12548,
+          13154,
+          6,
+          2
+        ],
+        [
+          567,
+          27,
+          184,
+          2475,
+          751,
+          348
+        ],
+        [
+          225,
+          0,
+          154,
+          0,
+          262,
+          461
+        ]
+      ]
+    },
+    "91": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.5610001702984666,
+      "v4_accuracy": 0.47343714135513154,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 57274,
+          "route_correct": 2805,
+          "class_correct": 2206
+        },
+        "class_in_memory": {
+          "rows": 77783,
+          "route_correct": 72962,
+          "class_correct": 61735
+        }
+      },
+      "saved_memory_rows": 403,
+      "saved_memory_task_accuracy": 0.8560794044665012,
+      "class_counts_per_task": {
+        "0": 4,
+        "1": 5,
+        "2": 3,
+        "3": 5,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1300,
+          767,
+          694,
+          48,
+          923,
+          364
+        ],
+        [
+          35,
+          45013,
+          61,
+          10614,
+          22,
+          18
+        ],
+        [
+          293,
+          1019,
+          1120,
+          38876,
+          115,
+          74
+        ],
+        [
+          231,
+          748,
+          101,
+          27153,
+          4,
+          10
+        ],
+        [
+          457,
+          18,
+          333,
+          2505,
+          851,
+          188
+        ],
+        [
+          240,
+          0,
+          192,
+          0,
+          340,
+          330
+        ]
+      ]
+    },
+    "92": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.689960535181442,
+      "v4_accuracy": 0.6721014090347038,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 21529,
+          "route_correct": 334,
+          "class_correct": 302
+        },
+        "class_in_memory": {
+          "rows": 113528,
+          "route_correct": 92850,
+          "class_correct": 90470
+        }
+      },
+      "saved_memory_rows": 505,
+      "saved_memory_task_accuracy": 0.8792079207920792,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 6,
+        "2": 5,
+        "3": 4,
+        "4": 2,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          2261,
+          48,
+          322,
+          1,
+          594,
+          870
+        ],
+        [
+          86,
+          55590,
+          72,
+          7,
+          4,
+          4
+        ],
+        [
+          342,
+          11655,
+          19922,
+          9384,
+          41,
+          153
+        ],
+        [
+          404,
+          5802,
+          7725,
+          14314,
+          1,
+          1
+        ],
+        [
+          723,
+          7,
+          267,
+          2446,
+          504,
+          405
+        ],
+        [
+          230,
+          1,
+          121,
+          1,
+          156,
+          593
+        ]
+      ]
+    },
+    "93": {
+      "tasks": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.654531049853025,
+      "v4_accuracy": 0.6474451527873416,
+      "task_support_ceiling": 0.7908512702044322,
+      "groups": {
+        "task_missing": {
+          "rows": 28247,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 25582,
+          "route_correct": 11482,
+          "class_correct": 11454
+        },
+        "class_in_memory": {
+          "rows": 81228,
+          "route_correct": 76917,
+          "class_correct": 75988
+        }
+      },
+      "saved_memory_rows": 420,
+      "saved_memory_task_accuracy": 0.8714285714285714,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 3,
+        "4": 6,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2137,
+          20,
+          536,
+          0,
+          761,
+          642
+        ],
+        [
+          1587,
+          53859,
+          147,
+          0,
+          161,
+          9
+        ],
+        [
+          672,
+          11204,
+          28545,
+          0,
+          965,
+          111
+        ],
+        [
+          480,
+          5705,
+          17022,
+          0,
+          5039,
+          1
+        ],
+        [
+          500,
+          9,
+          133,
+          0,
+          3331,
+          379
+        ],
+        [
+          221,
+          0,
+          88,
+          0,
+          266,
+          527
+        ]
+      ]
+    },
+    "94": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6057590498826422,
+      "v4_accuracy": 0.5760974995742538,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 46300,
+          "route_correct": 2449,
+          "class_correct": 2210
+        },
+        "class_in_memory": {
+          "rows": 88757,
+          "route_correct": 79363,
+          "class_correct": 75596
+        }
+      },
+      "saved_memory_rows": 376,
+      "saved_memory_task_accuracy": 0.8856382978723404,
+      "class_counts_per_task": {
+        "0": 3,
+        "1": 5,
+        "2": 1,
+        "3": 5,
+        "4": 3,
+        "5": 3
+      },
+      "task_confusion": [
+        [
+          1291,
+          62,
+          167,
+          800,
+          1252,
+          524
+        ],
+        [
+          96,
+          52680,
+          12,
+          2774,
+          188,
+          13
+        ],
+        [
+          157,
+          8951,
+          92,
+          31131,
+          1035,
+          131
+        ],
+        [
+          114,
+          4284,
+          6,
+          23742,
+          85,
+          16
+        ],
+        [
+          326,
+          19,
+          100,
+          71,
+          3467,
+          369
+        ],
+        [
+          227,
+          2,
+          122,
+          10,
+          201,
+          540
+        ]
+      ]
+    },
+    "95": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.6656226630237604,
+      "v4_accuracy": 0.6449276971945179,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 46320,
+          "route_correct": 14819,
+          "class_correct": 14696
+        },
+        "class_in_memory": {
+          "rows": 88737,
+          "route_correct": 75078,
+          "class_correct": 72406
+        }
+      },
+      "saved_memory_rows": 438,
+      "saved_memory_task_accuracy": 0.8835616438356164,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 4,
+        "2": 5,
+        "3": 3,
+        "4": 5,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2606,
+          17,
+          396,
+          33,
+          869,
+          175
+        ],
+        [
+          574,
+          50594,
+          4550,
+          24,
+          21,
+          0
+        ],
+        [
+          212,
+          6507,
+          18466,
+          16103,
+          174,
+          35
+        ],
+        [
+          114,
+          2575,
+          10809,
+          14703,
+          44,
+          2
+        ],
+        [
+          515,
+          14,
+          267,
+          8,
+          3432,
+          116
+        ],
+        [
+          241,
+          0,
+          186,
+          0,
+          579,
+          96
+        ]
+      ]
+    },
+    "96": {
+      "tasks": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.32423347179339096,
+      "v4_accuracy": 0.3201833300014068,
+      "task_support_ceiling": 0.5871150699334355,
+      "groups": {
+        "task_missing": {
+          "rows": 55763,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 13674,
+          "route_correct": 290,
+          "class_correct": 217
+        },
+        "class_in_memory": {
+          "rows": 65620,
+          "route_correct": 43500,
+          "class_correct": 43026
+        }
+      },
+      "saved_memory_rows": 412,
+      "saved_memory_task_accuracy": 0.7912621359223301,
+      "class_counts_per_task": {
+        "0": 6,
+        "2": 6,
+        "3": 3,
+        "4": 4,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2457,
+          0,
+          240,
+          30,
+          807,
+          562
+        ],
+        [
+          1690,
+          0,
+          12444,
+          41543,
+          76,
+          10
+        ],
+        [
+          248,
+          0,
+          27572,
+          13367,
+          176,
+          134
+        ],
+        [
+          162,
+          0,
+          15730,
+          12319,
+          27,
+          9
+        ],
+        [
+          381,
+          0,
+          2672,
+          36,
+          953,
+          310
+        ],
+        [
+          259,
+          0,
+          108,
+          0,
+          246,
+          489
+        ]
+      ]
+    },
+    "97": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.5605855305537661,
+      "v4_accuracy": 0.5233642091857512,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 38612,
+          "route_correct": 482,
+          "class_correct": 428
+        },
+        "class_in_memory": {
+          "rows": 96445,
+          "route_correct": 75229,
+          "class_correct": 70256
+        }
+      },
+      "saved_memory_rows": 540,
+      "saved_memory_task_accuracy": 0.8055555555555556,
+      "class_counts_per_task": {
+        "0": 4,
+        "1": 4,
+        "2": 5,
+        "3": 5,
+        "4": 5,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2136,
+          9,
+          238,
+          95,
+          885,
+          733
+        ],
+        [
+          8,
+          34893,
+          12856,
+          7928,
+          65,
+          13
+        ],
+        [
+          145,
+          11494,
+          19501,
+          10011,
+          231,
+          115
+        ],
+        [
+          28,
+          5598,
+          7220,
+          15338,
+          51,
+          12
+        ],
+        [
+          425,
+          0,
+          166,
+          34,
+          3398,
+          329
+        ],
+        [
+          224,
+          1,
+          126,
+          0,
+          306,
+          445
+        ]
+      ]
+    },
+    "98": {
+      "tasks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.7073605958965474,
+      "v4_accuracy": 0.6855179664882235,
+      "task_support_ceiling": 1.0,
+      "groups": {
+        "task_missing": {
+          "rows": 0,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 9525,
+          "route_correct": 161,
+          "class_correct": 126
+        },
+        "class_in_memory": {
+          "rows": 125532,
+          "route_correct": 95373,
+          "class_correct": 92458
+        }
+      },
+      "saved_memory_rows": 519,
+      "saved_memory_task_accuracy": 0.8516377649325626,
+      "class_counts_per_task": {
+        "0": 6,
+        "1": 5,
+        "2": 5,
+        "3": 4,
+        "4": 4,
+        "5": 2
+      },
+      "task_confusion": [
+        [
+          2686,
+          23,
+          287,
+          2,
+          413,
+          685
+        ],
+        [
+          374,
+          47240,
+          5717,
+          2402,
+          12,
+          18
+        ],
+        [
+          500,
+          3747,
+          28775,
+          8282,
+          87,
+          106
+        ],
+        [
+          354,
+          976,
+          13596,
+          13288,
+          24,
+          9
+        ],
+        [
+          648,
+          10,
+          190,
+          46,
+          3091,
+          367
+        ],
+        [
+          391,
+          1,
+          92,
+          0,
+          164,
+          454
+        ]
+      ]
+    },
+    "99": {
+      "tasks": [
+        0,
+        3,
+        5
+      ],
+      "rows": 135057,
+      "route_accuracy": 0.23279059952464515,
+      "v4_accuracy": 0.20777893778182546,
+      "task_support_ceiling": 0.24763618324115,
+      "groups": {
+        "task_missing": {
+          "rows": 101612,
+          "route_correct": 0,
+          "class_correct": 0
+        },
+        "class_missing_but_task_present": {
+          "rows": 15,
+          "route_correct": 4,
+          "class_correct": 4
+        },
+        "class_in_memory": {
+          "rows": 33430,
+          "route_correct": 31436,
+          "class_correct": 28058
+        }
+      },
+      "saved_memory_rows": 279,
+      "saved_memory_task_accuracy": 0.9247311827956989,
+      "class_counts_per_task": {
+        "0": 5,
+        "3": 6,
+        "5": 4
+      },
+      "task_confusion": [
+        [
+          2715,
+          0,
+          0,
+          31,
+          0,
+          1350
+        ],
+        [
+          14119,
+          0,
+          0,
+          41602,
+          0,
+          42
+        ],
+        [
+          446,
+          0,
+          0,
+          40764,
+          0,
+          287
+        ],
+        [
+          237,
+          0,
+          0,
+          27997,
+          0,
+          13
+        ],
+        [
+          1000,
+          0,
+          0,
+          2555,
+          0,
+          797
+        ],
+        [
+          374,
+          0,
+          0,
+          0,
+          0,
+          728
+        ]
+      ]
+    }
+  },
+  "panel_selection": "Fixed19/38 low-support,1/40 repair regressions,35/43 successful controls; max128/class; seed20261026+cid",
+  "panel": {
+    "19": {
+      "rows": 3337,
+      "route_accuracy": 0.20437518729397663,
+      "top2_task_recall_diagnostic": 0.3077614623913695,
+      "unavailable_task_rows": 2310,
+      "route_on_memory_classes": 0.7664399092970522,
+      "route_on_unrepresented_classes_with_task": 0.041379310344827586,
+      "true_task_rank_histogram": {
+        "1": 682,
+        "2": 345,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0
+      },
+      "standardized_abs_quantiles": [
+        0.9712668657302856,
+        2.03084659576416,
+        2.7450227546691894,
+        27.2358455657959
+      ],
+      "finite_scores": true,
+      "weights_unchanged": true,
+      "note": "Top2 is diagnostic only, no inference rule changed"
+    },
+    "38": {
+      "rows": 3338,
+      "route_accuracy": 0.2426602756141402,
+      "top2_task_recall_diagnostic": 0.3079688436189335,
+      "unavailable_task_rows": 2153,
+      "route_on_memory_classes": 0.758082497212932,
+      "route_on_unrepresented_classes_with_task": 0.4513888888888889,
+      "true_task_rank_histogram": {
+        "1": 810,
+        "2": 218,
+        "3": 157,
+        "4": 0,
+        "5": 0,
+        "6": 0
+      },
+      "standardized_abs_quantiles": [
+        0.5233544707298279,
+        1.633721446990966,
+        2.3133550620079064,
+        31.785400390625
+      ],
+      "finite_scores": true,
+      "weights_unchanged": true,
+      "note": "Top2 is diagnostic only, no inference rule changed"
+    },
+    "1": {
+      "rows": 3335,
+      "route_accuracy": 0.6104947526236881,
+      "top2_task_recall_diagnostic": 0.800599700149925,
+      "unavailable_task_rows": 0,
+      "route_on_memory_classes": 0.7024517087667161,
+      "route_on_unrepresented_classes_with_task": 0.2255054432348367,
+      "true_task_rank_histogram": {
+        "1": 2036,
+        "2": 634,
+        "3": 406,
+        "4": 236,
+        "5": 18,
+        "6": 5
+      },
+      "standardized_abs_quantiles": [
+        0.6383940875530243,
+        1.7328259527683254,
+        2.4130055451393124,
+        27.69860076904297
+      ],
+      "finite_scores": true,
+      "weights_unchanged": true,
+      "note": "Top2 is diagnostic only, no inference rule changed"
+    },
+    "40": {
+      "rows": 3338,
+      "route_accuracy": 0.49550629119233075,
+      "top2_task_recall_diagnostic": 0.615937687237867,
+      "unavailable_task_rows": 0,
+      "route_on_memory_classes": 0.7426183844011142,
+      "route_on_unrepresented_classes_with_task": 0.20803629293583928,
+      "true_task_rank_histogram": {
+        "1": 1654,
+        "2": 402,
+        "3": 167,
+        "4": 346,
+        "5": 351,
+        "6": 418
+      },
+      "standardized_abs_quantiles": [
+        0.6749273240566254,
+        1.6740638315677643,
+        2.2965343594551086,
+        66.78123474121094
+      ],
+      "finite_scores": true,
+      "weights_unchanged": true,
+      "note": "Top2 is diagnostic only, no inference rule changed"
+    },
+    "35": {
+      "rows": 3338,
+      "route_accuracy": 0.6854403834631516,
+      "top2_task_recall_diagnostic": 0.8624925104853205,
+      "unavailable_task_rows": 0,
+      "route_on_memory_classes": 0.7114784778540237,
+      "route_on_unrepresented_classes_with_task": 0.05303030303030303,
+      "true_task_rank_histogram": {
+        "1": 2288,
+        "2": 591,
+        "3": 305,
+        "4": 146,
+        "5": 7,
+        "6": 1
+      },
+      "standardized_abs_quantiles": [
+        0.42950811982154846,
+        1.519393414258957,
+        2.0889005064964294,
+        19.365575790405273
+      ],
+      "finite_scores": true,
+      "weights_unchanged": true,
+      "note": "Top2 is diagnostic only, no inference rule changed"
+    },
+    "43": {
+      "rows": 3338,
+      "route_accuracy": 0.6363091671659676,
+      "top2_task_recall_diagnostic": 0.8343319352905931,
+      "unavailable_task_rows": 0,
+      "route_on_memory_classes": 0.7010869565217391,
+      "route_on_unrepresented_classes_with_task": 0.15228426395939088,
+      "true_task_rank_histogram": {
+        "1": 2124,
+        "2": 661,
+        "3": 337,
+        "4": 208,
+        "5": 7,
+        "6": 1
+      },
+      "standardized_abs_quantiles": [
+        0.6029895842075348,
+        1.7577396929264069,
+        2.4439695477485657,
+        51.569976806640625
+      ],
+      "finite_scores": true,
+      "weights_unchanged": true,
+      "note": "Top2 is diagnostic only, no inference rule changed"
+    }
+  }
+}

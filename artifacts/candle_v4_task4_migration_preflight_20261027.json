@@ -1,0 +1,2267 @@
+{
+  "version": "candle_v4_task4_explicit_migration_v1",
+  "original_source": "37a277c8f6ae85e74c9553d4d30e5e27f052ca93",
+  "input_task4_sha256": "1336e1d91f4301bac73b78005c9ecd195bbd3ec36b9d4832e7b3b63967bed075",
+  "repaired_clients": 49,
+  "provenance": {
+    "1": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 144024,
+      "after_feature_bytes": 186864
+    },
+    "2": {
+      "original_tasks": [
+        1,
+        2
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            2,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 73440,
+      "after_feature_bytes": 116280
+    },
+    "3": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            3,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 155856,
+      "after_feature_bytes": 198696
+    },
+    "5": {
+      "original_tasks": [
+        2,
+        3
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 24480,
+      "after_feature_bytes": 116280
+    },
+    "6": {
+      "original_tasks": [
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            6,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            6,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 98328,
+      "after_feature_bytes": 190128
+    },
+    "7": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            7,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 134232,
+      "after_feature_bytes": 177072
+    },
+    "8": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            8,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 90984,
+      "after_feature_bytes": 133824
+    },
+    "10": {
+      "original_tasks": [
+        1,
+        2,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            10,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 73440,
+      "after_feature_bytes": 116280
+    },
+    "11": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            11,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 133008,
+      "after_feature_bytes": 175848
+    },
+    "12": {
+      "original_tasks": [
+        1,
+        2,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            12,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 79560,
+      "after_feature_bytes": 122400
+    },
+    "16": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            16,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 120768,
+      "after_feature_bytes": 163608
+    },
+    "17": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            17,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 154224,
+      "after_feature_bytes": 197064
+    },
+    "20": {
+      "original_tasks": [
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            20,
+            74,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            20,
+            74,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 2,
+          "source_client": 74,
+          "snapshot_task": 2,
+          "clone_chain": [
+            20,
+            74
+          ],
+          "classes": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "source_memory_sha256": "2ba5756052a4831afdc8c1ecd22398798717d29060ace699c36f7112ae8c04f5",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 57120,
+      "after_feature_bytes": 197880
+    },
+    "21": {
+      "original_tasks": [
+        1,
+        2,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            21,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 106080,
+      "after_feature_bytes": 148920
+    },
+    "22": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 123216,
+      "after_feature_bytes": 166056
+    },
+    "23": {
+      "original_tasks": [
+        1,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            23,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 97920,
+      "after_feature_bytes": 140760
+    },
+    "24": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            24,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 139128,
+      "after_feature_bytes": 181968
+    },
+    "27": {
+      "original_tasks": [
+        1,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            27,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 90576,
+      "after_feature_bytes": 133416
+    },
+    "28": {
+      "original_tasks": [
+        1,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            28,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 85272,
+      "after_feature_bytes": 128112
+    },
+    "29": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            29,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 109344,
+      "after_feature_bytes": 152184
+    },
+    "31": {
+      "original_tasks": [
+        1,
+        2,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            31,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 81600,
+      "after_feature_bytes": 124440
+    },
+    "36": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            36,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 97920,
+      "after_feature_bytes": 140760
+    },
+    "37": {
+      "original_tasks": [
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            37,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            37,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 101184,
+      "after_feature_bytes": 192984
+    },
+    "39": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            39,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 130560,
+      "after_feature_bytes": 173400
+    },
+    "40": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            40,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 83640,
+      "after_feature_bytes": 126480
+    },
+    "41": {
+      "original_tasks": [
+        1,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            41,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 79968,
+      "after_feature_bytes": 122808
+    },
+    "43": {
+      "original_tasks": [
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            43,
+            85,
+            20,
+            74,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            43,
+            85,
+            20,
+            74,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 2,
+          "source_client": 74,
+          "snapshot_task": 2,
+          "clone_chain": [
+            43,
+            85,
+            20,
+            74
+          ],
+          "classes": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "source_memory_sha256": "2ba5756052a4831afdc8c1ecd22398798717d29060ace699c36f7112ae8c04f5",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 3,
+          "source_client": 85,
+          "snapshot_task": 3,
+          "clone_chain": [
+            43,
+            85
+          ],
+          "classes": [
+            18,
+            20,
+            21,
+            22,
+            23
+          ],
+          "source_memory_sha256": "a92d7ae1155a13029a92698b137faad905d4d250e954d5393a4a71f8e9518967",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 24480,
+      "after_feature_bytes": 206040
+    },
+    "44": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            44,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 138720,
+      "after_feature_bytes": 181560
+    },
+    "50": {
+      "original_tasks": [
+        2,
+        3
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            50,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            50,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 81600,
+      "after_feature_bytes": 173400
+    },
+    "51": {
+      "original_tasks": [
+        1,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            51,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 135456,
+      "after_feature_bytes": 178296
+    },
+    "59": {
+      "original_tasks": [
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            59,
+            20,
+            74,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            59,
+            20,
+            74,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 2,
+          "source_client": 74,
+          "snapshot_task": 2,
+          "clone_chain": [
+            59,
+            20,
+            74
+          ],
+          "classes": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "source_memory_sha256": "2ba5756052a4831afdc8c1ecd22398798717d29060ace699c36f7112ae8c04f5",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 35496,
+      "after_feature_bytes": 176256
+    },
+    "61": {
+      "original_tasks": [
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            61,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            61,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 123624,
+      "after_feature_bytes": 215424
+    },
+    "62": {
+      "original_tasks": [
+        1,
+        2
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            62,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 73440,
+      "after_feature_bytes": 116280
+    },
+    "63": {
+      "original_tasks": [
+        1,
+        2,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            63,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 66096,
+      "after_feature_bytes": 108936
+    },
+    "66": {
+      "original_tasks": [
+        1,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            66,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 61200,
+      "after_feature_bytes": 104040
+    },
+    "67": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            67,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 154224,
+      "after_feature_bytes": 197064
+    },
+    "74": {
+      "original_tasks": [
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            74,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            74,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 119544,
+      "after_feature_bytes": 211344
+    },
+    "75": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            75,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 117912,
+      "after_feature_bytes": 160752
+    },
+    "77": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            77,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 150552,
+      "after_feature_bytes": 193392
+    },
+    "79": {
+      "original_tasks": [
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            79,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            79,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 106080,
+      "after_feature_bytes": 197880
+    },
+    "82": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            82,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 124848,
+      "after_feature_bytes": 167688
+    },
+    "84": {
+      "original_tasks": [
+        1,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            84,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 89352,
+      "after_feature_bytes": 132192
+    },
+    "85": {
+      "original_tasks": [
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            85,
+            20,
+            74,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            85,
+            20,
+            74,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 2,
+          "source_client": 74,
+          "snapshot_task": 2,
+          "clone_chain": [
+            85,
+            20,
+            74
+          ],
+          "classes": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ],
+          "source_memory_sha256": "2ba5756052a4831afdc8c1ecd22398798717d29060ace699c36f7112ae8c04f5",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 82416,
+      "after_feature_bytes": 223176
+    },
+    "86": {
+      "original_tasks": [
+        1,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            86,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 114240,
+      "after_feature_bytes": 157080
+    },
+    "87": {
+      "original_tasks": [
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            87,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            87,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 82008,
+      "after_feature_bytes": 173808
+    },
+    "90": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            90,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 153408,
+      "after_feature_bytes": 196248
+    },
+    "92": {
+      "original_tasks": [
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            92,
+            5,
+            22,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        },
+        {
+          "task": 1,
+          "source_client": 22,
+          "snapshot_task": 1,
+          "clone_chain": [
+            92,
+            5,
+            22
+          ],
+          "classes": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "source_memory_sha256": "f0743f157f1055e2dc1f3d2c39f0185ed7ff6882e0d2fff80ecf9dc135502c50",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 89760,
+      "after_feature_bytes": 181560
+    },
+    "93": {
+      "original_tasks": [
+        1,
+        2,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            93,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 104448,
+      "after_feature_bytes": 147288
+    },
+    "95": {
+      "original_tasks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "repaired_tasks": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "imports": [
+        {
+          "task": 0,
+          "source_client": 15,
+          "snapshot_task": 0,
+          "clone_chain": [
+            95,
+            1,
+            15
+          ],
+          "classes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "source_memory_sha256": "70b6bd4378c99bda7d27776535ea5e2da30734b8a91a0071de243e4e21e488b9",
+          "native_sketches_thresholds_coordinates_equal": true
+        }
+      ],
+      "before_feature_bytes": 133416,
+      "after_feature_bytes": 176256
+    }
+  },
+  "historical_migration_serialized_bytes": 8690613,
+  "native_and_rng_unchanged": true,
+  "expert_and_optimizer_unchanged": true,
+  "historical_raw_data_read": false,
+  "exact_legacy_resume": false,
+  "resume_task": 5,
+  "resume_round": 0,
+  "local_sklearn_diagnostic_only": true,
+  "raw_TRAIN_or_TEST_opened": false,
+  "full_training": false,
+  "restored_clients": 99
+}

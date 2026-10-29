@@ -1,0 +1,31 @@
+# CANDLE V4: fresh full training + V4-only final evaluation.
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+CODE_REF = "3731fe1cee41c693fbfb7327b7fc3b2e86a0f3ab"
+DATA_DIR = "/kaggle/input/datasets/khoilv2005/100-clients"
+OUTPUT_DIR = "/kaggle/working/results_candle_v4_only_seed42"
+
+if not Path('/kaggle/working').is_dir():raise RuntimeError('Run on Kaggle with GPU + Internet')
+env={**os.environ,'GIT_LFS_SKIP_SMUDGE':'1','PYTHONUNBUFFERED':'1'}
+for name in ('DENICE_CONFIG_FILE','DENICE_CONFIG_OVERRIDES','DENICE_RESUME_STATE_PATH','DENICE_CONFIG_ONLY','DENICE_TASK_END'):
+    env.pop(name,None)
+code=Path('/kaggle/temp/candle_v4_only_source');code.parent.mkdir(parents=True,exist_ok=True)
+if not code.exists():
+    subprocess.check_call(['git','clone','--filter=blob:none','--no-checkout','https://github.com/khoilv2005/FL_IL_IDS.git',str(code)],env=env)
+    subprocess.check_call(['git','sparse-checkout','set','--no-cone','/candle_v4_runtime/'],cwd=code,env=env)
+    subprocess.check_call(['git','checkout','--detach',CODE_REF],cwd=code,env=env)
+actual=subprocess.check_output(['git','rev-parse','HEAD'],cwd=code,text=True).strip()
+if actual!=CODE_REF:raise ValueError('Source differs from the locked version; use a fresh Kaggle session')
+runtime=code/'candle_v4_runtime'
+subprocess.check_call([sys.executable,'-m','pip','install','-q','-r',str(runtime/'requirements-candle-v4-kaggle.txt')],env=env)
+print('CANDLE V4 only: seed42, T0..T5 x20 rounds, final TEST after T5/R19 consolidation.',flush=True)
+subprocess.check_call([sys.executable,'-u',str(runtime/'tools/train_candle_v4.py'),
+    '--data-dir',DATA_DIR,'--output',OUTPUT_DIR,'--variant','coverage',
+    '--router-mode','continuous_class_v1','--continuous-bootstrap','--v4-only'],cwd=runtime,env=env)
+import json
+receipt=json.loads((Path(OUTPUT_DIR)/'candle_v4_completion.json').read_text())
+print('Completed:',receipt['completed'],'V4 final metrics:',receipt['final_test']['V4'])
+print('Use Kaggle Save Version to keep checkpoints and metrics.')

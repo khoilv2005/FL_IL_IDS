@@ -1,0 +1,9 @@
+{
+  "tests": 4,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "synthetic_only": true,
+  "no_full_training": true,
+  "no_real_TEST_opened": true
+}

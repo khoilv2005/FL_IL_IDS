@@ -1,0 +1,54 @@
+{
+  "candle_v4_top2_direct_task_20261029": {
+    "policy": "top2_saved_train_direct_task_lr_v1",
+    "exact_top1_prior_panel_match": true,
+    "frozen_state_verified": true,
+    "metrics": {
+      "top2": {
+        "accuracy": 0.4723779296875,
+        "macro_f1": 0.2675109900335178
+      },
+      "top1": {
+        "accuracy": 0.4807177734375,
+        "macro_f1": 0.27562092818258116
+      }
+    },
+    "scientific_status": "Repeated TEST development panel; not independent confirmation; fixed C=1 task LR",
+    "counts": {
+      "rows": 204800,
+      "switched": 31945,
+      "rescue": 7440,
+      "break_count": 9148,
+      "route_rescue": 7965,
+      "route_break": 9785,
+      "top1_route_correct": 104553,
+      "selected_route_correct": 102733
+    }
+  },
+  "candle_v4_top2_direct_task_rbf_20261029": {
+    "policy": "top2_saved_train_direct_task_rbf_v1",
+    "exact_top1_prior_panel_match": true,
+    "frozen_state_verified": true,
+    "metrics": {
+      "top2": {
+        "accuracy": 0.454873046875,
+        "macro_f1": 0.26061819598757296
+      },
+      "top1": {
+        "accuracy": 0.4807177734375,
+        "macro_f1": 0.27562092818258116
+      }
+    },
+    "scientific_status": "Repeated TEST development panel; not independent confirmation; fixed C=1 task classifier",
+    "counts": {
+      "rows": 204800,
+      "switched": 37607,
+      "rescue": 8851,
+      "break_count": 14144,
+      "route_rescue": 9501,
+      "route_break": 14838,
+      "top1_route_correct": 104553,
+      "selected_route_correct": 99216
+    }
+  }
+}

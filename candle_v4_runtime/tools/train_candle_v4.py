@@ -9,20 +9,36 @@ import sys
 import time
 
 
+def resolve_data(root):
+    root=Path(root).resolve()
+    candidates=[root] if (root/'metadata.json').is_file() else [p.parent for p in root.rglob('metadata.json')]
+    candidates=[p for p in candidates if (p/'global_test_data.npz').is_file() and next(p.glob('client_*_train.npz'),None) is not None]
+    if len(candidates)!=1:raise ValueError(f'Set --data-dir to one original dataset; found {candidates}')
+    return candidates[0]
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-dir',required=True)
     parser.add_argument('--output',required=True)
     parser.add_argument('--variant',choices=('coverage','native-only'),default='coverage')
     parser.add_argument('--router-mode',choices=('binary_cosine','multiclass_balanced','continuous_class_v1'),default='binary_cosine')
+    parser.add_argument('--continuous-bootstrap',action='store_true',help='V8 exact-model-clone continuous memory; fresh run only across protocol versions')
+    parser.add_argument('--v4-only',action='store_true',help='Train and report V4 only; no baseline or ablation readouts')
     parser.add_argument('--resume',help='Original-TRAIN continuation only; role-based checkpoints are incompatible')
+    parser.add_argument('--import-task4-archive',help='Explicit results16 T4 migration to bootstrap-fixed V4-only; not exact legacy resume')
     args=parser.parse_args()
+    if args.import_task4_archive and (args.resume or not args.v4_only):
+        raise ValueError('Task4 migration requires --v4-only and cannot be combined with --resume')
+    if args.continuous_bootstrap and (args.router_mode!='continuous_class_v1' or args.variant!='coverage'):
+        raise ValueError('V8 bootstrap fix applies only to V4 continuous coverage')
+    if args.v4_only and not args.continuous_bootstrap:
+        raise ValueError('V4-only requires the bootstrap-fixed continuous V4 protocol')
     if args.variant=='native-only' and args.router_mode=='continuous_class_v1':raise ValueError('Continuous router is a V4 variant; do not relabel it as V1')
     if not Path('/kaggle/working').is_dir():raise RuntimeError('Full training is Kaggle-only')
     root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root))
     import torch
-    from tools.train_candle_v1 import resolve_data
-    from fed_learning.training.candle_v4_original_train import VERSION,CONTINUOUS_VERSION
+    from fed_learning.training.candle_v4_original_train import VERSION,CONTINUOUS_VERSION,BOOTSTRAP_VERSION
     import hashlib
     if not torch.cuda.is_available():raise RuntimeError('Enable Kaggle GPU')
     data=resolve_data(args.data_dir);output=Path(args.output).resolve()
@@ -30,8 +46,9 @@ def main():
     for owner in range(100):
         if not (data/f'client_{owner}_train.npz').is_file():raise FileNotFoundError(f'Original TRAIN missing for client {owner}')
     if not args.resume and output.exists() and any(output.iterdir()):raise ValueError('Fresh output required')
-    config=json.loads((root/'configs/candle_v1.json').read_text())
+    config=json.loads((root/('configs/candle_v4.json' if args.v4_only else 'configs/candle_v1.json')).read_text())
     protocol=CONTINUOUS_VERSION if args.router_mode=='continuous_class_v1' else VERSION
+    if args.continuous_bootstrap:protocol=BOOTSTRAP_VERSION
     spec=dict(version=protocol,seed=42,input_sha256=metadata_sha256,
               data_dir=str(data),output_dir=str(output),arms=['coverage'] if args.variant=='coverage' else [],
               data_protocol='100% original current-task TRAIN; no validation',fixed_threshold=.5,
@@ -39,6 +56,7 @@ def main():
               prediction_fusion='predicted_task_scoped',donor_policy='retain_else_current_graph_min_id',
               router_mode=args.router_mode,console_every_rounds=5,
               per_expert_bytes=128*1024**2,per_arm_bytes=64*1024**3)
+    if args.v4_only:spec['evaluation_mode']='v4_only'
     config.update(data_dir=str(data),output_dir=str(output),resume_output_dir=str(output),
                   denice_clean_roles_dir=None,candle_v4_full_service=spec,candle_v4_original_train=True,
                   denice_validation_fraction=0.0,denice_router_mode=('multiclass_balanced' if args.router_mode=='continuous_class_v1' else args.router_mode),
@@ -51,7 +69,7 @@ def main():
     lock=dict(version=protocol,source_commit=source,seed=42,config=config,
               protocol='100% current-task TRAIN; no validation, roles or shadow native model',
               evaluation='Per-task validation NOT_MEASURED; full 34-class TEST only after T5/R19 consolidation',
-              controls=['native V1 counterfactual from same backbone; historical 80/2/8/10 V1 is not a matched baseline'],
+              controls=[] if args.v4_only else ['native V1 counterfactual from same backbone; historical 80/2/8/10 V1 is not a matched baseline'],
               risk='Fixed threshold .5; training-qualified provisional ACTIVE, quality UNVERIFIED; recall/FAR/break/net rescue NOT_MEASURED before TEST',
               runtime=dict(python=sys.version,torch=str(torch.__version__),cuda=torch.version.cuda,gpu=torch.cuda.get_device_name(0)))
     lock['resource_preflight']=dict(max_expert_count=100*34*len(spec['arms']),
@@ -62,6 +80,14 @@ def main():
         native_output_guard_gib=config['denice_checkpoint_storage_budget_gib'],
         policy='Caps are enforced, not a prediction of measured traffic; native traffic additional')
     lock_path=output/'candle_v4_run_lock.json'
+    if args.import_task4_archive:
+        sys.path.insert(0,str(root.parent/'tools'))
+        from migrate_candle_v4_task4 import migrate_archive
+        migrated=migrate_archive(args.import_task4_archive,output,config,spec)
+        args.resume=str(migrated)
+        config['resume_state_path']=str(migrated)
+        lock['migration']='results16 T4 legacy -> repaired bootstrap-fixed V4-only; T0-T4 not rerun'
+        lock_path.write_text(json.dumps(lock,indent=2),encoding='utf-8')
     if args.resume:
         if not lock_path.exists():raise ValueError('Restore the same current-graph-handoff v6 run lock with continuation')
         previous=json.loads(lock_path.read_text())
@@ -73,7 +99,7 @@ def main():
     os.environ.update(DENICE_RUN_PROFILE='legacy',DENICE_VARIANT='legacy',DENICE_TRAIN_PHASE='5',
                       DENICE_CODE_DIR=str(root),DENICE_SEED='42',DENICE_OUTPUT_DIR=str(output),
                       DENICE_CONFIG_OVERRIDES=json.dumps(config))
-    print('CANDLE V1/V4: 100% CURRENT-TASK TRAIN; NO VALIDATION, ROLES OR SHADOW NATIVE MODEL.',flush=True)
+    print(('CANDLE V4' if args.v4_only else 'CANDLE V1/V4')+': 100% CURRENT-TASK TRAIN; NO VALIDATION, ROLES OR SHADOW NATIVE MODEL.',flush=True)
     print(f'Seed42 T0..T5 x20 rounds; variant={args.variant}; router={args.router_mode}; active expert arms={spec["arms"]}.',flush=True)
     print('One GPU, native batch2048 AMP; experts CPU; per-round continuation; task ZIP. Final full TEST after T5/R19 consolidation only.',flush=True)
     started=time.perf_counter()

@@ -70,10 +70,11 @@ print('Completed:',completion['completed'],'metrics:',
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--ref',required=True)
     parser.add_argument('--v4-only',action='store_true')
-    parser.add_argument('--continuous-only',action='store_true');args=parser.parse_args()
+    parser.add_argument('--continuous-only',action='store_true')
+    parser.add_argument('--bootstrap-only',action='store_true');args=parser.parse_args()
     if len(args.ref)!=40 or any(c not in '0123456789abcdef' for c in args.ref):raise ValueError('Full public SHA required')
     root=Path(__file__).resolve().parents[1];source=SOURCE.replace('__REF__',args.ref)
-    if args.continuous_only:
+    if args.continuous_only or args.bootstrap_only:
         source=source.replace('ROUTER_MODE = "multiclass_balanced"','ROUTER_MODE = "continuous_class_v1"').replace(
             'results_candle_v4_handoff_multiclass_seed42','results_candle_v4_continuous_class_seed42').replace(
             'candle_v4_handoff_source','candle_v4_continuous_source').replace('same handoff-v6 run lock','same continuous-v7 run lock').replace(
@@ -100,11 +101,32 @@ Fresh current-task memory capture is required: binary checkpoints cannot convert
 Keep RESUME_STATE empty for a new run; old v4/v5/v6 runs cannot resume as v7.
 Enable GPU + Internet. Use Kaggle Save Version to retain checkpoint/output.
 '''
+        stem='train_candle_v4_continuous_router_kaggle'
+        if args.bootstrap_only:
+            stem='train_candle_v4_bootstrap_fixed_kaggle'
+            markdown=markdown.replace('old v4/v5/v6 runs cannot resume as v7',
+                                      'old v4/v5/v6/v7 runs cannot resume as v8')
+            source=source.replace('results_candle_v4_continuous_class_seed42','results_candle_v4_continuous_bootstrap_seed42').replace(
+                'candle_v4_continuous_source','candle_v4_bootstrap_source').replace('same continuous-v7 run lock','same bootstrap-v8 run lock')
+            source=source.replace("if RESUME_STATE:\n    source = Path(RESUME_STATE)","args += ['--continuous-bootstrap']\nif RESUME_STATE:\n    source = Path(RESUME_STATE)")
+            markdown+='''
+## V4 bootstrap state fix (protocol v8)
+
+At an exact representative model clone, copy the matching continuous memory,
+scaler and classifier without sharing array references. Preserve inherited tasks;
+do not copy routing memory during partial catch-up. Record provenance and bytes.
+No change to V1, raw TRAIN, loss, native optimizer/steps, graph, fusion threshold
+or final TEST protocol. Existing v7 notebooks/results remain unchanged.
+
+Fresh run: RESUME_STATE="". Do not resume results16/17 as v8: their missing state
+is already absent and this fix is not a retroactive checkpoint migration.
+Technical regressions only; no measured Accuracy gain from the fix yet.
+'''
         notebook=dict(nbformat=4,nbformat_minor=5,metadata=dict(kernelspec=dict(display_name='Python 3',language='python',name='python3'),language_info=dict(name='python')),
             cells=[dict(cell_type='markdown',metadata={},source=markdown.splitlines(True)),
                    dict(cell_type='code',metadata={},execution_count=None,outputs=[],source=source.splitlines(True))])
-        (root/'train_candle_v4_continuous_router_kaggle.py').write_text(source,encoding='utf-8')
-        (root/'train_candle_v4_continuous_router_kaggle.ipynb').write_text(json.dumps(notebook,ensure_ascii=False,indent=1)+'\n',encoding='utf-8')
+        (root/(stem+'.py')).write_text(source,encoding='utf-8')
+        (root/(stem+'.ipynb')).write_text(json.dumps(notebook,ensure_ascii=False,indent=1)+'\n',encoding='utf-8')
         print('Created separate continuous V4 notebook pinned to',args.ref)
         return
     markdown='''# CANDLE V4 — native coverage-aware, development seed 42

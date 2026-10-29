@@ -1,12 +1,59 @@
 """V4-only adapters; native V1 sampling, detector and inference code stay intact."""
 import numpy as np
 import torch
+import pickle
 from threadpoolctl import threadpool_limits
 from fed_learning.servers.continuous_class_router import ContinuousClassMemory
 from .local_task_loop import _update_local_nice_context_memory
 from .candle_v4_bank import base_predictions
 
 VERSION='candle_v4_continuous_class_router_v7'
+BOOTSTRAP_VERSION='candle_v4_continuous_bootstrap_v8'
+CONTINUOUS_VERSIONS=(VERSION,BOOTSTRAP_VERSION)
+
+
+def validate_task_support(memory,detector):
+    native={int(t) for t,rows in detector.activation_memory.items() if len(rows)}
+    actual=set(memory.class_to_task.values()) if memory is not None else set()
+    if native!=actual:
+        raise ValueError('Continuous/native task memory mismatch; bootstrap state must travel with the model')
+
+
+def clone_continuous_memory(service,receiver,source,task,source_model,target_model,source_detector,target_detector):
+    """V8 only: exact-clone lifecycle hook, never a partial catch-up/aggregation hook."""
+    if service is None or getattr(service,'spec',{}).get('version')!=BOOTSTRAP_VERSION:return None
+    from .checkpoint_state import snapshot_context_detector
+    from .candle_v4_shadow import digest
+    if receiver==source or receiver in service.continuous_routers:
+        raise ValueError('Continuous bootstrap requires a new receiver')
+    memory=service.continuous_routers.get(source)
+    if memory is None or memory.fitted_classes is None or memory.latest_task>int(task):
+        raise ValueError('Missing/future source continuous memory at exact clone')
+    validate_task_support(memory,source_detector)
+    if (digest(source_model.state_dict())!=digest(target_model.state_dict()) or
+            digest(source_model.weight_masks)!=digest(target_model.weight_masks) or
+            digest(snapshot_context_detector(source_detector))!=digest(snapshot_context_detector(target_detector))):
+        raise ValueError('Continuous memory can travel only with the exact model/masks/native detector')
+    # Native bootstrap preserves these feature coordinates; no extra data/forward/fit.
+    for detector in (source_detector,target_detector):
+        mask=getattr(detector,'routing_feature_mask',None)
+        if mask is None:mask=getattr(detector,'stable_feature_mask',None)
+        if not np.array_equal(memory.indices,memory.selected(mask,memory.full_width)):
+            raise ValueError('Bootstrap routing coordinates differ')
+    payload=memory.state_dict();raw=pickle.dumps(payload,protocol=5)
+    for arm in service.arms:
+        if service.bytes[arm]+len(raw)>service.spec['per_arm_bytes']:
+            raise ValueError('Continuous bootstrap exceeds application-wire budget')
+    copied=ContinuousClassMemory.restore(pickle.loads(raw))
+    validate_task_support(copied,target_detector)
+    receipt=dict(policy='exact_model_clone_v1',task=int(task),source=int(source),receiver=int(receiver),
+        source_memory_sha256=digest(payload),serialized_bytes=len(raw),
+        tasks=sorted(set(copied.class_to_task.values())),classes=sorted(copied.memory))
+    service.continuous_routers[receiver]=copied
+    service.continuous_bootstrap_receipts.append(receipt)
+    service.bytes['continuous_bootstrap']+=len(raw)
+    for arm in service.arms:service.bytes[arm]+=len(raw)
+    return receipt
 
 
 class _CaptureModel:
@@ -46,7 +93,7 @@ class ContinuousRoutingView:
 
 
 def update_memory(service,client_id,detector,model,x,y,task,classes,device,fit_router=True):
-    if service is None or getattr(service,'spec',{}).get('version')!=VERSION:
+    if service is None or getattr(service,'spec',{}).get('version') not in CONTINUOUS_VERSIONS:
         return _update_local_nice_context_memory(detector,model,x,y,task,classes,device,fit_router=fit_router)
     if y is None or not len(y) or not classes:
         return _update_local_nice_context_memory(detector,model,x,y,task,classes,device,fit_router=fit_router)
@@ -58,6 +105,8 @@ def update_memory(service,client_id,detector,model,x,y,task,classes,device,fit_r
     if detector.router_mode!='multiclass_balanced' or getattr(detector,'retain_reference_inputs',True) or detector.reference_input_memory:
         raise ValueError('V4 continuous adapter requires unchanged native multiclass/sketch policy')
     existing=service.continuous_routers.get(client_id)
+    if service.spec['version']==BOOTSTRAP_VERSION:
+        validate_task_support(existing,detector)
     if existing is not None:
         if task<existing.latest_task:raise ValueError('Historical task writes are forbidden')
         mask=getattr(detector,'routing_feature_mask',None)
@@ -75,6 +124,7 @@ def update_memory(service,client_id,detector,model,x,y,task,classes,device,fit_r
 
 def predictions(service,client_id,model,detector,x,seen):
     memory=service.continuous_routers.get(client_id)
+    if service.spec['version']==BOOTSTRAP_VERSION:validate_task_support(memory,detector)
     if memory is None:
         if detector.activation_memory:raise ValueError('Continuous memory missing; binary conversion forbidden')
         return base_predictions(model,detector,x,seen,return_episodes=True)
