@@ -44,8 +44,11 @@ class RunConfig:
     defer_evaluation: bool = False
     server_only_storage: bool = False
     server_exchange: bool = False
+    compact_uploads: bool = False
 
     def validate(self):
+        if type(self.compact_uploads) is not bool or (self.compact_uploads and not self.server_exchange):
+            raise ValueError('Compact uploads currently require hierarchical server exchange')
         if (self.policy not in ('cnn_coordinate_router_v1', 'routerless_v1') or self.feature_layer!='conv2' or self.xi!=.8
             or not self.engineering_baseline or not np.isfinite([self.learning_rate,self.output_budget_gib]).all()
             or self.learning_rate<=0 or self.output_budget_gib<=0 or self.batch_size<2 or self.local_epochs<1

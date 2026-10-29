@@ -1,0 +1,11 @@
+{
+  "compact": {
+    "total_application_bytes": 322748802,
+    "model_uplink_bytes": 10513014
+  },
+  "train": {
+    "total_application_bytes": 373790406,
+    "model_uplink_bytes": 61554618
+  },
+  "scope": "Synthetic CoverageData, CPU, 2 tasks x 2 rounds; modeled application messages; not real network or CICIoT quality results"
+}

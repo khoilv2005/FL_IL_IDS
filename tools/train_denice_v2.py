@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--server-only-storage',action='store_true',help='Keep only cluster states; omit post-round client broadcast')
     parser.add_argument('--prediction-mode',choices=('cnn_coordinate_router_v1','routerless_v1'),default='cnn_coordinate_router_v1')
     parser.add_argument('--server-exchange',action='store_true')
+    parser.add_argument('--compact-uploads',action='store_true',help='Lossless masked uploads for hierarchical temporary servers')
     parser.add_argument('--resume-task',type=int)
     parser.add_argument('--resume-round',type=int)
     parser.add_argument('--resume-root')
@@ -82,7 +83,7 @@ def main():
     cfg=RunConfig(device=args.device,worker_devices=worker_devices,batch_size=args.batch_size,
         output_budget_gib=args.output_budget_gib,eval_batch_size=args.eval_batch_size,
         defer_evaluation=args.defer_evaluation,server_only_storage=args.server_only_storage,
-        policy=args.prediction_mode,server_exchange=args.server_exchange)
+        policy=args.prediction_mode,server_exchange=args.server_exchange,compact_uploads=args.compact_uploads)
     if cfg.server_exchange:
         from fed_learning.strategies.decentralized.denice_v2.hierarchical import HierarchicalRunner
         runner=HierarchicalRunner(data,output,cfg)

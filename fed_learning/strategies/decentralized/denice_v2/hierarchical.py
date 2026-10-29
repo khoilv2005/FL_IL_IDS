@@ -13,6 +13,7 @@ from .native import prepare_native_round, train_native_worker, finalize_native_r
 from .aggregation import parameter_names
 from .evaluation import atomic_json
 from .archive import TaskArchive
+from .compact_transport import transport_contributions
 
 
 class HierarchicalRunner(Runner):
@@ -57,6 +58,9 @@ class HierarchicalRunner(Runner):
                 print(f'Hierarchy T{task} R{round_id} local client={cid}',flush=True)
                 pairs.append(train_native_worker(plan,bases[cid],device=self.config.device,**training))
         packets=[p for p,_ in pairs]; workers=[r for _,r in pairs]
+        upload_sizes = {p.event.client_id: wire_bytes(asdict(p)) for p in packets}
+        if self.config.compact_uploads:
+            packets, upload_sizes = transport_contributions(plan, packets)
         result,plan,packets,receipt=finalize_native_round(plan,bases,packets,workers,allocation,
             batch_size=self.config.batch_size,device=self.config.device,verify_broadcast=False,groups=groups)
         # Runner commits real training receipts and learned labels once, then
@@ -79,7 +83,7 @@ class HierarchicalRunner(Runner):
         receipt_bytes=wire_bytes([asdict(p.event) for p in packets])
         self.communication[-1]=dict(task=task,round=round_id,phase='hierarchical_round',
             exchange_coordinator=leader,temporary_servers=leaders,
-            model_delta_upload_bytes=sum(wire_bytes(asdict(p)) for p in packets
+            model_delta_upload_bytes=sum(upload_sizes[p.event.client_id] for p in packets
                 if p.event.client_id!=local_leader[p.event.client_id]),
             reference_broadcast_bytes=wire_bytes(snapshot(plan.reference))*sum(len(g)-1 for g in groups),
             server_statistic_upload_bytes=stat_bytes*(len(groups)-1),
@@ -88,6 +92,7 @@ class HierarchicalRunner(Runner):
             bn_moment_upload_bytes=previous['bn_moment_upload_bytes'],
             bn_reference_download_bytes=previous['bn_reference_download_bytes'],
             final_state_broadcast_bytes=0,raw_training_rows_shared=False,
+            upload_codec='adaptive_lossless_mask_v1' if self.config.compact_uploads else 'dense_v1',
             accounting='modeled binary sums; typed JSON models/receipts; BN client-to-reducer upper bound')
         registered=tuple(final.algorithm_state['seen_classes'])
         expected=tuple(sorted({c for t in range(task+1) for c in self.data.task_classes[t]}))

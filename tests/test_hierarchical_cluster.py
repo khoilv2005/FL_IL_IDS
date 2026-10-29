@@ -58,6 +58,24 @@ class HierarchyTests(unittest.TestCase):
                          {c:s.fingerprint() for c,s in resumed.states.items()})
         self.assertEqual(self.runner.communication,resumed.communication)
 
+    def test_compact_uploads_match_dense_training_and_resume(self):
+        cfg = replace(self.cfg, compact_uploads=True)
+        compact = HierarchicalRunner(CoverageData(), self.root/'compact', cfg)
+        with patch.object(compact.data, 'test', side_effect=AssertionError('TEST touched')):
+            compact.run()
+        self.assertEqual({c:s.fingerprint() for c,s in self.runner.states.items()},
+                         {c:s.fingerprint() for c,s in compact.states.items()})
+        before = sum(r.get('model_delta_upload_bytes', 0) for r in self.runner.communication)
+        after = sum(r.get('model_delta_upload_bytes', 0) for r in compact.communication)
+        self.assertLess(after, before)
+        resumed = HierarchicalRunner(CoverageData(), self.root/'compact_resumed', cfg)
+        resumed.resume(0, 0, self.root/'compact')
+        with patch.object(resumed.data, 'test', side_effect=AssertionError('TEST touched')):
+            resumed.run()
+        self.assertEqual({c:s.fingerprint() for c,s in compact.states.items()},
+                         {c:s.fingerprint() for c,s in resumed.states.items()})
+        self.assertEqual(compact.communication, resumed.communication)
+
     def test_eval_no_task_labels_used_for_prediction(self):
         data=self.runner.data
         s=next(iter(self.runner.unique_states().values()))
