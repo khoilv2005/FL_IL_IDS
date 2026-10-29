@@ -40,7 +40,7 @@ def test_small_launcher_downloads_pinned_resume_capable_revision(monkeypatch, tm
     assert calls[1][-1] == namespace['DEFAULT_CODE_REF']
     assert 'checkout' in calls[1]
     data = (ROOT / 'train_incremental_kaggle.py').read_bytes()
-    assert b'# BEGIN DENICE SUPPORT PAYLOAD' in data
+    assert b'# BEGIN DENICE INLINE SUPPORT' in data
     assert b'EMBEDDED_SUPPORT_B85' not in data
     assert data == (ROOT / 'output/single_file/train_incremental_kaggle.py').read_bytes()
 

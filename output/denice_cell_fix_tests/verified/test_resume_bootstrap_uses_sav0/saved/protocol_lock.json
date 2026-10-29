@@ -1,0 +1,1 @@
+{"config": {"server_only_storage": true, "defer_evaluation": true, "server_exchange": true, "compact_uploads": true, "policy": "routerless_v1", "batch_size": 8, "device": "cpu", "output_budget_gib": 18, "seed": 42, "worker_devices": []}}

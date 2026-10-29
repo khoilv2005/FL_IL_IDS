@@ -9,8 +9,15 @@ Source Python cần thiết đã được nhúng trong file, không cần upload
 Dataset, PyTorch và các thư viện trong `requirements-denice-v2-kaggle.txt` vẫn
 phải có trong môi trường Kaggle. File này không nhúng thư viện hoặc dữ liệu.
 
-**Link Drive hiện điền sẵn trong file được giữ nguyên.** Chạy nguyên trạng vẫn
-yêu cầu resume từ link đó. Để train mới, phải đặt link resume rỗng như dưới đây.
+**Link Drive hiện để rỗng theo chỉnh sửa của người dùng.** Chạy nguyên trạng sẽ
+train mới nếu không có biến môi trường resume. Muốn continue, khai báo nguồn
+checkpoint như hướng dẫn dưới đây.
+
+Có thể chạy bằng `%run` hoặc dán **toàn bộ file** vào một cell Kaggle. Source nhúng
+nằm trong hàm `_denice_support_payload`, được định nghĩa trước bootstrap; không
+cần `__file__` hoặc lịch sử cell. Thay toàn bộ launcher cũ bằng bản mới, đừng chỉ
+chép riêng hàm giải nén. Đã có kiểm thử chạy cell không có `__file__` và kiểm tra
+source giải nén khớp source gốc; tổng 17 kiểm thử launcher/resume đạt sau bản sửa.
 
 ## Train mới với nén upload
 

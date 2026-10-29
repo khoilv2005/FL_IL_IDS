@@ -11,6 +11,12 @@ def main():
     source = root / 'train_incremental_kaggle.py'
     marker = '\n# BEGIN DENICE SUPPORT PAYLOAD\n'
     text = source.read_text(encoding='utf-8').split(marker, 1)[0].rstrip()+'\n'
+    begin = '# BEGIN DENICE INLINE SUPPORT\n'
+    end = '# END DENICE INLINE SUPPORT\n'
+    if begin in text:
+        before, rest = text.split(begin, 1)
+        _, after = rest.split(end, 1)
+        text = before + after
     files = [*sorted((root/'fed_learning').rglob('*.py')),
              root/'tools/train_cluster_server.py', root/'tools/train_denice_v2.py',
              root/'requirements-denice-v2-kaggle.txt']
@@ -22,11 +28,20 @@ def main():
             archive.writestr(entry, path.read_bytes())
     raw = buffer.getvalue()
     encoded = base64.b85encode(raw).decode('ascii')
-    text += marker+'# sha256='+hashlib.sha256(raw).hexdigest()+'\n'
-    text += ''.join('# '+encoded[i:i+120]+'\n' for i in range(0,len(encoded),120))
+    block = begin+'def _denice_support_payload():\n'
+    block += '    return ('+repr(hashlib.sha256(raw).hexdigest())+', (\n'
+    block += ''.join('        '+repr(encoded[i:i+120])+'\n' for i in range(0,len(encoded),120))
+    block += '    ))\n'+end
+    # Define the literal before bootstrap executes: notebook cells have no __file__.
+    anchor = 'def embedded_cluster_source():'
+    if text.count(anchor) != 1:
+        raise ValueError('Expected one embedded source helper')
+    text = text.replace(anchor, block+anchor, 1)
     data = text.encode('utf-8')
     compile(data, str(source), 'exec')
-    source.write_bytes(data)
+    temporary = source.with_suffix('.py.building')
+    temporary.write_bytes(data)
+    temporary.replace(source)
     output = root / 'output/single_file/train_incremental_kaggle.py'
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(data)

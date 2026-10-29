@@ -14,12 +14,15 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_single_upload_embeds_current_source(tmp_path):
+@pytest.mark.parametrize('with_file', [True, False])
+def test_single_upload_embeds_current_source(tmp_path, with_file):
     source = ROOT/'train_incremental_kaggle.py'
     tree = ast.parse(source.read_text(encoding='utf-8'))
-    helper = next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='embedded_cluster_source')
-    scope = dict(Path=Path,tempfile=tempfile,__file__=str(source))
-    exec(compile(ast.Module(body=[helper],type_ignores=[]),str(source),'exec'),scope)
+    helpers = [n for n in tree.body if isinstance(n,ast.FunctionDef) and
+               n.name in ('embedded_cluster_source','_denice_support_payload')]
+    scope = dict(Path=Path,tempfile=tempfile)
+    if with_file:scope['__file__']=str(source)
+    exec(compile(ast.Module(body=helpers,type_ignores=[]),str(source),'exec'),scope)
     with patch.object(tempfile,'mkdtemp',return_value=str(tmp_path)):
         bundle=scope['embedded_cluster_source']()
     with zipfile.ZipFile(bundle) as archive:
@@ -28,6 +31,27 @@ def test_single_upload_embeds_current_source(tmp_path):
         for p in expected:
             assert archive.read(p.relative_to(ROOT).as_posix())==p.read_bytes()
     assert source.read_bytes()==(ROOT/'output/single_file/train_incremental_kaggle.py').read_bytes()
+
+
+def test_cell_bootstrap_without_file_or_history(monkeypatch,tmp_path):
+    """Execute the actual first cell through fresh bootstrap, stopping at trainer."""
+    from types import ModuleType
+    for k in list(os.environ):
+        if k.startswith('DENICE_'):monkeypatch.delenv(k)
+    monkeypatch.setenv('DENICE_RESUME_DRIVE_URL','')
+    monkeypatch.chdir(tmp_path)
+    module=ModuleType('tools.train_cluster_server')
+    calls=[]
+    module.main=lambda:calls.append(os.environ['DENICE_SOURCE_ZIP'])
+    monkeypatch.setitem(sys.modules,'tools.train_cluster_server',module)
+    monkeypatch.setattr(sys,'path',list(sys.path))
+    source=(ROOT/'train_incremental_kaggle.py').read_text(encoding='utf-8')
+    namespace={'__name__':'__main__'}  # no __file__, IPython history or source on disk
+    with pytest.raises(SystemExit) as done:
+        exec(compile(source,'<kaggle-cell>','exec'),namespace)
+    assert done.value.code==0 and len(calls)==1
+    with zipfile.ZipFile(calls[0]) as archive:
+        assert archive.read('tools/train_denice_v2.py')==(ROOT/'tools/train_denice_v2.py').read_bytes()
 
 
 def test_env_adapter_forwards_compact_and_budget(monkeypatch,tmp_path):
