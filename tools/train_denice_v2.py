@@ -28,6 +28,8 @@ def main():
     parser.add_argument('--prediction-mode',choices=('cnn_coordinate_router_v1','routerless_v1'),default='cnn_coordinate_router_v1')
     parser.add_argument('--server-exchange',action='store_true')
     parser.add_argument('--compact-uploads',action='store_true',help='Lossless masked uploads for hierarchical temporary servers')
+    parser.add_argument('--session-seconds',type=float,help='Cooperative wall-time budget for runner; stop at saved round boundary')
+    parser.add_argument('--stop-margin-seconds',type=float,default=900)
     parser.add_argument('--resume-task',type=int)
     parser.add_argument('--resume-round',type=int)
     parser.add_argument('--resume-root')
@@ -101,13 +103,14 @@ def main():
     print(f'DeNICE V2 MAIN: seed42, 6 x 20 rounds, auto K, xi=.8, prediction={cfg.policy}.',flush=True)
     print(f'Parallel GPU workers={worker_devices}; batch/client={cfg.batch_size}; output={output}',flush=True)
     try:
-        runner.run()
+        completed=runner.run(session_seconds=args.session_seconds,stop_margin_seconds=args.stop_margin_seconds)
     except Exception as exc:
         atomic_json(output/'failure.json',dict(completed=False,error=repr(exc),traceback=traceback.format_exc(),
             next_task=runner.next_task,next_round=runner.next_round,task_end_pending=runner.task_end_pending,
             recovery='Resume the most recent verified checkpoint with the same source/data/config'))
         raise
-    print(f'COMPLETED: {output}/completion.json',flush=True)
+    print(f'COMPLETED: {output}/completion.json' if completed else
+          f'PAUSED: {output}/session_status.json; preserve this output to continue.',flush=True)
 
 
 if __name__=='__main__':main()

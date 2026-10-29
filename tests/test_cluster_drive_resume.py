@@ -84,6 +84,27 @@ class ClusterDriveResumeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'No checkpoint'):
             self.h['configure_cluster_resume'](self.root)
 
+    def test_restores_hierarchy_compression_and_router(self):
+        self.config.update(server_exchange=True, compact_uploads=True, policy='routerless_v1')
+        (self.root/'protocol_lock.json').write_text(json.dumps({'config':self.config}))
+        self.checkpoint(0, 3)
+        self.h['configure_cluster_resume'](self.root)
+        self.assertEqual(os.environ['DENICE_COMPACT_UPLOADS'], '1')
+        self.assertEqual(os.environ['DENICE_SERVER_EXCHANGE'], '1')
+        self.assertEqual(os.environ['DENICE_PREDICTION_MODE'], 'routerless_v1')
+
+    def test_rejects_changed_compression_on_resume(self):
+        self.checkpoint(0, 3)
+        os.environ['DENICE_COMPACT_UPLOADS']='1'
+        with self.assertRaisesRegex(ValueError, 'conflicts'):
+            self.h['configure_cluster_resume'](self.root)
+
+    def test_partial_archive_is_not_a_resume_point(self):
+        self.checkpoint(0, 2)
+        (self.root/'checkpoint_task_0_round_003.zip.partial').write_bytes(b'incomplete')
+        self.h['configure_cluster_resume'](self.root)
+        self.assertEqual(os.environ['DENICE_CLUSTER_RESUME_ROUND'], '2')
+
     def test_matching_runtime_does_not_install(self):
         result = subprocess.CompletedProcess([], 0, '2.10.0+cu128\n', '')
         with patch.object(subprocess, 'run', return_value=result) as run:

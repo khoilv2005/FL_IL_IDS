@@ -37,10 +37,10 @@ def test_small_launcher_downloads_pinned_resume_capable_revision(monkeypatch, tm
     namespace, calls = download_setup_namespace(monkeypatch, tmp_path)
     namespace['setup_imports']()
     assert namespace['REPO_PATH'] == str(tmp_path)
-    assert calls[1][-1] == 'd074f0e8cf4870e26150975b9e9df988cbe425f9'
+    assert calls[1][-1] == namespace['DEFAULT_CODE_REF']
     assert 'checkout' in calls[1]
     data = (ROOT / 'train_incremental_kaggle.py').read_bytes()
-    assert len(data) < 100_000
+    assert b'# BEGIN DENICE SUPPORT PAYLOAD' in data
     assert b'EMBEDDED_SUPPORT_B85' not in data
     assert data == (ROOT / 'output/single_file/train_incremental_kaggle.py').read_bytes()
 

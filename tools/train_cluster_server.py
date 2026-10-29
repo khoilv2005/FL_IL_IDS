@@ -38,6 +38,11 @@ def main():
     resume_root = os.environ.get('DENICE_CLUSTER_RESUME_ROOT')
     if os.environ.get('DENICE_SERVER_EXCHANGE') == '1':
         args.append('--server-exchange')
+    if os.environ.get('DENICE_COMPACT_UPLOADS') == '1':
+        args.append('--compact-uploads')
+    if os.environ.get('DENICE_SESSION_SECONDS'):
+        args += ['--session-seconds', os.environ['DENICE_SESSION_SECONDS'],
+                 '--stop-margin-seconds', os.environ.get('DENICE_STOP_MARGIN_SECONDS', '900')]
     resume_task = os.environ.get('DENICE_CLUSTER_RESUME_TASK')
     resume_round = os.environ.get('DENICE_CLUSTER_RESUME_ROUND')
     if resume_root and resume_task is None or resume_round and resume_task is None:

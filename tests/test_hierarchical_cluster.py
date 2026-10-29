@@ -58,6 +58,23 @@ class HierarchyTests(unittest.TestCase):
                          {c:s.fingerprint() for c,s in resumed.states.items()})
         self.assertEqual(self.runner.communication,resumed.communication)
 
+    def test_session_budget_saves_then_continues_without_repeating_round(self):
+        import json
+        paused = HierarchicalRunner(CoverageData(), self.root/'budget', self.cfg)
+        with patch.object(paused.data, 'test', side_effect=AssertionError('TEST touched')):
+            self.assertFalse(paused.run(session_seconds=0.001, stop_margin_seconds=0))
+        self.assertEqual((paused.next_task, paused.next_round), (0, 1))
+        status = json.loads((paused.output/'session_status.json').read_text())
+        self.assertEqual(status['status'], 'paused')
+        self.assertFalse((paused.output/'completion.json').exists())
+        resumed = HierarchicalRunner(CoverageData(), self.root/'budget_resumed', self.cfg)
+        resumed.resume(0, 0, paused.output)
+        with patch.object(resumed.data, 'test', side_effect=AssertionError('TEST touched')):
+            self.assertTrue(resumed.run())
+        self.assertEqual({c:s.fingerprint() for c,s in self.runner.states.items()},
+                         {c:s.fingerprint() for c,s in resumed.states.items()})
+        self.assertEqual(self.runner.communication,resumed.communication)
+
     def test_compact_uploads_match_dense_training_and_resume(self):
         cfg = replace(self.cfg, compact_uploads=True)
         compact = HierarchicalRunner(CoverageData(), self.root/'compact', cfg)

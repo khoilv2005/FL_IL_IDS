@@ -353,24 +353,51 @@ class Runner:
         else:
             print(f'Task {task} DONE: Mean Cluster Accuracy={summary["mean_cluster_accuracy"]:.4%}, Macro-F1={summary["mean_cluster_macro_f1"]:.4%}',flush=True)
 
-    def run(self, *, stop_after_rounds=None):
+    def run(self, *, stop_after_rounds=None, session_seconds=None, stop_margin_seconds=900):
+        if session_seconds is not None and (not np.isfinite(session_seconds) or session_seconds <= 0
+                or not np.isfinite(stop_margin_seconds) or stop_margin_seconds < 0):
+            raise ValueError('Invalid session time budget')
         try:
-            return self._run(stop_after_rounds=stop_after_rounds)
+            return self._run(stop_after_rounds=stop_after_rounds, session_seconds=session_seconds,
+                             stop_margin_seconds=stop_margin_seconds)
         finally:
             if self._gpu_pool is not None:
                 self._gpu_pool.close();self._gpu_pool=None
 
-    def _run(self, *, stop_after_rounds=None):
+    def _run(self, *, stop_after_rounds=None, session_seconds=None, stop_margin_seconds=900):
+        started=time.monotonic()
+        longest=0.0
+        recoverable=bool(self.states)
+        atomic_json(self.output/'session_status.json',dict(status='running',completed=False))
+        def should_pause():
+            if (session_seconds is None or not recoverable or
+                    time.monotonic()-started+stop_margin_seconds+longest < session_seconds):
+                return False
+            atomic_json(self.output/'session_status.json',dict(status='paused',completed=False,
+                reason='session_budget',next_task=self.next_task,next_round=self.next_round,
+                task_end_pending=self.task_end_pending,
+                elapsed_seconds=time.monotonic()-started,
+                recovery='Resume latest complete round archive; preserve entire output including source ZIP'))
+            print('PAUSED at saved checkpoint boundary; continue with this output next session.',flush=True)
+            return True
         if not self.states:self.initialize()
         completed=0
         while self.next_task<self.config.tasks:
+            if should_pause():return False
             task=self.next_task
             self.data.prepare(task)
             if task not in self.book.partitions:self.start_task(task)
-            if self.task_end_pending:self.finish_task(task);continue
+            if self.task_end_pending:
+                tick=time.monotonic();self.finish_task(task)
+                longest=max(longest,time.monotonic()-tick);recoverable=True
+                continue
             for round_id in range(self.next_round,self.config.rounds_per_task):
+                if should_pause():return False
+                tick=time.monotonic()
                 self.round(task,round_id);completed+=1
+                longest=max(longest,time.monotonic()-tick);recoverable=True
                 if stop_after_rounds is not None and completed>=stop_after_rounds:return
+            if should_pause():return False
             self.finish_task(task)
         self._test=None;gc.collect()
         if hasattr(self.data,'release_test'):self.data.release_test()
@@ -389,3 +416,5 @@ class Runner:
             metrics_files=[f'metrics_task_{t}.json' for t in sorted({r['task'] for r in self.evaluations})],
             checkpoints=[p.name for p in sorted(self.output.glob('checkpoint_task_*_all_rounds.zip'))],
             earlier_archives_may_remain_in_resume_dataset=True))
+        atomic_json(self.output/'session_status.json',dict(status='completed',completed=True))
+        return True
