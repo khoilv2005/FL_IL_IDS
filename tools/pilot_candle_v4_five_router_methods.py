@@ -57,19 +57,19 @@ class Scorers:
             result[method]=tasks
         return result
 
-def main():
+def main(scorer_type=Scorers,methods=METHODS,output_name='candle_v4_five_router_methods_20261107'):
     warnings.filterwarnings('ignore',message='Trying to unpickle estimator');torch.set_num_threads(2)
     torch.backends.cuda.matmul.allow_tf32=False;torch.backends.cudnn.allow_tf32=False
     ck=torch.load(ROOT/'audit_denice/candle_v4_results20_20261027/continuation_state_latest.pt',map_location='cpu',weights_only=False,mmap=True)
     service=OriginalTrainService(ck['candle_v4_shadow_state']['spec'],ck['candle_v4_shadow_state']);frozen=digest(service.state_dict())
     ids=sorted(ck['client_model_states'])
     # All scorers fitted before opening TEST; no method/parameter selection from TEST.
-    scorers={cid:Scorers(service.continuous_routers[cid]) for cid in ids}
-    print('Five methods fitted on saved TRAIN memory; opening fixed development panel',flush=True)
+    scorers={cid:scorer_type(service.continuous_routers[cid]) for cid in ids}
+    print(f'{len(methods)} methods fitted on saved TRAIN memory; opening fixed development panel',flush=True)
     with np.load(r'C:/Users/khoak/Downloads/candle_v1_multiclass_audit/global_test_data.npz') as data:
         x=torch.from_numpy(data['X_test']);y=torch.from_numpy(data['y_test']).long()
     shards,_=_partition_test_data_by_client(x,y,ids,seed=523687,lazy_features=True)
-    cms={m:np.zeros((34,34),dtype=np.int64) for m in ('baseline',)+METHODS}
+    cms={m:np.zeros((34,34),dtype=np.int64) for m in ('baseline',)+methods}
     counts={m:dict(rescue=0,break_count=0,route_correct=0,switched=0) for m in cms};clients={};start=time.perf_counter()
     for pos,cid in enumerate(ids,1):
         shard=shards[cid];idx=np.sort(np.random.default_rng(20261028+cid).choice(len(shard['y_test']),2048,replace=False))
@@ -100,7 +100,7 @@ def main():
         clients[cid]={m:statistics(cm)['accuracy'] for m,cm in local.items()}
         for m in cms:cms[m]+=local[m]
         del model,det,shards[cid]
-        if pos%20==0:print(f'Five-method evaluation {pos}/100',flush=True)
+        if pos%20==0:print(f'{len(methods)}-method evaluation {pos}/100',flush=True)
     prior=json.loads((ROOT/'audit_denice/candle_v4_results20_top2_20261028/audit.json').read_text())
     assert cms['baseline'].tolist()==prior['metrics']['baseline']['confusion_matrix']
     assert frozen==digest(service.state_dict())
@@ -109,7 +109,7 @@ def main():
         panel='Repeated TEST development panel; not independent confirmation',no_parameter_search=True,
         baseline_exact_match=True,service_unchanged=True,native_weights_unchanged=True,
         added_network_bytes=0,seconds=time.perf_counter()-start)
-    out=ROOT/'audit_denice/candle_v4_five_router_methods_20261107';out.mkdir(parents=True,exist_ok=True)
+    out=ROOT/'audit_denice'/output_name;out.mkdir(parents=True,exist_ok=True)
     (out/'audit.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
     print(json.dumps({m:dict(accuracy=v['accuracy'],macro_f1=v['macro_f1'],**counts[m]) for m,v in result['metrics'].items()},indent=2),flush=True)
 
